@@ -6,7 +6,6 @@ import itertools
 import functools as ft
 import tqdm
 from collections import namedtuple
-import src.utils as utils
 
 TrainingItem = namedtuple('TrainingItem', ['input', 'tgt'])
 
@@ -202,13 +201,6 @@ class AugmentedDataset(torch.utils.data.Dataset):
             }
         )
 
-
-
-def load_altimetry_data(path, coarsen):
-    return xr.open_dataset(path).coarsen(coarsen).mean().assign(
-        input=lambda ds: ds.nadir_obs,
-        tgt=lambda ds: utils.remove_nan(ds.ssh),
-    )[[*TrainingItem._fields]].transpose('time', 'lat', 'lon').to_array()
 
 
 class BaseDataModule(pl.LightningDataModule):

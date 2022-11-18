@@ -8,9 +8,6 @@ trainer:
     - _target_: pytorch_lightning.callbacks.ModelCheckpoint
       monitor: val_rmse
       save_last: True
-      verbose: True
-    - _target_: pytorch_lightning.callbacks.ModelSummary
-      max_depth: 2
     - _target_: pytorch_lightning.callbacks.GradientAccumulationScheduler
       scheduling: {20: 2, 50: 4}
 
@@ -19,7 +16,7 @@ datamodule:
   _target_: src.data.BaseDataModule
   _partial_: true
   input_da: 
-    _target_: src.data.load_altimetry_data
+    _target_: src.utils.load_altimetry_data
     path: /raid/localscratch/qfebvre/sla-data-registry/qdata/natl20.nc
     coarsen: {lat: 2, lon: 2}
   domains:
@@ -70,6 +67,8 @@ model:
 
 
 entrypoints:
+  - _target_: pytorch_lightning.seed_everything
+    seed: 333
   - _target_: pytorch_lightning.Trainer.fit
     self: ${singleton:trainer}
     model: ${singleton:model}
