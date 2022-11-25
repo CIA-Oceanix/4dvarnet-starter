@@ -24,16 +24,17 @@ def get_constant_crop(patch_dims, crop, dim_order=['time', 'lat', 'lon']):
         return patch_weight
 
 
-def load_altimetry_data(path, coarsen):
-    return xr.open_dataset(path).coarsen(coarsen).mean().assign(
+def load_altimetry_data(path):
+    return xr.open_dataset(path).load().assign(
         input=lambda ds: ds.nadir_obs,
         tgt=lambda ds: remove_nan(ds.ssh),
     )[[*src.data.TrainingItem._fields]].transpose('time', 'lat', 'lon').to_array()
 
 
-def diagnostics(model, datamodule):
+def diagnostics(model, datamodule, crop):
         print('RMSE (m)',
-                model.test_data
+                model.test_data.isel(time=slice(crop, -crop))
                 .pipe(lambda ds: (ds.rec_ssh -ds.ssh)*datamodule.norm_stats[1])
                 .pipe(lambda da: da**2).mean().pipe(np.sqrt).item()
         )
+

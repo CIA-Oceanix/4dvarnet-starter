@@ -4,7 +4,6 @@ import kornia
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import itertools as it
 import xarray as xr
 
 class Lit4dVarNet(pl.LightningModule):
@@ -24,39 +23,58 @@ class Lit4dVarNet(pl.LightningModule):
         loss = F.mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
         return loss
 
+    def training_epoch_end(self, outputs):
+        best_ckpt_path = self.trainer.checkpoint_callback.best_model_path
+        if len(best_ckpt_path) > 0:
+            def should_reload_ckpt(losses):
+                if losses.argmax() < losses.argmin():
+                    return False
+                if losses.max() > (10 * losses.min()):
+                    print("Reloading because of check", 1)
+                    return True
+
+            if should_reload_ckpt(torch.stack([out['loss'] for out in outputs])):
+                print('reloading', best_ckpt_path)
+                ckpt = torch.load(best_ckpt_path)
+                self.load_state_dict(ckpt['state_dict'])
+
     def training_step(self, batch, batch_idx):
-        loss, grad_loss = self.step(batch, 'tr', training=True)[0]
-        return loss + 50*grad_loss
+        loss, grad_loss, prior_cost = self.step(batch, 'tr', training=True)[0]
+        return 50*loss + 1000*grad_loss + 0.5*prior_cost
 
     def validation_step(self, batch, batch_idx):
         return self.step(batch, 'val')[0]
 
     def forward(self, batch, training=False):
-        return self.solver(batch)
+        return self.solver(batch, training=training)
 
     def step(self, batch, phase='', opt_idx=None, training=False):
         states = self(batch=batch, training=training)
         loss = sum(
-                self.weighted_mse(state - batch.tgt, self.rec_weight)
-            for state in states)
+                # (len(state) - i)/len(state) * self.weighted_mse(state - batch.tgt, self.rec_weight)
+                # (i+1)/len(state) * self.weighted_mse(state - batch.tgt, self.rec_weight)
+                (i+1) * self.weighted_mse(state - batch.tgt, self.rec_weight)
+            for i,state in enumerate(states))
 
-        grad_loss = sum(
-                self.weighted_mse(
-                    kornia.filters.sobel(state) - kornia.filters.sobel(batch.tgt),
-                    self.rec_weight
-                ) for state in states)
         out = states[-1]
-        rmse = self.weighted_mse(out - batch.tgt, self.rec_weight)**0.5
-        self.log(f'{phase}_rmse', rmse, prog_bar=True, on_step=False, on_epoch=True)
-        self.log(f'{phase}_loss', loss, prog_bar=True, on_step=False, on_epoch=True)
-        self.log(f'{phase}_gloss', grad_loss, prog_bar=True, on_step=False, on_epoch=True)
-        return [loss, grad_loss], out
+        grad_loss = self.weighted_mse(
+            kornia.filters.sobel(out) - kornia.filters.sobel(batch.tgt),
+            self.rec_weight
+        )
+        prior_cost = self.solver.prior_cost(out)
+        with torch.no_grad():
+            rmse = self.weighted_mse(out - batch.tgt, self.rec_weight)**0.5
+            self.log(f'{phase}_rmse', rmse, prog_bar=True, on_step=False, on_epoch=True)
+            self.log(f'{phase}_loss', loss, prog_bar=True, on_step=False, on_epoch=True)
+            self.log(f'{phase}_gloss', grad_loss, prog_bar=True, on_step=False, on_epoch=True)
+        return [loss, grad_loss, prior_cost], out
 
     def configure_optimizers(self):
-        return torch.optim.Adam([
-            {'params': self.solver.grad_mod.parameters(), 'lr':1e-3},
+        opt = torch.optim.Adam(
+            [{'params': self.solver.grad_mod.parameters(), 'lr':1e-3},
             {'params': self.solver.prior_cost.parameters(), 'lr':5e-4}],
-            lr=1e-3)
+        )
+        return opt
 
     def test_step(self, batch, batch_idx):
         out = self(batch=batch)[-1]
@@ -64,10 +82,10 @@ class Lit4dVarNet(pl.LightningModule):
         return torch.stack([
             batch.tgt.cpu(),
             out.squeeze(dim=-1).detach().cpu(),
-            ],dim=1)
+        ], dim=1)
 
     def test_epoch_end(self, outputs):
-        rec_data = (it.chain(lt) for lt in zip(*outputs))
+        rec_data = outputs
         rec_da = (
             self.trainer
             .test_dataloaders[0].dataset
@@ -91,6 +109,7 @@ class GradSolver(nn.Module):
         self.prior_cost = prior_cost
         self.obs_cost = obs_cost
         self.grad_mod = grad_mod
+        self.post_conv = grad_mod
 
         self.n_step = n_step
         self.cut_graph_freq = cut_graph_freq
@@ -104,10 +123,13 @@ class GradSolver(nn.Module):
         if self._grad_norm is None:
             self._grad_norm = (grad**2).mean().sqrt()
         
-        state_update = 1 / (step + 1)  *  self.grad_mod(grad / self._grad_norm)
+        state_update = (
+            1 / (step + 1)  *  self.grad_mod(grad / self._grad_norm) 
+                +  0.1 * (step + 1) / self.n_step 
+        )
         return state - state_update
 
-    def forward(self, batch):
+    def forward(self, batch, training=False):
         with torch.set_grad_enabled(True):
             _intermediate_states = []
             state = batch.input.nan_to_num().detach().requires_grad_(True)
@@ -123,13 +145,19 @@ class GradSolver(nn.Module):
 
                 state = self.solver_step(state, batch, step=step)
 
-        return [*_intermediate_states, state]
+        output = [*_intermediate_states, state]
+
+        if not training:
+            return [t.detach() for t in output]
+
+        return output
 
 
 
 class ConvLstmGradModel(nn.Module):
-    def __init__(self, dim_in, dim_hidden, kernel_size=3, dropout=0.25):
+    def __init__(self, dim_in, dim_hidden, kernel_size=3, dropout=0.1):
         super().__init__()
+        self.down = nn.AvgPool2d(2)
         self.dim_hidden = dim_hidden
         self.gates = torch.nn.Conv2d(
             dim_in + dim_hidden,
@@ -142,6 +170,7 @@ class ConvLstmGradModel(nn.Module):
         )
 
         self.dropout = torch.nn.Dropout(dropout)
+        self.up = nn.UpsamplingBilinear2d(scale_factor=2)
         self._state = []
 
     def reset_state(self, inp):
@@ -150,6 +179,10 @@ class ConvLstmGradModel(nn.Module):
                 torch.zeros(size, device=inp.device),
                 torch.zeros(size, device=inp.device),
         ]
+        # self._state = [
+        #         self.down(torch.zeros(size, device=inp.device)),
+        #         self.down(torch.zeros(size, device=inp.device)),
+        # ]
 
     def detach_state(self):
         self._state = [
@@ -159,6 +192,7 @@ class ConvLstmGradModel(nn.Module):
     def forward(self, x):
         hidden, cell = self._state
         x = self.dropout(x)
+        # x = self.down(x)
         gates = self.gates(torch.cat((x, hidden), 1))
 
         in_gate, remember_gate, out_gate, cell_gate = gates.chunk(4, 1)
@@ -170,8 +204,9 @@ class ConvLstmGradModel(nn.Module):
         hidden = out_gate * torch.tanh(cell)
 
         self._state = hidden, cell
-        hidden = self.dropout(hidden)
-        return self.conv_out(hidden)
+        # hidden = self.up(hidden)
+        out = self.conv_out(hidden)
+        return out
 
 
 class BaseObsCost(nn.Module):
@@ -184,6 +219,7 @@ class BilinAEPriorCost(nn.Module):
     def __init__(self, dim_in, dim_hidden, kernel_size=3):
         super().__init__()
         self.conv_in = nn.Conv2d(dim_in, dim_hidden, kernel_size=kernel_size, padding=kernel_size//2)
+        self.down = nn.AvgPool2d(2)
         self.conv_hidden = nn.Conv2d(dim_hidden, dim_hidden, kernel_size=kernel_size, padding=kernel_size//2)
 
         self.bilin_1 = nn.Conv2d(dim_hidden, dim_hidden, kernel_size=kernel_size, padding=kernel_size//2)
@@ -191,15 +227,20 @@ class BilinAEPriorCost(nn.Module):
         self.bilin_22 = nn.Conv2d(dim_hidden, dim_hidden, kernel_size=kernel_size, padding=kernel_size//2)
     
         self.conv_out = nn.Conv2d(2 * dim_hidden, dim_in, kernel_size=kernel_size, padding=kernel_size//2)
+        self.up = nn.UpsamplingBilinear2d(scale_factor=2)
 
 
     def forward_ae(self, x):
+        # x = self.down(x)
         x = self.conv_in(x)
         x = self.conv_hidden(F.relu(x))
 
-        return self.conv_out(
-            torch.cat([self.bilin_1(x), self.bilin_21(x) * self.bilin_21(x)], dim=1)
+        x = self.conv_out(
+            torch.cat([self.bilin_1(x),
+                       self.bilin_21(x) * self.bilin_21(x)], dim=1)
         )
+        # x = self.up(x)
+        return  x
 
     def forward(self, state):
         return F.mse_loss(state, self.forward_ae(state))

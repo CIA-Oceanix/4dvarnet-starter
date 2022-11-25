@@ -217,7 +217,7 @@ class BaseDataModule(pl.LightningDataModule):
         self.val_ds = None
         self.test_ds = None
 
-    def setup(self, stage):
+    def setup(self, stage='test'):
         train_data = self.input_da.sel(self.domains['train'])
         self.norm_stats = train_data.sel(variable='tgt').pipe(lambda da: (da.mean().values, da.std().values))
         post_fn = ft.partial(ft.reduce,lambda i, f: f(i), [

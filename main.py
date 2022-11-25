@@ -1,8 +1,6 @@
 import hydra
 from omegaconf import OmegaConf
 
-
-
 OmegaConf.register_new_resolver(
         "div", lambda i, j: int(i)//int(j), replace=True)
 
