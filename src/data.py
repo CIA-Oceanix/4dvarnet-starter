@@ -48,11 +48,11 @@ class XrDataset(torch.utils.data.Dataset):
         self.da = da.sel(**(domain_limits or {}))
         self.patch_dims = patch_dims
         self.strides = strides or {}
-        da_dims = dict(zip(da.dims, da.shape))
+        da_dims = dict(zip(self.da.dims, self.da.shape))
         self.ds_size = {
-                dim: max((da_dims[dim] - patch_dims[dim]) // self.strides.get(dim, 1) + 1, 0)
-                for dim in patch_dims
-                }
+            dim: max((da_dims[dim] - patch_dims[dim]) // self.strides.get(dim, 1) + 1, 0)
+            for dim in patch_dims
+        }
 
 
         if check_full_scan:
@@ -204,24 +204,29 @@ class AugmentedDataset(torch.utils.data.Dataset):
 
 
 class BaseDataModule(pl.LightningDataModule):
-    def __init__(self, input_da, domains, xrds_kw, dl_kw, aug_factor=2):
+    def __init__(self, input_da, domains, xrds_kw, dl_kw, aug_factor=2, norm_stats=None):
         super().__init__()
         self.input_da = input_da
         self.domains = domains
         self.xrds_kw = xrds_kw
         self.dl_kw = dl_kw
         self.aug_factor = aug_factor
-        self.norm_stats = 0, 1.
+        self._norm_stats = norm_stats
 
         self.train_ds = None
         self.val_ds = None
         self.test_ds = None
 
+    def norm_stats(self):
+        if self._norm_stats is None:
+            train_data = self.input_da.sel(self.domains['train'])
+            self._norm_stats = train_data.sel(variable='tgt').pipe(lambda da: (da.mean().values, da.std().values))
+        return self._norm_stats
+
     def setup(self, stage='test'):
         train_data = self.input_da.sel(self.domains['train'])
-        self.norm_stats = train_data.sel(variable='tgt').pipe(lambda da: (da.mean().values, da.std().values))
         post_fn = ft.partial(ft.reduce,lambda i, f: f(i), [
-            lambda item: (item - self.norm_stats[0]) / self.norm_stats[1],
+            lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1],
             TrainingItem._make,
         ])
         self.train_ds = XrDataset(

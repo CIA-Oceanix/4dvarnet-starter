@@ -48,6 +48,9 @@ model:
       _target_: src.utils.get_constant_crop
       patch_dims: ${datamodule.xrds_kw.patch_dims}
       crop: {time: 8, lat: 20, lon: 20}
+  norm_stats:
+    _target_: src.data.BaseDataModule.norm_stats
+    self: ${singleton:datamodule}
   solver: 
     _target_: src.models.GradSolver
     n_step: 15

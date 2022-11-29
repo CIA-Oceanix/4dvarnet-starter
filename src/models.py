@@ -7,11 +7,12 @@ import torch.nn.functional as F
 import xarray as xr
 
 class Lit4dVarNet(pl.LightningModule):
-    def __init__(self, solver, rec_weight):
+    def __init__(self, solver, rec_weight, norm_stats=None):
         super().__init__()
         self.solver = solver
         self.rec_weight = nn.Parameter(torch.from_numpy(rec_weight), requires_grad=False)
         self.test_data = None
+        self.norm_stats = norm_stats
 
     @staticmethod
     def weighted_mse(err, weight):
@@ -25,18 +26,13 @@ class Lit4dVarNet(pl.LightningModule):
 
     def training_epoch_end(self, outputs):
         best_ckpt_path = self.trainer.checkpoint_callback.best_model_path
-        if len(best_ckpt_path) > 0:
-            def should_reload_ckpt(losses):
-                if losses.argmax() < losses.argmin():
-                    return False
-                if losses.max() > (10 * losses.min()):
-                    print("Reloading because of check", 1)
-                    return True
+        losses = torch.stack([out['loss'] for out in outputs])
 
-            if should_reload_ckpt(torch.stack([out['loss'] for out in outputs])):
-                print('reloading', best_ckpt_path)
-                ckpt = torch.load(best_ckpt_path)
-                self.load_state_dict(ckpt['state_dict'])
+        can_reload_ckpt = len(best_ckpt_path) > 0
+        should_reload_ckpt = (losses.argmax() > losses.argmin()) and (losses.max() > (10 * losses.min()))
+
+        if should_reload_ckpt and can_reload_ckpt:
+            self.load_state_dict(torch.load(best_ckpt_path)['state_dict'])
 
     def training_step(self, batch, batch_idx):
         loss, grad_loss, prior_cost = self.step(batch, 'tr', training=True)[0]
@@ -51,8 +47,6 @@ class Lit4dVarNet(pl.LightningModule):
     def step(self, batch, phase='', opt_idx=None, training=False):
         states = self(batch=batch, training=training)
         loss = sum(
-                # (len(state) - i)/len(state) * self.weighted_mse(state - batch.tgt, self.rec_weight)
-                # (i+1)/len(state) * self.weighted_mse(state - batch.tgt, self.rec_weight)
                 (i+1) * self.weighted_mse(state - batch.tgt, self.rec_weight)
             for i,state in enumerate(states))
 
@@ -63,7 +57,7 @@ class Lit4dVarNet(pl.LightningModule):
         )
         prior_cost = self.solver.prior_cost(out)
         with torch.no_grad():
-            rmse = self.weighted_mse(out - batch.tgt, self.rec_weight)**0.5
+            rmse = self.weighted_mse((out - batch.tgt) * self.norm_stats[1].item(), self.rec_weight)**0.5
             self.log(f'{phase}_rmse', rmse, prog_bar=True, on_step=False, on_epoch=True)
             self.log(f'{phase}_loss', loss, prog_bar=True, on_step=False, on_epoch=True)
             self.log(f'{phase}_gloss', grad_loss, prog_bar=True, on_step=False, on_epoch=True)
@@ -78,17 +72,17 @@ class Lit4dVarNet(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         out = self(batch=batch)[-1]
+        m, s = self.norm_stats
 
         return torch.stack([
-            batch.tgt.cpu(),
-            out.squeeze(dim=-1).detach().cpu(),
+            batch.tgt.cpu() * s + m,
+            out.squeeze(dim=-1).detach().cpu() * s + m,
         ], dim=1)
 
     def test_epoch_end(self, outputs):
         rec_data = outputs
         rec_da = (
-            self.trainer
-            .test_dataloaders[0].dataset
+            self.trainer.test_dataloaders[0].dataset
             .reconstruct(rec_data, self.rec_weight.cpu().numpy())
         )
         npa = rec_da.values
@@ -125,7 +119,7 @@ class GradSolver(nn.Module):
         
         state_update = (
             1 / (step + 1)  *  self.grad_mod(grad / self._grad_norm) 
-                +  0.1 * (step + 1) / self.n_step 
+                +  0.1 * (step + 1) / self.n_step * grad
         )
         return state - state_update
 
@@ -155,9 +149,8 @@ class GradSolver(nn.Module):
 
 
 class ConvLstmGradModel(nn.Module):
-    def __init__(self, dim_in, dim_hidden, kernel_size=3, dropout=0.1):
+    def __init__(self, dim_in, dim_hidden, kernel_size=3, dropout=0.1, downsamp=None):
         super().__init__()
-        self.down = nn.AvgPool2d(2)
         self.dim_hidden = dim_hidden
         self.gates = torch.nn.Conv2d(
             dim_in + dim_hidden,
@@ -170,19 +163,17 @@ class ConvLstmGradModel(nn.Module):
         )
 
         self.dropout = torch.nn.Dropout(dropout)
-        self.up = nn.UpsamplingBilinear2d(scale_factor=2)
         self._state = []
+
+        self.down = nn.AvgPool2d(downsamp) if downsamp is not None else nn.Identity()
+        self.up = nn.UpsamplingBilinear2d(scale_factor=downsamp) if downsamp is not None else nn.Identity()
 
     def reset_state(self, inp):
         size = [inp.shape[0], self.dim_hidden, *inp.shape[-2:]]
         self._state = [
-                torch.zeros(size, device=inp.device),
-                torch.zeros(size, device=inp.device),
+                self.down(torch.zeros(size, device=inp.device)),
+                self.down(torch.zeros(size, device=inp.device)),
         ]
-        # self._state = [
-        #         self.down(torch.zeros(size, device=inp.device)),
-        #         self.down(torch.zeros(size, device=inp.device)),
-        # ]
 
     def detach_state(self):
         self._state = [
@@ -192,7 +183,7 @@ class ConvLstmGradModel(nn.Module):
     def forward(self, x):
         hidden, cell = self._state
         x = self.dropout(x)
-        # x = self.down(x)
+        x = self.down(x)
         gates = self.gates(torch.cat((x, hidden), 1))
 
         in_gate, remember_gate, out_gate, cell_gate = gates.chunk(4, 1)
@@ -204,8 +195,8 @@ class ConvLstmGradModel(nn.Module):
         hidden = out_gate * torch.tanh(cell)
 
         self._state = hidden, cell
-        # hidden = self.up(hidden)
         out = self.conv_out(hidden)
+        out = self.up(out)
         return out
 
 
@@ -216,10 +207,9 @@ class BaseObsCost(nn.Module):
 
 
 class BilinAEPriorCost(nn.Module):
-    def __init__(self, dim_in, dim_hidden, kernel_size=3):
+    def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None):
         super().__init__()
         self.conv_in = nn.Conv2d(dim_in, dim_hidden, kernel_size=kernel_size, padding=kernel_size//2)
-        self.down = nn.AvgPool2d(2)
         self.conv_hidden = nn.Conv2d(dim_hidden, dim_hidden, kernel_size=kernel_size, padding=kernel_size//2)
 
         self.bilin_1 = nn.Conv2d(dim_hidden, dim_hidden, kernel_size=kernel_size, padding=kernel_size//2)
@@ -227,11 +217,12 @@ class BilinAEPriorCost(nn.Module):
         self.bilin_22 = nn.Conv2d(dim_hidden, dim_hidden, kernel_size=kernel_size, padding=kernel_size//2)
     
         self.conv_out = nn.Conv2d(2 * dim_hidden, dim_in, kernel_size=kernel_size, padding=kernel_size//2)
-        self.up = nn.UpsamplingBilinear2d(scale_factor=2)
 
+        self.down = nn.AvgPool2d(downsamp) if downsamp is not None else nn.Identity()
+        self.up = nn.UpsamplingBilinear2d(scale_factor=downsamp) if downsamp is not None else nn.Identity()
 
     def forward_ae(self, x):
-        # x = self.down(x)
+        x = self.down(x)
         x = self.conv_in(x)
         x = self.conv_hidden(F.relu(x))
 
@@ -239,7 +230,7 @@ class BilinAEPriorCost(nn.Module):
             torch.cat([self.bilin_1(x),
                        self.bilin_21(x) * self.bilin_21(x)], dim=1)
         )
-        # x = self.up(x)
+        x = self.up(x)
         return  x
 
     def forward(self, state):

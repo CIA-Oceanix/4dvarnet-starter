@@ -2,9 +2,6 @@ import hydra
 from omegaconf import OmegaConf
 
 OmegaConf.register_new_resolver(
-        "div", lambda i, j: int(i)//int(j), replace=True)
-
-OmegaConf.register_new_resolver(
         "_singleton", 
         lambda k: dict(
             _target_='main.store',
@@ -21,6 +18,8 @@ def store(key, obj_cfg, _s={}):
 
 @hydra.main(config_path='config', config_name='main', version_base='1.2')
 def main(cfg):
+    OmegaConf.resolve(cfg)
+    OmegaConf.resolve(cfg)
     hydra.utils.call(cfg.entrypoints)
 
 if __name__ == '__main__':
