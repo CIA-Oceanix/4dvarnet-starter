@@ -2,3 +2,7 @@ entrypoints: ???
 defaults:
   - xp: ???
   - _self_
+
+hydra:
+  searchpath:
+    - pkg://xps
