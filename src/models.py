@@ -7,12 +7,13 @@ import torch.nn.functional as F
 import xarray as xr
 
 class Lit4dVarNet(pl.LightningModule):
-    def __init__(self, solver, rec_weight, norm_stats=None):
+    def __init__(self, solver, rec_weight, opt_fn=None, norm_stats=None):
         super().__init__()
         self.solver = solver
         self.rec_weight = nn.Parameter(torch.from_numpy(rec_weight), requires_grad=False)
         self.test_data = None
-        self.norm_stats = norm_stats
+        self.norm_stats = norm_stats if norm_stats is not None else (np.array(0), np.array(1))
+        self.opt_fn = opt_fn
 
     @staticmethod
     def weighted_mse(err, weight):
@@ -64,11 +65,12 @@ class Lit4dVarNet(pl.LightningModule):
         return [loss, grad_loss, prior_cost], out
 
     def configure_optimizers(self):
-        opt = torch.optim.Adam(
-            [{'params': self.solver.grad_mod.parameters(), 'lr':1e-3},
-            {'params': self.solver.prior_cost.parameters(), 'lr':5e-4}],
-        )
-        return opt
+        if self.opt_fn is None:
+            return torch.optim.Adam(
+                [{'params': self.solver.grad_mod.parameters(), 'lr':1e-3},
+                {'params': self.solver.prior_cost.parameters(), 'lr':5e-4}],
+            )
+        return self.opt_fn(self)
 
     def test_step(self, batch, batch_idx):
         out = self(batch=batch)[-1]
