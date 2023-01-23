@@ -220,7 +220,7 @@ class BaseDataModule(pl.LightningDataModule):
     def norm_stats(self):
         if self._norm_stats is None:
             train_data = self.input_da.sel(self.domains['train'])
-            self._norm_stats = train_data.sel(variable='tgt').pipe(lambda da: (da.mean().values, da.std().values))
+            self._norm_stats = train_data.sel(variable='tgt').pipe(lambda da: (da.mean().values.item(), da.std().values.item()))
         return self._norm_stats
 
     def setup(self, stage='test'):

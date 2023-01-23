@@ -10,9 +10,9 @@ class Lit4dVarNet(pl.LightningModule):
     def __init__(self, solver, rec_weight, opt_fn=None, norm_stats=None):
         super().__init__()
         self.solver = solver
-        self.rec_weight = nn.Parameter(torch.from_numpy(rec_weight), requires_grad=False)
+        self.register_buffer('rec_weight', torch.from_numpy(rec_weight))
         self.test_data = None
-        self.norm_stats = norm_stats if norm_stats is not None else (np.array(0), np.array(1))
+        self.norm_stats = norm_stats if norm_stats is not None else (0., 1.)
         self.opt_fn = opt_fn
 
     @staticmethod
@@ -30,23 +30,26 @@ class Lit4dVarNet(pl.LightningModule):
         losses = torch.stack([out['loss'] for out in outputs])
 
         can_reload_ckpt = len(best_ckpt_path) > 0
-        should_reload_ckpt = (losses.argmax() > losses.argmin()) and (losses.max() > (10 * losses.min()))
+
+        should_reload_ckpt_1 = not losses.isfinite().all()
+        should_reload_ckpt_2 = (losses.argmax() > losses.argmin()) and (losses.max() > (10 * losses.min()))
+        should_reload_ckpt = should_reload_ckpt_1 or should_reload_ckpt_2
 
         if should_reload_ckpt and can_reload_ckpt:
             self.load_state_dict(torch.load(best_ckpt_path)['state_dict'])
 
     def training_step(self, batch, batch_idx):
-        loss, grad_loss, prior_cost = self.step(batch, 'tr', training=True)[0]
+        loss, grad_loss, prior_cost = self.step(batch, 'tr')[0]
         return 50*loss + 1000*grad_loss + 0.5*prior_cost
 
     def validation_step(self, batch, batch_idx):
         return self.step(batch, 'val')[0]
 
-    def forward(self, batch, training=False):
-        return self.solver(batch, training=training)
+    def forward(self, batch):
+        return self.solver(batch)
 
-    def step(self, batch, phase='', opt_idx=None, training=False):
-        states = self(batch=batch, training=training)
+    def step(self, batch, phase='', opt_idx=None):
+        states = self(batch=batch)
         loss = sum(
                 (i+1) * self.weighted_mse(state - batch.tgt, self.rec_weight)
             for i,state in enumerate(states))
@@ -58,7 +61,7 @@ class Lit4dVarNet(pl.LightningModule):
         )
         prior_cost = self.solver.prior_cost(out)
         with torch.no_grad():
-            rmse = self.weighted_mse((out - batch.tgt) * self.norm_stats[1].item(), self.rec_weight)**0.5
+            rmse = self.weighted_mse((out - batch.tgt) * self.norm_stats[1], self.rec_weight)**0.5
             self.log(f'{phase}_rmse', rmse, prog_bar=True, on_step=False, on_epoch=True)
             self.log(f'{phase}_loss', loss, prog_bar=True, on_step=False, on_epoch=True)
             self.log(f'{phase}_gloss', grad_loss, prog_bar=True, on_step=False, on_epoch=True)
@@ -100,17 +103,18 @@ class Lit4dVarNet(pl.LightningModule):
         })
 
 class GradSolver(nn.Module):
-    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, cut_graph_freq):
+    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, cut_graph_freq, lr_grad=0.1):
         super().__init__()
         self.prior_cost = prior_cost
         self.obs_cost = obs_cost
         self.grad_mod = grad_mod
-        self.post_conv = grad_mod
 
         self.n_step = n_step
         self.cut_graph_freq = cut_graph_freq
+        self.lr_grad = lr_grad
 
         self._grad_norm = None
+
 
     def solver_step(self, state, batch, step):
         var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
@@ -121,11 +125,11 @@ class GradSolver(nn.Module):
         
         state_update = (
             1 / (step + 1)  *  self.grad_mod(grad / self._grad_norm) 
-                +  0.1 * (step + 1) / self.n_step * grad
+                + self.lr_grad * (step + 1) / self.n_step * grad
         )
         return state - state_update
 
-    def forward(self, batch, training=False):
+    def forward(self, batch):
         with torch.set_grad_enabled(True):
             _intermediate_states = []
             state = batch.input.nan_to_num().detach().requires_grad_(True)
@@ -140,14 +144,29 @@ class GradSolver(nn.Module):
                     self.grad_mod.detach_state()
 
                 state = self.solver_step(state, batch, step=step)
+                if not self.training:
+                    state = state.detach().requires_grad_(True)
+        
 
+        if not self.training:
+            state = self.prior_cost.forward_ae(state)
         output = [*_intermediate_states, state]
-
-        if not training:
-            return [t.detach() for t in output]
 
         return output
 
+class IdentityGradModel(nn.Module):
+    def __init__(self, lr):
+        super().__init__()
+        self.lr = lr
+
+    def reset_state(self, *args, **kwargs):
+        pass
+
+    def detach_state(self):
+        pass
+
+    def forward(self, x):
+        return self.lr * x
 
 
 class ConvLstmGradModel(nn.Module):

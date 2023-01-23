@@ -3,3 +3,5 @@ outputs
 logs
 multirun
 **/*.ipynb
+scratches
+

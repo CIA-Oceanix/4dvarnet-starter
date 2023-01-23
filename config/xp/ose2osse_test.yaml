@@ -1,111 +1,22 @@
 # @package _global_
 
-trainer:
-  _target_: pytorch_lightning.Trainer
-  _partial_: true
-  inference_mode: False
-  accelerator: gpu
-  devices: 1
-  logger: 
-    _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: ${hydra:runtime.output_dir}
-    name: ${hydra:runtime.choices.xp}
-    version: ''
-  max_epochs: 400
-  callbacks:
-    - _target_: src.versioning_cb.VersioningCallback
-    - _target_: pytorch_lightning.callbacks.ModelCheckpoint
-      monitor: val_rmse
-      filename: best
-      save_last: True
-
-
-osse_datamodule:
-  _target_: src.data.BaseDataModule
-  _partial_: true
-  input_da: 
-    _target_: src.utils.load_altimetry_data
-    path: /raid/localscratch/qfebvre/sla-data-registry/qdata/natl20.nc
-  domains: 
-    train: 
-      time: {_target_: builtins.slice, _args_: ['2013-02-04', '2013-09-30']}
-    val: 
-      time: {_target_: builtins.slice, _args_: ['2012-12-15', '2013-02-24']}
-    test: 
-      time: {_target_: builtins.slice,  _args_: ['2012-10-01', '2012-12-20']}
-  xrds_kw:
-    patch_dims: { time: 29, lat: 240, lon: 240}
-    strides: { time: 1, lat: 240, lon: 240}
-
-  dl_kw: {batch_size: 4, num_workers: 1}
-  aug_factor: 4
-
-ose_datamodule:
-  _target_: src.data.BaseDataModule
-  _partial_: true
-  input_da: 
-    _target_: xps.ose2osse.data.load_ose_data
-    path: ../sla-data-registry/data_OSE/NATL/training/data_OSE_OSSE_nad.nc
-  domains: 
-    test: 
-      time: {_target_: builtins.slice, _args_: ['2016-12-01', '2018-01-31']}
-    train: ${ose_datamodule.domains.test} 
-    val: ${ose_datamodule.domains.test} 
-  xrds_kw: 
-    patch_dims: ${osse_datamodule.xrds_kw.patch_dims}
-    strides: ${osse_datamodule.xrds_kw.strides}
-    domain_limits: 
-      lat: {_target_: builtins.slice, _args_: [32., 44.]}
-      lon: {_target_: builtins.slice, _args_: [-66., -54.]}
-  dl_kw: {batch_size: 8, num_workers: 1}
-  norm_stats:
-    _target_: src.data.BaseDataModule.norm_stats
-    self: ${singleton:osse_datamodule}
-
-model:
-  _target_: src.models.Lit4dVarNet
-  _partial_: true
-  rec_weight:
-      _target_: src.utils.get_constant_crop
-      patch_dims: ${osse_datamodule.xrds_kw.patch_dims}
-      crop: {time: 8, lat: 20, lon: 20}
-  norm_stats:
-    _target_: src.data.BaseDataModule.norm_stats
-    self: ${singleton:osse_datamodule}
-  solver: 
-    _target_: src.models.GradSolver
-    n_step: 15
-    cut_graph_freq: 5
-    prior_cost: 
-      _target_: src.models.BilinAEPriorCost
-      dim_in: ${osse_datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 64
-    obs_cost: 
-      _target_: src.models.BaseObsCost
-    grad_mod: 
-      _target_: src.models.ConvLstmGradModel
-      dim_in: ${osse_datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 128
-
+defaults:
+  - /xp/ose2osse
+  - _self_
 
 entrypoints:
   - _target_: builtins.print
     _args_: ['\n ########## Logging to ${hydra:runtime.output_dir} ######## \n']
   - _target_: pytorch_lightning.seed_everything
     seed: 333
-  - _target_: pytorch_lightning.Trainer.fit
-    self: ${singleton:trainer}
-    model: ${singleton:model}
-    datamodule: ${singleton:osse_datamodule}
-  - _target_: pytorch_lightning.seed_everything
-    seed: 333
   - _target_: pytorch_lightning.Trainer.test
     self: ${singleton:trainer}
     model: ${singleton:model}
     datamodule: ${singleton:ose_datamodule}
-    ckpt_path: '/raid/localscratch/qfebvre/4dvarnet-starter/outputs/2022-11-23/15-23-51/base/checkpoints/best.ckpt'
+    ckpt_path: ${stages.fit.ckpt_path}
   - _target_: xps.ose2osse.diagnostics.ose_diags
     model: ${singleton:model}
     test_track_path: ../sla-data-registry/data_OSE/along_track/dt_gulfstream_c2_phy_l3_20161201-20180131_285-315_23-53.nc
     oi_path: ../sla-data-registry/data_OSE/NATL/training/ssh_alg_h2g_j2g_j2n_j3_s3a_duacs.nc
+    save_rec_path: ${hydra:runtime.output_dir}
       

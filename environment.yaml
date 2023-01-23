@@ -4,13 +4,15 @@ channels:
   - conda-forge
 dependencies:
   - pip
-  - pytorch=1.13
+  - pytorch=1.12
   - pytorch-cuda=11.6
   - pyinterp
   - xarray
   - dask
   - netCDF4
   - bottleneck
+  - xrft
+  - metpy
   - pip:
     - pytorch-lightning==1.8.*
     - GitPython
