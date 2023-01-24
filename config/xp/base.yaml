@@ -38,7 +38,7 @@ datamodule:
   xrds_kw:
     patch_dims: { time: 17, lat: 240, lon: 240}
     strides: { time: 1, lat: 240, lon: 240}
-  dl_kw: {batch_size: 8, num_workers: 1}
+  dl_kw: {batch_size: 4, num_workers: 1}
   aug_factor: 2
 
 
