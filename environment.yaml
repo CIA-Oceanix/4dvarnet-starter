@@ -2,6 +2,7 @@ channels:
   - pytorch
   - nvidia
   - conda-forge
+  - pyviz
 dependencies:
   - pip
   - pytorch=1.13
@@ -11,9 +12,15 @@ dependencies:
   - dask
   - netCDF4
   - bottleneck
+  - xrft
+  - metpy
+  - scipy
+  - matplotlib
+  - holoviews
   - pip:
     - pytorch-lightning==1.8.*
     - GitPython
     - einops
     - hydra-core
     - kornia
+    - tabulate

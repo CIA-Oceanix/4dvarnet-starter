@@ -2,3 +2,7 @@
 outputs
 logs
 multirun
+**/*.ipynb
+scratches
+tmp
+data

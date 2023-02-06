@@ -219,9 +219,12 @@ class BaseDataModule(pl.LightningDataModule):
 
     def norm_stats(self):
         if self._norm_stats is None:
-            train_data = self.input_da.sel(self.domains['train'])
-            self._norm_stats = train_data.sel(variable='tgt').pipe(lambda da: (da.mean().values, da.std().values))
+            self._norm_stats = self.train_mean_std()
         return self._norm_stats
+
+    def train_mean_std(self):
+        train_data = self.input_da.sel(self.domains['train'])
+        return train_data.sel(variable='tgt').pipe(lambda da: (da.mean().values.item(), da.std().values.item()))
 
     def setup(self, stage='test'):
         train_data = self.input_da.sel(self.domains['train'])
@@ -233,7 +236,7 @@ class BaseDataModule(pl.LightningDataModule):
             train_data, **self.xrds_kw, postpro_fn=post_fn,
         )
         if self.aug_factor > 1:
-            self.train_ds = AugmentedDataset(self.train_ds, self.aug_factor)
+            self.train_ds = AugmentedDataset(self.train_ds, aug_factor=self.aug_factor)
 
         self.val_ds = XrDataset(
             self.input_da.sel(self.domains['val']), **self.xrds_kw, postpro_fn=post_fn,
@@ -251,3 +254,4 @@ class BaseDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         return torch.utils.data.DataLoader(self.test_ds, shuffle=False, **self.dl_kw)
+

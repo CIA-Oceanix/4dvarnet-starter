@@ -1,10 +1,20 @@
 import numpy as np
+import kornia
+import pandas as pd
+import xrft
+import torch
 import pyinterp
 import pyinterp.fill
 import pyinterp.backends.xarray
 import src.data
 import xarray as xr
+import matplotlib.pyplot as plt
 
+def half_lr_adam(lit_mod, lr):
+    return torch.optim.Adam(
+        [{'params': lit_mod.solver.grad_mod.parameters(), 'lr':lr},
+        {'params': lit_mod.solver.prior_cost.parameters(), 'lr':lr/2}],
+    )
 
 def remove_nan(da):
     da['lon'] = da.lon.assign_attrs(units='degrees_east')
@@ -31,10 +41,45 @@ def load_altimetry_data(path):
     )[[*src.data.TrainingItem._fields]].transpose('time', 'lat', 'lon').to_array()
 
 
-def diagnostics(model, datamodule, crop):
-        print('RMSE (m)',
-                model.test_data.isel(time=slice(crop, -crop))
-                .pipe(lambda ds: (ds.rec_ssh -ds.ssh)*datamodule.norm_stats[1])
-                .pipe(lambda da: da**2).mean().pipe(np.sqrt).item()
-        )
+def rmse_based_scores(da_rec, da_ref):
+    rmse_t = 1.0 - (((da_rec - da_ref)**2).mean(dim=('lon', 'lat')))**0.5/(((da_ref)**2).mean(dim=('lon', 'lat')))**0.5
+    rmse_xy = (((da_rec - da_ref)**2).mean(dim=('time')))**0.5
+    rmse_t = rmse_t.rename('rmse_t')
+    rmse_xy = rmse_xy.rename('rmse_xy')
+    reconstruction_error_stability_metric = rmse_t.std().values
+    leaderboard_rmse = 1.0 - (((da_rec - da_ref) ** 2).mean()) ** 0.5 / (
+        ((da_ref) ** 2).mean()) ** 0.5
+    return rmse_t, rmse_xy, np.round(leaderboard_rmse.values, 5), np.round(reconstruction_error_stability_metric, 5)
 
+
+def psd_based_scores(da_rec, da_ref):
+    err = (da_rec - da_ref)
+    err['time'] = (err.time - err.time[0]) / np.timedelta64(1, 'D')
+    signal = da_ref
+    signal['time'] = (signal.time - signal.time[0]) / np.timedelta64(1, 'D')
+    psd_err = xrft.power_spectrum(err, dim=['time', 'lon'], detrend='constant', window='hann').compute()
+    psd_signal = xrft.power_spectrum(signal, dim=['time', 'lon'], detrend='constant', window='hann').compute()
+    mean_psd_signal = psd_signal.mean(dim='lat').where((psd_signal.freq_lon > 0.) & (psd_signal.freq_time > 0), drop=True)
+    mean_psd_err = psd_err.mean(dim='lat').where((psd_err.freq_lon > 0.) & (psd_err.freq_time > 0), drop=True)
+    psd_based_score = (1.0 - mean_psd_err/mean_psd_signal)
+    level = [0.5]
+    cs = plt.contour(1./psd_based_score.freq_lon.values,1./psd_based_score.freq_time.values, psd_based_score, level)
+    x05, y05 = cs.collections[0].get_paths()[0].vertices.T
+    plt.close()
+
+    shortest_spatial_wavelength_resolved = np.min(x05)
+    shortest_temporal_wavelength_resolved = np.min(y05)
+    psd_da = (1.0 - mean_psd_err/mean_psd_signal)
+    psd_da.name = 'psd_score'
+    return psd_da.to_dataset(), np.round(shortest_spatial_wavelength_resolved, 3), np.round(shortest_temporal_wavelength_resolved, 3)
+
+
+def diagnostics(model, crop):
+    test_data = model.test_data.isel(time=slice(crop, -crop))
+    print('RMSE (m)', test_data 
+            .pipe(lambda ds: (ds.rec_ssh - ds.ssh))
+            .pipe(lambda da: da**2).mean().pipe(np.sqrt).item()
+    )
+
+    print('λx λt', test_data.pipe(lambda ds: psd_based_scores(ds.rec_ssh, ds.ssh)[1:]))
+    print('μ σ', test_data.pipe(lambda ds: rmse_based_scores(ds.rec_ssh, ds.ssh)[2:]))
