@@ -1,0 +1,74 @@
+# @package _global_
+
+trainer:
+  _target_: pytorch_lightning.Trainer
+  inference_mode: False
+  gradient_clip_val: 0.5
+  accelerator: gpu
+  devices: 1
+  logger: 
+    _target_: pytorch_lightning.loggers.CSVLogger
+    save_dir: ${hydra:runtime.output_dir}
+    name: ${hydra:runtime.choices.xp}
+    version: ''
+  max_epochs: 1000
+  callbacks:
+    - _target_: src.versioning_cb.VersioningCallback
+    - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+      monitor: val_rmse
+      save_top_k: 10
+      filename: '{epoch:03d}-{val_rmse:.4f}'
+
+datamodule:
+  _target_: src.data.BaseDataModule
+  input_da: 
+    _target_: src.utils.load_altimetry_data
+    path: /raid/localscratch/qfebvre/sla-data-registry/qdata/natl20.nc
+  domains:
+    train: 
+      time: {_target_: builtins.slice, _args_: ['2013-02-04', '2013-09-30']}
+    val: 
+      time: {_target_: builtins.slice, _args_: ['2012-12-15', '2013-02-24']}
+    test: 
+      time: {_target_: builtins.slice,  _args_: ['2012-10-01', '2012-12-20']}
+  xrds_kw:
+    patch_dims: { time: 15, lat: 240, lon: 240}
+    strides: { time: 1, lat: 240, lon: 240}
+  dl_kw: {batch_size: 8, num_workers: 1}
+
+model:
+  _target_: src.models.Lit4dVarNet
+  opt_fn:
+    _target_: src.utils.half_lr_adam
+    _partial_: true
+    lr: 1e-3
+  rec_weight:
+      _target_: src.utils.get_constant_crop
+      patch_dims: ${datamodule.xrds_kw.patch_dims}
+      crop: {time: 5, lat: 20, lon: 20}
+  solver: 
+    _target_: src.models.GradSolver
+    n_step: 15
+    lr_grad: 0.2
+    prior_cost: 
+      _target_: src.models.BilinAEPriorCost
+      dim_in: ${datamodule.xrds_kw.patch_dims.time}
+      dim_hidden: 50
+      downsamp: 2
+    obs_cost: 
+      _target_: src.models.BaseObsCost
+    grad_mod: 
+      _target_: src.models.ConvLstmGradModel
+      dim_in: ${datamodule.xrds_kw.patch_dims.time}
+      dim_hidden: 75
+
+
+entrypoints:
+  - _target_: src.train.base_training
+    trainer: ${trainer}
+    lit_mod: ${model}
+    dm: ${datamodule}
+    test_fn:
+      _target_: src.utils.diagnostics
+      _partial_: true
+      crop: ${model.rec_weight.crop.time} 
