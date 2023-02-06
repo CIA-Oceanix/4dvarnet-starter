@@ -16,6 +16,7 @@ def half_lr_adam(lit_mod, lr):
         {'params': lit_mod.solver.prior_cost.parameters(), 'lr':lr/2}],
     )
 
+
 def remove_nan(da):
     da['lon'] = da.lon.assign_attrs(units='degrees_east')
     da['lat'] = da.lat.assign_attrs(units='degrees_north')
@@ -32,6 +33,14 @@ def get_constant_crop(patch_dims, crop, dim_order=['time', 'lat', 'lon']):
         )
         patch_weight[mask] = 1.
         return patch_weight
+
+def get_cropped_hanning_mask(patch_dims, crop, **kwargs):
+    pw = get_constant_crop(patch_dims, crop)
+
+    t_msk =kornia.filters.get_hanning_kernel1d(patch_dims['time'])
+
+    patch_weight = t_msk[:, None, None] * pw
+    return patch_weight.cpu().numpy()
 
 
 def load_altimetry_data(path):
@@ -83,3 +92,31 @@ def diagnostics(model, crop):
 
     print('λx λt', test_data.pipe(lambda ds: psd_based_scores(ds.rec_ssh, ds.ssh)[1:]))
     print('μ σ', test_data.pipe(lambda ds: rmse_based_scores(ds.rec_ssh, ds.ssh)[2:]))
+
+
+def ensemble_metrics(trainer, lit_mod, ckpt_list, dm, save_path):
+    metrics = []
+    test_data = xr.Dataset()
+    for i, ckpt in enumerate(ckpt_list):
+        trainer.test(lit_mod, ckpt_path=ckpt, datamodule=dm)
+        rmse = (lit_mod.test_data.pipe(lambda ds: (ds.rec_ssh - ds.ssh))
+            .pipe(lambda da: da**2).mean().pipe(np.sqrt).item())
+        lx, lt = psd_based_scores(lit_mod.test_data.rec_ssh, lit_mod.test_data.ssh)[1:]
+        mu, sig = rmse_based_scores(lit_mod.test_data.rec_ssh, lit_mod.test_data.ssh)[2:]
+        metrics.append(dict(ckpt=ckpt, rmse=rmse, lx=lx, lt=lt, mu=mu, sig=sig))
+
+        if i == 0:
+            test_data = lit_mod.test_data
+            test_data = test_data.rename(rec_ssh=f'rec_ssh_{i}')
+        else:
+            test_data = test_data.assign(**{f'rec_ssh_{i}': lit_mod.test_data.rec_ssh})
+        test_data[f'rec_ssh_{i}'] = test_data[f'rec_ssh_{i}'].assign_attrs(ckpt=str(ckpt))
+    
+
+    metric_df = pd.DataFrame(metrics)
+    print(metric_df.to_markdown())
+    print(metric_df.describe().to_markdown())
+    metric_df.to_csv(save_path + '/metrics.csv')
+    test_data.to_netcdf(save_path + 'ens_rec_ssh.nc')
+
+

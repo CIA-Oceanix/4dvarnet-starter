@@ -204,7 +204,7 @@ class AugmentedDataset(torch.utils.data.Dataset):
 
 
 class BaseDataModule(pl.LightningDataModule):
-    def __init__(self, input_da, domains, xrds_kw, dl_kw, aug_factor=2, norm_stats=None):
+    def __init__(self, input_da, domains, xrds_kw, dl_kw, aug_factor=0, norm_stats=None):
         super().__init__()
         self.input_da = input_da
         self.domains = domains
