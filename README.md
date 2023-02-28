@@ -26,30 +26,17 @@ The model uses hydra see [#useful-links]
 ```
 python main.py xp=base 
 ```
-
-## Contribute
-Create your xp config file in `config/xp/<my_new_xp>.yaml` and run it with
-```
-python main.py xp=<my_new_xp>
-```
-The you can:
-- change parameters within the new config file
-- implement new models in `src/<my_custom_package>/models.py` (for example)
-- use it from the config with the `_target_` config key
-- try on other data etc...
-
-
 ## Saved weights:
 
 A bigger model has been trained using the command
 
 ```
-python main.py xp=base +params=bigger_model # train bigger model
+python main.py xp=base +params=bigger_model 
 ```
 
 You can find pre-trained weights [here](https://s3.eu-central-1.wasabisys.com/melody/quentin_cloud/starter_big_mod_07a265.ckpt)
 
-The test metrics of this model are:
+The test metrics of this model are ([see here for the details])(https://github.com/ocean-data-challenges/2020a_SSH_mapping_NATL60):
 
 |          |   osse_metrics |
 |:---------|---------------:|
