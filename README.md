@@ -22,8 +22,9 @@ wget https://s3.eu-central-1.wasabisys.com/sla-data-registry/6d/206c6be2dfe0edf1
 ```
 
 ## Run
+The model uses hydra see [#useful-links]
 ```
-python main.py xp=base
+python main.py xp=base 
 ```
 
 ## Contribute
@@ -31,13 +32,35 @@ Create your xp config file in `config/xp/<my_new_xp>.yaml` and run it with
 ```
 python main.py xp=<my_new_xp>
 ```
-
 The you can:
 - change parameters within the new config file
 - implement new models in `src/<my_custom_package>/models.py` (for example)
 - use it from the config with the `_target_` config key
 - try on other data etc...
 
+
+## Saved weights:
+
+A bigger model has been trained using the command
+
+```
+python main.py xp=base +params=bigger_model # train bigger model
+```
+
+You can find pre-trained weights [here](https://s3.eu-central-1.wasabisys.com/melody/quentin_cloud/starter_big_mod_07a265.ckpt)
+
+The test metrics of this model are:
+
+|          |   osse_metrics |
+|:---------|---------------:|
+| RMSE (m) |      0.0211406 |
+| λx       |      0.716     |
+| λt       |      4.681     |
+| μ        |      0.96362   |
+| σ        |      0.00544   |
+
+Animation:
+![Animation](https://s3.eu-central-1.wasabisys.com/melody/quentin_cloud/starter_anim.gif)
 
 ## Useful links:
 - [Hydra documentation](https://hydra.cc/docs/intro/)

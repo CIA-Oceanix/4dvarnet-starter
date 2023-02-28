@@ -49,8 +49,7 @@ class Lit4dVarNet(pl.LightningModule):
             rmse = (
                 self.weighted_mse(
                     (out - batch.tgt) * self.norm_stats[1], self.rec_weight
-                )
-                ** 0.5
+                ) ** 0.5
             )
             self.log(f"{phase}_rmse", rmse, prog_bar=True, on_step=False, on_epoch=True)
             self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
