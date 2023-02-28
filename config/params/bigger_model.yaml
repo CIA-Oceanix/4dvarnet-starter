@@ -1,0 +1,19 @@
+# @package _global_
+trainer:
+  max_epochs: 300
+
+datamodule:
+  aug_factor: 5
+  aug_only: False
+
+model:
+  opt_fn:
+    T_max: 300
+  solver:
+    n_step: 15
+    prior_cost:
+      dim_hidden: 64
+    grad_mod:
+      dim_hidden: 96
+
+

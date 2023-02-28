@@ -151,7 +151,7 @@ class XrDataset(torch.utils.data.Dataset):
         )
         count_da = xr.zeros_like(rec_da)
 
-        for da in tqdm.tqdm(das):
+        for da in das:
             rec_da.loc[da.coords] = rec_da.sel(da.coords) + da * w
             count_da.loc[da.coords] = count_da.sel(da.coords) + w
 
@@ -174,16 +174,23 @@ class XrConcatDataset(torch.utils.data.ConcatDataset):
         return rec_das
 
 class AugmentedDataset(torch.utils.data.Dataset):
-    def __init__(self, inp_ds, aug_factor, item_cls=TrainingItem):
+    def __init__(self, inp_ds, aug_factor, aug_only=False, item_cls=TrainingItem):
         self.aug_factor = aug_factor
+        self.aug_only = aug_only
         self.inp_ds = inp_ds
         self.perm = np.random.permutation(len(self.inp_ds))
         self.item_cls = item_cls
 
     def __len__(self):
-        return len(self.inp_ds) * (self.aug_factor + 1)
+        return len(self.inp_ds) * (1 + self.aug_factor - int(self.aug_only))
 
     def __getitem__(self, idx):
+        if self.aug_only:
+            idx = idx + len(self.inp_ds)
+
+        if idx < len(self.inp_ds):
+            return self.inp_ds[idx]
+
         tgt_idx = idx % len(self.inp_ds)
         perm_idx = tgt_idx
         for _ in range(idx // len(self.inp_ds)):
@@ -202,15 +209,15 @@ class AugmentedDataset(torch.utils.data.Dataset):
         )
 
 
-
 class BaseDataModule(pl.LightningDataModule):
-    def __init__(self, input_da, domains, xrds_kw, dl_kw, aug_factor=0, norm_stats=None):
+    def __init__(self, input_da, domains, xrds_kw, dl_kw, aug_only=False, aug_factor=2, norm_stats=None):
         super().__init__()
         self.input_da = input_da
         self.domains = domains
         self.xrds_kw = xrds_kw
         self.dl_kw = dl_kw
         self.aug_factor = aug_factor
+        self.aug_only = aug_only
         self._norm_stats = norm_stats
 
         self.train_ds = None
@@ -220,10 +227,11 @@ class BaseDataModule(pl.LightningDataModule):
     def norm_stats(self):
         if self._norm_stats is None:
             self._norm_stats = self.train_mean_std()
+            print("Norm stats", self._norm_stats)
         return self._norm_stats
 
     def train_mean_std(self):
-        train_data = self.input_da.sel(self.domains['train'])
+        train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {})).sel(self.domains['train'])
         return train_data.sel(variable='tgt').pipe(lambda da: (da.mean().values.item(), da.std().values.item()))
 
     def setup(self, stage='test'):
@@ -235,8 +243,8 @@ class BaseDataModule(pl.LightningDataModule):
         self.train_ds = XrDataset(
             train_data, **self.xrds_kw, postpro_fn=post_fn,
         )
-        if self.aug_factor > 1:
-            self.train_ds = AugmentedDataset(self.train_ds, aug_factor=self.aug_factor)
+        if self.aug_factor > 0:
+            self.train_ds = AugmentedDataset(self.train_ds, aug_factor=self.aug_factor, aug_only=self.aug_only)
 
         self.val_ds = XrDataset(
             self.input_da.sel(self.domains['val']), **self.xrds_kw, postpro_fn=post_fn,
@@ -254,4 +262,63 @@ class BaseDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         return torch.utils.data.DataLoader(self.test_ds, shuffle=False, **self.dl_kw)
+
+class ConcatDataModule(BaseDataModule):
+    def train_mean_std(self):
+        sum, count = 0, 0
+        train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {}))
+        for domain in self.domains['train']:
+            _sum, _count = train_data.sel(domain).sel(variable='tgt').pipe(lambda da: (da.sum(), da.pipe(np.isfinite).sum()))
+            sum += _sum
+            count += _count
+
+        mean = sum / count
+        sum = 0
+        for domain in self.domains['train']:
+            _sum = train_data.sel(domain).sel(variable='tgt').pipe(lambda da: da - mean).pipe(np.square).sum()
+            sum += _sum
+        std = (sum / count)**0.5
+        return mean.values.item(), std.values.item()
+
+    def setup(self, stage='test'):
+        post_fn = ft.partial(ft.reduce,lambda i, f: f(i), [
+            lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1],
+            TrainingItem._make,
+        ])
+        self.train_ds = XrConcatDataset([
+            XrDataset(self.input_da.sel(domain), **self.xrds_kw, postpro_fn=post_fn,)
+            for domain in self.domains['train']
+        ])
+        if self.aug_factor >= 1:
+            self.train_ds = AugmentedDataset(self.train_ds, self.aug_factor)
+
+        self.val_ds = XrConcatDataset([
+            XrDataset(self.input_da.sel(domain), **self.xrds_kw, postpro_fn=post_fn,)
+            for domain in self.domains['val']
+        ])
+        self.test_ds = XrConcatDataset([
+            XrDataset(self.input_da.sel(domain), **self.xrds_kw, postpro_fn=post_fn,)
+            for domain in self.domains['test']
+        ])
+
+
+class RandValDataModule(BaseDataModule):
+    def __init__(self, val_prop, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.val_prop = val_prop
+
+    def setup(self, stage='test'):
+        post_fn = ft.partial(ft.reduce,lambda i, f: f(i), [
+            lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1],
+            TrainingItem._make,
+        ])
+        train_ds = XrDataset(self.input_da.sel(self.domains['train']), **self.xrds_kw, postpro_fn=post_fn,)
+        n_val = int(self.val_prop * len(train_ds))
+        n_train = len(train_ds) - n_val
+        self.train_ds, self.val_ds = torch.utils.data.random_split(train_ds, [n_train, n_val])
+
+        if self.aug_factor > 1:
+            self.train_ds = AugmentedDataset(self.train_ds, self.aug_factor)
+
+        self.test_ds = XrDataset(self.input_da.sel(self.domains['test']), **self.xrds_kw, postpro_fn=post_fn,)
 
