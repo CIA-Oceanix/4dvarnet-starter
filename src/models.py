@@ -123,7 +123,6 @@ class GradSolver(nn.Module):
 
     def forward(self, batch):
         with torch.set_grad_enabled(True):
-            red = lambda f, t: einops.reduce(t, "b t lat lon -> b () () ()", f)
             state = batch.input.nan_to_num().detach().requires_grad_(True)
             self.grad_mod.reset_state(batch.input)
             self._grad_norm = None
@@ -169,9 +168,6 @@ class ConvLstmGradModel(nn.Module):
             self.down(torch.zeros(size, device=inp.device)),
             self.down(torch.zeros(size, device=inp.device)),
         ]
-
-    def detach_state(self):
-        self._state = [s.detach().requires_grad_(True) for s in self._state]
 
     def forward(self, x):
         hidden, cell = self._state
