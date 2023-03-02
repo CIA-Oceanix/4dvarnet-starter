@@ -91,7 +91,7 @@ def get_triang_time_wei(patch_dims, crop):
     pw = get_constant_crop(patch_dims, crop)
     return np.fromfunction(
         lambda t, *a: (
-            (1 - np.abs(2 * t - patch_dims["time"]) / patch_dims["time"]) * pw
+            (1 - np.abs(1 + 2 * t - patch_dims["time"]) / patch_dims["time"]) * pw
         ),
         patch_dims.values(),
     )
