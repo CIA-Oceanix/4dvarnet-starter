@@ -87,11 +87,11 @@ def get_cropped_hanning_mask(patch_dims, crop, **kwargs):
     return patch_weight.cpu().numpy()
 
 
-def get_triang_time_wei(patch_dims, crop):
+def get_triang_time_wei(patch_dims, crop, offset=0):
     pw = get_constant_crop(patch_dims, crop)
     return np.fromfunction(
         lambda t, *a: (
-            (1 - np.abs(1 + 2 * t - patch_dims["time"]) / patch_dims["time"]) * pw
+            (1 - np.abs(offset + 2 * t - patch_dims["time"]) / patch_dims["time"]) * pw
         ),
         patch_dims.values(),
     )
@@ -109,6 +109,20 @@ def load_altimetry_data(path):
         .transpose("time", "lat", "lon")
         .to_array()
     )
+
+def load_full_natl_data(path, obs_var='five_nadirs'):
+    inp = xr.open_dataset(
+        "../sla-data-registry/CalData/cal_data_new_errs.nc"
+    )[obs_var]
+    gt = (
+        xr.open_dataset(
+            "../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_ssh_y2013.1y.nc"
+        )
+        .ssh.isel(time=slice(0, -1))
+        .sel(lat=inp.lat, lon=inp.lon, method="nearest")
+    )
+
+    return xr.Dataset(dict(input=inp, tgt=(gt.dims, gt.values)), inp.coords).to_array()
 
 
 def rmse_based_scores(da_rec, da_ref):
@@ -258,3 +272,21 @@ def best_ckpt(xp_dir):
     cbs = torch.load(ckpt_last)["callbacks"]
     ckpt_cb = cbs[next(k for k in cbs.keys() if "ModelCheckpoint" in k)]
     return ckpt_cb["best_model_path"]
+
+
+def load_cfg(xp_dir, parent="."):
+    with hydra.initialize(parent / xp_dir, version_base="1.2"):
+        cfg = hydra.compose("config")
+        hydra_cfg = OmegaConf.load(Path(xp_dir) / "hydra.yaml").hydra
+        OmegaConf.register_new_resolver(
+            "hydra", lambda k: OmegaConf.select(hydra_cfg, k), replace=True
+        )
+        try:
+            OmegaConf.resolve(cfg)
+            OmegaConf.resolve(cfg)
+        except Exception as e:
+            return None, None
+
+    return cfg, OmegaConf.select(hydra_cfg, "runtime.choices.xp")
+
+

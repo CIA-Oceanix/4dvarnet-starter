@@ -3,6 +3,8 @@
 paths:
     natl_gf_5nads: data/natl_gf_w_5nadirs.nc
 
+domain: ???
+
 trainer:
   _target_: pytorch_lightning.Trainer
   inference_mode: False
@@ -37,7 +39,8 @@ datamodule:
       time: {_target_: builtins.slice,  _args_: ['2012-10-01', '2012-12-20']}
   xrds_kw:
     patch_dims: { time: 15, lat: 240, lon: 240}
-    strides: { time: 1, lat: 240, lon: 240}
+    strides: { time: 1, lat: 200, lon: 200}
+    domain_limits: ${domain.train}
   dl_kw: {batch_size: 4, num_workers: 1}
   aug_factor: 2
   aug_only: True
@@ -53,6 +56,7 @@ model:
       _target_: src.utils.get_triang_time_wei
       patch_dims: ${datamodule.xrds_kw.patch_dims}
       crop: {time: 0, lat: 20, lon: 20}
+      offset: 0
   solver: 
     _target_: src.models.GradSolver
     n_step: 10
@@ -82,5 +86,9 @@ entrypoints:
       _partial_: true
       test_domain:
         time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
-        lat: {_target_: builtins.slice, _args_: [33, 43]}
-        lon: {_target_: builtins.slice, _args_: [-65, -55]}
+        lat: ${domain.test.lat}
+        lon: ${domain.test.lat}
+
+defaults:
+  - /domain: gf
+  - _self_

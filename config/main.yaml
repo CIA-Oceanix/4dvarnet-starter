@@ -1,4 +1,6 @@
 entrypoints: ???
+hydra:
+  searchpath: [pkg://config]
 defaults:
   - xp: ???
   - _self_
