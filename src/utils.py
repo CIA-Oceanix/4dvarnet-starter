@@ -1,4 +1,6 @@
 import numpy as np
+import hydra
+from omegaconf import OmegaConf
 from pathlib import Path
 import functools as ft
 import metpy.calc as mpcalc
@@ -171,6 +173,7 @@ def psd_based_scores(da_rec, da_ref):
         psd_based_score,
         level,
     )
+    plt.show()
     x05, y05 = cs.collections[0].get_paths()[0].vertices.T
     plt.close()
 
@@ -211,6 +214,25 @@ def diagnostics_from_ds(test_data, test_domain):
         ),
     }
     return pd.Series(metrics, name="osse_metrics")
+
+
+def test_osse(trainer, lit_mod, osse_dm, osse_test_domain, ckpt, diag_data_dir=None):
+    lit_mod.norm_stats = osse_dm.norm_stats()
+    trainer.test(lit_mod, datamodule=osse_dm, ckpt_path=ckpt)
+    osse_tdat = lit_mod.test_data
+    osse_metrics = src.utils.diagnostics_from_ds(
+        osse_tdat, test_domain=osse_test_domain
+    )
+
+    print(osse_metrics.to_markdown())
+
+    if diag_data_dir is not None:
+        osse_metrics.to_csv(diag_data_dir / "osse_metrics.csv")
+        if (diag_data_dir / "osse_test_data.nc").exists():
+            xr.open_dataset(diag_data_dir / "osse_test_data.nc").close()
+        osse_tdat.to_netcdf(diag_data_dir / "osse_test_data.nc")
+
+    return osse_metrics
 
 
 def ensemble_metrics(trainer, lit_mod, ckpt_list, dm, save_path):
@@ -274,18 +296,17 @@ def best_ckpt(xp_dir):
     return ckpt_cb["best_model_path"]
 
 
-def load_cfg(xp_dir, parent="."):
-    with hydra.initialize(parent / xp_dir, version_base="1.2"):
-        cfg = hydra.compose("config")
-        hydra_cfg = OmegaConf.load(Path(xp_dir) / "hydra.yaml").hydra
-        OmegaConf.register_new_resolver(
-            "hydra", lambda k: OmegaConf.select(hydra_cfg, k), replace=True
-        )
-        try:
-            OmegaConf.resolve(cfg)
-            OmegaConf.resolve(cfg)
-        except Exception as e:
-            return None, None
+def load_cfg(xp_dir):
+    hydra_cfg = OmegaConf.load(Path(xp_dir) / "hydra.yaml").hydra
+    cfg = OmegaConf.load(Path(xp_dir) / "config.yaml")
+    OmegaConf.register_new_resolver(
+        "hydra", lambda k: OmegaConf.select(hydra_cfg, k), replace=True
+    )
+    try:
+        OmegaConf.resolve(cfg)
+        OmegaConf.resolve(cfg)
+    except Exception as e:
+        return None, None
 
     return cfg, OmegaConf.select(hydra_cfg, "runtime.choices.xp")
 

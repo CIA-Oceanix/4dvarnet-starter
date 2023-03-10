@@ -1,6 +1,8 @@
 entrypoints: ???
 hydra:
-  searchpath: [pkg://config]
+  searchpath: 
+    - pkg://config
+    - pkg://contrib
 defaults:
   - xp: ???
   - _self_

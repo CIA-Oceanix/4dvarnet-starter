@@ -44,7 +44,7 @@ class Lit4dVarNet(pl.LightningModule):
         grad_loss = self.weighted_mse(
             kornia.filters.sobel(out) - kornia.filters.sobel(batch.tgt), self.rec_weight
         )
-        prior_cost = self.solver.prior_cost(out)
+        prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
         with torch.no_grad():
             rmse = (
                 self.weighted_mse(
@@ -69,6 +69,7 @@ class Lit4dVarNet(pl.LightningModule):
 
         return torch.stack(
             [
+                batch.input.cpu() * s + m,
                 batch.tgt.cpu() * s + m,
                 out.squeeze(dim=-1).detach().cpu() * s + m,
             ],
@@ -83,15 +84,10 @@ class Lit4dVarNet(pl.LightningModule):
         if isinstance(rec_da, list):
             rec_da = rec_da[0]
 
-        npa = rec_da.values
-        lonidx = ~np.all(np.isnan(npa), axis=tuple([0, 1, 2]))
-        latidx = ~np.all(np.isnan(npa), axis=tuple([0, 1, 3]))
-        tidx = ~np.all(np.isnan(npa), axis=tuple([0, 2, 3]))
-
         self.test_data = xr.Dataset(
             {
-                k: rec_da.isel(v0=i, time=tidx, lat=latidx, lon=lonidx)
-                for i, k in enumerate(["ssh", "rec_ssh"])
+                k: rec_da.isel(v0=i)
+                for i, k in enumerate(["obs", "ssh", "rec_ssh"])
             }
         )
 
@@ -108,24 +104,26 @@ class GradSolver(nn.Module):
 
         self._grad_norm = None
 
+    def init_state(self, batch, x_init=None):
+        if x_init is not None:
+            return x_init
+
+        return batch.input.nan_to_num().detach().requires_grad_(True)
+
     def solver_step(self, state, batch, step):
         var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
 
-        if self._grad_norm is None:
-            self._grad_norm = (grad**2).mean().sqrt()
-
         state_update = (
-            1 / (step + 1) * self.grad_mod(grad / self._grad_norm)
+            1 / (step + 1) * self.grad_mod(grad)
             + self.lr_grad * (step + 1) / self.n_step * grad
         )
         return state - state_update
 
     def forward(self, batch):
         with torch.set_grad_enabled(True):
-            state = batch.input.nan_to_num().detach().requires_grad_(True)
+            state = self.init_state(batch)
             self.grad_mod.reset_state(batch.input)
-            self._grad_norm = None
 
             for step in range(self.n_step):
                 state = self.solver_step(state, batch, step=step)
@@ -164,12 +162,16 @@ class ConvLstmGradModel(nn.Module):
 
     def reset_state(self, inp):
         size = [inp.shape[0], self.dim_hidden, *inp.shape[-2:]]
+        self._grad_norm = None
         self._state = [
             self.down(torch.zeros(size, device=inp.device)),
             self.down(torch.zeros(size, device=inp.device)),
         ]
 
     def forward(self, x):
+        if self._grad_norm is None:
+            self._grad_norm = (x**2).mean().sqrt()
+        x =  x / self._grad_norm
         hidden, cell = self._state
         x = self.dropout(x)
         x = self.down(x)
