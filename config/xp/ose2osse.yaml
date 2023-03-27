@@ -2,16 +2,22 @@
 
 defaults:
   - /xp/base 
+  - /params/bigger_model 
   - _self_
+
+trainer:
+  max_epochs: 1000
 
 start_ckpt: null
 test_datamodule: null
 
 osse_datamodule: 
+  input_da:
+    obs_from_tgt: true
   xrds_kw: ${datamodule.xrds_kw}
   dl_kw: ${datamodule.dl_kw}
-  aug_factor: ${datamodule.aug_factor}
-  aug_only: ${datamodule.aug_only}
+  aug_factor: 0
+  aug_only: 0
 
 ose_datamodule:
   _target_: src.data.BaseDataModule
@@ -44,7 +50,7 @@ entrypoints:
       _target_: contrib.ose2osse.diagnostics.full_ose_osse_test
       _partial_: true
       osse_test_domain:
-        time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
+        time: ${osse_datamodule.domains.test.0.time}
         lat: {_target_: builtins.slice, _args_: [33, 43]}
         lon: {_target_: builtins.slice, _args_: [-65, -55]}
       trainer: ${trainer}

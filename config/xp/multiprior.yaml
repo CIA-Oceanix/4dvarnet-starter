@@ -17,7 +17,7 @@ datamodule:
     strides: { time: 1, lat: 200, lon: 200}
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 4, num_workers: 1}
-  aug_factor: 0
+  aug_factor: 5
 
 model:
   _target_: src.models.Lit4dVarNet
@@ -25,7 +25,7 @@ model:
     _target_: src.utils.cosanneal_lr_adam
     _partial_: true
     lr: 1e-3
-    T_max: 150
+    T_max: 300
   rec_weight:
       _target_: src.utils.get_triang_time_wei
       patch_dims: ${datamodule.xrds_kw.patch_dims}
@@ -42,15 +42,15 @@ model:
         dim_in: ${datamodule.xrds_kw.patch_dims.time}
         dim_hidden: 64
         downsamp: 2
-      - _target_: src.models.BilinAEPriorCost
-        dim_in: ${datamodule.xrds_kw.patch_dims.time}
-        dim_hidden: 64
-        downsamp: 2
+      # - _target_: src.models.BilinAEPriorCost
+      #   dim_in: ${datamodule.xrds_kw.patch_dims.time}
+      #   dim_hidden: 32
+      #   downsamp: 20
       weight_mod_factory:
-        _target_: contrib.multiprior.BinWeightMod
+        _target_: contrib.multiprior.WeightMod
         _partial_: true
     obs_cost:
-      _target_: contrib.multiprior.MultiPriorObsCost
+      _target_: src.models.BaseObsCost
     grad_mod:
       _target_: src.models.ConvLstmGradModel
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
@@ -67,7 +67,7 @@ trainer:
     save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 150
+  max_epochs: 300
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
@@ -88,8 +88,8 @@ entrypoints:
     test_domain:
       time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
       lat: ${domain.test.lat}
-      lon: ${domain.test.lat}
+      lon: ${domain.test.lon}
 
 defaults:
-- /domain: 4gf
+- /domain: gf
 - _self_

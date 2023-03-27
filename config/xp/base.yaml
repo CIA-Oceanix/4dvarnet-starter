@@ -52,7 +52,7 @@ model:
     _target_: src.utils.cosanneal_lr_adam
     _partial_: true
     lr: 1e-3
-    T_max: 175
+    T_max: ${trainer.max_epochs}
   rec_weight:
       _target_: src.utils.get_triang_time_wei
       patch_dims: ${datamodule.xrds_kw.patch_dims}

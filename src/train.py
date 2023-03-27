@@ -1,3 +1,6 @@
+import torch
+torch.set_float32_matmul_precision('high')
+
 def base_training(trainer, dm, lit_mod, test_dm=None, test_fn=None, ckpt=None):
     if trainer.logger is not None:
         print()
