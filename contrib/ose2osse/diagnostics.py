@@ -25,7 +25,7 @@ def compute_segment_data(
             lat=ds.latitude,
             lon=(ds.longitude + 180) % 360 - 180,
         ).pipe(lambda da: (("time",), da.values)),
-        gt=lambda ds: ds.sla_filtered + ds.lwe + ds.mdt,
+        gt=lambda ds: ds.sla_filtered - ds.lwe + ds.mdt,
     )[["gt", "rec", "oi"]].sel(time=period)
 
     diag_data = (
@@ -64,12 +64,12 @@ def compute_segment_data(
     return segment_data, diag_data
 
 def dc_spat_res_from_diag_data(diag_data, v='rec'):
-    ds = lcontrib.ose2osse.dc_diag.compute_spectral_scores(
+    ds = contrib.ose2osse.dc_diag.compute_spectral_scores(
         time_alongtrack=diag_data.time,
         lat_alongtrack=diag_data.latitude,
         lon_alongtrack=diag_data.longitude,
         ssh_alongtrack=diag_data.gt,
-        ssh_map_interp=diag_data.rec,
+        ssh_map_interp=diag_data[v],
     )
     resolved_scale = lambda da: scipy.interpolate.interp1d(
         (da / ds.psd_ref), 1.0 / ds.wavenumber
@@ -91,7 +91,7 @@ def ose_diags_from_da(rec, test_track, oi, crop_psd=50):
 
     resolved_oi = dc_spat_res_from_diag_data(diag_data, 'oi')
     try:
-        resolved_rec = dc_spat_res_from_diag_data(diag_data, 'oi', rec)
+        resolved_rec = dc_spat_res_from_diag_data(diag_data, 'rec')
     except ValueError as e:
         resolved_rec = None
 

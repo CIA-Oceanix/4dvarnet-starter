@@ -89,7 +89,7 @@ def get_cropped_hanning_mask(patch_dims, crop, **kwargs):
     return patch_weight.cpu().numpy()
 
 
-def get_triang_time_wei(patch_dims, crop, offset=0):
+def get_triang_time_wei(patch_dims, crop=0, offset=0):
     pw = get_constant_crop(patch_dims, crop)
     return np.fromfunction(
         lambda t, *a: (
@@ -99,18 +99,26 @@ def get_triang_time_wei(patch_dims, crop, offset=0):
     )
 
 
-def load_altimetry_data(path):
-    return (
+def load_altimetry_data(path, obs_from_tgt=False):
+    ds =  (
         xr.open_dataset(path)
         # .assign(ssh=lambda ds: ds.ssh.coarsen(lon=2, lat=2).mean().interp(lat=ds.lat, lon=ds.lon))
         .load()
         .assign(
             input=lambda ds: ds.nadir_obs,
             tgt=lambda ds: remove_nan(ds.ssh),
-        )[[*src.data.TrainingItem._fields]]
+        )    
+    )
+
+    if obs_from_tgt:
+        ds = ds.assign(input=ds.tgt.where(np.isfinite(ds.input), np.nan))
+    
+    return (
+        ds[[*src.data.TrainingItem._fields]]
         .transpose("time", "lat", "lon")
         .to_array()
     )
+
 
 def load_full_natl_data(path, obs_var='five_nadirs'):
     inp = xr.open_dataset(
@@ -173,7 +181,6 @@ def psd_based_scores(da_rec, da_ref):
         psd_based_score,
         level,
     )
-    plt.show()
     x05, y05 = cs.collections[0].get_paths()[0].vertices.T
     plt.close()
 
@@ -194,6 +201,7 @@ def diagnostics(lit_mod, test_domain):
 
 
 def diagnostics_from_ds(test_data, test_domain):
+    test_data = test_data.sel(test_domain)
     metrics = {
         "RMSE (m)": test_data.pipe(lambda ds: (ds.rec_ssh - ds.ssh))
         .pipe(lambda da: da**2)
@@ -220,7 +228,7 @@ def test_osse(trainer, lit_mod, osse_dm, osse_test_domain, ckpt, diag_data_dir=N
     lit_mod.norm_stats = osse_dm.norm_stats()
     trainer.test(lit_mod, datamodule=osse_dm, ckpt_path=ckpt)
     osse_tdat = lit_mod.test_data
-    osse_metrics = src.utils.diagnostics_from_ds(
+    osse_metrics = diagnostics_from_ds(
         osse_tdat, test_domain=osse_test_domain
     )
 
@@ -248,9 +256,8 @@ def ensemble_metrics(trainer, lit_mod, ckpt_list, dm, save_path):
             .item()
         )
         lx, lt = psd_based_scores(lit_mod.test_data.rec_ssh, lit_mod.test_data.ssh)[1:]
-        mu, sig = rmse_based_scores(lit_mod.test_data.rec_ssh, lit_mod.test_data.ssh)[
-            2:
-        ]
+        mu, sig = rmse_based_scores(lit_mod.test_data.rec_ssh, lit_mod.test_data.ssh)[2:]
+
         metrics.append(dict(ckpt=ckpt, rmse=rmse, lx=lx, lt=lt, mu=mu, sig=sig))
 
         if i == 0:

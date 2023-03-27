@@ -11,6 +11,10 @@ dom_cfg = lambda st, end: dict(
 for fname, start_date, end_date in [
     ("natl20", "2012-10-01", "2013-09-30"),
     ("enatl_wo_tide", "2009-07-01", "2010-06-30"),
+    ("enatl_wo_tide_dac_only", "2009-07-01", "2010-06-30"),
+    ("enatl_w_tide_dac_only", "2009-07-01", "2010-06-30"),
+    ("enatl_wo_tide_filt_25h", "2009-07-01", "2010-06-30"),
+    ("enatl_w_tide_filt_25h", "2009-07-01", "2010-06-30"),
     ("enatl_w_tide", "2009-07-01", "2010-06-30"),
     ("glo12_rea", "2016-01-01", "2016-12-31"),
     ("glo12_free", "2016-01-01", "2016-12-31"),
@@ -63,7 +67,7 @@ for fname, start_date, end_date in [
                 "val": val_domain,
             },
         ),
-        defaults=["/xp/ose2osse", '/params/bigger_model',  "_self_"],
+        defaults=["/xp/ose2osse",  "_self_"],
     )
     cs.store(name=f"o2o_{fname}_dc_split", node=node, package="_global_", group="xp")
 
@@ -77,7 +81,7 @@ for fname, start_date, end_date in [
                 "val": val_domain,
             },
         ),
-        defaults=["/xp/ose2osse", '/params/bigger_model,'  "_self_"],
+        defaults=["/xp/ose2osse",  "_self_"],
     )
     cs.store(name=f"o2o_{fname}_no_t", node=node, package="_global_", group="xp")
 
@@ -91,6 +95,6 @@ for fname, start_date, end_date in [
                 "test": test_domain[0],
             },
         ),
-        defaults=["/xp/ose2osse", '/params/bigger_model,'  "_self_"],
+        defaults=["/xp/ose2osse", "_self_"],
     )
     cs.store(name=f"o2o_{fname}_randval", node=node, package="_global_", group="xp")

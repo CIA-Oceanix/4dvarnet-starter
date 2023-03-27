@@ -12,9 +12,7 @@ class Lit4dVarNet(pl.LightningModule):
     def __init__(self, solver, rec_weight, opt_fn, norm_stats=None):
         super().__init__()
         self.solver = solver
-        self.rec_weight = torch.nn.Parameter(
-            torch.from_numpy(rec_weight), requires_grad=False
-        )
+        self.register_buffer('rec_weight', torch.from_numpy(rec_weight))
         self.test_data = None
         self.norm_stats = norm_stats if norm_stats is not None else (0.0, 1.0)
         self.opt_fn = opt_fn
@@ -64,22 +62,23 @@ class Lit4dVarNet(pl.LightningModule):
         return self.opt_fn(self)
 
     def test_step(self, batch, batch_idx):
+        if batch_idx == 0:
+            self.test_data = []
         out = self(batch=batch)
         m, s = self.norm_stats
 
-        return torch.stack(
+        self.test_data.append(torch.stack(
             [
                 batch.input.cpu() * s + m,
                 batch.tgt.cpu() * s + m,
                 out.squeeze(dim=-1).detach().cpu() * s + m,
             ],
             dim=1,
-        )
+        ))
 
-    def test_epoch_end(self, outputs):
-        rec_data = outputs
-        rec_da = self.trainer.test_dataloaders[0].dataset.reconstruct(
-            rec_data, self.rec_weight.cpu().numpy()
+    def on_test_epoch_end(self):
+        rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+            self.test_data, self.rec_weight.cpu().numpy()
         )
         if isinstance(rec_da, list):
             rec_da = rec_da[0]
