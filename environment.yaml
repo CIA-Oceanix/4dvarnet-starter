@@ -1,7 +1,7 @@
 channels:
+  - conda-forge
   - pytorch
   - nvidia
-  - conda-forge
   - pyviz
 dependencies:
   - pip

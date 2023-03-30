@@ -7,8 +7,8 @@ def compute_segment_alongtrack(time_alongtrack,
                                lon_alongtrack, 
                                ssh_alongtrack, 
                                ssh_map_interp, 
-                               length_scale,
-                               delta_x,
+                               length_scale=1000,
+                               delta_x=0.9434 * 6.77,
                                ):
 
     segment_overlapping = 0.25
