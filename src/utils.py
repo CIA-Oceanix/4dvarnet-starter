@@ -1,4 +1,6 @@
 import numpy as np
+import hydra
+from omegaconf import OmegaConf
 from pathlib import Path
 import functools as ft
 import metpy.calc as mpcalc
@@ -87,28 +89,50 @@ def get_cropped_hanning_mask(patch_dims, crop, **kwargs):
     return patch_weight.cpu().numpy()
 
 
-def get_triang_time_wei(patch_dims, crop):
+def get_triang_time_wei(patch_dims, crop=0, offset=0):
     pw = get_constant_crop(patch_dims, crop)
     return np.fromfunction(
         lambda t, *a: (
-            (1 - np.abs(1 + 2 * t - patch_dims["time"]) / patch_dims["time"]) * pw
+            (1 - np.abs(offset + 2 * t - patch_dims["time"]) / patch_dims["time"]) * pw
         ),
         patch_dims.values(),
     )
 
 
-def load_altimetry_data(path):
-    return (
+def load_altimetry_data(path, obs_from_tgt=False):
+    ds =  (
         xr.open_dataset(path)
         # .assign(ssh=lambda ds: ds.ssh.coarsen(lon=2, lat=2).mean().interp(lat=ds.lat, lon=ds.lon))
         .load()
         .assign(
             input=lambda ds: ds.nadir_obs,
             tgt=lambda ds: remove_nan(ds.ssh),
-        )[[*src.data.TrainingItem._fields]]
+        )    
+    )
+
+    if obs_from_tgt:
+        ds = ds.assign(input=ds.tgt.where(np.isfinite(ds.input), np.nan))
+    
+    return (
+        ds[[*src.data.TrainingItem._fields]]
         .transpose("time", "lat", "lon")
         .to_array()
     )
+
+
+def load_full_natl_data(path, obs_var='five_nadirs'):
+    inp = xr.open_dataset(
+        "../sla-data-registry/CalData/cal_data_new_errs.nc"
+    )[obs_var]
+    gt = (
+        xr.open_dataset(
+            "../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_ssh_y2013.1y.nc"
+        )
+        .ssh.isel(time=slice(0, -1))
+        .sel(lat=inp.lat, lon=inp.lon, method="nearest")
+    )
+
+    return xr.Dataset(dict(input=inp, tgt=(gt.dims, gt.values)), inp.coords).to_array()
 
 
 def rmse_based_scores(da_rec, da_ref):
@@ -177,6 +201,7 @@ def diagnostics(lit_mod, test_domain):
 
 
 def diagnostics_from_ds(test_data, test_domain):
+    test_data = test_data.sel(test_domain)
     metrics = {
         "RMSE (m)": test_data.pipe(lambda ds: (ds.rec_ssh - ds.ssh))
         .pipe(lambda da: da**2)
@@ -199,6 +224,25 @@ def diagnostics_from_ds(test_data, test_domain):
     return pd.Series(metrics, name="osse_metrics")
 
 
+def test_osse(trainer, lit_mod, osse_dm, osse_test_domain, ckpt, diag_data_dir=None):
+    lit_mod.norm_stats = osse_dm.norm_stats()
+    trainer.test(lit_mod, datamodule=osse_dm, ckpt_path=ckpt)
+    osse_tdat = lit_mod.test_data[['rec_ssh', 'ssh']]
+    osse_metrics = diagnostics_from_ds(
+        osse_tdat, test_domain=osse_test_domain
+    )
+
+    print(osse_metrics.to_markdown())
+
+    if diag_data_dir is not None:
+        osse_metrics.to_csv(diag_data_dir / "osse_metrics.csv")
+        if (diag_data_dir / "osse_test_data.nc").exists():
+            xr.open_dataset(diag_data_dir / "osse_test_data.nc").close()
+        osse_tdat.to_netcdf(diag_data_dir / "osse_test_data.nc")
+
+    return osse_metrics
+
+
 def ensemble_metrics(trainer, lit_mod, ckpt_list, dm, save_path):
     metrics = []
     test_data = xr.Dataset()
@@ -212,9 +256,8 @@ def ensemble_metrics(trainer, lit_mod, ckpt_list, dm, save_path):
             .item()
         )
         lx, lt = psd_based_scores(lit_mod.test_data.rec_ssh, lit_mod.test_data.ssh)[1:]
-        mu, sig = rmse_based_scores(lit_mod.test_data.rec_ssh, lit_mod.test_data.ssh)[
-            2:
-        ]
+        mu, sig = rmse_based_scores(lit_mod.test_data.rec_ssh, lit_mod.test_data.ssh)[2:]
+
         metrics.append(dict(ckpt=ckpt, rmse=rmse, lx=lx, lt=lt, mu=mu, sig=sig))
 
         if i == 0:
@@ -258,3 +301,20 @@ def best_ckpt(xp_dir):
     cbs = torch.load(ckpt_last)["callbacks"]
     ckpt_cb = cbs[next(k for k in cbs.keys() if "ModelCheckpoint" in k)]
     return ckpt_cb["best_model_path"]
+
+
+def load_cfg(xp_dir):
+    hydra_cfg = OmegaConf.load(Path(xp_dir) / "hydra.yaml").hydra
+    cfg = OmegaConf.load(Path(xp_dir) / "config.yaml")
+    OmegaConf.register_new_resolver(
+        "hydra", lambda k: OmegaConf.select(hydra_cfg, k), replace=True
+    )
+    try:
+        OmegaConf.resolve(cfg)
+        OmegaConf.resolve(cfg)
+    except Exception as e:
+        return None, None
+
+    return cfg, OmegaConf.select(hydra_cfg, "runtime.choices.xp")
+
+

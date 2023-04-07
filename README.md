@@ -28,6 +28,7 @@ python main.py xp=base
 ```
 ## Saved weights:
 
+### Gulfstream training
 A bigger model has been trained using the command
 
 ```
@@ -48,6 +49,8 @@ The test metrics of this model are ([see here for the details])(https://github.c
 
 Animation:
 ![Animation](https://s3.eu-central-1.wasabisys.com/melody/quentin_cloud/starter_anim.gif)
+
+
 
 ## Useful links:
 - [Hydra documentation](https://hydra.cc/docs/intro/)
