@@ -1,0 +1,58 @@
+# @package _global_
+xpd: ???
+
+domain: ???
+xp_overrides: 
+  datamodule:
+    input_da: 
+      _target_: src.utils.load_full_natl_data
+    dl_kw: {batch_size: 8}
+    xrds_kw: 
+      strides: {lat: 100, lon: 100}
+      domain_limits: ${domain.train}
+  
+trainer: 
+  _target_: pytorch_lightning.Trainer
+  inference_mode: False
+  accelerator: gpu
+  devices: 1
+  logger: False
+
+lit_mod: 
+  _target_: contrib.multi_domain_diag.load_cfg_from_xp
+  key: model
+  xpd : ${xpd}
+  overrides: ${xp_overrides}
+
+dm: 
+  _target_: contrib.multi_domain_diag.load_cfg_from_xp
+  key: datamodule
+  xpd : ${xpd}
+  overrides: ${xp_overrides}
+
+ckpt: 
+  _target_: src.utils.best_ckpt
+  xp_dir: ${xpd}/base
+
+test_domains: ???
+
+test_periods: [["2012-10-22", "2012-12-02"]]
+
+entrypoints:
+  - _target_: pytorch_lightning.seed_everything
+    seed: 333
+  - _target_: contrib.multi_domain_diag.multi_domain_osse_diag
+    trainer: ${trainer}
+    lit_mod: ${lit_mod}
+    dm: ${dm}
+    ckpt_path: ${ckpt}
+    test_domains: ${test_domains}
+    test_periods: ${test_periods}
+    save_dir: ${hydra:runtime.output_dir}
+
+defaults:
+  - /domain: 2gf
+  - /domain@test_domains.2gf: 2gf
+  - /domain@test_domains.gf: gf
+  - _self_
+

@@ -33,11 +33,16 @@ class SingletonStore:
 cs = ConfigStore.instance()
 
 domains = {
+    "eNATL": dict(lon=[-100, 42], lat=[7, 69]),
+    "NATL": dict(lon=[-77, 5], lat=[27, 64]),
     "cNATL": dict(lon=[-51, -9], lat=[32, 54]),
     "osmosis": dict(lon=[-22.5, -10.5], lat=[44, 56]),
     "gf": dict(lon=[-66, -54], lat=[32, 44]),
-    "2gf": dict(lon=[-71.0, -49.0], lat=[32, 44]),
-    "4gf": dict(lon=[-71.0, -29.0], lat=[32, 44]),
+    "2gf": dict(lon=[-71., -49.], lat=[32, 44]),
+    "4gf": dict(lon=[-71., -29.], lat=[32, 44]),
+    "calm": dict(lon=[-41., -29.], lat=[32, 44]),
+    "qnatl": dict(lon=[-77., 0.], lat=[27., 64.]),
+    "canaries": dict(lon=[-30, -15], lat=[32, 47])
 }
 
 for n, d in domains.items():
