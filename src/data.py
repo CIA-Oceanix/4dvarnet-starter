@@ -174,12 +174,11 @@ class XrConcatDataset(torch.utils.data.ConcatDataset):
         return rec_das
 
 class AugmentedDataset(torch.utils.data.Dataset):
-    def __init__(self, inp_ds, aug_factor, aug_only=False, item_cls=TrainingItem):
+    def __init__(self, inp_ds, aug_factor, aug_only=False):
         self.aug_factor = aug_factor
         self.aug_only = aug_only
         self.inp_ds = inp_ds
         self.perm = np.random.permutation(len(self.inp_ds))
-        self.item_cls = item_cls
 
     def __len__(self):
         return len(self.inp_ds) * (1 + self.aug_factor - int(self.aug_only))
@@ -199,15 +198,8 @@ class AugmentedDataset(torch.utils.data.Dataset):
         item = self.inp_ds[tgt_idx]
         perm_item = self.inp_ds[perm_idx]
 
-        return self.item_cls(
-            **{
-                **item._asdict(),
-                **{'input': np.where(np.isfinite(perm_item.input),
-                             item.tgt, np.full_like(item.tgt,np.nan))
-                 }
-            }
-        )
-
+        return item._replace(input=np.where(np.isfinite(perm_item.input),
+                             item.tgt, np.full_like(item.tgt,np.nan)))
 
 class BaseDataModule(pl.LightningDataModule):
     def __init__(self, input_da, domains, xrds_kw, dl_kw, aug_only=False, aug_factor=2, norm_stats=None):
@@ -223,23 +215,30 @@ class BaseDataModule(pl.LightningDataModule):
         self.train_ds = None
         self.val_ds = None
         self.test_ds = None
+        self._post_fn = None
 
     def norm_stats(self):
         if self._norm_stats is None:
             self._norm_stats = self.train_mean_std()
-            print("Norm stats", self._norm_stats)
+            # print("Norm stats", self._norm_stats)
         return self._norm_stats
 
     def train_mean_std(self):
         train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {})).sel(self.domains['train'])
         return train_data.sel(variable='tgt').pipe(lambda da: (da.mean().values.item(), da.std().values.item()))
 
+    def post_fn(self):
+        normalize = lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1]
+        return ft.partial(ft.reduce,lambda i, f: f(i), [
+            TrainingItem._make,
+            lambda item: item._replace(tgt=normalize(item.tgt)),
+            lambda item: item._replace(input=normalize(item.input)),
+        ])
+
+
     def setup(self, stage='test'):
         train_data = self.input_da.sel(self.domains['train'])
-        post_fn = ft.partial(ft.reduce,lambda i, f: f(i), [
-            lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1],
-            TrainingItem._make,
-        ])
+        post_fn = self.post_fn()
         self.train_ds = XrDataset(
             train_data, **self.xrds_kw, postpro_fn=post_fn,
         )
@@ -281,16 +280,13 @@ class ConcatDataModule(BaseDataModule):
         return mean.values.item(), std.values.item()
 
     def setup(self, stage='test'):
-        post_fn = ft.partial(ft.reduce,lambda i, f: f(i), [
-            lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1],
-            TrainingItem._make,
-        ])
+        post_fn = self.post_fn()
         self.train_ds = XrConcatDataset([
             XrDataset(self.input_da.sel(domain), **self.xrds_kw, postpro_fn=post_fn,)
             for domain in self.domains['train']
         ])
         if self.aug_factor >= 1:
-            self.train_ds = AugmentedDataset(self.train_ds, self.aug_factor)
+            self.train_ds = AugmentedDataset(self.train_ds, self.aug_factor, self.aug_only)
 
         self.val_ds = XrConcatDataset([
             XrDataset(self.input_da.sel(domain), **self.xrds_kw, postpro_fn=post_fn,)
@@ -308,10 +304,7 @@ class RandValDataModule(BaseDataModule):
         self.val_prop = val_prop
 
     def setup(self, stage='test'):
-        post_fn = ft.partial(ft.reduce,lambda i, f: f(i), [
-            lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1],
-            TrainingItem._make,
-        ])
+        post_fn = self.post_fn()
         train_ds = XrDataset(self.input_da.sel(self.domains['train']), **self.xrds_kw, postpro_fn=post_fn,)
         n_val = int(self.val_prop * len(train_ds))
         n_train = len(train_ds) - n_val

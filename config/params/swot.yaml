@@ -1,0 +1,12 @@
+# @package _global_
+
+defaults:
+  - /params/bigger_model.yaml
+  - _self_
+
+datamodule:
+  input_da:
+    _target_: src.utils.load_full_natl_data
+    obs_var: swot_nadirs_no_noise
+
+

@@ -7,8 +7,6 @@ datamodule:
   aug_only: False
 
 model:
-  opt_fn:
-    T_max: 300
   solver:
     n_step: 15
     prior_cost:
