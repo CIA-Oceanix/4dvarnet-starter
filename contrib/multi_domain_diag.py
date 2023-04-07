@@ -14,13 +14,12 @@ import hydra
 def load_cfg_from_xp(xpd, key, overrides=None, call=True):
     xpd = Path(xpd)
     src_cfg, xp = src.utils.load_cfg(xpd / ".hydra")
-    if overrides is not None:
-        OmegaConf.set_struct(src_cfg, True)
-        with omegaconf.open_dict(src_cfg):
-            cfg = OmegaConf.merge(src_cfg, overrides)
-    else:
-        cfg = src_cfg
-    return hydra.utils.call(cfg[key]) if call else cfg[key]
+    overrides = overrides or dict()
+    OmegaConf.set_struct(src_cfg, True)
+    with omegaconf.open_dict(src_cfg):
+        cfg = OmegaConf.merge(src_cfg, overrides)
+    node = OmegaConf.select(cfg, key)
+    return hydra.utils.call(node) if call else node
 
 
 def get_smooth_spat_rec_weight(orig_rec_weight):
@@ -50,13 +49,16 @@ def multi_domain_osse_diag(
     test_periods,
     rec_weight=None,
     save_dir=None,
+    src_dm=None,
 ):
     ckpt = torch.load(ckpt_path)["state_dict"]
     lit_mod.load_state_dict(ckpt)
+
     if rec_weight is not None:
         lit_mod.rec_weight = torch.from_numpy(rec_weight)
 
-    lit_mod.norm_stats = dm.norm_stats()
+    norm_dm = src_dm or dm
+    lit_mod.norm_stats = norm_dm.norm_stats()
 
     trainer.test(lit_mod, datamodule=dm)
     tdat = lit_mod.test_data
@@ -73,7 +75,7 @@ def multi_domain_osse_diag(
     metrics_df.to_csv(save_dir / "multi_domain_metrics.csv")
 
 
-def multi_domain_osse_metrics(tdat, test_domains, test_periods):
+def multi_domain_osse_metrics(tdat, test_domains, test_periods,):
     metrics = []
     for d in test_domains:
         for p in test_periods:
