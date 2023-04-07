@@ -6,7 +6,7 @@ defaults:
   - _self_
 
 trainer:
-  max_epochs: 1000
+  max_epochs: 300
 
 start_ckpt: null
 test_datamodule: null
@@ -16,7 +16,7 @@ osse_datamodule:
     obs_from_tgt: true
   xrds_kw: ${datamodule.xrds_kw}
   dl_kw: ${datamodule.dl_kw}
-  aug_factor: 0
+  aug_factor: 5
   aug_only: 0
 
 ose_datamodule:
@@ -37,6 +37,21 @@ ose_datamodule:
       lon: {_target_: builtins.slice, _args_: [-66., -54.]}
   dl_kw: {batch_size: 8, num_workers: 1}
 
+diagnostics:
+  _target_: contrib.ose2osse.diagnostics.full_ose_osse_test
+  _partial_: true
+  osse_test_domain:
+    time: ${osse_datamodule.domains.test.0.time}
+    lat: {_target_: builtins.slice, _args_: [33, 43]}
+    lon: {_target_: builtins.slice, _args_: [-65, -55]}
+  trainer: ${trainer}
+  osse_dm: ${osse_datamodule}
+  ose_dm: ${ose_datamodule}
+  xp_dir: ${hydra:runtime.output_dir}/${hydra:runtime.choices.xp}
+  test_track_path: ../sla-data-registry/data_OSE/along_track/dt_gulfstream_c2_phy_l3_20161201-20180131_285-315_23-53.nc
+  oi_path: ../sla-data-registry/data_OSE/NATL/training/ssh_alg_h2g_j2g_j2n_j3_s3a_duacs.nc
+  diag_data_dir: ${hydra:runtime.output_dir}/diag_data
+
 entrypoints:
   - _target_: pytorch_lightning.seed_everything
     seed: 333
@@ -46,17 +61,4 @@ entrypoints:
     dm: ${osse_datamodule}
     ckpt: ${start_ckpt}
     test_dm: ${test_datamodule}
-    test_fn:
-      _target_: contrib.ose2osse.diagnostics.full_ose_osse_test
-      _partial_: true
-      osse_test_domain:
-        time: ${osse_datamodule.domains.test.0.time}
-        lat: {_target_: builtins.slice, _args_: [33, 43]}
-        lon: {_target_: builtins.slice, _args_: [-65, -55]}
-      trainer: ${trainer}
-      osse_dm: ${osse_datamodule}
-      ose_dm: ${ose_datamodule}
-      xp_dir: ${hydra:runtime.output_dir}/${hydra:runtime.choices.xp}
-      test_track_path: ../sla-data-registry/data_OSE/along_track/dt_gulfstream_c2_phy_l3_20161201-20180131_285-315_23-53.nc
-      oi_path: ../sla-data-registry/data_OSE/NATL/training/ssh_alg_h2g_j2g_j2n_j3_s3a_duacs.nc
-      diag_data_dir: ${hydra:runtime.output_dir}/diag_data
+    test_fn: ${diagnostics}

@@ -7,8 +7,8 @@ def compute_segment_alongtrack(time_alongtrack,
                                lon_alongtrack, 
                                ssh_alongtrack, 
                                ssh_map_interp, 
-                               length_scale,
-                               delta_x,
+                               length_scale=1000,
+                               delta_x=0.9434 * 6.77,
                                ):
 
     segment_overlapping = 0.25
@@ -45,7 +45,7 @@ def compute_segment_alongtrack(time_alongtrack,
             end_point = index_end_selected_track
 
             for i, sub_segment_point in enumerate(range(start_point, end_point - npt, int(npt*segment_overlapping))):
-                if i >0: print("Long track")
+                # if i >0: print("Long track")
 
                 # Near Greenwhich case
                 if ((lon_alongtrack[sub_segment_point + npt - 1] < 50.)

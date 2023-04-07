@@ -1,6 +1,7 @@
 from hydra.core.config_store import ConfigStore
 import datetime
 import pandas as pd
+from src.utils import diagnostics
 
 cs = ConfigStore().instance()
 
@@ -93,8 +94,10 @@ for fname, start_date, end_date in [
             domains={
                 "train": dom_cfg(start_date, end_date),
                 "test": test_domain[0],
+                "val": test_domain,
             },
         ),
+        diagnostics=dict(osse_test_domain={'time': '${osse_datamodule.domains.test.time}'}),
         defaults=["/xp/ose2osse", "_self_"],
     )
     cs.store(name=f"o2o_{fname}_randval", node=node, package="_global_", group="xp")

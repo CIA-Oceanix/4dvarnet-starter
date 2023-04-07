@@ -70,10 +70,14 @@ def dc_spat_res_from_diag_data(diag_data, v='rec'):
         lon_alongtrack=diag_data.longitude,
         ssh_alongtrack=diag_data.gt,
         ssh_map_interp=diag_data[v],
-    )
+    ).assign_coords(
+        wavelength=lambda ds: 1/ds.wavenumber
+    ).pipe(lambda ds: ds.where(ds.wavelength > 90, drop=True))
+
     resolved_scale = lambda da: scipy.interpolate.interp1d(
         (da / ds.psd_ref), 1.0 / ds.wavenumber
     )(0.5)
+
     return resolved_scale(ds.psd_diff)
 
 def ose_diags_from_da(rec, test_track, oi, crop_psd=50):

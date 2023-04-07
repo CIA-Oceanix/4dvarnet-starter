@@ -227,7 +227,7 @@ def diagnostics_from_ds(test_data, test_domain):
 def test_osse(trainer, lit_mod, osse_dm, osse_test_domain, ckpt, diag_data_dir=None):
     lit_mod.norm_stats = osse_dm.norm_stats()
     trainer.test(lit_mod, datamodule=osse_dm, ckpt_path=ckpt)
-    osse_tdat = lit_mod.test_data
+    osse_tdat = lit_mod.test_data[['rec_ssh', 'ssh']]
     osse_metrics = diagnostics_from_ds(
         osse_tdat, test_domain=osse_test_domain
     )
