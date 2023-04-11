@@ -1,0 +1,68 @@
+# @package _global_
+xpd: ???
+
+domain: ???
+xp_overrides: 
+  datamodule:
+    xrds_kw: 
+      strides: {lat: 100, lon: 100}
+      domain_limits: ${domain.train}
+  
+trainer: 
+  _target_: pytorch_lightning.Trainer
+  inference_mode: False
+  accelerator: gpu
+  devices: 1
+  logger: False
+
+lit_mod: 
+  _target_: contrib.multi_domain_diag.load_cfg_from_xp
+  key: model
+  xpd : ${xpd}
+  overrides: ${xp_overrides}
+
+dm: 
+  _target_: contrib.multi_domain_diag.load_cfg_from_xp
+  key: datamodule
+  xpd : ${xpd}
+  overrides: ${xp_overrides}
+
+ckpt: 
+  _target_: src.utils.best_ckpt
+  xp_dir: ${xpd}/base
+
+test_domains: ???
+
+test_periods: [["2012-10-22", "2012-12-02"]]
+
+rec_weight:
+  _target_: contrib.multi_domain_diag.get_smooth_spat_rec_weight
+  orig_rec_weight: 
+    _target_: contrib.multi_domain_diag.load_cfg_from_xp
+    key: model.rec_weight
+    xpd : ${xpd}
+
+entrypoints:
+  - _target_: pytorch_lightning.seed_everything
+    seed: 333
+  - _target_: contrib.multi_domain_diag.multi_domain_osse_diag
+    trainer: ${trainer}
+    lit_mod: ${lit_mod}
+    dm: ${dm}
+    ckpt_path: ${ckpt}
+    rec_weight: ${rec_weight}
+    test_domains: ${test_domains}
+    test_periods: ${test_periods}
+    save_dir: ${hydra:runtime.output_dir}
+
+defaults:
+  - /domain: qnatl
+  - /domain@test_domains.qnatl: qnatl
+  - /domain@test_domains.cNATL: cNATL
+  - /domain@test_domains.4gf: 4gf
+  - /domain@test_domains.2gf: 2gf
+  - /domain@test_domains.gf: gf
+  - /domain@test_domains.canaries: canaries
+  - /domain@test_domains.osmosis: osmosis
+  - _self_
+
