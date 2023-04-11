@@ -120,15 +120,17 @@ def load_altimetry_data(path, obs_from_tgt=False):
     )
 
 
-def load_full_natl_data(path, obs_var='five_nadirs'):
-    inp = xr.open_dataset(
-        "../sla-data-registry/CalData/cal_data_new_errs.nc"
-    )[obs_var]
+def load_full_natl_data(
+        path_obs="../sla-data-registry/CalData/cal_data_new_errs.nc",
+        path_gt="../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_ssh_y2013.1y.nc",
+        obs_var='five_nadirs',
+        gt_var='ssh',
+        **kwargs
+    ):
+    inp = xr.open_dataset(path_obs)[obs_var]
     gt = (
-        xr.open_dataset(
-            "../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_ssh_y2013.1y.nc"
-        )
-        .ssh.isel(time=slice(0, -1))
+        xr.open_dataset(path_gt)[gt_var]
+        .isel(time=slice(0, -1))
         .sel(lat=inp.lat, lon=inp.lon, method="nearest")
     )
 
