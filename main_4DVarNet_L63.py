@@ -972,8 +972,8 @@ if __name__ == '__main__':
         #mod.hparams.sig_rnd_init = 1e-2
         #mod.hparams.sig_lstm_init = 1e-2
         
-        mod.meanTr = meanTr
-        mod.stdTr  = stdTr
+        mod.meanTr = dm.meanTr
+        mod.stdTr  = dm.stdTr
         
         print('n_step = %d'%mod.model.n_step)
         profiler_kwargs = {'max_epochs': 400 }
