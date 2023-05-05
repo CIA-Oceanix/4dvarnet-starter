@@ -1,0 +1,61 @@
+# @package _global_
+
+xp_name: baseline
+
+trainer:
+  _target_: pytorch_lightning.Trainer
+  inference_mode: False
+  gradient_clip_val: 0.5
+  accelerator: gpu
+  devices: 1
+  logger: 
+    _target_: pytorch_lightning.loggers.CSVLogger
+    save_dir: ${hydra:runtime.output_dir}
+    name: ${hydra:runtime.choices.xp}
+    version: ''
+  max_epochs: 150
+  callbacks:
+    - _target_: src.versioning_cb.VersioningCallback
+    - _target_: pytorch_lightning.callbacks.LearningRateMonitor
+    - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+      monitor: val_rmse
+      save_top_k: 10
+      filename: '{val_rmse:.4f}-{epoch:03d}'
+
+datamodule:
+  _target_: src.data_l63.BaseDataModule
+  param_datamodule:
+    path_l63_dataset: '../../Dataset4DVarNet/dataset_L63_with_noise.nc'
+    genSuffixObs: 'james'
+    flag_load_all_data: False
+    flag_generate_L63_data: False
+    NbTraining: 10000
+    NbTest: 2000#256
+    time_step: 1
+    dT: 200
+    varNoise: 2.0
+    sampling_step: 16
+    flagTypeMissData: 2
+
+params:
+  dT: 7
+  k_n_grad: 3
+  n_grad: 5
+  lr: 1e-3 
+  batch_size: 128
+  DimAE: 10
+  phi_param: 'unet'
+  dim_grad_solver: 100 #25
+  dropout: 0.2
+  alpha_prior: 0.1
+  alpha_mse: 1.
+  lr_grad: 1.
+  lr_rnd: 1e-3
+  sig_rnd_init: 1e-2
+  sig_lstm_init: 1e-2
+  suffix_exp: '-new'
+  shapeData:
+    - 3
+    - ${datamodule.dT}
+    - 1
+  
