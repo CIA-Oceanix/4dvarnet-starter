@@ -918,8 +918,9 @@ if __name__ == '__main__':
 
     #DimAE = 10
     #flagAEType = 'unet' # 'ode' #
+    dT = cfg.datamodule.param_datamodule.dT
     UsePriodicBoundary = False # use a periodic boundary for all conv operators in the gradient model (see torch_4DVarNN_dinAE)
-    w_loss = np.ones(cfg.datamodule.dT) / float(cfg.datamodule.dT)
+    w_loss = np.ones(dT) / float(dT)
 
     flagProcess = 0#0
     
@@ -977,12 +978,12 @@ if __name__ == '__main__':
         print('n_step = %d'%mod.model.n_step)
         profiler_kwargs = {'max_epochs': 400 }
 
-        suffix_exp = 'exp%02d'%cfg.datamodule.flagTypeMissData+cfg.params.suffix_exp
+        suffix_exp = 'exp%02d'%cfg.datamodule.param_datamodule.flagTypeMissData+cfg.params.suffix_exp
         
         
         filename_chkpt = 'model-l63-'+ genSuffixObs        
         filename_chkpt = filename_chkpt+cfg.params.phi_param+'-'              
-        filename_chkpt = filename_chkpt + suffix_exp+'-Noise%02d'%(cfg.datamodule.varNoise)
+        filename_chkpt = filename_chkpt + suffix_exp+'-Noise%02d'%(cfg.datamodule.param_datamodule.varNoise)
 
 
         filename_chkpt = filename_chkpt+'-igrad%02d_%02d'%(mod.hparams.n_grad,mod.hparams.k_n_grad)+'-dgrad%d'%cfg.params.dim_grad_solver
