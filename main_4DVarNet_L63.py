@@ -887,7 +887,7 @@ if __name__ == '__main__':
         
     #cfg = get_cfg("base")
     # cfg = get_cfg("xp_aug/xp_repro/quentin_repro")
-    cfg = OmegaConf.load('hydra_config/base.yaml')
+    cfg = OmegaConf.load('hydra_config/base_l63.yaml')
     print(OmegaConf.to_yaml(cfg))
         
     # load and create dataset   
