@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import pytorch_lightning as pl
 import numpy as np
 import torch.utils.data
