@@ -21,7 +21,7 @@ from netCDF4 import Dataset
 from sklearn import decomposition
 
 
-import solver as solver_4DVarNet
+import src.solver_l63 as solver_4DVarNet
 import src.data_l63.BaseDataModule as BaseDataModule
 
 #os.chdir('/content/drive/My Drive/Colab Notebooks/AnDA')
@@ -887,7 +887,7 @@ if __name__ == '__main__':
         
     #cfg = get_cfg("base")
     # cfg = get_cfg("xp_aug/xp_repro/quentin_repro")
-    cfg = OmegaConf.load('hydra_config/base_l63.yaml')
+    cfg = OmegaConf.load('config/xp/base_l63.yaml')
     print(OmegaConf.to_yaml(cfg))
         
     # load and create dataset   
