@@ -22,7 +22,7 @@ from sklearn import decomposition
 
 
 import src.solver_l63 as solver_4DVarNet
-import src.data_l63.BaseDataModule as BaseDataModule
+from src.data_l63 import BaseDataModule
 
 #os.chdir('/content/drive/My Drive/Colab Notebooks/AnDA')
 from scipy.integrate import odeint
