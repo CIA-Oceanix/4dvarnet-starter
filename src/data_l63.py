@@ -337,7 +337,8 @@ class BaseDataModule(pl.LightningDataModule):
         X_train, x_train, mask_train, x_train_Init, x_train_obs = data_train
         X_test, x_test, mask_test, x_test_Init, x_test_obs = data_test
         self.meanTr, self.stdTr = stats_train
-    
+        self.genSuffixObs = genSuffixObs
+        
         # define dataloaders
         idx_val = x_train.shape[0]-500
             

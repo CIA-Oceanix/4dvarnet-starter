@@ -981,7 +981,7 @@ if __name__ == '__main__':
         suffix_exp = 'exp%02d'%cfg.datamodule.param_datamodule.flagTypeMissData+cfg.params.suffix_exp
         
         
-        filename_chkpt = 'model-l63-'+ genSuffixObs        
+        filename_chkpt = 'model-l63-'+ dm.genSuffixObs        
         filename_chkpt = filename_chkpt+cfg.params.phi_param+'-'              
         filename_chkpt = filename_chkpt + suffix_exp+'-Noise%02d'%(cfg.datamodule.param_datamodule.varNoise)
 
