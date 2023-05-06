@@ -892,7 +892,7 @@ if __name__ == '__main__':
 
     dm = BaseDataModule(cfg.datamodule.param_datamodule)
     
-    mod = LitModel(cfg.params)
+    mod = LitModel(cfg.model.params)
 
     mod.meanTr = dm.meanTr
     mod.stdTr  = dm.stdTr
