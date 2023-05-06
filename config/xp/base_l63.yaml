@@ -38,25 +38,27 @@ datamodule:
     flagTypeMissData: 2
     dl_kw: {batch_size: 128, num_workers: 1}
 
-params:
-  dT: 7
-  k_n_grad: 3
-  n_grad: 5
-  lr: 1e-3 
-  batch_size: 128
-  DimAE: 10
-  phi_param: 'unet'
-  dim_grad_solver: 100 #25
-  dropout: 0.2
-  alpha_prior: 0.1
-  alpha_mse: 1.
-  lr_grad: 1.
-  lr_rnd: 1e-3
-  sig_rnd_init: 1e-2
-  sig_lstm_init: 1e-2
-  suffix_exp: '-new'
-  shapeData:
-    - 3
-    - ${datamodule.param_datamodule.dT}
-    - 1
+model:
+  _target_: src.data_l63.BaseDataModule
+  params:
+    dT: 7
+    k_n_grad: 3
+    n_grad: 5
+    lr: 1e-3 
+    batch_size: 128
+    DimAE: 10
+    phi_param: 'unet'
+    dim_grad_solver: 100 #25
+    dropout: 0.2
+    alpha_prior: 0.1
+    alpha_mse: 1.
+    lr_grad: 1.
+    lr_rnd: 1e-3
+    sig_rnd_init: 1e-2
+    sig_lstm_init: 1e-2
+    suffix_exp: '-new'
+    shapeData:
+      - 3
+      - ${datamodule.param_datamodule.dT}
+      - 1
   

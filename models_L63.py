@@ -889,7 +889,40 @@ if __name__ == '__main__':
     # cfg = get_cfg("xp_aug/xp_repro/quentin_repro")
     cfg = OmegaConf.load('config/xp/base_l63.yaml')
     print(OmegaConf.to_yaml(cfg))
-        
+
+    dm = BaseDataModule(cfg.datamodule.param_datamodule)
+    
+    mod = LitModel(cfg.params)
+
+    mod.meanTr = dm.meanTr
+    mod.stdTr  = dm.stdTr
+    
+    print('n_step = %d'%mod.model.n_step)
+    profiler_kwargs = {'max_epochs': 400 }
+
+    suffix_exp = 'exp%02d'%cfg.datamodule.param_datamodule.flagTypeMissData+cfg.params.suffix_exp
+    
+    
+    filename_chkpt = 'model-l63-'+ dm.genSuffixObs        
+    filename_chkpt = filename_chkpt+cfg.params.phi_param+'-'              
+    filename_chkpt = filename_chkpt + suffix_exp+'-Noise%02d'%(cfg.datamodule.param_datamodule.varNoise)
+
+
+    filename_chkpt = filename_chkpt+'-igrad%02d_%02d'%(mod.hparams.n_grad,mod.hparams.k_n_grad)+'-dgrad%d'%cfg.params.dim_grad_solver
+    filename_chkpt = filename_chkpt+'-drop%02d'%(100*cfg.params.dropout)
+    filename_chkpt = filename_chkpt+'-rnd-init%02d'%(100*mod.hparams.sig_rnd_init)
+    filename_chkpt = filename_chkpt+'-lstm-init%02d'%(100*mod.hparams.sig_lstm_init)
+
+    print('.... chkpt: '+filename_chkpt)
+    checkpoint_callback = ModelCheckpoint(monitor='val_loss',
+                                          dirpath= './resL63/'+suffix_exp,
+                                          filename= filename_chkpt + '-{epoch:02d}-{val_loss:.2f}',
+                                          save_top_k=3,
+                                          mode='min')
+    trainer = pl.Trainer(devices=1,accelerator="gpu",  **profiler_kwargs,callbacks=[checkpoint_callback])
+    trainer.fit(mod, datamodule=dm ) #dataloaders['train'], dataloaders['val'])
+ 
+    
     # load and create dataset   
     if 1*0:
         data_train , data_test, stats_train, genSuffixObs = create_dataloaders(cfg.datamodule)#flag_load_data,flagTypeMissData,NbTraining,NbTest,time_step,dT,sigNoise,sampling_step)
@@ -912,9 +945,9 @@ if __name__ == '__main__':
             'test': torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False),#, num_workers=4, pin_memory=True),
         }            
         dataset_sizes = {'train': len(training_dataset), 'val': len(val_dataset), 'test': len(test_dataset)}
-    else:
-        print( OmegaConf.to_yaml(cfg.datamodule.param_datamodule)) 
-        dm = BaseDataModule(cfg.datamodule.param_datamodule)
+    #else:
+    #    print( OmegaConf.to_yaml(cfg.datamodule.param_datamodule)) 
+    #    dm = BaseDataModule(cfg.datamodule.param_datamodule)
 
     #DimAE = 10
     #flagAEType = 'unet' # 'ode' #
@@ -922,7 +955,7 @@ if __name__ == '__main__':
     UsePriodicBoundary = False # use a periodic boundary for all conv operators in the gradient model (see torch_4DVarNN_dinAE)
     w_loss = np.ones(dT) / float(dT)
 
-    flagProcess = 0#0
+    flagProcess = -1#0
     
     if flagProcess == 0: ## training model from scratch
         #dimGradSolver = 100#25
