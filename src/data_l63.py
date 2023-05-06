@@ -332,7 +332,7 @@ class BaseDataModule(pl.LightningDataModule):
         self.stdTr = None
         
         self.genSuffixObs = None
-        
+        self.dl_kw = param_datamodule.dl_kw
         self.setup()
         
         print( self.genSuffixObs )

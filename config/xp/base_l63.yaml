@@ -36,7 +36,7 @@ datamodule:
     varNoise: 2.0
     sampling_step: 16
     flagTypeMissData: 2
-    batch_size: 128
+    dl_kw: {batch_size: 128, num_workers: 1}
 
 params:
   dT: 7
