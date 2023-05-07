@@ -352,6 +352,9 @@ class BaseDataModule(pl.LightningDataModule):
         self.val_ds         = torch.utils.data.TensorDataset(torch.Tensor(x_train_Init[idx_val::,:,:,:]),torch.Tensor(x_train_obs[idx_val::,:,:,:]),torch.Tensor(mask_train[idx_val::,:,:,:]),torch.Tensor(x_train[idx_val::,:,:,:])) # create your datset
         self.test_ds         = torch.utils.data.TensorDataset(torch.Tensor(x_test_Init),torch.Tensor(x_test_obs),torch.Tensor(mask_test),torch.Tensor(x_test)) # create your datset
 
+    def norm_stats(self):
+        return self.meanTr,self.stdTr
+
     def train_dataloader(self):
         return torch.utils.data.DataLoader(self.train_ds, shuffle=True, **self.dl_kw)
 

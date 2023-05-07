@@ -587,12 +587,11 @@ class LitModel(pl.LightningModule):
         self.x_rec_obs = None
         self.curr = 0
 
-        self.stdTr = stats_training_data[1] if stats_training_data is not None else 1.
-        self.meanTr = stats_training_data[0] if stats_training_data is not None else 0.
+        self.norm_stats = stats_training_data if stats_training_data is not None else (1.0,0.)
         
         self.automatic_optimization = self.hparams.automatic_optimization
+        self.set_norm_stats()
         
-
     def forward(self):
         return 1
 
@@ -612,7 +611,12 @@ class LitModel(pl.LightningModule):
         self.model.n_grad   = self.hparams.n_grad 
         self.model.k_n_grad   = self.hparams.k_n_grad 
         self.model.n_step = self.model.k_n_grad * self.model.n_grad
+        
+        self.set_norm_stats()
         #print('--- n_grad = %d -- k_n_grad = %d -- n_step = %d'%(self.model.n_grad,self.model.k_n_grad,self.model.n_step) )
+    def set_norm_stats(self):
+        self.stdTr = self.norm_stats[0]
+        self.meanTr = self.norm_stats[1]
         
     def on_train_epoch_start(self):
         #opt = self.optimizers()

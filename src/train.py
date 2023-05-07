@@ -7,7 +7,7 @@ def base_training(trainer, dm, lit_mod, test_dm=None, test_fn=None, ckpt=None):
         print("Logdir:", trainer.logger.log_dir)
         print()
 
-    lit_mod.norm_stats = dm.norm_stats()
+    lit_mod.set_norm_stats = dm.norm_stats()
     trainer.fit(lit_mod, datamodule=dm, ckpt_path=ckpt)
 
     if test_fn is not None:

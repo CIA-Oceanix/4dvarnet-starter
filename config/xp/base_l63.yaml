@@ -19,7 +19,7 @@ trainer:
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
     - _target_: pytorch_lightning.callbacks.ModelCheckpoint
       monitor: val_rmse
-      save_top_k: 10
+      save_top_k: 3
       filename: '{val_rmse:.4f}-{epoch:03d}'
 
 datamodule:
@@ -39,7 +39,7 @@ datamodule:
     dl_kw: {batch_size: 128, num_workers: 1}
 
 model:
-  _target_: src.data_l63.BaseDataModule
+  _target_: src.models_L63.Lit4dVarNet_L63
   params:
     dT: 7
     k_n_grad: 3
@@ -71,4 +71,19 @@ model:
       - 0
       - 10
       - 0
+
+entrypoints:
+  - _target_: pytorch_lightning.seed_everything
+    seed: 333
+  - _target_: src.train.base_training
+    trainer: ${trainer}
+    lit_mod: ${model}
+    dm: ${datamodule}
+#    test_fn:
+#      _target_: src.utils.diagnostics
+#      _partial_: true
+#      test_domain:
+#        time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
+#        lat: ${domain.test.lat}
+#        lon: ${domain.test.lat}
   
