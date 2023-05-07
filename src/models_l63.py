@@ -562,7 +562,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.curr = 0
 
         self.norm_stats = stats_training_data if stats_training_data is not None else (1.0,0.)
-        self.set_norm_stats()
+        self._set_norm_stats()
         print(self.norm_stats)
         
         self.automatic_optimization = self.hparams.automatic_optimization
@@ -587,13 +587,14 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.model.k_n_grad   = self.hparams.k_n_grad 
         self.model.n_step = self.model.k_n_grad * self.model.n_grad
         
-        self.set_norm_stats()
+        self._set_norm_stats()
         #print('--- n_grad = %d -- k_n_grad = %d -- n_step = %d'%(self.model.n_grad,self.model.k_n_grad,self.model.n_step) )
 
-    def set_norm_stats(self):
-        print('xxxxxxxx',flush=True)
-        self.stdTr = self.norm_stats[0]
-        self.meanTr = self.norm_stats[1]
+    def _set_norm_stats(self):
+        self.stdTr = self.set_norm_stats[0]
+        self.meanTr = self.set_norm_stats[1]
+        
+        print(' mean/std: %f   __ %f'%(self.meanTr,self.stdTr))
         
     def on_train_epoch_start(self):
         #opt = self.optimizers()
@@ -617,6 +618,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.model.model_Grad.sig_lstm_init = self.hparams.sig_lstm_init
         #print('--- n_grad = %d -- k_n_grad = %d -- n_step = %d'%(self.model.n_grad,self.model.k_n_grad,self.model.n_step) )
 
+        self._set_norm_stats()
     
     def on_test_epoch_start(self):
         #torch.inference_mode(mode=False)
@@ -627,7 +629,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.model.n_step = self.model.k_n_grad * self.model.n_grad
         self.model.model_Grad.sig_lstm_init = self.hparams.sig_lstm_init
 
-        self.set_norm_stats()
+        self._set_norm_stats()
         
         print('--- n_grad = %d -- k_n_grad = %d -- n_step = %d'%(self.model.n_grad,self.model.k_n_grad,self.model.n_step) )
 
@@ -640,7 +642,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.model.n_step = self.model.k_n_grad * self.model.n_grad
         self.model.model_Grad.sig_lstm_init = self.hparams.sig_lstm_init
 
-        self.set_norm_stats()
+        self._set_norm_stats()
         
     def training_step(self, train_batch, batch_idx, optimizer_idx=0):
         opt = self.optimizers()
