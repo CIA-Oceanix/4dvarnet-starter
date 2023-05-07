@@ -907,7 +907,7 @@ if __name__ == '__main__':
 
     dm = BaseDataModule(cfg.datamodule.param_datamodule)
     
-    mod = LitModel(cfg.model.params,patch_weight=get_constant_crop_l63(cfg.model.params.shapeData,patch_dims=cfg.model.params.w_loss.patch_dims,crop=cfg.model.params.w_loss.crop))
+    mod = LitModel(cfg.model.params,patch_weight=get_constant_crop_l63(patch_dims=cfg.model.params.w_loss.patch_dims,crop=cfg.model.params.w_loss.crop))
 
     mod.meanTr = dm.meanTr
     mod.stdTr  = dm.stdTr
