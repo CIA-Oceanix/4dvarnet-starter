@@ -56,7 +56,7 @@ model:
     sig_rnd_init: 1e-2
     sig_lstm_init: 1e-2
     suffix_exp: '-new'
-    UsePeriodicBoundary: True
+    UsePeriodicBoundary: False
     shapeData:
       - 3
       - ${datamodule.param_datamodule.dT}

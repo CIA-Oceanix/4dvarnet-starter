@@ -335,8 +335,8 @@ class model_Grad(torch.nn.Module):
             grad_  = torch.cat((grad[:,:,x.size(2)-dB:,:],grad,grad[:,:,0:dB,:]),dim=2)
             if hidden is None:
                 #hidden_,cell_ = self.lstm(grad_,None)
-                hidden_ = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
-                cell_   = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
+                hidden_ = self.sig_lstm_init * torch.randn( (grad_.size(0),self.DimState,grad_.size(2),grad_.size(3)) ).to(device)
+                cell_   = self.sig_lstm_init * torch.randn( (grad_.size(0),self.DimState,grad_.size(2),grad_.size(3)) ).to(device)
                 hidden_,cell_ = self.lstm(grad_,((hidden_,cell_)))
             else:
                 hidden_  = torch.cat((hidden[:,:,x.size(2)-dB:,:],hidden,hidden[:,:,0:dB,:]),dim=2)
@@ -348,6 +348,8 @@ class model_Grad(torch.nn.Module):
         else:
             if hidden is None:
                 #hidden_,cell_ = self.lstm(grad,None)
+                hidden_ = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad_.size(3)) ).to(device)
+                cell_   = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad_.size(3)) ).to(device)
                 hidden_,cell_ = self.lstm(grad,None)
             else:
                 #hidden_,cell_ = self.lstm(grad,[hidden,cell])
