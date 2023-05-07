@@ -539,7 +539,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.save_hyperparameters(params)
         #self.save_hyperparameters({**hparams, **kwargs})
 
-        print(self.hparams)
+        print(self.hparams,flush=True)
         
         #self.hparams.w_loss          = torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
         self.hparams.automatic_optimization = True# False#
