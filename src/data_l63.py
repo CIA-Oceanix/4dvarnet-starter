@@ -338,6 +338,8 @@ class BaseDataModule(pl.LightningDataModule):
         print( self.genSuffixObs )
 
     def setup(self, stage='test'):
+        
+        print('..... Setup datamodule',flush=True)
         data_train , data_test, stats_train, genSuffixObs = create_dataloaders(self.param_datamodule)#flag_load_data,flagTypeMissData,NbTraining,NbTest,time_step,dT,sigNoise,sampling_step)
         
         X_train, x_train, mask_train, x_train_Init, x_train_obs = data_train
