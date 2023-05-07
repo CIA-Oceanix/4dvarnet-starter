@@ -577,9 +577,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
         return [optimizer],[lr_scheduler]
     
     def _set_norm_stats(self):
-        self.stdTr = self.set_norm_stats[0]
-        self.meanTr = self.set_norm_stats[1]
-        
+        self.meanTr = self.set_norm_stats[0]
+        self.stdTr = self.set_norm_stats[1]        
         #print(' mean/std: %f -- %f'%(self.meanTr,self.stdTr))
         
     def on_train_epoch_start(self):
