@@ -43,8 +43,8 @@ datamodule:
 model:
   _target_: src.models_l63.Lit4dVarNet_L63
   params:
-    k_n_grad: 3
-    n_grad: 5
+    k_n_grad: 2
+    n_grad: 10
     lr: 1e-3 
     batch_size: 128
     DimAE: 10
@@ -53,10 +53,10 @@ model:
     dropout: 0.2
     alpha_prior: 0.1
     alpha_mse: 1.
-    lr_grad: 1.
-    lr_rnd: 1e-3
-    sig_rnd_init: 1e-2
-    sig_lstm_init: 1e-2
+    lr_grad: 0.
+    lr_rnd: 0.e-3
+    sig_rnd_init: 0e-2
+    sig_lstm_init: 0e-2
     suffix_exp: '-new'
     UsePeriodicBoundary: False
     shapeData:
@@ -68,7 +68,7 @@ model:
     patch_dims: ${model.params.shapeData}
     crop: 
       - 0
-      - 10
+      - 0
       - 0
 
 entrypoints:
