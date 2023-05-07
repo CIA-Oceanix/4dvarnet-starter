@@ -36,7 +36,7 @@ flag_load_data = False #  True#
 def get_constant_crop_l63(patch_dims, crop):
     
     print(patch_dims,flush=True)
-    patch_weight = np.zeros(patch_dims, crop, dtype="float32")
+    patch_weight = np.zeros(patch_dims, dtype="float32")
     mask = tuple(
         slice(crop[d], -crop[d]) if crop.get(d, 0) > 0 else slice(None, None)
         for d in range(0,3)
