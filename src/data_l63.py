@@ -29,15 +29,15 @@ class time_series:
   time   = 0.
 
 
-def create_dataloaders(data_module): 
-    rateMissingData = (1-1./data_module.sampling_step)
-    sigNoise = np.sqrt( data_module.varNoise )
-    genSuffixObs = data_module.genSuffixObs
+def create_l63_datasets(param_dataset): 
+    rateMissingData = (1-1./param_dataset.sampling_step)
+    sigNoise = np.sqrt( param_dataset.varNoise )
+    genSuffixObs = param_dataset.genSuffixObs
     
-    if data_module.flag_load_all_data == False :
+    if param_dataset.flag_load_all_data == False :
      
         #data_module.flag_generate_L63_data = False    
-        if data_module.flag_generate_L63_data :
+        if param_dataset.flag_generate_L63_data :
             ## data generation: L63 series
 
             class GD:
@@ -74,11 +74,11 @@ def create_dataloaders(data_module):
             xt.values = S
             xt.time   = tt
             # extract subsequences
-            dataTrainingNoNaN = image.extract_patches_2d(xt.values[0:12000:data_module.time_step,:],(data_module.dT,3),max_patches=data_module.NbTraining)
-            dataTestNoNaN     = image.extract_patches_2d(xt.values[15000::data_module.time_step,:],(data_module.dT,3),max_patches=data_module.NbTest)
+            dataTrainingNoNaN = image.extract_patches_2d(xt.values[0:12000:param_dataset.time_step,:],(param_dataset.dT,3),max_patches=param_dataset.NbTraining)
+            dataTestNoNaN     = image.extract_patches_2d(xt.values[15000::param_dataset.time_step,:],(param_dataset.dT,3),max_patches=param_dataset.NbTest)
         else:
-            path_l63_dataset = data_module.path_l63_dataset#'../../Dataset4DVarNet/dataset_L63_with_noise.nc'
-            genSuffixObs    = data_module.genSuffixObs#'JamesExp1'
+            path_l63_dataset = param_dataset.path_l63_dataset#'../../Dataset4DVarNet/dataset_L63_with_noise.nc'
+            genSuffixObs    = param_dataset.genSuffixObs#'JamesExp1'
                                 
             ncfile = Dataset(path_l63_dataset,"r")
             dataTrainingNoNaN = ncfile.variables['x_train'][:]
@@ -97,7 +97,7 @@ def create_dataloaders(data_module):
     
     
         # create missing data
-        if data_module.flagTypeMissData == 0:
+        if param_dataset.flagTypeMissData == 0:
             print('..... Observation pattern: Random sampling of osberved L63 components')
             indRand         = np.random.permutation(dataTrainingNoNaN.shape[0]*dataTrainingNoNaN.shape[1]*dataTrainingNoNaN.shape[2])
             indRand         = indRand[0:int(rateMissingData*len(indRand))]
@@ -112,9 +112,9 @@ def create_dataloaders(data_module):
             dataTest          = np.reshape(dataTest,(dataTestNoNaN.shape[0],dataTestNoNaN.shape[1],dataTestNoNaN.shape[2]))
         
             genSuffixObs    = genSuffixObs+'Rnd_%02d_%02d'%(100*rateMissingData,10*sigNoise**2)
-        elif data_module.flagTypeMissData == 2:
+        elif param_dataset.flagTypeMissData == 2:
             print('..... Observation pattern: Only the first L63 component is osberved')
-            time_step_obs   = int(data_module.sampling_step)#int(1./(1.-rateMissingData))
+            time_step_obs   = int(param_dataset.sampling_step)#int(1./(1.-rateMissingData))
             
             dataTraining    = np.zeros((dataTrainingNoNaN.shape))
             dataTraining[:] = float('nan')
@@ -124,11 +124,11 @@ def create_dataloaders(data_module):
             dataTest[:] = float('nan')
             dataTest[:,::time_step_obs,0] = dataTestNoNaN[:,::time_step_obs,0]
         
-            genSuffixObs    = genSuffixObs+'Dim0_%02d_%02d'%(int(data_module.sampling_step),10*sigNoise**2)
+            genSuffixObs    = genSuffixObs+'Dim0_%02d_%02d'%(int(param_dataset.sampling_step),10*sigNoise**2)
            
         else:
             print('..... Observation pattern: All  L63 components osberved')
-            time_step_obs   = int(data_module.sampling_step)#int(1./(1.-rateMissingData))
+            time_step_obs   = int(param_dataset.sampling_step)#int(1./(1.-rateMissingData))
             dataTraining    = np.zeros((dataTrainingNoNaN.shape))
             dataTraining[:] = float('nan')
             dataTraining[:,::time_step_obs,:] = dataTrainingNoNaN[:,::time_step_obs,:]
@@ -137,13 +137,13 @@ def create_dataloaders(data_module):
             dataTest[:] = float('nan')
             dataTest[:,::time_step_obs,:] = dataTestNoNaN[:,::time_step_obs,:]
         
-            genSuffixObs    = genSuffixObs+'Sub_%02d_%02d'%(int(data_module.sampling_step),10*data_module.varNoise)
+            genSuffixObs    = genSuffixObs+'Sub_%02d_%02d'%(int(param_dataset.sampling_step),10*param_dataset.varNoise)
             
         # set to NaN patch boundaries
         dataTraining[:,0:10,:] =  float('nan')
         dataTest[:,0:10,:]     =  float('nan')
-        dataTraining[:,data_module.dT-10:data_module.dT,:] =  float('nan')
-        dataTest[:,data_module.dT-10:data_module.dT,:]     =  float('nan')
+        dataTraining[:,param_dataset.dT-10:param_dataset.dT,:] =  float('nan')
+        dataTest[:,param_dataset.dT-10:param_dataset.dT,:]     =  float('nan')
         
         # mask for NaN
         maskTraining = (dataTraining == dataTraining).astype('float')
@@ -176,7 +176,7 @@ def create_dataloaders(data_module):
         meanTr          = np.mean(X_train_missing[:]) / np.mean(mask_train) 
         stdTr           = np.sqrt( np.mean( (X_train_missing-meanTr)**2 ) / np.mean(mask_train) )
         
-        if data_module.flagTypeMissData == 2:
+        if param_dataset.flagTypeMissData == 2:
             meanTr          = np.mean(X_train[:]) 
             stdTr           = np.sqrt( np.mean( (X_train-meanTr)**2 ) )
         
@@ -254,7 +254,7 @@ def create_dataloaders(data_module):
         x_test_Init = ( X_test_Init - meanTr ) / stdTr
         
         # reshape to 2D tensors
-        dT = data_module.dT
+        dT = param_dataset.dT
         x_train = x_train.reshape((-1,3,dT,1))
         mask_train = mask_train.reshape((-1,3,dT,1))
         x_train_Init = x_train_Init.reshape((-1,3,dT,1))
@@ -294,7 +294,7 @@ def create_dataloaders(data_module):
         print('... meanTr/stdTr:')
         print(meanTr)
         print(stdTr)
-        dT = data_module.dT
+        dT = param_dataset.dT
         
         x_train = x_train.reshape((-1,3,dT,1))
         mask_train = mask_train.reshape((-1,3,dT,1))
@@ -319,9 +319,12 @@ def create_dataloaders(data_module):
     return data_train,data_test,stat_data,genSuffixObs
 
 class BaseDataModule(pl.LightningDataModule):
-    def __init__(self, param_datamodule):
+    def __init__(self, input_data,param_datamodule):
         super().__init__()
+        
         self.param_datamodule = param_datamodule
+
+        self.input_data = input_data
 
         self.train_ds = None
         self.val_ds = None
@@ -338,9 +341,9 @@ class BaseDataModule(pl.LightningDataModule):
         print( self.genSuffixObs )
 
     def setup(self, stage='test'):
-        
+        print()
         print('..... Setup datamodule',flush=True)
-        data_train , data_test, stats_train, genSuffixObs = create_dataloaders(self.param_datamodule)#flag_load_data,flagTypeMissData,NbTraining,NbTest,time_step,dT,sigNoise,sampling_step)
+        data_train , data_test, stats_train, genSuffixObs = self.input_data #create_dataloaders(self.param_datamodule)#flag_load_data,flagTypeMissData,NbTraining,NbTest,time_step,dT,sigNoise,sampling_step)
         
         X_train, x_train, mask_train, x_train_Init, x_train_obs = data_train
         X_test, x_test, mask_test, x_test_Init, x_test_obs = data_test

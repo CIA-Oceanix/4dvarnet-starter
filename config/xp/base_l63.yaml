@@ -25,19 +25,21 @@ trainer:
 datamodule:
   _target_: src.data_l63.BaseDataModule
   param_datamodule:
-    path_l63_dataset: '../../Dataset4DVarNet/dataset_L63_with_noise.nc'
-    genSuffixObs: 'james'
-    flag_load_all_data: False
-    flag_generate_L63_data: False
-    NbTraining: 10000
-    NbTest: 2000
-    time_step: 1
-    dT: 200
-    varNoise: 2.0
-    sampling_step: 8
-    flagTypeMissData: 2
     dl_kw: {batch_size: 128, num_workers: 1}
-
+  input_data:
+    _target_: create_l63_datasets
+    params:
+      path_l63_dataset: '../../Dataset4DVarNet/dataset_L63_with_noise.nc'
+      genSuffixObs: 'james'
+      flag_load_all_data: False
+      flag_generate_L63_data: False
+      NbTraining: 10000
+      NbTest: 2000
+      time_step: 1
+      dT: 200
+      varNoise: 2.0
+      sampling_step: 8
+      flagTypeMissData: 2
 model:
   _target_: src.models_l63.Lit4dVarNet_L63
   params:
