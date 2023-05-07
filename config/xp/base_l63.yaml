@@ -64,9 +64,9 @@ model:
     w_loss:
       _target_: src.models_l63.get_constant_crop_l63
       patch_dims: `
-          - 3
-          - ${datamodule.param_datamodule.dT}
-          - 1
+        - 3
+        - ${datamodule.param_datamodule.dT}
+        - 1
       crop: 
         - 0
         - 10
