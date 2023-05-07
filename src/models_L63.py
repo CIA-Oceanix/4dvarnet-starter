@@ -533,7 +533,7 @@ EPS_NORM_GRAD = 0. * 1.e-20
 import pytorch_lightning as pl
 from omegaconf import OmegaConf
 
-class LitModel(pl.LightningModule):
+class Lit4dVarNet_L63(pl.LightningModule):
     def __init__(self,hparam=None,patch_weight=None,stats_training_data=None,*args, **kwargs):
         super().__init__()
         hparam = HParam() if hparam is None else hparam
