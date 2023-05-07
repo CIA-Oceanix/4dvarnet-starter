@@ -348,8 +348,8 @@ class model_Grad(torch.nn.Module):
         else:
             if hidden is None:
                 #hidden_,cell_ = self.lstm(grad,None)
-                hidden_ = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad_.size(3)) ).to(device)
-                cell_   = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad_.size(3)) ).to(device)
+                hidden_ = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
+                cell_   = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
                 hidden_,cell_ = self.lstm(grad,None)
             else:
                 #hidden_,cell_ = self.lstm(grad,[hidden,cell])
@@ -454,11 +454,6 @@ class Solver_Grad_4DVarNN(nn.Module):
             cell_ = cell 
             normgrad_ = normgrad
             
-            print('.............')
-            print(hidden_)
-            print('.............')
-
-            #print("... n_grad = %d"%self.n_grad)
             
             for _ii in range(self.n_grad):
                 x_k_plus_1, hidden_, cell_, normgrad_ = self.solver_step(x_k, obs, mask,hidden_, cell_, normgrad_,_ii+prev_iter)
