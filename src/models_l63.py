@@ -562,7 +562,6 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.curr = 0
 
         self.norm_stats = stats_training_data if stats_training_data is not None else (1.0,0.)
-        
         self.automatic_optimization = self.hparams.automatic_optimization
         
     def forward(self):
@@ -622,9 +621,21 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.model.k_n_grad   = self.hparams.k_n_grad 
         self.model.n_step = self.model.k_n_grad * self.model.n_grad
         self.model.model_Grad.sig_lstm_init = self.hparams.sig_lstm_init
+
+        self.set_norm_stats()
         
         print('--- n_grad = %d -- k_n_grad = %d -- n_step = %d'%(self.model.n_grad,self.model.k_n_grad,self.model.n_step) )
 
+    def on_validation_epoch_start(self):
+        #torch.inference_mode(mode=False)
+        self.x_rec = None
+
+        self.model.n_grad   = self.hparams.n_grad 
+        self.model.k_n_grad   = self.hparams.k_n_grad 
+        self.model.n_step = self.model.k_n_grad * self.model.n_grad
+        self.model.model_Grad.sig_lstm_init = self.hparams.sig_lstm_init
+
+        self.set_norm_stats()
         
     def training_step(self, train_batch, batch_idx, optimizer_idx=0):
         opt = self.optimizers()
