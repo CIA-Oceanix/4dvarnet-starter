@@ -822,6 +822,9 @@ class LitModel_FixedPoint(pl.LightningModule):
     def compute_loss(self, batch, phase, batch_init = None ):
 
         inputs_init_,inputs_obs,masks,targets_GT = batch
+        
+        print(inputs_init_,flush=True)
+        print(targets_GT,flush=True)
  
         if batch_init is None :
             inputs_init = inputs_init_
