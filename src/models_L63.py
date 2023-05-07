@@ -20,7 +20,6 @@ from netCDF4 import Dataset
 
 from sklearn import decomposition
 
-
 import src.solver_l63 as solver_4DVarNet
 from src.data_l63 import BaseDataModule
 
