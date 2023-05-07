@@ -546,12 +546,12 @@ class Lit4dVarNet_L63(pl.LightningModule):
         if self.hparams.phi_param == 'ode':
             self.model        = solver_4DVarNet.Solver_Grad_4DVarNN(Phi_ode(), 
                                                                     Model_H(self.hparams.shapeData), 
-                                                                    solver_4DVarNet.model_Grad(self.hparams.shapeData, UsePriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
+                                                                    solver_4DVarNet.model_Grad(self.hparams.shapeData, self.hparams.UsePriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
                                                                     None, None, self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD)#, self.hparams.eps_norm_grad)
         elif self.hparams.phi_param == 'unet':
             self.model        = solver_4DVarNet.Solver_Grad_4DVarNN(Phi_unet(self.hparams.shapeData,self.hparams.DimAE), 
                                                                     Model_H(self.hparams.shapeData), 
-                                                                    solver_4DVarNet.model_Grad(self.hparams.shapeData, UsePriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
+                                                                    solver_4DVarNet.model_Grad(self.hparams.shapeData, self.hparams.UsePriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
                                                                     None, None, self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD)#, self.hparams.eps_norm_grad)
         
         self.w_loss  = self.torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
