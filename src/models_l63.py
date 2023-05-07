@@ -528,27 +528,12 @@ import pytorch_lightning as pl
 from omegaconf import OmegaConf
 
 class Lit4dVarNet_L63(pl.LightningModule):
-    def __init__(self,hparam=None,patch_weight=None,stats_training_data=None,*args, **kwargs):
+    def __init__(self,params=None,patch_weight=None,stats_training_data=None,*args, **kwargs):
         super().__init__()
-        hparam = HParam() if hparam is None else hparam
-        hparams = hparam
+        hparams = HParam() if params is None else params
+        #hparams = hparam
 
         self.save_hyperparameters({**hparams, **kwargs})
-
-        # hyperparameters
-        #self.hparams.iter_update     = [0, 20, 50, 70, 100, 150, 800]  # [0,2,4,6,9,15]
-        #self.hparams.nb_grad_update  = [5, 5, 10, 10, 15, 15, 20, 20, 20]  # [0,0,1,2,3,3]#[0,2,2,4,5,5]#
-        #self.hparams.lr_update       = [1e-3, 1e-4, 1e-4, 1e-5, 1e-4, 1e-5, 1e-5, 1e-6, 1e-7]
-        
-        #self.hparams.n_grad          = 5#self.hparams.n_grad#5#self.hparams.nb_grad_update[0]
-        #self.hparams.k_n_grad        = 1#self.hparams.k_n_grad#1
-        #self.hparams.dim_grad_solver = dimGradSolver
-        #self.hparams.dropout         = rateDropout
-        
-        #self.hparams.k_batch         = 1
-        
-        #self.hparams.alpha_prior    = 0.5
-        #self.hparams.alpha_mse = 1.e1        
 
         self.hparams.w_loss          = torch.nn.Parameter(torch.Tensor(w_loss), requires_grad=False) if patch_weight is not None else 1.
         self.hparams.automatic_optimization = True# False#
@@ -564,19 +549,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
                                                                     Model_H(self.hparams.shapeData), 
                                                                     solver_4DVarNet.model_Grad(self.hparams.shapeData, UsePriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
                                                                     None, None, self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD)#, self.hparams.eps_norm_grad)
-        
-#        if 1*0:
-#            self.model        = solver_4DVarNet.Solver_Grad_4DVarNN(Phi_r(), 
-#                                                                    Model_H(), 
-#                                                                    solver_4DVarNet.model_GradUpdateLSTM(shapeData, UsePriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
-#                                                                    None, None, shapeData, self.hparams.n_grad, EPS_NORM_GRAD)#, self.hparams.eps_norm_grad)
-#        else:
-#            self.model        = solver_4DVarNet.Solver_Grad_4DVarNN(Phi_r(), 
-#                                                                    Model_H(), 
-#                                                                    solver_4DVarNet.model_Grad(shapeData, UsePriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
-#                                                                    None, None, shapeData, self.hparams.n_grad, EPS_NORM_GRAD)#, self.hparams.eps_norm_grad)
-
-        self.w_loss  = self.hparams.w_loss # duplicate for automatic upload to gpu
+        self.w_loss  = self.hparams.w_loss
         self.x_rec   = None # variable to store output of test method
         self.x_rec_obs = None
         self.curr = 0
@@ -584,7 +557,6 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.norm_stats = stats_training_data if stats_training_data is not None else (1.0,0.)
         
         self.automatic_optimization = self.hparams.automatic_optimization
-        self.set_norm_stats()
         
     def forward(self):
         return 1
