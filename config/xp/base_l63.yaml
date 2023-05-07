@@ -38,7 +38,7 @@ datamodule:
       time_step: 1
       dT: 200
       varNoise: 2.0
-      sampling_step: ??
+      sampling_step: 8
       flagTypeMissData: 2
 model:
   _target_: src.models_l63.Lit4dVarNet_L63
@@ -72,9 +72,10 @@ model:
       - 0
 
 entrypoints:
+  ckpt_path: 'outputs/2023-05-07/22-59-29/base_l63/checkpoints/val_mse=1.5806-epoch=014.ckpt'
   - _target_: pytorch_lightning.seed_everything
     seed: 333
-  - _target_: src.train.base_training
+  - _target_: src.test.base_testing #src.train.base_training
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
