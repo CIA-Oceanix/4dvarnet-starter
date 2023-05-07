@@ -197,8 +197,8 @@ def create_dataloaders(data_module):
         x_train_obs = (X_train_obs - meanTr) / stdTr
         x_test_obs  = (X_test_obs - meanTr) / stdTr
         
-        print('..... Training dataset: %dx%dx%d'%(x_train.shape[0],x_train.shape[1],x_train.shape[2]))
-        print('..... Test dataset    : %dx%dx%d'%(x_test.shape[0],x_test.shape[1],x_test.shape[2]))
+        #print('..... Training dataset: %dx%dx%d'%(x_train.shape[0],x_train.shape[1],x_train.shape[2]))
+        #print('..... Test dataset    : %dx%dx%d'%(x_test.shape[0],x_test.shape[1],x_test.shape[2]))
             
         import scipy
         # Initialization
@@ -363,57 +363,4 @@ class BaseDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         return torch.utils.data.DataLoader(self.test_ds, shuffle=False, **self.dl_kw)
-
-class ConcatDataModule(BaseDataModule):
-    def train_mean_std(self):
-        sum, count = 0, 0
-        train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {}))
-        for domain in self.domains['train']:
-            _sum, _count = train_data.sel(domain).sel(variable='tgt').pipe(lambda da: (da.sum(), da.pipe(np.isfinite).sum()))
-            sum += _sum
-            count += _count
-
-        mean = sum / count
-        sum = 0
-        for domain in self.domains['train']:
-            _sum = train_data.sel(domain).sel(variable='tgt').pipe(lambda da: da - mean).pipe(np.square).sum()
-            sum += _sum
-        std = (sum / count)**0.5
-        return mean.values.item(), std.values.item()
-
-    def setup(self, stage='test'):
-        post_fn = self.post_fn()
-        self.train_ds = XrConcatDataset([
-            XrDataset(self.input_da.sel(domain), **self.xrds_kw, postpro_fn=post_fn,)
-            for domain in self.domains['train']
-        ])
-        if self.aug_factor >= 1:
-            self.train_ds = AugmentedDataset(self.train_ds, self.aug_factor, self.aug_only)
-
-        self.val_ds = XrConcatDataset([
-            XrDataset(self.input_da.sel(domain), **self.xrds_kw, postpro_fn=post_fn,)
-            for domain in self.domains['val']
-        ])
-        self.test_ds = XrConcatDataset([
-            XrDataset(self.input_da.sel(domain), **self.xrds_kw, postpro_fn=post_fn,)
-            for domain in self.domains['test']
-        ])
-
-
-class RandValDataModule(BaseDataModule):
-    def __init__(self, val_prop, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.val_prop = val_prop
-
-    def setup(self, stage='test'):
-        post_fn = self.post_fn()
-        train_ds = XrDataset(self.input_da.sel(self.domains['train']), **self.xrds_kw, postpro_fn=post_fn,)
-        n_val = int(self.val_prop * len(train_ds))
-        n_train = len(train_ds) - n_val
-        self.train_ds, self.val_ds = torch.utils.data.random_split(train_ds, [n_train, n_val])
-
-        if self.aug_factor > 1:
-            self.train_ds = AugmentedDataset(self.train_ds, self.aug_factor)
-
-        self.test_ds = XrDataset(self.input_da.sel(self.domains['test']), **self.xrds_kw, postpro_fn=post_fn,)
 
