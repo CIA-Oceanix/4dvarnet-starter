@@ -61,14 +61,14 @@ model:
       - 3
       - ${datamodule.param_datamodule.dT}
       - 1
-    w_loss:
-      _target_: src.models_l63.get_constant_crop_l63
-      patch_dims:
-        - 3
-        - 200 #${datamodule.param_datamodule.dT}
-        - 1
-      crop: 
-        - 0
-        - 10
-        - 0
+  w_loss:
+    _target_: src.models_l63.get_constant_crop_l63
+    patch_dims:
+      - 3
+      - 200 #${datamodule.param_datamodule.dT}
+      - 1
+    crop: 
+      - 0
+      - 10
+      - 0
   
