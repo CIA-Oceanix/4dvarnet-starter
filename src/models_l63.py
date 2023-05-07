@@ -561,7 +561,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.x_rec_obs = None
         self.curr = 0
 
-        self.norm_stats = stats_training_data if stats_training_data is not None else (1.0,0.)
+        self.set_norm_stats = stats_training_data if stats_training_data is not None else (1.0,0.)
         self._set_norm_stats()
         print(self.norm_stats)
         
