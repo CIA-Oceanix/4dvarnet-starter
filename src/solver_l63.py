@@ -42,10 +42,6 @@ class ConvLSTM2d(torch.nn.Module):
 
         # data size is [batch, channel, height, width]
         
-        print('............. ')
-        print(device)
-        print(input_.is_cuda,flush=True)
-        print(prev_hidden.is_cuda,flush=True)
         stacked_inputs = torch.cat((input_, prev_hidden), 1)
         gates = self.Gates(stacked_inputs)
 
@@ -339,8 +335,8 @@ class model_Grad(torch.nn.Module):
             grad_  = torch.cat((grad[:,:,x.size(2)-dB:,:],grad,grad[:,:,0:dB,:]),dim=2)
             if hidden is None:
                 #hidden_,cell_ = self.lstm(grad_,None)
-                hidden_ = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) )
-                cell_   = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) )
+                hidden_ = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
+                cell_   = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
                 hidden_,cell_ = self.lstm(grad_,((hidden_,cell_)))
             else:
                 hidden_  = torch.cat((hidden[:,:,x.size(2)-dB:,:],hidden,hidden[:,:,0:dB,:]),dim=2)
@@ -456,6 +452,10 @@ class Solver_Grad_4DVarNN(nn.Module):
             cell_ = cell 
             normgrad_ = normgrad
             
+            print('.............')
+            print(hidden_)
+            print('.............')
+
             #print("... n_grad = %d"%self.n_grad)
             
             for _ii in range(self.n_grad):
