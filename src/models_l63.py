@@ -27,6 +27,11 @@ from scipy.integrate import odeint
 from scipy.integrate import solve_ivp
 from sklearn.feature_extraction import image
 
+import pytorch_lightning as pl
+from omegaconf import OmegaConf
+
+EPS_NORM_GRAD = 0. * 1.e-20  
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #torch.set_float32_matmul_precision('medium')
 torch.set_float32_matmul_precision('high')
@@ -47,14 +52,14 @@ def get_constant_crop_l63(patch_dims, crop):
     return patch_weight
 
 
-
-print('........ Data generation')
-flagRandomSeed = 0
-if flagRandomSeed == 0:
-    print('........ Random seed set to 100')
-    see_rnd = 200#100
-    np.random.seed(see_rnd)
-    torch.manual_seed(see_rnd)
+if 1*0:
+    print('........ Data generation')
+    flagRandomSeed = 0
+    if flagRandomSeed == 0:
+        print('........ Random seed set to 100')
+        see_rnd = 200#100
+        np.random.seed(see_rnd)
+        torch.manual_seed(see_rnd)
 
 def AnDA_Lorenz_63(S,t,sigma,rho,beta):
     """ Lorenz-63 dynamical model. """
@@ -359,7 +364,7 @@ def create_dataloaders(data_module):
 
     return data_train,data_test,stat_data,genSuffixObs
 
-print('........ Define AE architecture')
+#print('........ Define AE architecture')
 #shapeData  = x_train.shape[1:]
 # freeze all ode parameters
 
@@ -476,11 +481,6 @@ class Phi_unet(torch.nn.Module):
         x = x.view(-1,self.shapeData[0],self.shapeData[1],1)
         return x
 
-#phi_r           = Phi_r()
-#print(' AE Model/Dynamical prior: '+flagAEType)
-#print(phi_r)
-#print('AE/Prior: Number of trainable parameters = %d'%(sum(p.numel() for p in phi_r.parameters() if p.requires_grad)))
-
 
 class Model_H(torch.nn.Module):
     def __init__(self,shapeData):
@@ -523,9 +523,6 @@ class HParam:
         #self.hparams.dropout         = rateDropout
 
 
-EPS_NORM_GRAD = 0. * 1.e-20  
-import pytorch_lightning as pl
-from omegaconf import OmegaConf
 
 class Lit4dVarNet_L63(pl.LightningModule):
     def __init__(self,params=None,patch_weight=None,stats_training_data=None,*args, **kwargs):
@@ -740,9 +737,6 @@ class HParam_FixedPoint:
         self.alpha_mse = 1.
         self.lr = 1.e-3
 
-EPS_NORM_GRAD = 0. * 1.e-20  
-import pytorch_lightning as pl
-
 class LitModel_FixedPoint(pl.LightningModule):
     def __init__(self,conf=HParam_FixedPoint(),*args, **kwargs):
         super().__init__()
@@ -852,7 +846,6 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 import hydra
 from pathlib import Path
 
-
 def get_cfg(xp_cfg, overrides=None):
     overrides = overrides if overrides is not None else []
     def get():
@@ -880,7 +873,7 @@ if __name__ == '__main__':
 
     dm = BaseDataModule(cfg.datamodule.param_datamodule)
     
-    mod = LitModel(cfg.model.params,patch_weight=get_constant_crop_l63(patch_dims=cfg.model.params.w_loss.patch_dims,crop=cfg.model.params.w_loss.crop))
+    mod = Lit4dVarNet_L63(cfg.model.params,patch_weight=get_constant_crop_l63(patch_dims=cfg.model.params.w_loss.patch_dims,crop=cfg.model.params.w_loss.crop))
 
     mod.meanTr = dm.meanTr
     mod.stdTr  = dm.stdTr
@@ -908,335 +901,4 @@ if __name__ == '__main__':
                                           save_top_k=3,
                                           mode='min')
     trainer = pl.Trainer(devices=1,accelerator="gpu",  **profiler_kwargs,callbacks=[checkpoint_callback])
-    trainer.fit(mod, datamodule=dm ) #dataloaders['train'], dataloaders['val'])
- 
-    
-    # load and create dataset   
-    if 1*0:
-        data_train , data_test, stats_train, genSuffixObs = create_dataloaders(cfg.datamodule)#flag_load_data,flagTypeMissData,NbTraining,NbTest,time_step,dT,sigNoise,sampling_step)
-        
-        X_train, x_train, mask_train, x_train_Init, x_train_obs = data_train
-        X_test, x_test, mask_test, x_test_Init, x_test_obs = data_test
-        meanTr, stdTr = stats_train
-    
-        # define dataloaders
-        batch_size = 128
-        idx_val = x_train.shape[0]-500
-            
-        training_dataset     = torch.utils.data.TensorDataset(torch.Tensor(x_train_Init[:idx_val:,:,:,:]),torch.Tensor(x_train_obs[:idx_val:,:,:,:]),torch.Tensor(mask_train[:idx_val:,:,:,:]),torch.Tensor(x_train[:idx_val:,:,:,:])) # create your datset
-        val_dataset         = torch.utils.data.TensorDataset(torch.Tensor(x_train_Init[idx_val::,:,:,:]),torch.Tensor(x_train_obs[idx_val::,:,:,:]),torch.Tensor(mask_train[idx_val::,:,:,:]),torch.Tensor(x_train[idx_val::,:,:,:])) # create your datset
-        test_dataset         = torch.utils.data.TensorDataset(torch.Tensor(x_test_Init),torch.Tensor(x_test_obs),torch.Tensor(mask_test),torch.Tensor(x_test)) # create your datset
-        
-        dataloaders = {
-            'train': torch.utils.data.DataLoader(training_dataset, batch_size=batch_size, shuffle=True),#, num_workers=4, pin_memory=True),
-            'val': torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False),#, num_workers=4, pin_memory=True),
-            'test': torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False),#, num_workers=4, pin_memory=True),
-        }            
-        dataset_sizes = {'train': len(training_dataset), 'val': len(val_dataset), 'test': len(test_dataset)}
-    #else:
-    #    print( OmegaConf.to_yaml(cfg.datamodule.param_datamodule)) 
-    #    dm = BaseDataModule(cfg.datamodule.param_datamodule)
-
-    #DimAE = 10
-    #flagAEType = 'unet' # 'ode' #
-    dT = cfg.datamodule.param_datamodule.dT
-    UsePriodicBoundary = False # use a periodic boundary for all conv operators in the gradient model (see torch_4DVarNN_dinAE)
-    w_loss = np.ones(dT) / float(dT)
-
-    flagProcess = -1#0
-    
-    if flagProcess == 0: ## training model from scratch
-        #dimGradSolver = 100#25
-        #rateDropout = 0.2
-        
-        flagLoadModel = False# True # 
-        if flagLoadModel == True:
-            pathCheckPOint = 'resL63/exp 2-/model-l63exp 2--igrad05_01-dgrad25-drop_00-epoch=99-val_loss=0.04.ckpt'
-            pathCheckPOint = 'resL63/exp02/model-l63-exp02-igrad05_01-dgrad25-drop_00-epoch=488-val_loss=2.14.ckpt'
-            #pathCheckPOint = 'resL63/exp02/model-l63-exp02-igrad10_01-dgrad25-drop_00-epoch=496-val_loss=1.41.ckpt'
-            
-            pathCheckPOint = 'resL63/exp02-2/model-l63-unet-exp02-2-Noise01-igrad10_02-dgrad25-drop20-epoch=95-val_loss=0.82.ckpt'
-            pathCheckPOint = 'resL63/exp02-2/model-l63-unet-exp02-2-Noise01-igrad10_04-dgrad25-drop20-epoch=33-val_loss=0.77.ckpt'
-            
-            pathCheckPOint = 'resL63/exp02-8/model-l63-unet-exp02-8-Noise01-igrad10_02-dgrad100-drop20-epoch=393-val_loss=0.71.ckpt'
-            pathCheckPOint = 'resL63/exp02-3/model-l63-unet-exp02-3-Noise01-igrad10_04-dgrad100-drop20-epoch=280-val_loss=0.58.ckpt'
-            
-            #pathCheckPOint = 'resL63/exp02-6/model-l63-unet-exp02-6-Noise01-igrad10_04-dgrad100-drop20-rnd-init01-lstm-init01-epoch=301-val_loss=0.60.ckpt'
-            #pathCheckPOint = 'resL63/exp02-8/model-l63-unet-exp02-8-Noise01-igrad10_02-dgrad100-drop20-rnd-init01-lstm-init01-epoch=312-val_loss=0.60.ckpt'
-            
-            pathCheckPOint = 'resL63/exp02-8bis/model-l63-ObsDim0_96_20-unet-exp02-8bis-Noise01-igrad10_02-dgrad100-drop20-rnd-init01-lstm-init01-epoch=325-val_loss=7.28.ckpt'
-            
-            print('.... load pre-trained model :'+pathCheckPOint)
-            mod = LitModel.load_from_checkpoint(pathCheckPOint)
-
-            mod.hparams.n_grad          = 10
-            mod.hparams.k_n_grad        = 4
-            mod.hparams.lr              = 1e-3
-            #mod.hparams.iter_update     = [0, 400, 200, 300, 500, 700, 800]  # [0,2,4,6,9,a15]
-            #mod.hparams.nb_grad_update  = [10, 10, 10, 10, 10, 5, 20, 20, 20]  # [0,0,1,2,3,3]#[0,2,2,4,5,5]#
-            #mod.hparams.lr_update       = [1e-4, 1e-5, 1e-6, 1e-5, 1e-4, 1e-5, 1e-5, 1e-6, 1e-7]
-        else:
-            mod = LitModel(cfg.params)
-            
-            print(mod.hparams)
-            #mod.hparams.n_grad          = 10
-            #mod.hparams.k_n_grad        = 2
-            #mod.hparams.lr              = 1e-3
-            #mod.hparams.iter_update     = [0, 400, 200, 300, 500, 700, 800]  # [0,2,4,6,9,15]
-            #mod.hparams.nb_grad_update  = [5, 5, 5, 5, 15, 15, 20, 20, 20]  # [0,0,1,2,3,3]#[0,2,2,4,5,5]#
-            #mod.hparams.lr_update       = [1e-3, 1e-4, 1e-5, 1e-5, 1e-4, 1e-5, 1e-5, 1e-6, 1e-7]
-        
-        #mod.hparams.alpha_prior = 0.1
-        #mod.hparams.alpha_mse = 1.
-        #mod.model.lr_grad = 1.e3 * 1e-3 #1e-3
-        #mod.model.lr_rnd = 1e-3
-        #mod.hparams.sig_rnd_init = 1e-2
-        #mod.hparams.sig_lstm_init = 1e-2
-        
-        mod.meanTr = dm.meanTr
-        mod.stdTr  = dm.stdTr
-        
-        print('n_step = %d'%mod.model.n_step)
-        profiler_kwargs = {'max_epochs': 400 }
-
-        suffix_exp = 'exp%02d'%cfg.datamodule.param_datamodule.flagTypeMissData+cfg.params.suffix_exp
-        
-        
-        filename_chkpt = 'model-l63-'+ dm.genSuffixObs        
-        filename_chkpt = filename_chkpt+cfg.params.phi_param+'-'              
-        filename_chkpt = filename_chkpt + suffix_exp+'-Noise%02d'%(cfg.datamodule.param_datamodule.varNoise)
-
-
-        filename_chkpt = filename_chkpt+'-igrad%02d_%02d'%(mod.hparams.n_grad,mod.hparams.k_n_grad)+'-dgrad%d'%cfg.params.dim_grad_solver
-        filename_chkpt = filename_chkpt+'-drop%02d'%(100*cfg.params.dropout)
-        filename_chkpt = filename_chkpt+'-rnd-init%02d'%(100*mod.hparams.sig_rnd_init)
-        filename_chkpt = filename_chkpt+'-lstm-init%02d'%(100*mod.hparams.sig_lstm_init)
-
-        print('.... chkpt: '+filename_chkpt)
-        checkpoint_callback = ModelCheckpoint(monitor='val_loss',
-                                              dirpath= './resL63/'+suffix_exp,
-                                              filename= filename_chkpt + '-{epoch:02d}-{val_loss:.2f}',
-                                              save_top_k=3,
-                                              mode='min')
-        trainer = pl.Trainer(devices=1,accelerator="gpu",  **profiler_kwargs,callbacks=[checkpoint_callback])
-        trainer.fit(mod, datamodule=dm ) #dataloaders['train'], dataloaders['val'])
-        
-    elif flagProcess == 1: ## training model from scratch
-        dimGradSolver = 100
-        rateDropout = 0.2
-
-        pathCheckPOint = 'resL63/exp02/model-l63-exp02-igrad05_01-dgrad25-drop_00-epoch=197-val_loss=1.37.ckpt'
-        pathCheckPOint = 'resL63/exp02/model-l63-exp02-igrad05_01-dgrad25-drop_00-epoch=488-val_loss=2.14.ckpt'
-        #pathCheckPOint = 'resL63/exp02/model-l63-exp02-igrad05_02-dgrad25-drop_20-epoch=35-val_loss=2.08.ckpt'
-        #pathCheckPOint = 'resL63/exp02/model-l63-exp02-igrad05_02-dgrad25-drop_20-epoch=96-val_loss=1.70.ckpt'
-        #pathCheckPOint = 'resL63/exp02/model-l63-exp02-igrad15_01-dgrad25-drop_00-epoch=93-val_loss=1.18.ckpt'
-        
-        pathCheckPOint = 'resL63/exp02-2/model-l63-unet-exp02-2-igrad10_02-dgrad25-drop_20-epoch=95-val_loss=0.81.ckpt'
-        
-        #pathCheckPOint = 'resL63/exp02-2/model-l63-ode-exp02-2-igrad05_02-dgrad25-drop_20-epoch=405-val_loss=5.89.ckpt'
-        
-        pathCheckPOint = 'resL63/exp02-2/model-l63-unet-exp02-2-Noise01-igrad10_02-dgrad25-drop20-epoch=95-val_loss=0.82.ckpt'
-        #pathCheckPOint = 'resL63/exp02-9/model-l63-unet-exp02-9-Noise01-igrad10_04-dgrad100-drop20-epoch=149-val_loss=0.58.ckpt'
-
-        pathCheckPOint = 'resL63/exp02-8/model-l63-unet-exp02-8-Noise01-igrad10_02-dgrad100-drop20-epoch=393-val_loss=0.71.ckpt'
-        pathCheckPOint = 'resL63/exp02-3/model-l63-unet-exp02-3-Noise01-igrad20_04-dgrad100-drop20-epoch=132-val_loss=0.69.ckpt'
-        pathCheckPOint = 'resL63/exp02-3/model-l63-unet-exp02-3-Noise01-igrad05_02-dgrad100-drop20-epoch=165-val_loss=0.69.ckpt'
-        pathCheckPOint = 'resL63/exp02-3/model-l63-unet-exp02-3-Noise01-igrad20_04-dgrad100-drop20-epoch=355-val_loss=0.62.ckpt'
-        #pathCheckPOint = 'resL63/exp02-3/model-l63-unet-exp02-3-Noise01-igrad10_04-dgrad100-drop20-epoch=280-val_loss=0.58.ckpt'
-        #pathCheckPOint = 'resL63/exp02-5/model-l63-unet-exp02-5-Noise01-igrad10_08-dgrad100-drop20-epoch=05-val_loss=0.58.ckpt'
-        pathCheckPOint = 'resL63/exp02-4/model-l63-unet-exp02-4-Noise01-igrad10_10-dgrad100-drop20-epoch=261-val_loss=0.57.ckpt'
-        pathCheckPOint = 'resL63/exp02-5/model-l63-unet-exp02-5-Noise01-igrad10_08-dgrad100-drop20-epoch=149-val_loss=0.56.ckpt'
-        
-        pathCheckPOint = 'resL63/exp02-6/model-l63-unet-exp02-6-Noise01-igrad10_04-dgrad100-drop20-rnd-init01-lstm-init01-epoch=301-val_loss=0.60.ckpt'
-        pathCheckPOint = 'resL63/exp02-7/model-l63-unet-exp02-7-Noise01-igrad10_15-dgrad100-drop20-rnd-init01-lstm-init01-epoch=61-val_loss=0.59.ckpt'
-        pathCheckPOint = 'resL63/exp02-7/model-l63-unet-exp02-8-Noise01-igrad10_02-dgrad100-drop20-rnd-init01-lstm-init01-epoch=312-val_loss=0.60.ckpt'
-
-        #pathCheckPOint = 'resL63/exp02-8/model-l63-unet-exp02-8-Noise01-igrad10_02-dgrad100-drop20-rnd-init01-lstm-init01-epoch=312-val_loss=0.60.ckpt'
-        pathCheckPOint = 'resL63/exp02-8/model-l63-unet-exp02-8-Noise01-igrad10_08-dgrad100-drop20-rnd-init01-lstm-init01-epoch=64-val_loss=0.59.ckpt'
-        #pathCheckPOint = 'resL63/exp02-8bis/model-l63-ObsDim0_93_20-unet-exp02-8bis-Noise01-igrad10_02-dgrad100-drop20-rnd-init01-lstm-init01-epoch=311-val_loss=1.50.ckpt'
-        #pathCheckPOint = 'resL63/exp02-8bis/model-l63-ObsDim0_96_20-unet-exp02-8bis-Noise01-igrad10_02-dgrad100-drop20-rnd-init01-lstm-init01-epoch=325-val_loss=7.28.ckpt'
-
-        #pathCheckPOint = 'resL63/exp02-9bis/model-l63-ObsDim0_16_20-unet-exp02-9bis-Noise01-igrad10_02-dgrad100-drop20-rnd-init01-lstm-init01-epoch=338-val_loss=1.41.ckpt'
-        #pathCheckPOint = 'resL63/exp02-9bis/model-l63-ObsDim0_24_20-unet-exp02-9bis-Noise01-igrad10_02-dgrad100-drop20-rnd-init01-lstm-init01-epoch=377-val_loss=3.18.ckpt'
-        #pathCheckPOint = 'resL63/exp02-9bis/model-l63-ObsDim0_32_20-unet-exp02-9bis-Noise01-igrad10_02-dgrad100-drop20-rnd-init01-lstm-init01-epoch=382-val_loss=7.08.ckpt'
-        
-        print('.... load pre-trained model :'+pathCheckPOint)
-        
-        mod = LitModel.load_from_checkpoint(pathCheckPOint)            
-        
-        mod.hparams.lr_update  = [1e-10]
-        mod.hparams.n_grad = 10
-        mod.hparams.k_n_grad = 2
-        #mod.model.n_step = mod.hparams.n_grad * mod.hparams.k_n_grad
-        mod.model.lr_grad = 1.e3 *  1e-3
-        mod.model.lr_rnd = 0 * 1.e-3
-        mod.hparams.sig_rnd_init = 0.*1.e-2
-        mod.hparams.sig_lstm_init = 0.*1.e-2
-        
-        print(mod.hparams)
-        print(' Ngrad = %d / %d'%(mod.hparams.n_grad,mod.model.n_grad))
-        #trainer = pl.Trainer(gpus=1, accelerator = "ddp", **profiler_kwargs)
-
-        profiler_kwargs = {'max_epochs': 1}
-        trainer = pl.Trainer(devices=1,accelerator="gpu",  **profiler_kwargs,inference_mode=False)
-        
-        print('n_step = %d'%mod.model.n_step)        
-        #trainer.fit(mod, dataloaders['train'], dataloaders['val'])
-        
-        if 1*1 :
-            trainer.test(mod, dataloaders=dataloaders['val'])
-            
-            # Reconstruction performance
-            X_val = X_train[idx_val::,:,:]
-            mask_val = mask_train[idx_val::,:,:,:].squeeze()
-            var_val  = np.mean( (X_val - np.mean(X_val,axis=0))**2 )
-            mse = np.mean( (mod.x_rec-X_val) **2 ) 
-            mse_i   = np.mean( (1.-mask_val.squeeze()) * (mod.x_rec-X_val) **2 ) / np.mean( (1.-mask_val) )
-            mse_r   = np.mean( mask_val.squeeze() * (mod.x_rec-X_val) **2 ) / np.mean( mask_val )
-            
-            nmse = mse / var_val
-            nmse_i = mse_i / var_val
-            nmse_r = mse_r / var_val
-            
-            print("..... Assimilation performance (validation data)")
-            print(".. MSE ALL.   : %.3f / %.3f"%(mse,nmse))
-            print(".. MSE ObsData: %.3f / %.3f"%(mse_r,nmse_r))
-            print(".. MSE Interp : %.3f / %.3f"%(mse_i,nmse_i))
-        
-        print('n_step = %d'%mod.model.n_step)
-
-        trainer.test(mod, dataloaders=dataloaders['test'])
-
-        # Reconstruction performance
-        var_test  = np.mean( (X_test - np.mean(X_test,axis=0))**2 )
-        mse = np.mean( (mod.x_rec-X_test) **2 ) 
-        mse_i   = np.mean( (1.-mask_test.squeeze()) * (mod.x_rec-X_test) **2 ) / np.mean( (1.-mask_test) )
-        mse_r   = np.mean( mask_test.squeeze() * (mod.x_rec-X_test) **2 ) / np.mean( mask_test )
-        
-        nmse = mse / var_test
-        nmse_i = mse_i / var_test
-        nmse_r = mse_r / var_test
-        
-        print("..... Assimilation performance (test data)")
-        print(".. MSE ALL.   : %.3f / %.3f"%(mse,nmse))
-        print(".. MSE ObsData: %.3f / %.3f"%(mse_r,nmse_r))
-        print(".. MSE Interp : %.3f / %.3f"%(mse_i,nmse_i))     
-        
-        x_rec_1 = 1. * mod.x_rec
-        trainer.test(mod, dataloaders=dataloaders['test'])
-        var_rec = np.mean( (x_rec_1-mod.x_rec)**2 )
-        bias_rec = np.mean( (x_rec_1-mod.x_rec) )
-        print('..')
-        print('.. Mean difference between 2 runs : %.3f'%bias_rec)
-        print('.. MSE between 2 runs             : %.3f'%var_rec)
-        
-        if False :        
-            import xarray as xr
-            xrdata = xr.Dataset( data_vars={'l63-rec': (["n", "D", "dT"],mod.x_rec),'l63-gt': (["n", "D", "dT"],X_test)})
-            xrdata.to_netcdf(path=pathCheckPOint.replace('.ckpt','_res.nc'), mode='w')
-
-
-    if flagProcess == 2: ## training model from scratch
-        dimGradSolver = 25
-        rateDropout = 0.2
-        
-        flagLoadModel = False#True #
-        if flagLoadModel == True:
-            pathCheckPOint = ''
-            
-            print('.... load pre-trained model :'+pathCheckPOint)
-            mod = LitModel_FixedPoint.load_from_checkpoint(pathCheckPOint)
-
-            mod.hparams.n_iter_fp       = 5
-            mod.hparams.k_n_fp          = 2
-            mod.hparams.lr_update       = 1e-3
-        else:
-            mod = LitModel_FixedPoint()
-            
-            mod.hparams.n_iter_fp       = 5
-            mod.hparams.k_n_fp          = 2
-            mod.hparams.lr_update       = 1e-3
-        
-        mod.hparams.alpha_prior = 0.1
-        mod.hparams.alpha_mse = 1.
-        
-        profiler_kwargs = {'max_epochs': 500 }
-
-        suffix_exp = 'exp%02d-3'%flagTypeMissData
-        filename_chkpt = 'modelFP-l63-'
-        
-        filename_chkpt = filename_chkpt+flagAEType+'-'  
-            
-        filename_chkpt = filename_chkpt + suffix_exp
-        filename_chkpt = filename_chkpt+'-fp%02d_%02d'%(mod.hparams.n_iter_fp,mod.hparams.k_n_fp)
-
-        print('.... chkpt: '+filename_chkpt)
-        checkpoint_callback = ModelCheckpoint(monitor='val_loss',
-                                              dirpath= './resL63/'+suffix_exp,
-                                              filename= filename_chkpt + '-{epoch:02d}-{val_loss:.2f}',
-                                              save_top_k=3,
-                                              mode='min')
-        trainer = pl.Trainer(gpus=1,  **profiler_kwargs,callbacks=[checkpoint_callback])
-        trainer.fit(mod, dataloaders['train'], dataloaders['val'])
-
-    elif flagProcess == 3: ## testing trainable fixed-point scheme
-        dimGradSolver = 25
-        rateDropout = 0.2
-
-        pathCheckPOint = 'resL63/exp02-2/model-l63-unet-exp02-2-fp05_01-epoch=112-val_loss=1.66.ckpt'
-        #pathCheckPOint = 'resL63/exp02-2/model-l63-ode-exp02-2-igrad05_02-dgrad25-drop_20-epoch=405-val_loss=5.89.ckpt'
-        
-        print('.... load pre-trained model :'+pathCheckPOint)
-        
-        mod = LitModel_FixedPoint.load_from_checkpoint(pathCheckPOint)            
-            
-        mod.hparams.n_iter_fp       = 5
-        mod.hparams.k_n_fp          = 1
-    
-        print(' Nb projection iterations = %d / %d'%(mod.hparams.n_iter_fp,mod.hparams.k_n_fp))
-        #trainer = pl.Trainer(gpus=1, accelerator = "ddp", **profiler_kwargs)
-
-        profiler_kwargs = {'max_epochs': 1}
-        trainer = pl.Trainer(gpus=1,  **profiler_kwargs,inference_mode=False)
-        
-        #trainer.fit(mod, dataloaders['train'], dataloaders['val'])
-        
-        trainer.test(mod, test_dataloaders=dataloaders['val'])
-        
-        # Reconstruction performance
-        X_val = X_train[idx_val::,:,:]
-        mask_val = mask_train[idx_val::,:,:,:].squeeze()
-        var_val  = np.mean( (X_val - np.mean(X_val,axis=0))**2 )
-        
-        print(mod.x_rec.shape)
-        print(X_val.shape)
-        mse = np.mean( (mod.x_rec-X_val) **2 ) 
-        mse_i   = np.mean( (1.-mask_val.squeeze()) * (mod.x_rec-X_val) **2 ) / np.mean( (1.-mask_val) )
-        mse_r   = np.mean( mask_val.squeeze() * (mod.x_rec-X_val) **2 ) / np.mean( mask_val )
-        
-        nmse = mse / var_val
-        nmse_i = mse_i / var_val
-        nmse_r = mse_r / var_val
-        
-        print("..... Assimilation performance (validation data)")
-        print(".. MSE ALL.   : %.3f / %.3f"%(mse,nmse))
-        print(".. MSE ObsData: %.3f / %.3f"%(mse_r,nmse_r))
-        print(".. MSE Interp : %.3f / %.3f"%(mse_i,nmse_i))
-    
-        trainer.test(mod, test_dataloaders=dataloaders['test'])
-
-        # Reconstruction performance
-        var_test  = np.mean( (X_test - np.mean(X_test,axis=0))**2 )
-        mse = np.mean( (mod.x_rec-X_test) **2 ) 
-        mse_i   = np.mean( (1.-mask_test.squeeze()) * (mod.x_rec-X_test) **2 ) / np.mean( (1.-mask_test) )
-        mse_r   = np.mean( mask_test.squeeze() * (mod.x_rec-X_test) **2 ) / np.mean( mask_test )
-        
-        nmse = mse / var_test
-        nmse_i = mse_i / var_test
-        nmse_r = mse_r / var_test
-        
-        print("..... Assimilation performance (test data)")
-        print(".. MSE ALL.   : %.3f / %.3f"%(mse,nmse))
-        print(".. MSE ObsData: %.3f / %.3f"%(mse_r,nmse_r))
-        print(".. MSE Interp : %.3f / %.3f"%(mse_i,nmse_i))        
-        
+    trainer.fit(mod, datamodule=dm ) #dataloaders['train'], dataloaders['val'])        
