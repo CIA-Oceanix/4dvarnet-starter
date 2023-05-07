@@ -33,7 +33,7 @@ datamodule:
       genSuffixObs: 'james'
       flag_load_all_data: False
       flag_generate_L63_data: False
-      NbTraining: 2000 #10000
+      NbTraining: 10000
       NbTest: 2000
       time_step: 1
       dT: 200
