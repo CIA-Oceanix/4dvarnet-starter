@@ -37,6 +37,21 @@ torch.set_float32_matmul_precision('high')
 
 flag_load_data = False #  True#   
 
+
+
+def get_constant_crop_l63(patch_dims, crop):
+    patch_weight = np.zeros(patch_dims, dtype="float32")
+    mask = tuple(
+        slice(crop[d], -crop[d]) if crop.get(d, 0) > 0 else slice(None, None)
+        for d in range(0,3)
+    )
+    patch_weight[mask] = 1.0
+    
+    patch_weight = patch_weight / np.sum(patch_weight)
+    return patch_weight
+
+
+
 print('........ Data generation')
 flagRandomSeed = 0
 if flagRandomSeed == 0:
@@ -517,7 +532,7 @@ import pytorch_lightning as pl
 from omegaconf import OmegaConf
 
 class LitModel(pl.LightningModule):
-    def __init__(self,hparam=None,stats_training_data=None,*args, **kwargs):
+    def __init__(self,hparam=None,patch_weight=None,stats_training_data=None,*args, **kwargs):
         super().__init__()
         hparam = HParam() if hparam is None else hparam
         hparams = hparam
@@ -539,7 +554,7 @@ class LitModel(pl.LightningModule):
         #self.hparams.alpha_prior    = 0.5
         #self.hparams.alpha_mse = 1.e1        
 
-        self.hparams.w_loss          = torch.nn.Parameter(torch.Tensor(w_loss), requires_grad=False)
+        self.hparams.w_loss          = torch.nn.Parameter(torch.Tensor(w_loss), requires_grad=False) if patch_weight is not None else 1.
         self.hparams.automatic_optimization = True# False#
 
         # main model
@@ -892,7 +907,7 @@ if __name__ == '__main__':
 
     dm = BaseDataModule(cfg.datamodule.param_datamodule)
     
-    mod = LitModel(cfg.model.params)
+    mod = LitModel(cfg.model.params,patch_weight=get_constant_crop_l63(cfg.model.params.shapeData,patchdims=cfg.model.params.w_loss.patchdims,crop=cfg.model.params.w_loss.crop))
 
     mod.meanTr = dm.meanTr
     mod.stdTr  = dm.stdTr
