@@ -10,12 +10,12 @@ def base_testing(trainer, dm, lit_mod, ckpt):
         print()
 
     #lit_mod.set_norm_stats = dm.norm_stats()
-    #lit_mod.load_from_checkpoint(ckpt)
+    lit_mod.load_from_checkpoint(ckpt)
     
 
     # validation dataset
     trainer.callbacks = []
-    trainer.test(lit_mod, datamodule=dm.val_dataloader(), ckpt_path=ckpt)
+    trainer.test(lit_mod, dataloaders=dm.val_dataloader())
 
     X_train, x_train, mask_train, x_train_Init, x_train_obs = dm.input_data[0]    
     idx_val = X_train.shape[0]-500
@@ -38,7 +38,7 @@ def base_testing(trainer, dm, lit_mod, ckpt):
 
 
     # test dataset
-    trainer.test(lit_mod, datamodule=dm.test_dataloader())#, ckpt_path=ckpt)
+    trainer.test(lit_mod, dataloaders=dm.test_dataloader())#, ckpt_path=ckpt)
 
     X_test, x_test, mask_test, x_test_Init, x_test_obs = dm.input_data[1]
 
@@ -57,7 +57,7 @@ def base_testing(trainer, dm, lit_mod, ckpt):
     print(".. MSE Interp : %.3f / %.3f"%(mse_i,nmse_i))     
     
     x_rec_1 = 1. * lit_mod.x_rec
-    trainer.test(lit_mod, datamodule=dm.test_dataloader())#, ckpt_path=ckpt)
+    trainer.test(lit_mod, dataloaders=dm.test_dataloader())#, ckpt_path=ckpt)
     var_rec = np.mean( (x_rec_1-lit_mod.x_rec)**2 )
     bias_rec = np.mean( (x_rec_1-lit_mod.x_rec) )
     print('..')
