@@ -29,7 +29,6 @@ class ConvLSTM2d(torch.nn.Module):
         spatial_size = input_.shape[2:]
 
         # generate empty prev_state, if None is provided
-        print(prev_state)
         if prev_state is None:
             state_size = [batch_size, self.hidden_size] + list(spatial_size)
             prev_state = (
