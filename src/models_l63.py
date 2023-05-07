@@ -563,6 +563,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         self.norm_stats = stats_training_data if stats_training_data is not None else (1.0,0.)
         self.set_norm_stats()
+        print(self.norm_stats)
         
         self.automatic_optimization = self.hparams.automatic_optimization
         
@@ -590,6 +591,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         #print('--- n_grad = %d -- k_n_grad = %d -- n_step = %d'%(self.model.n_grad,self.model.k_n_grad,self.model.n_step) )
 
     def set_norm_stats(self):
+        print('xxxxxxxx',flush=True)
         self.stdTr = self.norm_stats[0]
         self.meanTr = self.norm_stats[1]
         
