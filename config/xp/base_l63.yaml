@@ -30,11 +30,11 @@ datamodule:
     flag_load_all_data: False
     flag_generate_L63_data: False
     NbTraining: 10000
-    NbTest: 2000#256
+    NbTest: 2000
     time_step: 1
     dT: 200
     varNoise: 2.0
-    sampling_step: 16
+    sampling_step: 8
     flagTypeMissData: 2
     dl_kw: {batch_size: 128, num_workers: 1}
 
@@ -64,9 +64,6 @@ model:
   patch_weight:
     _target_: src.models_l63.get_constant_crop_l63
     patch_dims: ${model.params.shapeData}
-#      - 3
-#      - ${datamodule.param_datamodule.dT}
-#      - 1
     crop: 
       - 0
       - 10
