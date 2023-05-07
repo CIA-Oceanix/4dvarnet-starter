@@ -41,7 +41,8 @@ class ConvLSTM2d(torch.nn.Module):
 
         # data size is [batch, channel, height, width]
         
-        print('............. '+device)
+        print('............. ')
+        print(device)
         print(input_.is_cuda,flush=True)
         print(prev_hidden.is_cuda,flush=True)
         stacked_inputs = torch.cat((input_, prev_hidden), 1)
