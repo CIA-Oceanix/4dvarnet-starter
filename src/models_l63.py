@@ -530,13 +530,13 @@ from omegaconf import OmegaConf
 class Lit4dVarNet_L63(pl.LightningModule):
     def __init__(self,params=None,patch_weight=None,stats_training_data=None,*args, **kwargs):
         super().__init__()
-        #hparams = HParam() if params is None else params
-        hparam = {} if params is None else params
-        hparams = hparam if isinstance(hparam, dict) else OmegaConf.to_container(hparam, resolve=True)
+        self.hparams = HParam() if params is None else params
+        #hparam = {} if params is None else params
+        #hparams = hparam if isinstance(hparam, dict) else OmegaConf.to_container(hparam, resolve=True)
         #hparams = hparam
 
-        print(hparams,flush=True)
-        self.save_hyperparameters({**hparams, **kwargs})
+        #print(hparams,flush=True)
+        #self.save_hyperparameters({**hparams, **kwargs})
 
         #self.hparams.w_loss          = torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
         self.hparams.automatic_optimization = True# False#
@@ -552,7 +552,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
                                                                     Model_H(self.hparams.shapeData), 
                                                                     solver_4DVarNet.model_Grad(self.hparams.shapeData, UsePriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
                                                                     None, None, self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD)#, self.hparams.eps_norm_grad)
-        self.w_loss  = self.hparams.w_loss
+        
+        self.w_loss  = self.torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
         self.x_rec   = None # variable to store output of test method
         self.x_rec_obs = None
         self.curr = 0
