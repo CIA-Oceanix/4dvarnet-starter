@@ -31,10 +31,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #torch.set_float32_matmul_precision('medium')
 torch.set_float32_matmul_precision('high')
 
-
 flag_load_data = False #  True#   
-
-
 
 def get_constant_crop_l63(patch_dims, crop):
     
