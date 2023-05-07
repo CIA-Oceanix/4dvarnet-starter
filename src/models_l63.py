@@ -530,9 +530,11 @@ from omegaconf import OmegaConf
 class Lit4dVarNet_L63(pl.LightningModule):
     def __init__(self,params=None,patch_weight=None,stats_training_data=None,*args, **kwargs):
         super().__init__()
-        hparams = HParam() if params is None else params
-        #hparams = hparam
+        hparam = HParam() if params is None else params
+        hparams = hparam
 
+        print(hparams,flush=True)
+        
         self.save_hyperparameters({**hparams, **kwargs})
 
         self.hparams.w_loss          = torch.nn.Parameter(torch.Tensor(w_loss), requires_grad=False) if patch_weight is not None else 1.
