@@ -579,43 +579,17 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         return [optimizer],[lr_scheduler]
     
-    def on_epoch_start(self):
-        # enfore acnd check some hyperparameters 
-        #self.model.n_grad   = self.hparams.k_n_grad * self.hparams.n_grad 
-        self.model.n_grad   = self.hparams.n_grad 
-        self.model.k_n_grad   = self.hparams.k_n_grad 
-        self.model.n_step = self.model.k_n_grad * self.model.n_grad
-        
-        self._set_norm_stats()
-        #print('--- n_grad = %d -- k_n_grad = %d -- n_step = %d'%(self.model.n_grad,self.model.k_n_grad,self.model.n_step) )
-
     def _set_norm_stats(self):
         self.stdTr = self.set_norm_stats[0]
         self.meanTr = self.set_norm_stats[1]
         
-        print(' mean/std: %f   __ %f'%(self.meanTr,self.stdTr))
+        #print(' mean/std: %f -- %f'%(self.meanTr,self.stdTr))
         
     def on_train_epoch_start(self):
-        #opt = self.optimizers()
-        #if (self.current_epoch in self.hparams.iter_update) & (self.current_epoch > 0):
-        #    indx             = self.hparams.iter_update.index(self.current_epoch)
-        #    print('... Update Iterations number/learning rate #%d: NGrad = %d -- lr = %f'%(self.current_epoch,self.hparams.nb_grad_update[indx],self.hparams.lr_update[indx]))
-        #    
-        #    self.hparams.n_grad = self.hparams.nb_grad_update[indx]
-        #    self.model.n_grad   = self.hparams.n_grad 
-            
-        #    mm = 0
-        #    lrCurrent = self.hparams.lr_update[indx]
-        #    lr = np.array([lrCurrent,lrCurrent,0.5*lrCurrent,0.])            
-        #    for pg in opt.param_groups:
-        #        pg['lr'] = lr[mm]# * self.hparams.learning_rate
-        #        mm += 1
-
         self.model.n_grad   = self.hparams.n_grad 
         self.model.k_n_grad = self.hparams.k_n_grad 
         self.model.n_step = self.model.k_n_grad * self.model.n_grad
         self.model.model_Grad.sig_lstm_init = self.hparams.sig_lstm_init
-        #print('--- n_grad = %d -- k_n_grad = %d -- n_step = %d'%(self.model.n_grad,self.model.k_n_grad,self.model.n_step) )
 
         self._set_norm_stats()
     
