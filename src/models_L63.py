@@ -23,11 +23,8 @@ from sklearn import decomposition
 import src.solver_l63 as solver_4DVarNet
 from src.data_l63 import BaseDataModule
 
-
-#os.chdir('/content/drive/My Drive/Colab Notebooks/AnDA')
 from scipy.integrate import odeint
 from scipy.integrate import solve_ivp
-#from AnDA_codes.AnDA_dynamical_models import AnDA_Lorenz_63, AnDA_Lorenz_96
 from sklearn.feature_extraction import image
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
