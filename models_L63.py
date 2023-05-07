@@ -40,7 +40,7 @@ flag_load_data = False #  True#
 
 
 def get_constant_crop_l63(patch_dims, crop):
-    patch_weight = np.zeros(patch_dims, dtype="float32")
+    patch_weight = np.zeros(patch_dims, crop, dtype="float32")
     mask = tuple(
         slice(crop[d], -crop[d]) if crop.get(d, 0) > 0 else slice(None, None)
         for d in range(0,3)
@@ -907,7 +907,7 @@ if __name__ == '__main__':
 
     dm = BaseDataModule(cfg.datamodule.param_datamodule)
     
-    mod = LitModel(cfg.model.params,patch_weight=get_constant_crop_l63(cfg.model.params.shapeData,patchdims=cfg.model.params.w_loss.patchdims,crop=cfg.model.params.w_loss.crop))
+    mod = LitModel(cfg.model.params,patch_weight=get_constant_crop_l63(cfg.model.params.shapeData,patch_dims=cfg.model.params.w_loss.patch_dims,crop=cfg.model.params.w_loss.crop))
 
     mod.meanTr = dm.meanTr
     mod.stdTr  = dm.stdTr
