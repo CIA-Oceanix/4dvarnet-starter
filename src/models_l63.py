@@ -563,7 +563,6 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         self.set_norm_stats = stats_training_data if stats_training_data is not None else (1.0,0.)
         self._set_norm_stats()
-        print(self.norm_stats)
         
         self.automatic_optimization = self.hparams.automatic_optimization
         
