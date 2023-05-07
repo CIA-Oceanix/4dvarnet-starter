@@ -96,10 +96,10 @@ def create_l63_datasets(param_dataset):
             dataTestNoNaN = np.moveaxis(dataTestNoNaN,-1,1)
     
         if param_dataset.NbTraining < dataTrainingNoNaN.shape[0] :
-            dataTrainingNoNaN = dataTrainingNoNaN[::param_dataset.NbTraining,:,:]
+            dataTrainingNoNaN = dataTrainingNoNaN[:param_dataset.NbTraining,:,:]
     
         if param_dataset.NbTest < dataTrainingNoNaN.shape[0] :
-            dataTestNoNaN = dataTestNoNaN[::param_dataset.NbTest,:,:]
+            dataTestNoNaN = dataTestNoNaN[:param_dataset.NbTest,:,:]
     
         # create missing data
         if param_dataset.flagTypeMissData == 0:
