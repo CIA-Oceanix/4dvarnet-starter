@@ -5,7 +5,7 @@ xp_name: baseline
 trainer:
   _target_: pytorch_lightning.Trainer
   inference_mode: False
-  gradient_clip_val: 0.5
+  #gradient_clip_val: 0.5
   accelerator: gpu
   devices: 1
   logger: 
@@ -13,7 +13,7 @@ trainer:
     save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 150
+  max_epochs: 400
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
