@@ -40,12 +40,12 @@ mod.set_norm_stats = dm.norm_stats()
 print('n_step = %d'%mod.model.n_step)
 profiler_kwargs = {'max_epochs': 400 }
 
-suffix_exp = 'exp%02d'%cfg.datamodule.param_datamodule.flagTypeMissData+cfg.params.suffix_exp
+suffix_exp = 'exp%02d'%cfg.datamodule.input_data.param_dataset.flagTypeMissData+cfg.params.suffix_exp
 
 
 filename_chkpt = 'model-l63-'+ dm.genSuffixObs        
 filename_chkpt = filename_chkpt+cfg.params.phi_param+'-'              
-filename_chkpt = filename_chkpt + suffix_exp+'-Noise%02d'%(cfg.datamodule.param_datamodule.varNoise)
+filename_chkpt = filename_chkpt + suffix_exp+'-Noise%02d'%(cfg.datamodule.input_data.param_dataset.varNoise)
 
 
 filename_chkpt = filename_chkpt+'-igrad%02d_%02d'%(mod.hparams.n_grad,mod.hparams.k_n_grad)+'-dgrad%d'%cfg.params.dim_grad_solver
