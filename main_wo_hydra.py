@@ -40,7 +40,7 @@ mod.set_norm_stats = dm.norm_stats()
 print('n_step = %d'%mod.model.n_step)
 profiler_kwargs = {'max_epochs': 400 }
 
-suffix_exp = 'exp%02d'%cfg.datamodule.input_data.param_dataset.flagTypeMissData+cfg.params.suffix_exp
+suffix_exp = 'exp%02d'%cfg.datamodule.input_data.param_dataset.flagTypeMissData#+cfg.params.suffix_exp
 
 
 filename_chkpt = 'model-l63-'+ dm.genSuffixObs        
