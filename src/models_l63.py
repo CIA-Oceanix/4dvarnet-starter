@@ -584,8 +584,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         
     def on_train_epoch_start(self):
         self.model.n_grad   = self.hparams.n_grad 
-        self.model.k_n_grad = self.hparams.k_n_grad 
-        self.model.n_step = self.model.k_n_grad * self.model.n_grad
+        self.model.n_step = self.hparams.k_n_grad * self.model.n_grad
         
         self.model.model_Grad.sig_lstm_init = self.hparams.sig_lstm_init
         self.model.lr_rnd = self.hparams.lr_rnd
@@ -600,9 +599,11 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.x_obs = None
 
         self.model.n_grad   = self.hparams.n_grad 
-        self.model.k_n_grad   = self.hparams.k_n_grad 
-        self.model.n_step = self.model.k_n_grad * self.model.n_grad
+        self.model.n_step = self.hparams.k_n_grad * self.model.n_grad
+
         self.model.model_Grad.sig_lstm_init = self.hparams.sig_lstm_init
+        self.model.lr_rnd = self.hparams.lr_rnd
+        self.model.lr_grad = self.hparams.lr_grad
 
         self._set_norm_stats()
         
@@ -611,10 +612,12 @@ class Lit4dVarNet_L63(pl.LightningModule):
     def on_validation_epoch_start(self):
         self.x_rec = None
 
-        self.model.n_grad   = self.hparams.n_grad 
-        self.model.k_n_grad   = self.hparams.k_n_grad 
-        self.model.n_step = self.model.k_n_grad * self.model.n_grad
+        self.model.n_grad = self.hparams.n_grad 
+        self.model.n_step = self.hparams.k_n_grad * self.model.n_grad
+
         self.model.model_Grad.sig_lstm_init = self.hparams.sig_lstm_init
+        self.model.lr_rnd = self.hparams.lr_rnd
+        self.model.lr_grad = self.hparams.lr_grad
 
         self._set_norm_stats()
         
