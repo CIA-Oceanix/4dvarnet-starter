@@ -600,6 +600,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         self._set_norm_stats()
         
+        self.test_output_list = []
         print('--- n_grad = %d -- k_n_grad = %d -- n_step = %d'%(self.model.n_grad,self.model.k_n_grad,self.model.n_step) )
 
     def on_validation_epoch_start(self):
@@ -670,16 +671,18 @@ class Lit4dVarNet_L63(pl.LightningModule):
         else:
             self.x_rec = np.concatenate((self.x_rec,out[0].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
         
-        return {'preds': out[0].detach().cpu()}
+        self.test_output_list += out[0].detach().cpu()
+        
+        #return {'preds': out[0].detach().cpu()}
 
     #def training_epoch_end(self, training_step_outputs):
     #    # do something with all training_step outputs
     #    print('.. \n')
     
-    def test_epoch_end(self, outputs):
-        x_test_rec = torch.cat([chunk['preds'] for chunk in outputs]).numpy()
+    def test_epoch_end(self):
+        x_test_rec = torch.cat([chunk['preds'] for chunk in self.test_output_list]).numpy()
         x_test_rec = self.stdTr * x_test_rec + self.meanTr        
-    #    self.x_rec = x_test_rec.squeeze()
+        #self.x_rec = x_test_rec.squeeze()
 
     #    return [{'mse':0.,'preds': 0.}]
 
