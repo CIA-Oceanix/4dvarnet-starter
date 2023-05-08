@@ -12,7 +12,7 @@ def base_training(trainer, dm, lit_mod, test_dm=None, test_fn=None, ckpt=None):
     lit_mod.set_norm_stats = dm.norm_stats()
     #lit_mod.load_from_checkpoint(ckpt)
 
-    trainer.test(lit_mod, dataloaders=dm.val_dataloader())#, ckpt_path=ckpt)
+    trainer.test(lit_mod, dataloaders=dm.val_dataloader(), ckpt_path=ckpt)
     trainer.test(lit_mod, dataloaders=dm.test_dataloader())#, ckpt_path=ckpt)
     
     if test_fn is not None:
