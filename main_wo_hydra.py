@@ -40,7 +40,7 @@ mod.set_norm_stats = dm.norm_stats()
 print('n_step = %d'%mod.model.n_step)
 profiler_kwargs = {'max_epochs': 400 }
 
-suffix_exp = 'exp%02d'%cfg.datamodule.input_data.param_dataset.flagTypeMissData#+cfg.params.suffix_exp
+suffix_exp = 'exp%02d'%cfg.datamodule.input_data.param_dataset.flagTypeMissDat+cfg.model.params.suffix_exp
 
 
 filename_chkpt = 'model-l63-'+ dm.genSuffixObs        
@@ -48,7 +48,7 @@ filename_chkpt = filename_chkpt+cfg.params.phi_param+'-'
 filename_chkpt = filename_chkpt + suffix_exp+'-Noise%02d'%(cfg.datamodule.input_data.param_dataset.varNoise)
 
 
-filename_chkpt = filename_chkpt+'-igrad%02d_%02d'%(mod.hparams.n_grad,mod.hparams.k_n_grad)+'-dgrad%d'%cfg.params.dim_grad_solver
+filename_chkpt = filename_chkpt+'-igrad%02d_%02d'%(mod.hparams.n_grad,mod.hparams.k_n_grad)+'-dgrad%d'%cfg.model.params.dim_grad_solver
 filename_chkpt = filename_chkpt+'-drop%02d'%(100*cfg.params.dropout)
 filename_chkpt = filename_chkpt+'-rnd-init%02d'%(100*mod.hparams.sig_rnd_init)
 filename_chkpt = filename_chkpt+'-lstm-init%02d'%(100*mod.hparams.sig_lstm_init)
