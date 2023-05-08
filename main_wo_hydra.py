@@ -44,7 +44,7 @@ suffix_exp = 'exp%02d'%cfg.datamodule.input_data.param_dataset.flagTypeMissData 
 
 
 filename_chkpt = 'model-l63-'+ dm.genSuffixObs        
-filename_chkpt = filename_chkpt+cfg.params.phi_param+'-'              
+filename_chkpt = filename_chkpt+cfg.model.params.phi_param+'-'              
 filename_chkpt = filename_chkpt + suffix_exp+'-Noise%02d'%(cfg.datamodule.input_data.param_dataset.varNoise)
 
 
