@@ -14,12 +14,12 @@ def base_training(trainer, dm, lit_mod, test_dm=None, test_fn=None, ckpt=None):
     
     print()
     print('.......................')
-    print(lit_mod.model.modl_Grad.lstm.Gates.weight[0,0,:,:])
+    print(lit_mod.model.model_Grad.lstm.Gates.weight[0,0,:,:])
     print()
     
     trainer.test(lit_mod, dataloaders=dm.val_dataloader(), ckpt_path=ckpt)
     
-    print(lit_mod.model.modl_Grad.lstm.Gates.weight[0,0,:,:])
+    print(lit_mod.model.model_Grad.lstm.Gates.weight[0,0,:,:])
     
     trainer.test(lit_mod, dataloaders=dm.test_dataloader())#, ckpt_path=ckpt)
     
