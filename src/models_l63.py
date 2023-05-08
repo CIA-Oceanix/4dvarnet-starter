@@ -680,6 +680,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
     #    print('.. \n')
     
     def on_test_epoch_end(self):
+        print(self.test_output_list )
+        
         x_test_rec = torch.cat([chunk['preds'] for chunk in self.test_output_list]).numpy()
         x_test_rec = self.stdTr * x_test_rec + self.meanTr        
         #self.x_rec = x_test_rec.squeeze()
