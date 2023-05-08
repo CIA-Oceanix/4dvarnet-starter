@@ -607,7 +607,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         self._set_norm_stats()
         
-        print('--- n_grad = %d -- k_n_grad = %d -- n_step = %d'%(self.model.n_grad,self.model.k_n_grad,self.model.n_step) )
+        print('--- n_grad = %d -- k_n_grad = %d -- n_step = %d'%(self.model.n_grad,self.hparams.k_n_grad,self.model.n_step) )
         print('--- ')
     def on_validation_epoch_start(self):
         self.x_rec = None
