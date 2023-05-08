@@ -17,6 +17,7 @@ from src.models_l63 import get_constant_crop_l63
 import pytorch_lightning as pl
 from omegaconf import OmegaConf
 from pytorch_lightning.callbacks import ModelCheckpoint
+from src.data_l63 import create_l63_datasets
 
 EPS_NORM_GRAD = 0. * 1.e-20  
 
@@ -29,7 +30,7 @@ torch.set_float32_matmul_precision('high')
 cfg = OmegaConf.load('config/xp/base_l63.yaml')
 print(OmegaConf.to_yaml(cfg))
 
-dm = BaseDataModule(cfg.datamodule.param_datamodule)
+dm = BaseDataModule(create_l63_datasets(cfg.datamodule.input_data.param_dataset),cfg.datamodule.param_datamodule)
 
 mod = Lit4dVarNet_L63(cfg.model.params,patch_weight=get_constant_crop_l63(patch_dims=cfg.model.params.w_loss.patch_dims,crop=cfg.model.params.w_loss.crop))
 mod.load_from_checkpoint('outputs/2023-05-07/22-59-30/base_l63/checkpoints/val_mse=0.6534-epoch=379.ckpt')
