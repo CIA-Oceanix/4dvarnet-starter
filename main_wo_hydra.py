@@ -38,6 +38,8 @@ mod = Lit4dVarNet_L63(cfg.model.params,patch_weight=get_constant_crop_l63(patch_
 
 mod.load_from_checkpoint('resL63/exp02-new/model-l63-jamesDim0_08_20unet-exp02-new-Noise02-igrad10_02-dgrad100-drop20-rnd-init00-lstm-init00-epoch=16-val_loss=1.40.ckpt')
 
+print(mod.hparams)
+
 mod.set_norm_stats = dm.norm_stats()
 
 print('n_step = %d'%mod.model.n_step)
