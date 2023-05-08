@@ -49,7 +49,7 @@ filename_chkpt = filename_chkpt + suffix_exp+'-Noise%02d'%(cfg.datamodule.input_
 
 
 filename_chkpt = filename_chkpt+'-igrad%02d_%02d'%(mod.hparams.n_grad,mod.hparams.k_n_grad)+'-dgrad%d'%cfg.model.params.dim_grad_solver
-filename_chkpt = filename_chkpt+'-drop%02d'%(100*cfg.params.dropout)
+filename_chkpt = filename_chkpt+'-drop%02d'%(100*cfg.model.params.dropout)
 filename_chkpt = filename_chkpt+'-rnd-init%02d'%(100*mod.hparams.sig_rnd_init)
 filename_chkpt = filename_chkpt+'-lstm-init%02d'%(100*mod.hparams.sig_lstm_init)
 
