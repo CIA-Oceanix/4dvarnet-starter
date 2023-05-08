@@ -671,7 +671,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         else:
             self.x_rec = np.concatenate((self.x_rec,out[0].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
         
-        self.test_output_list += out[0].detach().cpu()
+        self.test_output_list += {'preds': out[0].detach().cpu()}
         
         #return {'preds': out[0].detach().cpu()}
 
