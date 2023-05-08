@@ -36,7 +36,7 @@ mod = Lit4dVarNet_L63(cfg.model.params,patch_weight=get_constant_crop_l63(patch_
 
 #mod.load_from_checkpoint('outputs/2023-05-07/22-59-30/base_l63/checkpoints/val_mse=0.6534-epoch=379.ckpt')
 
-mod.load_from_checkpoint('resL63/exp02-new/model-l63-jamesDim0_08_20unet-exp02-new-Noise02-igrad10_02-dgrad100-drop20-rnd-init00-lstm-init00-epoch=16-val_loss=1.40.ckpt')
+mod.load_from_checkpoint('resL63/exp02-new/model-l63-jamesDim0_08_20unet-exp02-new-Noise02-igrad10_02-dgrad100-drop20-rnd-init00-lstm-init00-epoch=30-val_loss=1.31.ckpt')
 
 print(mod.hparams)
 
