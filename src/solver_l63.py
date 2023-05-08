@@ -429,9 +429,9 @@ class Solver_Grad_4DVarNN(nn.Module):
             else:
                 self.k_step_grad = k_step_grad
 
-        self.params.lr_grad = lr_grad
-        self.params.lr_rnd  = lr_rnd
-        self.params.n_step  = self.k_step_grad * self.n_grad
+        self.lr_grad = lr_grad
+        self.lr_rnd  = lr_rnd
+        self.n_step  = self.k_step_grad * self.n_grad
         
     def forward(self, x, yobs, mask, hidden = None , cell = None, normgrad = 0.,prev_iter=0):
         
