@@ -656,6 +656,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
     def test_step(self, test_batch, batch_idx):
         #with torch.inference_mode(False):
+            
+        _,__,___,targets_GT = test_batch
         loss, out, metrics = self.compute_loss(test_batch, phase='test')
     
         for kk in range(0,self.hparams.k_n_grad-1):
@@ -671,7 +673,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         else:
             self.x_rec = np.concatenate((self.x_rec,out[0].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
         
-        self.test_output_list += {'preds': out[0].detach().cpu()}
+        self.test_output_list += {'preds': out[0].detach().cpu(),'gt': targets_GT.detach().cpu()}
         print(self.test_output_list , flush=True)
         
         #return {'preds': out[0].detach().cpu()}
@@ -682,7 +684,9 @@ class Lit4dVarNet_L63(pl.LightningModule):
     
     def on_test_epoch_end(self):
         print(self.test_output_list , flush=True)
-        
+        for chunk in self.test_output_list:
+            print(chunk)
+            
         x_test_rec = torch.cat([chunk['preds'] for chunk in self.test_output_list]).numpy()
         x_test_rec = self.stdTr * x_test_rec + self.meanTr        
         #self.x_rec = x_test_rec.squeeze()
