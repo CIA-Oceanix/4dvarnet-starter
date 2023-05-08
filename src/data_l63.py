@@ -94,7 +94,11 @@ def create_l63_datasets(param_dataset):
     
             dataTrainingNoNaN = np.moveaxis(dataTrainingNoNaN,-1,1)
             dataTestNoNaN = np.moveaxis(dataTestNoNaN,-1,1)
-    
+        
+        print()
+        print('xxxxxxx..........')
+        print( param_dataset.NbTraining ,flush=True)
+        
         if param_dataset.NbTraining < dataTrainingNoNaN.shape[0] :
             dataTrainingNoNaN = dataTrainingNoNaN[:param_dataset.NbTraining,:,:]
     
