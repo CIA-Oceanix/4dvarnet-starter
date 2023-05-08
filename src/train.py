@@ -13,10 +13,10 @@ def base_training(trainer, dm, lit_mod, test_dm=None, test_fn=None, ckpt=None):
     
     print()
     print('.......................')
-    print(lit_mod.model.model_Grad.lstm.Gates.weight[0,0,:,:])
+    print(lit_mod.model.model_Grad.lstm.Gates.weight[0,0,:,:],flush=True)
     print()
     lit_mod.load_from_checkpoint('outputs/2023-05-07/22-59-30/base_l63/checkpoints/val_mse=0.6534-epoch=379.ckpt')
-    print(lit_mod.model.model_Grad.lstm.Gates.weight[0,0,:,:])
+    print(lit_mod.model.model_Grad.lstm.Gates.weight[0,0,:,:],flush=True)
     print()
     
     trainer.test(lit_mod, dataloaders=dm.val_dataloader())#, ckpt_path=ckpt)
