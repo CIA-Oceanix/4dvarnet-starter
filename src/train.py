@@ -11,8 +11,16 @@ def base_training(trainer, dm, lit_mod, test_dm=None, test_fn=None, ckpt=None):
     
     lit_mod.set_norm_stats = dm.norm_stats()
     lit_mod.load_from_checkpoint('outputs/2023-05-07/22-59-30/base_l63/checkpoints/val_mse=0.6534-epoch=379.ckpt')
-
-    trainer.test(lit_mod, dataloaders=dm.val_dataloader())#, ckpt_path=ckpt)
+    
+    print()
+    print('.......................')
+    print(lit_mod.model.modl_Grad.lstm.Gates.weight[0,0,:,:])
+    print()
+    
+    trainer.test(lit_mod, dataloaders=dm.val_dataloader(), ckpt_path=ckpt)
+    
+    print(lit_mod.model.modl_Grad.lstm.Gates.weight[0,0,:,:])
+    
     trainer.test(lit_mod, dataloaders=dm.test_dataloader())#, ckpt_path=ckpt)
     
     if test_fn is not None:
