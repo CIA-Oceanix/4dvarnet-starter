@@ -9,8 +9,8 @@ def base_training(trainer, dm, lit_mod, test_dm=None, test_fn=None, ckpt=None):
 
     #trainer.fit(lit_mod, datamodule=dm, ckpt_path=ckpt)
     
-    lit_mod.load_from_checkpoint(ckpt)
     lit_mod.set_norm_stats = dm.norm_stats()
+    lit_mod.load_from_checkpoint(ckpt)
 
     trainer.test(lit_mod, dataloaders=dm.val_dataloader())#, ckpt_path=ckpt)
     trainer.test(lit_mod, dataloaders=dm.test_dataloader())#, ckpt_path=ckpt)
