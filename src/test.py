@@ -12,10 +12,10 @@ def base_testing(trainer, dm, lit_mod, ckpt):
     #lit_mod.set_norm_stats = dm.norm_stats()
     lit_mod.load_from_checkpoint(ckpt)
     
-
     # validation dataset
     trainer.callbacks = []
     lit_mod.set_norm_stats = dm.norm_stats()
+    
     trainer.test(lit_mod, dataloaders=dm.val_dataloader())
 
     X_train, x_train, mask_train, x_train_Init, x_train_obs = dm.input_data[0]    

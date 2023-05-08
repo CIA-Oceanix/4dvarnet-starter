@@ -593,6 +593,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
     def on_test_epoch_start(self):
         #torch.inference_mode(mode=False)
         self.x_rec = None
+        self.x_gt  = None
+        self.x_obs = None
 
         self.model.n_grad   = self.hparams.n_grad 
         self.model.k_n_grad   = self.hparams.k_n_grad 
@@ -878,6 +880,9 @@ if __name__ == '__main__':
     dm = BaseDataModule(cfg.datamodule.param_datamodule)
     
     mod = Lit4dVarNet_L63(cfg.model.params,patch_weight=get_constant_crop_l63(patch_dims=cfg.model.params.w_loss.patch_dims,crop=cfg.model.params.w_loss.crop))
+    mod.load_from_checkpoint('outputs/2023-05-07/22-59-30/base_l63/checkpoints/val_mse=0.6534-epoch=379.ckpt')
+
+    mod.set_norm_stats = dm.norm_stats()
 
     mod.meanTr = dm.meanTr
     mod.stdTr  = dm.stdTr
