@@ -672,6 +672,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
             self.x_rec = np.concatenate((self.x_rec,out[0].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
         
         self.test_output_list += {'preds': out[0].detach().cpu()}
+        print(self.test_output_list , flush=True)
         
         #return {'preds': out[0].detach().cpu()}
 
@@ -680,7 +681,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
     #    print('.. \n')
     
     def on_test_epoch_end(self):
-        print(self.test_output_list )
+        print(self.test_output_list , flush=True)
         
         x_test_rec = torch.cat([chunk['preds'] for chunk in self.test_output_list]).numpy()
         x_test_rec = self.stdTr * x_test_rec + self.meanTr        

@@ -34,7 +34,7 @@ datamodule:
       flag_load_all_data: False
       flag_generate_L63_data: False
       NbTraining: 10000
-      NbTest: 2000
+      NbTest: 200
       time_step: 1
       dT: 200
       varNoise: 2.0
