@@ -78,7 +78,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-#    ckpt: 'outputs/2023-05-07/22-59-30/base_l63/checkpoints/val_mse=0.6534-epoch=379.ckpt'
+    ckpt: 'outputs/2023-05-07/22-59-30/base_l63/checkpoints/val_mse=0.6534-epoch=379.ckpt'
 #  - _target_: src.test.base_testing #
 #    trainer: ${trainer}
 #    lit_mod: ${model}
