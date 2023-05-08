@@ -556,6 +556,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.w_loss  = 1.#torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
         self.x_rec   = None # variable to store output of test method
         self.x_rec_obs = None
+        self.x_gt   = None # variable to store output of test method
         self.curr = 0
 
         self.set_norm_stats = stats_training_data if stats_training_data is not None else (1.0,0.)
@@ -600,7 +601,6 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         self._set_norm_stats()
         
-        self.test_output_list = []
         print('--- n_grad = %d -- k_n_grad = %d -- n_step = %d'%(self.model.n_grad,self.model.k_n_grad,self.model.n_step) )
 
     def on_validation_epoch_start(self):
@@ -657,7 +657,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
     def test_step(self, test_batch, batch_idx):
         #with torch.inference_mode(False):
             
-        _,__,___,targets_GT = test_batch
+        _,inputs_obs,___,targets_GT = test_batch
         loss, out, metrics = self.compute_loss(test_batch, phase='test')
     
         for kk in range(0,self.hparams.k_n_grad-1):
@@ -670,12 +670,13 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         if self.x_rec is None :
             self.x_rec = out[0].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
+            self.x_gt  = targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
+            self.x_obs = inputs_obs.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
         else:
             self.x_rec = np.concatenate((self.x_rec,out[0].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
-        
-        self.test_output_list += {'preds': out[0].detach().cpu(),'gt': targets_GT.detach().cpu()}
-        print(self.test_output_list , flush=True)
-        
+            self.x_gt  = np.concatenate((self.x_gt,targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
+            self.x_obs  = np.concatenate((self.x_obs,inputs_obs.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
+                
         #return {'preds': out[0].detach().cpu()}
 
     #def training_epoch_end(self, training_step_outputs):
@@ -683,14 +684,9 @@ class Lit4dVarNet_L63(pl.LightningModule):
     #    print('.. \n')
     
     def on_test_epoch_end(self):
-        print(self.test_output_list , flush=True)
-        for chunk in self.test_output_list:
-            print(chunk)
-            
-        x_test_rec = torch.cat([chunk['preds'] for chunk in self.test_output_list]).numpy()
-        x_test_rec = self.stdTr * x_test_rec + self.meanTr        
+        mse = np.mean( (self.x_rec - self.x_gt)**2 )
         #self.x_rec = x_test_rec.squeeze()
-
+        print('... mse test: %.3f '%mse)
     #    return [{'mse':0.,'preds': 0.}]
 
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
