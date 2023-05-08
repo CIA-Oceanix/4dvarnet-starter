@@ -404,7 +404,7 @@ class Model_Var_Cost(nn.Module):
 # (default norm (None) refers to the L2 norm)
 # updated inner modles to account for the variational model module
 class Solver_Grad_4DVarNN(nn.Module):
-    def __init__(self ,phi_r,mod_H, m_Grad, m_NormObs, m_NormPhi, ShapeData,n_iter_grad,eps=0.,k_step_grad=0.,flag_mr_solver=False,iter_mr_solver=2):
+    def __init__(self ,phi_r,mod_H, m_Grad, m_NormObs, m_NormPhi, ShapeData,n_iter_grad,eps=0.,k_step_grad=0.,lr_grad=0.,lr_rnd=0.,flag_mr_solver=False,iter_mr_solver=2):
         super(Solver_Grad_4DVarNN, self).__init__()
         self.phi_r         = phi_r
         
@@ -429,8 +429,8 @@ class Solver_Grad_4DVarNN(nn.Module):
             else:
                 self.k_step_grad = k_step_grad
 
-        self.lr_grad = 1e-3
-        self.lr_rnd  = 1e-2
+        self.lr_grad = lr_grad
+        self.lr_rnd  = lr_rnd
         self.n_step  = self.k_step_grad * self.n_grad
         
     def forward(self, x, yobs, mask, hidden = None , cell = None, normgrad = 0.,prev_iter=0):

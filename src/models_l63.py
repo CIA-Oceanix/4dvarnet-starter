@@ -546,18 +546,18 @@ class Lit4dVarNet_L63(pl.LightningModule):
             self.model        = solver_4DVarNet.Solver_Grad_4DVarNN(Phi_ode(), 
                                                                     Model_H(self.hparams.shapeData), 
                                                                     solver_4DVarNet.model_Grad(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
-                                                                    None, None, self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD)#, self.hparams.eps_norm_grad)
+                                                                    None, None, self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd)#, self.hparams.eps_norm_grad)
         elif self.hparams.phi_param == 'unet':
             self.model        = solver_4DVarNet.Solver_Grad_4DVarNN(Phi_unet(self.hparams.shapeData,self.hparams.DimAE), 
                                                                     Model_H(self.hparams.shapeData), 
                                                                     solver_4DVarNet.model_Grad(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
-                                                                    None, None, self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD)#, self.hparams.eps_norm_grad)
+                                                                    None, None, self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd)#, self.hparams.eps_norm_grad)
         
         self.w_loss  = 1.#torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
         self.x_rec   = None # variable to store output of test method
         self.x_rec_obs = None
         self.x_gt   = None # variable to store output of test method
-        self.curr = 0
+        #self.curr = 0
 
         self.set_norm_stats = stats_training_data if stats_training_data is not None else (1.0,0.)
         self._set_norm_stats()
@@ -586,8 +586,11 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.model.n_grad   = self.hparams.n_grad 
         self.model.k_n_grad = self.hparams.k_n_grad 
         self.model.n_step = self.model.k_n_grad * self.model.n_grad
+        
         self.model.model_Grad.sig_lstm_init = self.hparams.sig_lstm_init
-
+        self.model.lr_rnd = self.hparams.lr_rnd
+        self.model.lr_grad = self.hparams.lr_grad
+        
         self._set_norm_stats()
     
     def on_test_epoch_start(self):
@@ -604,7 +607,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self._set_norm_stats()
         
         print('--- n_grad = %d -- k_n_grad = %d -- n_step = %d'%(self.model.n_grad,self.model.k_n_grad,self.model.n_step) )
-
+        print('--- ')
     def on_validation_epoch_start(self):
         self.x_rec = None
 
