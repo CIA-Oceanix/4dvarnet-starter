@@ -79,7 +79,7 @@ def create_filename_ckpt(suffix,params_data,params_model):
     print(params_model)
     
     filename_chkpt = 'model-l63-' + params_data.genSuffixObs 
-    filename_chkpt = filename_chkpt + 'Obs%02d'%params_data.sampling_step + '-Noise%02d'%(params_data.varNoise)        
+    filename_chkpt = filename_chkpt + '-Obs%02d'%params_data.sampling_step + '-Noise%02d'%(params_data.varNoise)        
     filename_chkpt = filename_chkpt + '-' + params_model.phi_param
     filename_chkpt = filename_chkpt + '-igrad%02d_%02d'%(params_model.n_grad,params_model.k_n_grad)+'-dgrad%d'%params_model.dim_grad_solver          
     #filename_chkpt = filename_chkpt + '-drop%02d'%(100*params_model.dropout)

@@ -11,7 +11,7 @@ datamodule:
     _target_: src.data_l63.create_l63_datasets
     param_dataset:
       path_l63_dataset: '../../Dataset4DVarNet/dataset_L63_with_noise.nc'
-      genSuffixObs: 'james'
+      genSuffixObs: 'JamesData'
       flag_load_all_data: False
       flag_generate_L63_data: False
       NbTraining: 10000
@@ -19,7 +19,7 @@ datamodule:
       time_step: 1
       dT: 200
       varNoise: 2.0
-      sampling_step: 8
+      sampling_step: ??
       flagTypeMissData: 2
       
 model:
