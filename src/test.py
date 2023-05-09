@@ -17,6 +17,9 @@ def base_testing(trainer, dm, lit_mod,ckpt):
     trainer.callbacks = []
     lit_mod.set_norm_stats = dm.norm_stats()
     
+    print('... Evaluated model: '+ckpt)
+    print('............... Model evaluation on validation dataset')
+    
     trainer.test(lit_mod, dataloaders=dm.val_dataloader(),ckpt_path=ckpt)
 
     X_train, x_train, mask_train, x_train_Init, x_train_obs = dm.input_data[0]    
@@ -40,8 +43,10 @@ def base_testing(trainer, dm, lit_mod,ckpt):
 
 
     # test dataset
-    trainer.test(lit_mod, dataloaders=dm.test_dataloader())#, ckpt_path=ckpt)
-
+    print()
+    print()
+    print('............... Model evaluation on test dataset')
+    trainer.test(lit_mod, dataloaders=dm.test_dataloader())
     X_test, x_test, mask_test, x_test_Init, x_test_obs = dm.input_data[1]
 
     var_test  = np.mean( (X_test - np.mean(X_test,axis=0))**2 )
@@ -58,6 +63,9 @@ def base_testing(trainer, dm, lit_mod,ckpt):
     print(".. MSE ObsData: %.3f / %.3f"%(mse_r,nmse_r))
     print(".. MSE Interp : %.3f / %.3f"%(mse_i,nmse_i))     
     
+    print()
+    print()
+    print('............... Second run on test dataset to check stochasticity')
     x_rec_1 = 1. * lit_mod.x_rec
     trainer.test(lit_mod, dataloaders=dm.test_dataloader())#, ckpt_path=ckpt)
     var_rec = np.mean( (x_rec_1-lit_mod.x_rec)**2 )

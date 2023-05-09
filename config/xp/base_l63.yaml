@@ -2,25 +2,6 @@
 
 xp_name: baseline
 
-trainer:
-  _target_: pytorch_lightning.Trainer
-  inference_mode: False
-  #gradient_clip_val: 0.5
-  accelerator: gpu
-  devices: 1
-  logger: 
-    _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: ${hydra:runtime.output_dir}
-    name: ${hydra:runtime.choices.xp}
-    version: ''
-  max_epochs: 382
-  callbacks:
-    - _target_: src.versioning_cb.VersioningCallback
-    - _target_: pytorch_lightning.callbacks.LearningRateMonitor
-    - _target_: pytorch_lightning.callbacks.ModelCheckpoint
-      monitor: val_mse
-      save_top_k: 3
-      filename: '{val_mse:.4f}-{epoch:03d}'
 
 datamodule:
   _target_: src.data_l63.BaseDataModule
@@ -40,6 +21,7 @@ datamodule:
       varNoise: 2.0
       sampling_step: 8
       flagTypeMissData: 2
+      
 model:
   _target_: src.models_l63.Lit4dVarNet_L63
   params:
@@ -71,6 +53,30 @@ model:
       - 0
       - 0
 
+trainer:
+  _target_: pytorch_lightning.Trainer
+  inference_mode: False
+  #gradient_clip_val: 0.5
+  accelerator: gpu
+  devices: 1
+  logger: 
+    _target_: pytorch_lightning.loggers.CSVLogger
+    save_dir: ${hydra:runtime.output_dir}
+    name: ${hydra:runtime.choices.xp}
+    version: ''
+  max_epochs: 382
+  callbacks:
+    - _target_: src.versioning_cb.VersioningCallback
+    - _target_: pytorch_lightning.callbacks.LearningRateMonitor
+    - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+      monitor: val_mse
+      save_top_k: 3
+      filename: 
+        _target_: create_filename_ckpt
+        suffix: '{val_mse:.4f}-{epoch:03d}'
+        params_data: ${datamodule.input_data.param_dataset}
+        params_modl: ${model.params}
+        
 entrypoints:
   - _target_: pytorch_lightning.seed_everything
     seed: 333

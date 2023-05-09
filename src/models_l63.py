@@ -74,7 +74,17 @@ class time_series:
   values = 0.
   time   = 0.
 
-
+def create_filename_ckpt(suffix,params_data,params_model):
+    print(params_data)
+    print(params_model)
+    
+    filename_chkpt = 'model-l63-Obs%02d'%params_data.sampling_step        
+    filename_chkpt = filename_chkpt+params_model.phi_param+'-'              
+    filename_chkpt = filename_chkpt + suffix_exp+'-Noise%02d'%(params_data.varNoise)
+    
+    print('.... filename: '+filename_chkpt)
+    return filename_chkpt+suffix
+    
 def create_dataloaders(data_module): 
     rateMissingData = (1-1./data_module.sampling_step)
     sigNoise = np.sqrt( data_module.varNoise )
