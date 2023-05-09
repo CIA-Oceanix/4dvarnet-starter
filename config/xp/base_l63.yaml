@@ -74,10 +74,10 @@ model:
 entrypoints:
   - _target_: pytorch_lightning.seed_everything
     seed: 333
-  - _target_: src.train.base_training 
-    trainer: ${trainer}
-    lit_mod: ${model}
-    dm: ${datamodule}
+#  - _target_: src.train.base_training 
+#    trainer: ${trainer}
+#    lit_mod: ${model}
+#    dm: ${datamodule}
 #    ckpt: 'outputs/2023-05-07/22-59-30/base_l63/checkpoints/val_mse=0.6534-epoch=379.ckpt'
   - _target_: src.test.base_testing #
     trainer: ${trainer}
