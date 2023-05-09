@@ -72,7 +72,7 @@ trainer:
       monitor: val_mse
       save_top_k: 3
       filename: 
-        _target_: create_filename_ckpt
+        _target_: src.model_l63.create_filename_ckpt
         suffix: '{val_mse:.4f}-{epoch:03d}'
         params_data: ${datamodule.input_data.param_dataset}
         params_modl: ${model.params}
