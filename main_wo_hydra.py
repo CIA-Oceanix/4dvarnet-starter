@@ -76,11 +76,17 @@ trainer = pl.Trainer(devices=1,accelerator="gpu",  **profiler_kwargs,callbacks=[
 trainer.test(mod, dataloaders=dm.test_dataloader())
 
 print('.................')
-print(mod.model.model_VarCost.params)
+print(mod.model.model_VarCost.params['WObs'])
+print(mod.model.model_VarCost.params['WReg'])
+print(mod.model.model_VarCost.params['alphaReg'])
+print(mod.model.model_VarCost.params['alphaObs'])
 print()
 print()
 
 trainer.test(mod, dataloaders=dm.test_dataloader(), ckpt_path=ckpt)
 
 print('.................')
-print(mod.model.model_VarCost.params)
+print(mod.model.model_VarCost.params['WObs'])
+print(mod.model.model_VarCost.params['WReg'])
+print(mod.model.model_VarCost.params['alphaReg'])
+print(mod.model.model_VarCost.params['alphaObs'])
