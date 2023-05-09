@@ -422,7 +422,7 @@ class Model_Var_Cost2(nn.Module):
                 'epsObs': torch.nn.Parameter(0.1 * torch.Tensor(np.ones((self.DimObs,)))),
                 'epsReg': torch.nn.Parameter(torch.Tensor([0.1])),
                 'WObs': torch.nn.Parameter(torch.Tensor(np.ones((self.DimObs,ShapeData[0])))),
-                })
+            })
         else:
             self.dimObsChannel  = ShapeData[0] * np.ones((self.DimObs,))
             self.params = nn.ParameterDict({
@@ -432,7 +432,7 @@ class Model_Var_Cost2(nn.Module):
                 'epsObs': torch.nn.Parameter(0.1 * torch.Tensor(np.ones((self.DimObs,)))),
                 'epsReg': torch.nn.Parameter(torch.Tensor([0.1])),
                 'WObs': torch.nn.Parameter(torch.Tensor(np.ones((self.DimObs,np.max(self.dimObsChannel))))),
-                })
+            })
                         
         self.normObs   = m_NormObs
         self.normPrior = m_NormPhi
