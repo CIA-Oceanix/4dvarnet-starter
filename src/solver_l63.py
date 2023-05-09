@@ -425,7 +425,7 @@ class Model_Var_Cost2(nn.Module):
                 'WReg': torch.nn.Parameter(torch.Tensor(np.ones(self.DimState,))),
                 'epsObs': torch.nn.Parameter(0.1 * torch.Tensor(np.ones((self.DimObs,)))),
                 'epsReg': torch.nn.Parameter(torch.Tensor([0.1])),
-                'WObs': torch.nn.Parameter(torch.Tensor(np.ones((self.DimObs,np.max(self.dimObsChannel))))),
+                'WObs': torch.nn.Parameter(torch.Tensor(np.ones((self.DimObs,int(np.max(self.dimObsChannel)))))),
             })
                         
         self.normObs   = m_NormObs
