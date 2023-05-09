@@ -40,7 +40,8 @@ else:
 #ckpt = 'resL63/exp02-new/model-l63-jamesDim0_08_20unet-exp02-new-Noise02-igrad05_02-dgrad100-drop20-rnd-init00-lstm-init00-epoch=01-val_loss=7.14.ckpt'
 #    mod = Lit4dVarNet_L63.load_from_checkpoint(ckpt)
     mod = Lit4dVarNet_L63(cfg.model.params,patch_weight=get_constant_crop_l63(patch_dims=cfg.model.patch_weight.patch_dims,crop=cfg.model.patch_weight.crop))
-    mod = mod.load_from_checkpoint(ckpt)
+    #mod = mod.load_from_checkpoint(ckpt)
+    mod.load_state_dict(torch.load(ckpt)['state_dict'])
 print()
 print()
 print(mod.hparams)
