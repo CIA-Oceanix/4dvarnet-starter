@@ -449,10 +449,11 @@ class Model_Var_Cost2(nn.Module):
 # modules for the definition of the norm of the observation and prior terms given as input parameters 
 # (default norm (None) refers to the L2 norm)
 # updated inner modles to account for the variational model module
-class Solver_Grad_4DVarNN(nn.Module):
+
+class GradSolver_with_rnd(nn.Module):
     def __init__(self ,phi_r,mod_H, m_Grad, m_NormObs, m_NormPhi, 
                  ShapeData,n_iter_grad,eps=0.,k_step_grad=0.,lr_grad=0.,lr_rnd=0.,flag_mr_solver=False,iter_mr_solver=2):
-        super(Solver_Grad_4DVarNN, self).__init__()
+        super(GradSolver_with_rnd, self).__init__()
         self.phi_r         = phi_r
                     
         if  m_NormObs is None :
@@ -461,14 +462,99 @@ class Solver_Grad_4DVarNN(nn.Module):
         if  m_NormPhi is None :
             m_NormPhi = Model_WeightedL2Norm()
 
-        print('xxxxxxxxxxx')
-        print(ShapeData,flush=True)
-        
         self.model_H = mod_H
         self.model_Grad = m_Grad
-        self.model_VarCost = Model_Var_Cost2(m_NormObs, m_NormPhi, ShapeData,mod_H.DimObs,mod_H.dimObsChannel)
-        #self.model_VarCost = Model_Var_Cost(m_NormObs, m_NormPhi, ShapeData,mod_H.DimObs,mod_H.dimObsChannel)
-        #self.model_VarCost = m_VarCost #Model_Var_Cost2(m_NormObs, m_NormPhi, ShapeData,mod_H.DimObs,mod_H.dimObsChannel)
+        self.model_VarCost = Model_Var_Cost(m_NormObs, m_NormPhi, ShapeData,mod_H.DimObs,mod_H.dimObsChannel)
+        
+        self.eps = eps
+                
+        with torch.no_grad():
+            self.n_grad = int(n_iter_grad)
+            self.k_step_grad = k_step_grad
+
+            self.lr_grad = lr_grad
+            self.lr_rnd  = lr_rnd
+            self.n_step  = self.n_grad
+        
+    def forward(self, x, yobs, mask, hidden = None , cell = None, normgrad = 0.,prev_iter=0):
+        
+        return self.solve(
+            x_0=x,
+            obs=yobs,
+            mask = mask,
+            hidden = hidden , 
+            cell = cell, 
+            normgrad = normgrad,
+            prev_iter=prev_iter)
+
+    def solve(self, x_0, obs, mask, hidden = None , cell = None, normgrad = 0.,prev_iter=0):
+        x_k = torch.autograd.Variable(1. * x_0, requires_grad=True)
+       
+        hidden_ = hidden
+        cell_ = cell 
+        normgrad_ = normgrad
+        
+        
+        for _ii in range(self.n_grad):
+            x_k_plus_1, hidden_, cell_, normgrad_ = self.solver_step(x_k, obs, mask,hidden_, cell_, normgrad_,_ii+prev_iter)
+
+            x_k = 1. * x_k_plus_1
+
+        return x_k_plus_1, hidden_, cell_, normgrad_
+
+    def solver_step(self, x_k, obs, mask, hidden, cell,normgrad = 0.,iter=-1):
+        #with torch.set_grad_enabled(True):
+        if iter == -1:
+            iter = 0
+        var_cost, var_cost_grad= self.var_cost(x_k, obs, mask)
+        if normgrad == 0. :
+            normgrad_= torch.sqrt( torch.mean( var_cost_grad**2 + self.eps ) )
+        else:
+            normgrad_= normgrad
+
+        grad_update, hidden, cell = self.model_Grad(hidden, cell, x_k, var_cost_grad, normgrad_, iter)
+   
+        state_update = (
+            1 / (iter + 1) * grad_update
+            + self.lr_grad * (iter + 1) / self.n_step * var_cost_grad
+            + self.lr_rnd * np.sqrt( (iter + 1) / self.n_step ) * torch.randn(grad_update.size()).to(device)
+            )
+                            
+        x_k_plus_1 = x_k - state_update
+        
+        return x_k_plus_1, hidden, cell, normgrad_
+
+    def var_cost(self , x, yobs, mask):        
+        with torch.set_grad_enabled(True):
+            if not self.training:
+                x = x.detach().requires_grad_(True)
+            else:
+                x = x.requires_grad_(True)
+                
+            dy = self.model_H(x,yobs,mask)
+            dx = x - self.phi_r(x)
+            
+            loss = self.model_VarCost( dx , dy )
+                        
+            var_cost_grad = torch.autograd.grad(loss, x, create_graph=True)[0]#, allow_unused=True)[0]
+              
+        return loss, var_cost_grad
+
+class GradSolverMR(nn.Module):
+    def __init__(self ,phi_r,mod_H, m_Grad, m_NormObs, m_NormPhi, 
+                 ShapeData,n_iter_grad,eps=0.,k_step_grad=0.,lr_grad=0.,lr_rnd=0.,flag_mr_solver=False,iter_mr_solver=2):
+        super(GradSolverMR, self).__init__()
+        self.phi_r         = phi_r
+                    
+        if  m_NormObs is None :
+            m_NormObs = Model_WeightedL2Norm()
+        
+        if  m_NormPhi is None :
+            m_NormPhi = Model_WeightedL2Norm()
+
+        self.model_H = mod_H
+        self.model_Grad = m_Grad
+        self.model_VarCost = Model_Var_Cost(m_NormObs, m_NormPhi, ShapeData,mod_H.DimObs,mod_H.dimObsChannel)
         
         self.eps = eps
         self.flag_mr_solver = flag_mr_solver#True
@@ -498,22 +584,19 @@ class Solver_Grad_4DVarNN(nn.Module):
             prev_iter=prev_iter)
 
     def solve(self, x_0, obs, mask, hidden = None , cell = None, normgrad = 0.,prev_iter=0):
-        #with torch.set_grad_enabled(True):
-        if 1*1:
-            x_k = torch.autograd.Variable(1. * x_0, requires_grad=True)
-           
-            hidden_ = hidden
-            cell_ = cell 
-            normgrad_ = normgrad
-            
-            
-            for _ii in range(self.n_grad):
-                x_k_plus_1, hidden_, cell_, normgrad_ = self.solver_step(x_k, obs, mask,hidden_, cell_, normgrad_,_ii+prev_iter)
-    
-                x_k = 1. * x_k_plus_1
-                #x_k = torch.autograd.Variable(x_k, requires_grad=True)
-    
-            return x_k_plus_1, hidden_, cell_, normgrad_
+        x_k = torch.autograd.Variable(1. * x_0, requires_grad=True)
+       
+        hidden_ = hidden
+        cell_ = cell 
+        normgrad_ = normgrad
+        
+        
+        for _ii in range(self.n_grad):
+            x_k_plus_1, hidden_, cell_, normgrad_ = self.solver_step(x_k, obs, mask,hidden_, cell_, normgrad_,_ii+prev_iter)
+
+            x_k = 1. * x_k_plus_1
+
+        return x_k_plus_1, hidden_, cell_, normgrad_
 
     def solver_step(self, x_k, obs, mask, hidden, cell,normgrad = 0.,iter=-1):
         #with torch.set_grad_enabled(True):
