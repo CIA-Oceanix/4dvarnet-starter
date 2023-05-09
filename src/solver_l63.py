@@ -467,6 +467,9 @@ class Solver_Grad_4DVarNN(nn.Module):
         #self.model_VarCost = Model_Var_Cost(m_NormObs, m_NormPhi, ShapeData,mod_H.DimObs,mod_H.dimObsChannel)
         #self.model_VarCost = m_VarCost #Model_Var_Cost2(m_NormObs, m_NormPhi, ShapeData,mod_H.DimObs,mod_H.dimObsChannel)
         
+        print('xxxxxxxxxxx')
+        print(ShapeData,flush=True)
+        
         self.eps = eps
         self.flag_mr_solver = flag_mr_solver#True
         self.iter_mr_solver = iter_mr_solver
