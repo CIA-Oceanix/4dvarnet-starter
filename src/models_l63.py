@@ -541,8 +541,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
         #self.hparams.w_loss          = torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
         self.hparams.automatic_optimization = True# False#
 
-        m_NormObs = solver_4DVarNet.Model_WeightedL2Norm()        
-        m_NormPhi = solver_4DVarNet.Model_WeightedL2Norm()
+        #m_NormObs = solver_4DVarNet.Model_WeightedL2Norm()        
+        #m_NormPhi = solver_4DVarNet.Model_WeightedL2Norm()
 
 
         # main model
@@ -550,15 +550,15 @@ class Lit4dVarNet_L63(pl.LightningModule):
             self.model        = solver_4DVarNet.Solver_Grad_4DVarNN(Phi_ode(), 
                                                                     Model_H(self.hparams.shapeData), 
                                                                     solver_4DVarNet.model_Grad(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
-                                                                    #None, None, 
-                                                                    solver_4DVarNet.Model_Var_Cost2(m_NormObs, m_NormPhi, self.hparams.ShapeData,1,np.array([self.hparams.shapeData[0]])),
+                                                                    None, None, 
+                                                                    #solver_4DVarNet.Model_Var_Cost2(m_NormObs, m_NormPhi, self.hparams.ShapeData,1,np.array([self.hparams.shapeData[0]])),
                                                                     self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd)#, self.hparams.eps_norm_grad)
         elif self.hparams.phi_param == 'unet':
             self.model        = solver_4DVarNet.Solver_Grad_4DVarNN(Phi_unet(self.hparams.shapeData,self.hparams.DimAE), 
                                                                     Model_H(self.hparams.shapeData), 
                                                                     solver_4DVarNet.model_Grad(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
-                                                                    #None, None, 
-                                                                    solver_4DVarNet.Model_Var_Cost2(m_NormObs, m_NormPhi, self.hparams.ShapeData,1,np.array([self.hparams.shapeData[0]])),
+                                                                    None, None, 
+                                                                    #solver_4DVarNet.Model_Var_Cost2(m_NormObs, m_NormPhi, self.hparams.ShapeData,1,np.array([self.hparams.shapeData[0]])),
                                                                     self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd)#, self.hparams.eps_norm_grad)
         
         self.w_loss  = 1.#torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
