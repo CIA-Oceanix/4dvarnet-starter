@@ -61,7 +61,7 @@ model:
     UsePeriodicBoundary: False
     shapeData:
       - 3
-      - ${datamodule.input_data.param_dataset.dT}
+      - 200 #${datamodule.input_data.param_dataset.dT}
       - 1
   patch_weight:
     _target_: src.models_l63.get_constant_crop_l63
