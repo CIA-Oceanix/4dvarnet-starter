@@ -371,6 +371,11 @@ class Model_Var_Cost(nn.Module):
             self.DimState      = ShapeData[0]
             
         # parameters for variational cost
+                self.params = nn.ParameterDict({
+                'left': nn.Parameter(torch.randn(5, 10)),
+                'right': nn.Parameter(torch.randn(5, 10))
+        })
+
         self.alphaObs    = torch.nn.Parameter(torch.Tensor(1. * np.ones((self.DimObs,1))))
         self.alphaReg    = torch.nn.Parameter(torch.Tensor([1.]))
         if self.dimObsChannel[0] == 0 :
@@ -397,6 +402,52 @@ class Model_Var_Cost(nn.Module):
 
         return loss
 
+class Model_Var_Cost2(nn.Module):
+    def __init__(self ,m_NormObs, m_NormPhi, ShapeData,DimObs=1,dimObsChannel=0,dimState=0):
+        super(Model_Var_Cost, self).__init__()
+        self.dimObsChannel = dimObsChannel
+        self.DimObs        = DimObs
+        if dimState > 0 :
+            self.DimState      = dimState
+        else:
+            self.DimState      = ShapeData[0]
+            
+        # parameters for variational cost
+        if self.dimObsChannel[0] == 0 :
+            self.dimObsChannel  = ShapeData[0] * np.ones((self.DimObs,))
+            self.params = nn.ParameterDict({
+                'alphaObs': nn.Parameter(torch.Tensor(1. * np.ones((self.DimObs,1)))),
+                'alphaReg': nn.Parameter(torch.randn(5, 10)),
+                'WReg': torch.nn.Parameter(torch.Tensor(np.ones(self.DimState,))),
+                'epsObs': torch.nn.Parameter(0.1 * torch.Tensor(np.ones((self.DimObs,)))),
+                'epsReg': torch.nn.Parameter(torch.Tensor([0.1])),
+                'WObs': torch.nn.Parameter(torch.Tensor(np.ones((self.DimObs,ShapeData[0])))),
+                })
+        else:
+            self.dimObsChannel  = ShapeData[0] * np.ones((self.DimObs,))
+            self.params = nn.ParameterDict({
+                'alphaObs': nn.Parameter(torch.Tensor(1. * np.ones((self.DimObs,1)))),
+                'alphaReg': nn.Parameter(torch.randn(5, 10)),
+                'WReg': torch.nn.Parameter(torch.Tensor(np.ones(self.DimState,))),
+                'epsObs': torch.nn.Parameter(0.1 * torch.Tensor(np.ones((self.DimObs,)))),
+                'epsReg': torch.nn.Parameter(torch.Tensor([0.1])),
+                'WObs': torch.nn.Parameter(torch.Tensor(np.ones((self.DimObs,np.max(self.dimObsChannel))))),
+                })
+                        
+        self.normObs   = m_NormObs
+        self.normPrior = m_NormPhi
+        
+    def forward(self, dx, dy):
+
+        loss = self.params['alphaReg']**2 * self.normPrior(dx,self.params['WReg']**2,self.params['epsReg'])
+                
+        if self.DimObs == 1 :
+            loss +=  self.params['alphaObs'][0]**2 * self.normObs(dy,self.params['WObs'][0,:]**2,self.params['epsObs'][0])
+        else:
+            for kk in range(0,self.DimObs):
+                loss +=  self.params['alphaObs'][kk]**2 * self.normObs(dy[kk],self.params['WObs'][kk,0:dy[kk].size(1)]**2,self.params['epsObs'][kk])
+
+        return loss
     
 # 4DVarNN Solver class using automatic differentiation for the computation of gradient of the variational cost
 # input modules: operator phi_r, gradient-based update model m_Grad
@@ -415,7 +466,8 @@ class Solver_Grad_4DVarNN(nn.Module):
             
         self.model_H = mod_H
         self.model_Grad = m_Grad
-        self.model_VarCost = Model_Var_Cost(m_NormObs, m_NormPhi, ShapeData,mod_H.DimObs,mod_H.dimObsChannel)
+        #self.model_VarCost = Model_Var_Cost(m_NormObs, m_NormPhi, ShapeData,mod_H.DimObs,mod_H.dimObsChannel)
+        self.model_VarCost = Model_Var_Cost2(m_NormObs, m_NormPhi, ShapeData,mod_H.DimObs,mod_H.dimObsChannel)
         
         self.eps = eps
         self.flag_mr_solver = flag_mr_solver#True
