@@ -3,14 +3,14 @@ import numpy as np
 
 torch.set_float32_matmul_precision('high')
 
-def base_testing(trainer, dm, lit_mod, ckpt):
+def base_testing(trainer, dm, lit_mod):
     if trainer.logger is not None:
         print()
         print("Logdir:", trainer.logger.log_dir)
         print()
 
     #lit_mod.set_norm_stats = dm.norm_stats()
-    lit_mod.load_from_checkpoint(ckpt)
+    #lit_mod.load_from_checkpoint(ckpt)
     
     # validation dataset
     trainer.callbacks = []
