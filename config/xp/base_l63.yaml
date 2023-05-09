@@ -75,7 +75,7 @@ trainer:
         _target_: src.models_l63.create_filename_ckpt
         suffix: '{val_mse:.4f}-{epoch:03d}'
         params_data: ${datamodule.input_data.param_dataset}
-        params_modl: ${model.params}
+        params_model: ${model.params}
         
 entrypoints:
   - _target_: pytorch_lightning.seed_everything
