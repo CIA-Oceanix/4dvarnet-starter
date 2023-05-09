@@ -30,6 +30,8 @@ def base_training(trainer, dm, lit_mod, test_dm=None, test_fn=None, ckpt=None):
   
     trainer.test(lit_mod, dataloaders=dm.val_dataloader())#, ckpt_path=ckpt)
     print('.... eps = %f'%lit_mod.model.eps, flush=True)
+    print()
+    print(lit_mod.model.model_VarCost.alphaObs)
     print('.... %f  -- %f -- %f'%(lit_mod.model.lr_grad,lit_mod.model.lr_rnd,lit_mod.model.model_Grad.sig_lstm_init),flush=True)
     print('.... %d  -- %d -- %d'%(lit_mod.model.n_grad,lit_mod.hparams.k_n_grad,lit_mod.model.n_step),flush=True)
     #print(lit_mod)
@@ -39,6 +41,8 @@ def base_training(trainer, dm, lit_mod, test_dm=None, test_fn=None, ckpt=None):
     trainer.test(lit_mod, dataloaders=dm.test_dataloader(), ckpt_path=ckpt)
     print()
     print('.... eps = %f'%lit_mod.model.eps, flush=True)
+    print()
+    print(lit_mod.model.model_VarCost.alphaObs)
     print('.... %f  -- %f -- %f'%(lit_mod.model.lr_grad,lit_mod.model.lr_rnd,lit_mod.model.model_Grad.sig_lstm_init),flush=True)
     print('.... %d  -- %d -- %d'%(lit_mod.model.n_grad,lit_mod.hparams.k_n_grad,lit_mod.model.n_step),flush=True)
     
