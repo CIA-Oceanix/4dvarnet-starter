@@ -441,7 +441,7 @@ class Model_Var_Cost2(nn.Module):
             for kk in range(0,self.DimObs):
                 loss +=  self.params['alphaObs'][kk]**2 * self.normObs(dy[kk],self.params['WObs'][kk,0:dy[kk].size(1)]**2,self.params['epsObs'][kk])
 
-        print(loss)
+        print(loss.size())
         return loss
     
 # 4DVarNN Solver class using automatic differentiation for the computation of gradient of the variational cost
