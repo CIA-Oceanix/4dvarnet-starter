@@ -70,7 +70,7 @@ checkpoint_callback = ModelCheckpoint(monitor='val_loss',
                                       save_top_k=3,
                                       mode='min')
 trainer = pl.Trainer(devices=1,accelerator="gpu",  **profiler_kwargs,callbacks=[checkpoint_callback],inference_mode=False)
-#trainer.fit(mod, datamodule=dm ) #dataloaders['train'], dataloaders['val'])        
+trainer.fit(mod, datamodule=dm )         
 #trainer.fit(mod, dataloaders['train'], dataloaders['val'])
 
 trainer.test(mod, dataloaders=dm.test_dataloader())
