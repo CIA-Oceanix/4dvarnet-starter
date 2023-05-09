@@ -9,6 +9,7 @@ def base_testing(trainer, dm, lit_mod,chkpt):
         print("Logdir:", trainer.logger.log_dir)
         print()
 
+
     #lit_mod.set_norm_stats = dm.norm_stats()
     #lit_mod.load_from_checkpoint(ckpt)
     
