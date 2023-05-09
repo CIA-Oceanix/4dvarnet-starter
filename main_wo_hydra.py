@@ -35,7 +35,8 @@ dm = BaseDataModule(create_l63_datasets(cfg.datamodule.input_data.param_dataset)
 mod = Lit4dVarNet_L63(cfg.model.params,patch_weight=get_constant_crop_l63(patch_dims=cfg.model.patch_weight.patch_dims,crop=cfg.model.patch_weight.crop))
 #mod.load_from_checkpoint('outputs/2023-05-07/22-59-30/base_l63/checkpoints/val_mse=0.6534-epoch=379.ckpt')
 
-#mod.load_from_checkpoint('resL63/exp02-new/model-l63-jamesDim0_08_20unet-exp02-new-Noise02-igrad10_02-dgrad100-drop20-rnd-init00-lstm-init00-epoch=52-val_loss=0.99.ckpt')
+ckpt = 'resL63/exp02-new/model-l63-jamesDim0_08_20unet-exp02-new-Noise02-igrad05_02-dgrad100-drop20-rnd-init00-lstm-init00-epoch=01-val_loss=4.86.ckpt'
+mod.load_from_checkpoint(ckpt)
 
 print()
 print()
@@ -69,5 +70,17 @@ checkpoint_callback = ModelCheckpoint(monitor='val_loss',
                                       save_top_k=3,
                                       mode='min')
 trainer = pl.Trainer(devices=1,accelerator="gpu",  **profiler_kwargs,callbacks=[checkpoint_callback])
-trainer.fit(mod, datamodule=dm ) #dataloaders['train'], dataloaders['val'])        
+#trainer.fit(mod, datamodule=dm ) #dataloaders['train'], dataloaders['val'])        
 #trainer.fit(mod, dataloaders['train'], dataloaders['val'])
+
+trainer.test(mod, dataloaders=dm.test_dataloader())
+
+print('.................')
+print(mod.model.model_VarCost.params)
+print()
+print()
+
+trainer.test(mod, dataloaders=dm.test_dataloader(), ckpt_path=ckpt)
+
+print('.................')
+print(mod.model.model_VarCost.params)
