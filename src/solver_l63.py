@@ -412,6 +412,8 @@ class Model_Var_Cost2(nn.Module):
         else:
             self.DimState      = ShapeData[0]
             
+        self.params = nn.ParameterDict({'alphaObs': nn.Parameter(torch.Tensor(1. * np.ones((self.DimObs,1))))})
+        
         # parameters for variational cost
         if self.dimObsChannel[0] == 0 :
             self.dimObsChannel  = ShapeData[0] * np.ones((self.DimObs,))
