@@ -370,12 +370,6 @@ class Model_Var_Cost(nn.Module):
         else:
             self.DimState      = ShapeData[0]
             
-        # parameters for variational cost
-                self.params = nn.ParameterDict({
-                'left': nn.Parameter(torch.randn(5, 10)),
-                'right': nn.Parameter(torch.randn(5, 10))
-        })
-
         self.alphaObs    = torch.nn.Parameter(torch.Tensor(1. * np.ones((self.DimObs,1))))
         self.alphaReg    = torch.nn.Parameter(torch.Tensor([1.]))
         if self.dimObsChannel[0] == 0 :
@@ -404,16 +398,14 @@ class Model_Var_Cost(nn.Module):
 
 class Model_Var_Cost2(nn.Module):
     def __init__(self ,m_NormObs, m_NormPhi, ShapeData,DimObs=1,dimObsChannel=0,dimState=0):
-        super(Model_Var_Cost, self).__init__()
+        super(Model_Var_Cost2, self).__init__()
         self.dimObsChannel = dimObsChannel
         self.DimObs        = DimObs
         if dimState > 0 :
             self.DimState      = dimState
         else:
             self.DimState      = ShapeData[0]
-            
-        self.params = nn.ParameterDict({'alphaObs': nn.Parameter(torch.Tensor(1. * np.ones((self.DimObs,1))))})
-        
+                    
         # parameters for variational cost
         if self.dimObsChannel[0] == 0 :
             self.dimObsChannel  = ShapeData[0] * np.ones((self.DimObs,))
