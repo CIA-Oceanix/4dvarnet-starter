@@ -84,10 +84,11 @@ def create_filename_ckpt(suffix,params_data,params_model):
     #filename_chkpt = filename_chkpt + '-drop%02d'%(100*params_model.dropout)
     #filename_chkpt = filename_chkpt + '-rnd-init%02d'%(100*params_model.sig_rnd_init)
     #filename_chkpt = filename_chkpt + '-lstm-init%02d'%(100*params_model.sig_lstm_init)
+    filename_chkpt = filename_chkpt + suffix
     
     
     print('.... filename: ' + filename_chkpt,flush=True)
-    return filename_chkpt + suffix
+    return filename_chkpt
     
 def create_dataloaders(data_module): 
     rateMissingData = (1-1./data_module.sampling_step)
