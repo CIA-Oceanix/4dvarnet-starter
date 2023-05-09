@@ -74,6 +74,7 @@ trainer = pl.Trainer(devices=1,accelerator="gpu",  **profiler_kwargs,callbacks=[
 #trainer.fit(mod, datamodule=dm )         
 #trainer.fit(mod, dataloaders['train'], dataloaders['val'])
 
+
 trainer.test(mod, dataloaders=dm.test_dataloader())
 
 print('.................')
