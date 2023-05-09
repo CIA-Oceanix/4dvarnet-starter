@@ -434,6 +434,8 @@ class Model_Var_Cost2(nn.Module):
     def forward(self, dx, dy):
 
         loss = self.params['alphaReg']**2 * self.normPrior(dx,self.params['WReg']**2,self.params['epsReg'])
+
+        print(loss.size())
                 
         if self.DimObs == 1 :
             loss +=  self.params['alphaObs'][0]**2 * self.normObs(dy,self.params['WObs'][0,:]**2,self.params['epsObs'][0])
@@ -441,6 +443,7 @@ class Model_Var_Cost2(nn.Module):
             for kk in range(0,self.DimObs):
                 loss +=  self.params['alphaObs'][kk]**2 * self.normObs(dy[kk],self.params['WObs'][kk,0:dy[kk].size(1)]**2,self.params['epsObs'][kk])
 
+        print()
         print(loss.size())
         return loss
     
