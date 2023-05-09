@@ -68,7 +68,7 @@ def AnDA_Lorenz_63(S,t,sigma,rho,beta):
     x_3 = S[0]*S[1] - beta*S[2];
     dS  = np.array([x_1,x_2,x_3]);
     return dS
-
+    
 
 class time_series:
   values = 0.
@@ -78,12 +78,12 @@ def create_filename_ckpt(suffix,params_data,params_model):
     print(params_data)
     print(params_model)
     
-    filename_chkpt = 'model-l63-Obs%02d'%params_data.sampling_step        
-    filename_chkpt = filename_chkpt+params_model.phi_param+'-'              
-    filename_chkpt = filename_chkpt + suffix_exp+'-Noise%02d'%(params_data.varNoise)
+    filename_chkpt = 'model-l63-Obs%02d'%params_data.sampling_step + '-Noise%02d'%(params_data.varNoise)        
+    filename_chkpt = filename_chkpt + params_model.phi_param + '-'              
+    filename_chkpt = filename_chkpt + suffix 
     
-    print('.... filename: '+filename_chkpt)
-    return filename_chkpt+suffix
+    print('.... filename: ' + filename_chkpt)
+    return filename_chkpt
     
 def create_dataloaders(data_module): 
     rateMissingData = (1-1./data_module.sampling_step)
