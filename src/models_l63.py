@@ -583,7 +583,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         #print(' mean/std: %f -- %f'%(self.meanTr,self.stdTr))
         
     def on_train_epoch_start(self):
-        self.model.n_grad   = self.hparams.n_grad 
+        self.model.n_grad = self.hparams.n_grad 
         self.model.n_step = self.hparams.k_n_grad * self.model.n_grad
         
         self.model.model_Grad.sig_lstm_init = self.hparams.sig_lstm_init
@@ -631,10 +631,6 @@ class Lit4dVarNet_L63(pl.LightningModule):
             loss1, out, metrics = self.compute_loss(train_batch, phase='train',batch_init=out[0],hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
             loss = loss + loss1
         
-        # log step metric        
-        #self.log('train_mse', mse)
-        #self.log("dev_loss", mse / var_Tr , on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        #self.log("loss", loss , on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log("tr_mse", self.stdTr**2 * metrics['mse'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         
         # initial grad value
@@ -657,24 +653,18 @@ class Lit4dVarNet_L63(pl.LightningModule):
             loss1, out, metrics = self.compute_loss(val_batch, phase='val',batch_init=out[0],hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
             loss = loss1
 
-        #self.log('val_loss', loss)
         self.log('val_loss', self.stdTr**2 * metrics['mse'] )
         self.log("val_mse", self.stdTr**2 * metrics['mse'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
 
     def test_step(self, test_batch, batch_idx):
-        #with torch.inference_mode(False):
-            
         _,inputs_obs,___,targets_GT = test_batch
         loss, out, metrics = self.compute_loss(test_batch, phase='test')
     
         for kk in range(0,self.hparams.k_n_grad-1):
             loss1, out, metrics = self.compute_loss(test_batch, phase='test',batch_init=out[0].detach(),hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
 
-        #out_ssh,out_ssh_obs = out
-        #self.log('test_loss', loss)
         self.log("test_mse", self.stdTr**2 * metrics['mse'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        #return {'preds': out_ssh.detach().cpu(),'obs_ssh': out_ssh_obs.detach().cpu()}
 
         if self.x_rec is None :
             self.x_rec = out[0].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
@@ -685,17 +675,11 @@ class Lit4dVarNet_L63(pl.LightningModule):
             self.x_gt  = np.concatenate((self.x_gt,targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
             self.x_obs  = np.concatenate((self.x_obs,inputs_obs.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
                 
-        #return {'preds': out[0].detach().cpu()}
-
-    #def training_epoch_end(self, training_step_outputs):
-    #    # do something with all training_step outputs
-    #    print('.. \n')
     
     def on_test_epoch_end(self):
         mse = np.mean( (self.x_rec - self.x_gt)**2 )
-        #self.x_rec = x_test_rec.squeeze()
+
         print('... mse test: %.3f '%mse)
-    #    return [{'mse':0.,'preds': 0.}]
 
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
         #print('... Inference mode')
