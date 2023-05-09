@@ -411,21 +411,21 @@ class Model_Var_Cost2(nn.Module):
             self.dimObsChannel  = ShapeData[0] * np.ones((self.DimObs,))
             self.params = nn.ParameterDict({
                 'alphaObs': nn.Parameter(torch.Tensor(1. * np.ones((self.DimObs,1)))),
-                'alphaReg': nn.Parameter(torch.randn(5, 10)),
-                'WReg': torch.nn.Parameter(torch.Tensor(np.ones(self.DimState,))),
-                'epsObs': torch.nn.Parameter(0.1 * torch.Tensor(np.ones((self.DimObs,)))),
-                'epsReg': torch.nn.Parameter(torch.Tensor([0.1])),
-                'WObs': torch.nn.Parameter(torch.Tensor(np.ones((self.DimObs,ShapeData[0])))),
+                'alphaReg': nn.Parameter(torch.Tensor([1.])),
+                'WReg': nn.Parameter(torch.Tensor(np.ones(self.DimState,))),
+                'epsObs': nn.Parameter(0.1 * torch.Tensor(np.ones((self.DimObs,)))),
+                'epsReg': nn.Parameter(torch.Tensor([0.1])),
+                'WObs': nn.Parameter(torch.Tensor(np.ones((self.DimObs,ShapeData[0])))),
             })
         else:
             self.dimObsChannel  = ShapeData[0] * np.ones((self.DimObs,))
             self.params = nn.ParameterDict({
                 'alphaObs': nn.Parameter(torch.Tensor(1. * np.ones((self.DimObs,1)))),
-                'alphaReg': nn.Parameter(torch.randn(5, 10)),
-                'WReg': torch.nn.Parameter(torch.Tensor(np.ones(self.DimState,))),
-                'epsObs': torch.nn.Parameter(0.1 * torch.Tensor(np.ones((self.DimObs,)))),
-                'epsReg': torch.nn.Parameter(torch.Tensor([0.1])),
-                'WObs': torch.nn.Parameter(torch.Tensor(np.ones((self.DimObs,int(np.max(self.dimObsChannel)))))),
+                'alphaReg': nn.Parameter(torch.Tensor([1.])),
+                'WReg': nn.Parameter(torch.Tensor(np.ones(self.DimState,))),
+                'epsObs': nn.Parameter(0.1 * torch.Tensor(np.ones((self.DimObs,)))),
+                'epsReg': nn.Parameter(torch.Tensor([0.1])),
+                'WObs': nn.Parameter(torch.Tensor(np.ones((self.DimObs,int(np.max(self.dimObsChannel)))))),
             })
                         
         self.normObs   = m_NormObs
@@ -435,7 +435,7 @@ class Model_Var_Cost2(nn.Module):
 
         loss = self.params['alphaReg']**2 * self.normPrior(dx,self.params['WReg']**2,self.params['epsReg'])
 
-        print(loss.size())
+        print( self.params['alphaReg'] )
                 
         if self.DimObs == 1 :
             loss +=  self.params['alphaObs'][0]**2 * self.normObs(dy,self.params['WObs'][0,:]**2,self.params['epsObs'][0])
@@ -443,8 +443,6 @@ class Model_Var_Cost2(nn.Module):
             for kk in range(0,self.DimObs):
                 loss +=  self.params['alphaObs'][kk]**2 * self.normObs(dy[kk],self.params['WObs'][kk,0:dy[kk].size(1)]**2,self.params['epsObs'][kk])
 
-        print()
-        print(loss.size())
         return loss
     
 # 4DVarNN Solver class using automatic differentiation for the computation of gradient of the variational cost
