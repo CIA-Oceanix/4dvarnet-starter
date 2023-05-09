@@ -36,6 +36,7 @@ mod = Lit4dVarNet_L63(cfg.model.params,patch_weight=get_constant_crop_l63(patch_
 #mod.load_from_checkpoint('outputs/2023-05-07/22-59-30/base_l63/checkpoints/val_mse=0.6534-epoch=379.ckpt')
 
 #ckpt = 'resL63/exp02-new/model-l63-jamesDim0_08_20unet-exp02-new-Noise02-igrad05_02-dgrad100-drop20-rnd-init00-lstm-init00-epoch=01-val_loss=4.86.ckpt'
+ckpt = 'resL63/exp02-new/model-l63-jamesDim0_08_20unet-exp02-new-Noise02-igrad05_02-dgrad100-drop20-rnd-init00-lstm-init00-epoch=01-val_loss=7.14.ckpt'
 #mod.load_from_checkpoint(ckpt)
 
 print()
@@ -70,14 +71,15 @@ checkpoint_callback = ModelCheckpoint(monitor='val_loss',
                                       save_top_k=3,
                                       mode='min')
 trainer = pl.Trainer(devices=1,accelerator="gpu",  **profiler_kwargs,callbacks=[checkpoint_callback],inference_mode=False)
-trainer.fit(mod, datamodule=dm )         
+#trainer.fit(mod, datamodule=dm )         
 #trainer.fit(mod, dataloaders['train'], dataloaders['val'])
 
 trainer.test(mod, dataloaders=dm.test_dataloader())
 
 print('.................')
 print(mod.model.model_VarCost.params['WObs'])
-print(mod.model.model_VarCost.params['WReg'])
+#print(mod.model.model_VarCost.params['WReg'])
+print(mod.model.model_VarCost.WReg.weight)
 print(mod.model.model_VarCost.params['alphaReg'])
 print(mod.model.model_VarCost.params['alphaObs'])
 print()
@@ -87,6 +89,7 @@ trainer.test(mod, dataloaders=dm.test_dataloader(), ckpt_path=ckpt)
 
 print('.................')
 print(mod.model.model_VarCost.params['WObs'])
-print(mod.model.model_VarCost.params['WReg'])
+#print(mod.model.model_VarCost.params['WReg'])
+print(mod.model.model_VarCost.WReg.weight)
 print(mod.model.model_VarCost.params['alphaReg'])
 print(mod.model.model_VarCost.params['alphaObs'])
