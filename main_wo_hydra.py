@@ -37,7 +37,7 @@ mod = Lit4dVarNet_L63(cfg.model.params,patch_weight=get_constant_crop_l63(patch_
 
 #ckpt = 'resL63/exp02-new/model-l63-jamesDim0_08_20unet-exp02-new-Noise02-igrad05_02-dgrad100-drop20-rnd-init00-lstm-init00-epoch=01-val_loss=4.86.ckpt'
 ckpt = 'resL63/exp02-new/model-l63-jamesDim0_08_20unet-exp02-new-Noise02-igrad05_02-dgrad100-drop20-rnd-init00-lstm-init00-epoch=01-val_loss=7.14.ckpt'
-#mod.load_from_checkpoint(ckpt)
+mod = mod.load_from_checkpoint(ckpt)
 
 print()
 print()

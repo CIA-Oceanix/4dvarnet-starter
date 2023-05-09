@@ -412,7 +412,7 @@ class Model_Var_Cost2(nn.Module):
             self.params = nn.ParameterDict({
                 'alphaObs': nn.Parameter(torch.Tensor(1. * np.ones((self.DimObs,1)))),
                 'alphaReg': nn.Parameter(torch.Tensor([1.])),
-                #'WReg': nn.Parameter(torch.Tensor(np.ones(self.DimState,))),
+                'WReg': nn.Parameter(torch.Tensor(np.ones(self.DimState,))),
                 'epsObs': nn.Parameter(0.1 * torch.Tensor(np.ones((self.DimObs,)))),
                 'epsReg': nn.Parameter(torch.Tensor([0.1])),
                 'WObs': nn.Parameter(torch.Tensor(np.ones((self.DimObs,ShapeData[0])))),
@@ -422,20 +422,19 @@ class Model_Var_Cost2(nn.Module):
             self.params = nn.ParameterDict({
                 'alphaObs': nn.Parameter(torch.Tensor(1. * np.ones((self.DimObs,1)))),
                 'alphaReg': nn.Parameter(torch.Tensor([1.])),
-                #'WReg': nn.Parameter(torch.Tensor(np.ones(self.DimState,))),
+                'WReg': nn.Parameter(torch.Tensor(np.ones(self.DimState,))),
                 'epsObs': nn.Parameter(0.1 * torch.Tensor(np.ones((self.DimObs,)))),
                 'epsReg': nn.Parameter(torch.Tensor([0.1])),
                 'WObs': nn.Parameter(torch.Tensor(np.ones((self.DimObs,int(np.max(self.dimObsChannel)))))),
             })
                      
-        self.WReg = torch.nn.Conv2d(self.DimState, self.DimState, (1,1), padding=0,bias=False,groups=self.DimState)
         self.normObs   = m_NormObs
         self.normPrior = m_NormPhi
         
     def forward(self, dx, dy):
 
-        loss = self.params['alphaReg']**2 * self.normPrior( self.WReg( dx ) , 1. , self.params['epsReg'] )
-        #loss = self.params['alphaReg']**2 * self.normPrior(dx,self.params['WReg']**2,self.params['epsReg'])
+        #loss = self.params['alphaReg']**2 * self.normPrior( self.WReg( dx ) , 1. , self.params['epsReg'] )
+        loss = self.params['alphaReg']**2 * self.normPrior(dx,self.params['WReg']**2,self.params['epsReg'])
                 
         if self.DimObs == 1 :
             loss +=  self.params['alphaObs'][0]**2 * self.normObs(dy,self.params['WObs'][0,:]**2,self.params['epsObs'][0])
@@ -451,20 +450,21 @@ class Model_Var_Cost2(nn.Module):
 # (default norm (None) refers to the L2 norm)
 # updated inner modles to account for the variational model module
 class Solver_Grad_4DVarNN(nn.Module):
-    def __init__(self ,phi_r,mod_H, m_Grad, m_NormObs, m_NormPhi, ShapeData,n_iter_grad,eps=0.,k_step_grad=0.,lr_grad=0.,lr_rnd=0.,flag_mr_solver=False,iter_mr_solver=2):
+    def __init__(self ,phi_r,mod_H, m_Grad, m_VarCost, #m_NormObs, m_NormPhi, 
+                 ShapeData,n_iter_grad,eps=0.,k_step_grad=0.,lr_grad=0.,lr_rnd=0.,flag_mr_solver=False,iter_mr_solver=2):
         super(Solver_Grad_4DVarNN, self).__init__()
         self.phi_r         = phi_r
                     
-        if  m_NormObs is None :
-            m_NormObs = Model_WeightedL2Norm()
+#        if  m_NormObs is None :
+#            m_NormObs = Model_WeightedL2Norm()
         
-        if  m_NormPhi is None :
-            m_NormPhi = Model_WeightedL2Norm()
+#        if  m_NormPhi is None :
+#            m_NormPhi = Model_WeightedL2Norm()
 
         self.model_H = mod_H
         self.model_Grad = m_Grad
         #self.model_VarCost = Model_Var_Cost(m_NormObs, m_NormPhi, ShapeData,mod_H.DimObs,mod_H.dimObsChannel)
-        self.model_VarCost = Model_Var_Cost2(m_NormObs, m_NormPhi, ShapeData,mod_H.DimObs,mod_H.dimObsChannel)
+        self.model_VarCost = m_VarCost #Model_Var_Cost2(m_NormObs, m_NormPhi, ShapeData,mod_H.DimObs,mod_H.dimObsChannel)
         
         self.eps = eps
         self.flag_mr_solver = flag_mr_solver#True
