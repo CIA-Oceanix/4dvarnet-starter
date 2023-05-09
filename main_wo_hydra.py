@@ -69,7 +69,7 @@ checkpoint_callback = ModelCheckpoint(monitor='val_loss',
                                       filename= filename_chkpt + '-{epoch:02d}-{val_loss:.2f}',
                                       save_top_k=3,
                                       mode='min')
-trainer = pl.Trainer(devices=1,accelerator="gpu",  **profiler_kwargs,callbacks=[checkpoint_callback])
+trainer = pl.Trainer(devices=1,accelerator="gpu",  **profiler_kwargs,callbacks=[checkpoint_callback],inference_mode=False)
 #trainer.fit(mod, datamodule=dm ) #dataloaders['train'], dataloaders['val'])        
 #trainer.fit(mod, dataloaders['train'], dataloaders['val'])
 
