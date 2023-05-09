@@ -42,7 +42,6 @@ datamodule:
       flagTypeMissData: 2
 model:
   _target_: src.models_l63.Lit4dVarNet_L63
-  ckpt: 'outputs/2023-05-09/12-22-22/base_l63/val_mse=0.0106-epoch=005.ckpt'
   params:
     k_n_grad: 2
     n_grad: 5
@@ -84,6 +83,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
+    ckpt: 'outputs/2023-05-09/12-22-22/base_l63/val_mse=0.0106-epoch=005.ckpt'
 #    test_fn:
 #      _target_: src.utils.diagnostics
 #      _partial_: true

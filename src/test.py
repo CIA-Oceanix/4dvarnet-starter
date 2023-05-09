@@ -3,7 +3,7 @@ import numpy as np
 
 torch.set_float32_matmul_precision('high')
 
-def base_testing(trainer, dm, lit_mod):
+def base_testing(trainer, dm, lit_mod,chkpt):
     if trainer.logger is not None:
         print()
         print("Logdir:", trainer.logger.log_dir)
@@ -16,7 +16,7 @@ def base_testing(trainer, dm, lit_mod):
     trainer.callbacks = []
     lit_mod.set_norm_stats = dm.norm_stats()
     
-    trainer.test(lit_mod, dataloaders=dm.val_dataloader())
+    trainer.test(lit_mod, dataloaders=dm.val_dataloader(),ckpt_path=chkpt)
 
     X_train, x_train, mask_train, x_train_Init, x_train_obs = dm.input_data[0]    
     idx_val = X_train.shape[0]-500
