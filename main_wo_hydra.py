@@ -44,12 +44,6 @@ else:
     mod = Lit4dVarNet_L63(cfg.model.params,patch_weight=get_constant_crop_l63(patch_dims=cfg.model.patch_weight.patch_dims,crop=cfg.model.patch_weight.crop))
     #mod = mod.load_from_checkpoint(ckpt)
     mod.load_state_dict(torch.load(ckpt)['state_dict'])
-print()
-print()
-print(mod.hparams)
-print('.................')
-print(mod.model.model_VarCost.params)
-#print(mod.model.model_Grad.lstm.Gates.weight)
 
 mod.set_norm_stats = dm.norm_stats()
 
@@ -76,7 +70,8 @@ checkpoint_callback = ModelCheckpoint(monitor='val_loss',
                                       save_top_k=3,
                                       mode='min')
 trainer = pl.Trainer(devices=1,accelerator="gpu",  **profiler_kwargs,callbacks=[checkpoint_callback],inference_mode=False)
-ghggtrainer.fit(mod, datamodule=dm )         
+
+trainer.fit(mod, datamodule=dm )         
 #trainer.fit(mod, dataloaders['train'], dataloaders['val'])
 
 
