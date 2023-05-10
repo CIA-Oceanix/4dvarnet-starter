@@ -557,10 +557,6 @@ class Lit4dVarNet_L63(pl.LightningModule):
         #self.hparams.w_loss          = torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
         self.hparams.automatic_optimization = True# False#
 
-        #m_NormObs = solver_4DVarNet.Model_WeightedL2Norm()        
-        #m_NormPhi = solver_4DVarNet.Model_WeightedL2Norm()
-
-
         # main model
         if self.hparams.phi_param == 'ode':
             self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi_ode(), 
@@ -581,12 +577,11 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.x_rec   = None # variable to store output of test method
         self.x_rec_obs = None
         self.x_gt   = None # variable to store output of test method
-        #self.curr = 0
 
         self.set_norm_stats = stats_training_data if stats_training_data is not None else (0.0,1.)
         self._set_norm_stats()
         
-        self.automatic_optimization = self.hparams.automatic_optimization
+        self.automatic_optimization = True
         
     def forward(self):
         return 1
