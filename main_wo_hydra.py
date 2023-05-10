@@ -28,7 +28,7 @@ torch.set_float32_matmul_precision('high')
 #cfg = get_cfg("base")
 # cfg = get_cfg("xp_aug/xp_repro/quentin_repro")
 cfg = OmegaConf.load('config/xp/base_l63.yaml')
-OmegaConf.resolve(cfg)
+#OmegaConf.resolve(cfg)
 
 print(OmegaConf.to_yaml(cfg))
 
