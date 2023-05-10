@@ -19,7 +19,7 @@ datamodule:
       time_step: 1
       dT: 200
       varNoise: 2.0
-      sampling_step: ??
+      sampling_step: 8
       flagTypeMissData: 2
       
 model:
@@ -64,7 +64,7 @@ trainer:
     save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 382
+  max_epochs: 400
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
