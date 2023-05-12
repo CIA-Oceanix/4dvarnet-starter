@@ -192,7 +192,7 @@ def compute_WeightedL2Norm1D(x2,w):
 # Gradient-based minimization using a LSTM using a (sub)gradient as inputs    
 class model_Grad_with_lstm(torch.nn.Module):
     def __init__(self,ShapeData,periodicBnd=False,DimLSTM=0,rateDropout=0.,padding_mode='zeros',sig_lstm_init=0.):
-        super(model_Grad_with_lstm_and_state, self).__init__()
+        super(model_Grad_with_lstm, self).__init__()
 
         with torch.no_grad():
             self.shape     = ShapeData
