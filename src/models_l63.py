@@ -582,7 +582,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
                                                                     solver_4DVarNet.model_Grad_with_lstm_and_state(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
                                                                     None, None, 
                                                                     self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd)#, self.hparams.eps_norm_grad)
-        elif self.hparams.solver =='4dvarnet-with-nograd':
+        elif self.hparams.solver =='4dvarnet-with-no-grad':
             if self.hparams.solver_no_grad_type == 'sampling-rnd' :
                 shapeData_grad = np.array([2*self.hparams.shapeData[0],self.hparams.shapeData[1],1])
             else:
