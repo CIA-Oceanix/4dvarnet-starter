@@ -189,10 +189,10 @@ def compute_WeightedL2Norm1D(x2,w):
     
     return loss_
 
-# Gradient-based minimization using a LSTM using a (sub)gradient as inputs
-class model_GradUpdateLSTM(torch.nn.Module):
-    def __init__(self,ShapeData,periodicBnd=False,DimLSTM=0,rateDropout=0.,padding_mode='zeros'):
-        super(model_GradUpdateLSTM, self).__init__()
+# Gradient-based minimization using a LSTM using a (sub)gradient as inputs    
+class model_Grad_with_lstm(torch.nn.Module):
+    def __init__(self,ShapeData,periodicBnd=False,DimLSTM=0,rateDropout=0.,padding_mode='zeros',sig_lstm_init=0.):
+        super(model_Grad_with_lstm_and_state, self).__init__()
 
         with torch.no_grad():
             self.shape     = ShapeData
@@ -210,18 +210,19 @@ class model_GradUpdateLSTM(torch.nn.Module):
         self.convLayer.weight = torch.nn.Parameter(K)
 
         self.dropout = torch.nn.Dropout(rateDropout)
+        self.sig_lstm_init = sig_lstm_init
 
         if len(self.shape) == 2: ## 1D Data
-            self.lstm = ConvLSTM1d(self.shape[0],self.DimState,3,padding_mode=padding_mode)
+            self.lstm = ConvLSTM1d(2*self.shape[0]+1,self.DimState,3,padding_mode=padding_mode)
         elif len(self.shape) == 3: ## 2D Data
-            self.lstm = ConvLSTM2d(self.shape[0],self.DimState,3,padding_mode=padding_mode)
+            self.lstm = ConvLSTM2d(2*self.shape[0]+1,self.DimState,3,padding_mode=padding_mode)
 
     def _make_ConvGrad(self):
         layers = []
 
         if len(self.shape) == 2: ## 1D Data
             layers.append(torch.nn.Conv1d(self.DimState, self.shape[0], 1, padding=0,bias=False))
-            layers.append(torch.nn.Conv1d(self.DimState, self.shape[0], 1, padding=0,bias=False))
+            #layers.append(torch.nn.Conv1d(self.DimState, self.shape[0], 1, padding=0,bias=False))
         elif len(self.shape) == 3: ## 2D Data
             layers.append(torch.nn.Conv2d(self.DimState, self.shape[0], (1,1), padding=0,bias=False))
             #layers.append(torch.nn.Conv2d(self.shape[0]+self.DimState, self.shape[0], (1,1), padding=0,bias=False))
@@ -231,34 +232,39 @@ class model_GradUpdateLSTM(torch.nn.Module):
         layers = []
 
         if len(self.shape) == 2: ## 1D Data
-            layers.append(ConvLSTM1d(self.shape[0],self.DimState,3))
+            layers.append(ConvLSTM1d(2*self.shape[0],self.DimState,3))
         elif len(self.shape) == 3: ## 2D Data
-            layers.append(ConvLSTM2d(self.shape[0],self.DimState,3))
+            layers.append(ConvLSTM2d(2*self.shape[0]+1,self.DimState,3))
 
         return torch.nn.Sequential(*layers)
 
-    def forward(self,hidden,cell,grad,gradnorm=1.0):
+    def forward(self,hidden,cell,x,grad,gradnorm=1.0,iter=0):
 
         # compute gradient
         grad  = grad / gradnorm
         grad  = self.dropout( grad )
-
+        
         if self.PeriodicBnd == True :
             dB     = 7
             #
-            grad_  = torch.cat((grad[:,:,x.size(2)-dB:,:],grad,grad[:,:,0:dB,:]),dim=2)
+            grad_  = torch.cat((grad[:,:,grad.size(2)-dB:,:],grad,grad[:,:,0:dB,:]),dim=2)
             if hidden is None:
-                hidden_,cell_ = self.lstm(grad_,None)
+                #hidden_,cell_ = self.lstm(grad_,None)
+                hidden_ = self.sig_lstm_init * torch.randn( (grad_.size(0),self.DimState,grad_.size(2),grad_.size(3)) ).to(device)
+                cell_   = self.sig_lstm_init * torch.randn( (grad_.size(0),self.DimState,grad_.size(2),grad_.size(3)) ).to(device)
+                hidden_,cell_ = self.lstm(grad_,((hidden_,cell_)))
             else:
-                hidden_  = torch.cat((hidden[:,:,x.size(2)-dB:,:],hidden,hidden[:,:,0:dB,:]),dim=2)
-                cell_    = torch.cat((cell[:,:,x.size(2)-dB:,:],cell,cell[:,:,0:dB,:]),dim=2)
+                hidden_  = torch.cat((hidden[:,:,grad.size(2)-dB:,:],hidden,hidden[:,:,0:dB,:]),dim=2)
+                cell_    = torch.cat((cell[:,:,grad.size(2)-dB:,:],cell,cell[:,:,0:dB,:]),dim=2)
                 hidden_,cell_ = self.lstm(grad_,[hidden_,cell_])
 
-            hidden_ = hidden_[:,:,dB:x.size(2)+dB,:]
+            hidden_ = hidden_[:,:,dB:grad.size(2)+dB,:]
             cell_   = cell_[:,:,dB:x.size(2)+dB,:]
         else:
             if hidden is None:
                 #hidden_,cell_ = self.lstm(grad,None)
+                hidden_ = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
+                cell_   = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
                 hidden_,cell_ = self.lstm(grad,None)
             else:
                 #hidden_,cell_ = self.lstm(grad,[hidden,cell])
@@ -266,13 +272,12 @@ class model_GradUpdateLSTM(torch.nn.Module):
 
         grad_lstm = self.dropout( hidden_ )
         grad =  self.convLayer( grad_lstm )
-        #grad =  self.convLayer( torch.cat((grad,grad_lstm),dim=1) )
 
         return grad,hidden_,cell_
 
-class model_Grad(torch.nn.Module):
+class model_Grad_with_lstm_and_state(torch.nn.Module):
     def __init__(self,ShapeData,periodicBnd=False,DimLSTM=0,rateDropout=0.,padding_mode='zeros',sig_lstm_init=0.):
-        super(model_Grad, self).__init__()
+        super(model_Grad_with_lstm_and_state, self).__init__()
 
         with torch.no_grad():
             self.shape     = ShapeData
@@ -359,6 +364,7 @@ class model_Grad(torch.nn.Module):
         #grad =  self.convLayer( torch.cat((grad,grad_lstm),dim=1) )
 
         return grad,hidden_,cell_
+
 # New module for the definition/computation of the variational cost
 class Model_Var_Cost(nn.Module):
     def __init__(self ,m_NormObs, m_NormPhi, ShapeData,DimObs=1,dimObsChannel=0,dimState=0):
@@ -396,64 +402,197 @@ class Model_Var_Cost(nn.Module):
 
         return loss
 
-class Model_Var_Cost2(nn.Module):
-    def __init__(self ,m_NormObs, m_NormPhi, ShapeData,DimObs=1,dimObsChannel=0,dimState=0):
-        super(Model_Var_Cost2, self).__init__()
-        self.dimObsChannel = dimObsChannel
-        self.DimObs        = DimObs
-        if dimState > 0 :
-            self.DimState      = dimState
-        else:
-            self.DimState      = ShapeData[0]
-                    
-        # parameters for variational cost
-        if self.dimObsChannel[0] == 0 :
-            self.dimObsChannel  = ShapeData[0] * np.ones((self.DimObs,))
-            self.params = nn.ParameterDict({
-                'alphaObs': nn.Parameter(torch.Tensor(1. * np.ones((self.DimObs,1)))),
-                'alphaReg': nn.Parameter(torch.Tensor([1.])),
-                'WReg': nn.Parameter(torch.Tensor(np.ones(self.DimState,))),
-                'epsObs': nn.Parameter(0.1 * torch.Tensor(np.ones((self.DimObs,)))),
-                'epsReg': nn.Parameter(torch.Tensor([0.1])),
-                'WObs': nn.Parameter(torch.Tensor(np.ones((self.DimObs,ShapeData[0])))),
-            })
-        else:
-            self.dimObsChannel  = ShapeData[0] * np.ones((self.DimObs,))
-            self.params = nn.ParameterDict({
-                'alphaObs': nn.Parameter(torch.Tensor(1. * np.ones((self.DimObs,1)))),
-                'alphaReg': nn.Parameter(torch.Tensor([1.])),
-                'WReg': nn.Parameter(torch.Tensor(np.ones(self.DimState,))),
-                'epsObs': nn.Parameter(0.1 * torch.Tensor(np.ones((self.DimObs,)))),
-                'epsReg': nn.Parameter(torch.Tensor([0.1])),
-                'WObs': nn.Parameter(torch.Tensor(np.ones((self.DimObs,int(np.max(self.dimObsChannel)))))),
-            })
-                     
-        self.normObs   = m_NormObs
-        self.normPrior = m_NormPhi
-        
-    def forward(self, dx, dy):
-
-        #loss = self.params['alphaReg']**2 * self.normPrior( self.WReg( dx ) , 1. , self.params['epsReg'] )
-        loss = self.params['alphaReg']**2 * self.normPrior(dx,self.params['WReg']**2,self.params['epsReg'])
-                
-        if self.DimObs == 1 :
-            loss +=  self.params['alphaObs'][0]**2 * self.normObs(dy,self.params['WObs'][0,:]**2,self.params['epsObs'][0])
-        else:
-            for kk in range(0,self.DimObs):
-                loss +=  self.params['alphaObs'][kk]**2 * self.normObs(dy[kk],self.params['WObs'][kk,0:dy[kk].size(1)]**2,self.params['epsObs'][kk])
-
-        return loss
     
 # 4DVarNN Solver class using automatic differentiation for the computation of gradient of the variational cost
 # input modules: operator phi_r, gradient-based update model m_Grad
 # modules for the definition of the norm of the observation and prior terms given as input parameters 
 # (default norm (None) refers to the L2 norm)
 # updated inner modles to account for the variational model module
+class Solver_with_nograd(nn.Module):
+    def __init__(self ,phi_r,mod_H, m_Grad, m_NormObs, m_NormPhi, 
+                 ShapeData,n_iter_grad,eps=0.,k_step_grad=0.,lr_grad=0.,lr_rnd=0.,no_grad_type='sampling-randn'):
+        super(Solver_with_nograd, self).__init__()
+        self.phi_r         = phi_r
+                    
+        self.model_H = mod_H
+        self.model_Grad = m_Grad
+        self.model_VarCost = Model_Var_Cost(m_NormObs, m_NormPhi, ShapeData,mod_H.DimObs,mod_H.dimObsChannel)
+        
+        self.eps = eps
+        self.no_grad_type = no_grad_type
+                
+        with torch.no_grad():
+            self.n_grad = int(n_iter_grad)
+            self.k_step_grad = k_step_grad
+
+            self.lr_grad = lr_grad
+            self.lr_rnd  = lr_rnd
+            self.n_step  = self.n_grad
+        
+    def forward(self, x, yobs, mask, hidden = None , cell = None, normgrad = 0.,prev_iter=0):
+        
+        return self.solve(
+            x_0=x,
+            obs=yobs,
+            mask = mask,
+            hidden = hidden , 
+            cell = cell, 
+            normgrad = normgrad,
+            prev_iter=prev_iter)
+
+    def solve(self, x_0, obs, mask, hidden = None , cell = None, normgrad = 0.,prev_iter=0):
+        x_k = torch.autograd.Variable(1. * x_0, requires_grad=True)
+       
+        hidden_ = hidden
+        cell_ = cell 
+        normgrad_ = normgrad
+        
+        
+        for _ii in range(self.n_grad):
+            x_k_plus_1, hidden_, cell_, normgrad_ = self.solver_step(x_k, obs, mask,hidden_, cell_, normgrad_,_ii+prev_iter)
+
+            x_k = 1. * x_k_plus_1
+
+        return x_k_plus_1, hidden_, cell_, normgrad_
+
+    def solver_step(self, x_k, obs, mask, hidden, cell,normgrad = 0.,iter=-1):
+        #with torch.set_grad_enabled(True):
+        if iter == -1:
+            iter = 0
+        var_cost, var_cost_grad= self.var_cost(x_k, obs, mask)
+        if normgrad == 0. :
+            normgrad_= torch.sqrt( torch.mean( var_cost_grad**2 + self.eps ) )
+        else:
+            normgrad_= normgrad
+
+        grad_update, hidden, cell = self.model_Grad(hidden, cell, x_k, var_cost_grad, normgrad_, iter)
+
+        state_update = (
+            1 / (iter + 1) * grad_update
+            + self.lr_grad * (iter + 1) / self.n_step * var_cost_grad
+            + self.lr_rnd * np.sqrt( (iter + 1) / self.n_step ) * torch.randn(grad_update.size()).to(device)
+            )
+                            
+        x_k_plus_1 = x_k - state_update
+        
+        return x_k_plus_1, hidden, cell, normgrad_
+
+    def var_cost(self , x, yobs, mask):        
+        with torch.set_grad_enabled(True):
+               
+            # variational cost for current solution            
+            dy = self.model_H(x,yobs,mask)
+            dx = x - self.phi_r(x)
+            loss = self.model_VarCost( dx , dy )
+            
+            if self.no_grad_type == 'sampling-randn' :          
+                # variational cost for perturbed solution
+                z = self.sig_perturbation_grad * torch.randn( (x.size(0),self.DimState,x.size(2),x.size(3)) ).to(device)
+                x_pertubed = x + z                  
+                dy = self.model_H(x_pertubed,yobs,mask)
+                dx = x_pertubed - self.phi_r(x_pertubed)
+                loss_perturbed = self.model_VarCost( dx , dy )
+           
+                var_cost_grad = (loss_perturbed - loss) / ( torch.sign(z ) * torch.sqrt( z**2 + 1e-6 ) )
+            elif self.no_grad_type == 'sub-gradients' :
+                var_cost_grad = torch.cat((dx,dy),dim=1)                
+              
+        return loss, var_cost_grad
 
 class GradSolver_with_rnd(nn.Module):
     def __init__(self ,phi_r,mod_H, m_Grad, m_NormObs, m_NormPhi, 
                  ShapeData,n_iter_grad,eps=0.,k_step_grad=0.,lr_grad=0.,lr_rnd=0.,flag_mr_solver=False,iter_mr_solver=2):
-        super(GradSolver_with_rnd, self).__init__()
+        super(GradSolver_with_state_rnd, self).__init__()
+        self.phi_r         = phi_r
+                    
+        if  m_NormObs is None :
+            m_NormObs = Model_WeightedL2Norm()
+        
+        if  m_NormPhi is None :
+            m_NormPhi = Model_WeightedL2Norm()
+
+        self.model_H = mod_H
+        self.model_Grad = m_Grad
+        self.model_VarCost = Model_Var_Cost(m_NormObs, m_NormPhi, ShapeData,mod_H.DimObs,mod_H.dimObsChannel)
+        
+        self.eps = eps
+                
+        with torch.no_grad():
+            self.n_grad = int(n_iter_grad)
+            self.k_step_grad = k_step_grad
+
+            self.lr_grad = lr_grad
+            self.lr_rnd  = lr_rnd
+            self.n_step  = self.n_grad
+        
+    def forward(self, x, yobs, mask, hidden = None , cell = None, normgrad = 0.,prev_iter=0):
+        
+        return self.solve(
+            x_0=x,
+            obs=yobs,
+            mask = mask,
+            hidden = hidden , 
+            cell = cell, 
+            normgrad = normgrad,
+            prev_iter=prev_iter)
+
+    def solve(self, x_0, obs, mask, hidden = None , cell = None, normgrad = 0.,prev_iter=0):
+        x_k = torch.autograd.Variable(1. * x_0, requires_grad=True)
+       
+        hidden_ = hidden
+        cell_ = cell 
+        normgrad_ = normgrad
+        
+        
+        for _ii in range(self.n_grad):
+            x_k_plus_1, hidden_, cell_, normgrad_ = self.solver_step(x_k, obs, mask,hidden_, cell_, normgrad_,_ii+prev_iter)
+
+            x_k = 1. * x_k_plus_1
+
+        return x_k_plus_1, hidden_, cell_, normgrad_
+
+    def solver_step(self, x_k, obs, mask, hidden, cell,normgrad = 0.,iter=-1):
+        #with torch.set_grad_enabled(True):
+        if iter == -1:
+            iter = 0
+        var_cost, var_cost_grad= self.var_cost(x_k, obs, mask)
+        if normgrad == 0. :
+            normgrad_= torch.sqrt( torch.mean( var_cost_grad**2 + self.eps ) )
+        else:
+            normgrad_= normgrad
+
+        grad_update, hidden, cell = self.model_Grad(hidden, cell, x_k, var_cost_grad, normgrad_, iter)
+
+        state_update = (
+            1 / (iter + 1) * grad_update
+            + self.lr_grad * (iter + 1) / self.n_step * var_cost_grad
+            + self.lr_rnd * np.sqrt( (iter + 1) / self.n_step ) * torch.randn(grad_update.size()).to(device)
+            )
+                            
+        x_k_plus_1 = x_k - state_update
+        
+        return x_k_plus_1, hidden, cell, normgrad_
+
+    def var_cost(self , x, yobs, mask):        
+        with torch.set_grad_enabled(True):
+            if not self.training:
+                x = x.detach().requires_grad_(True)
+            else:
+                x = x.requires_grad_(True)
+                
+            dy = self.model_H(x,yobs,mask)
+            dx = x - self.phi_r(x)
+            
+            loss = self.model_VarCost( dx , dy )
+                        
+            var_cost_grad = torch.autograd.grad(loss, x, create_graph=True)[0]#, allow_unused=True)[0]
+              
+        return loss, var_cost_grad
+
+class GradSolver_with_state_rnd(nn.Module):
+    def __init__(self ,phi_r,mod_H, m_Grad, m_NormObs, m_NormPhi, 
+                 ShapeData,n_iter_grad,eps=0.,k_step_grad=0.,lr_grad=0.,lr_rnd=0.,flag_mr_solver=False,iter_mr_solver=2):
+        super(GradSolver_with_state_rnd, self).__init__()
         self.phi_r         = phi_r
                     
         if  m_NormObs is None :

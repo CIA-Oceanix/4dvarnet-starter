@@ -19,6 +19,7 @@ import torch.nn.functional as F
 from netCDF4 import Dataset
 
 from sklearn import decomposition
+import kornia
 
 import src.solver_l63 as solver_4DVarNet
 from src.data_l63 import BaseDataModule
@@ -78,7 +79,8 @@ def create_filename_ckpt(suffix,params_data,params_model):
     print(params_data)
     print(params_model)
     
-    filename_chkpt = 'model-l63-' + params_data.genSuffixObs 
+    filename_chkpt = 'model-l63-' + params_model.solver
+    filename_chkpt = filename_chkpt + params_data.genSuffixObs 
     filename_chkpt = filename_chkpt + '-Obs%02d'%params_data.sampling_step + '-Noise%02d'%(params_data.varNoise)        
     filename_chkpt = filename_chkpt + '-' + params_model.phi_param
     filename_chkpt = filename_chkpt + '-igrad%02d_%02d'%(params_model.n_grad,params_model.k_n_grad)+'-dgrad%d'%params_model.dim_grad_solver          
@@ -557,15 +559,44 @@ class Lit4dVarNet_L63(pl.LightningModule):
         #self.hparams.w_loss          = torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
         self.hparams.automatic_optimization = True# False#
 
-        # main model
+        # prior
         if self.hparams.phi_param == 'ode':
+            Phi = Phi_ode()
+        elif self.hparams.phi_param == 'unet':    
+            Phi = Phi_unet(self.hparams.shapeData,self.hparams.DimAE)
+            
+        if self.hparams.solver =='4dvarnet-with-rnd' :
+            self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi, 
+                                                                    Model_H(self.hparams.shapeData), 
+                                                                    solver_4DVarNet.model_Grad_with_lstm(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
+                                                                    None, None, 
+                                                                    self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd)#, self.hparams.eps_norm_grad)            
+        elif self.hparams.solver =='4dvarnet-with-state-and-rnd':
+            self.model        = solver_4DVarNet.GradSolver_with_state_rnd(Phi, 
+                                                                    Model_H(self.hparams.shapeData), 
+                                                                    solver_4DVarNet.model_Grad_with_lstm_and_state(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
+                                                                    None, None, 
+                                                                    self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd)#, self.hparams.eps_norm_grad)
+        elif self.hparams.solver =='4dvarnet-with-nograd':
+            if self.hparams.solver_no_grad_type == 'sampling-rnd' :
+                shapeData_grad = np.array([2*self.hparams.shapeData[0],self.hparams.shapeData[1],1])
+            else:
+                shapeData_grad = self.hparams.shapeData
+                
+            self.model        = solver_4DVarNet.Solver_with_nograd(Phi, 
+                                                                    Model_H(self.hparams.shapeData), 
+                                                                    solver_4DVarNet.model_Grad_with_lstm(shapeData_grad, self.hparams.UsePeriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
+                                                                    None, None, 
+                                                                    self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd)#, self.hparams.eps_norm_grad)
+                
+        if 1*0 :
             self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi_ode(), 
                                                                     Model_H(self.hparams.shapeData), 
                                                                     solver_4DVarNet.model_Grad(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
                                                                     None, None, 
                                                                     #solver_4DVarNet.Model_Var_Cost2(m_NormObs, m_NormPhi, self.hparams.ShapeData,1,np.array([self.hparams.shapeData[0]])),
                                                                     self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd)#, self.hparams.eps_norm_grad)
-        elif self.hparams.phi_param == 'unet':
+        if 1*0: # self.hparams.phi_param == 'unet':
             self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi_unet(self.hparams.shapeData,self.hparams.DimAE), 
                                                                     Model_H(self.hparams.shapeData), 
                                                                     solver_4DVarNet.model_Grad(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
@@ -583,8 +614,13 @@ class Lit4dVarNet_L63(pl.LightningModule):
         
         self.automatic_optimization = True
         
+        
     def forward(self):
         return 1
+
+
+    def degradation(self,x):
+        return kornia.filters.median_blur(x, (3, 1))
 
     def configure_optimizers(self):
         #optimizer   = optim.Adam([{'params': self.model.model_Grad.parameters(), 'lr': self.hparams.lr_update[0]},
@@ -674,6 +710,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         self.log('val_loss', self.stdTr**2 * metrics['mse'] )
         self.log("val_mse", self.stdTr**2 * metrics['mse'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("val_gvar", self.stdTr**2 * metrics['var_grad'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
 
     def test_step(self, test_batch, batch_idx):
@@ -684,6 +721,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
             loss1, out, metrics = self.compute_loss(test_batch, phase='test',batch_init=out[0].detach(),hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
 
         self.log("test_mse", self.stdTr**2 * metrics['mse'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("test_gvar", metrics['var_grad'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
 
         if self.x_rec is None :
             self.x_rec = out[0].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
@@ -693,18 +731,36 @@ class Lit4dVarNet_L63(pl.LightningModule):
             self.x_rec = np.concatenate((self.x_rec,out[0].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
             self.x_gt  = np.concatenate((self.x_gt,targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
             self.x_obs  = np.concatenate((self.x_obs,inputs_obs.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
-                
-    
+                    
     def on_test_epoch_end(self):
         mse = np.mean( (self.x_rec - self.x_gt)**2 )
 
         print('... mse test: %.3f '%mse)
 
+    def loss_from_perturbation(self,x,y,mask,phase):
+        
+        if self.degradation_operator is not None:
+            if phase == 'test' :
+                x = x.detach().requires_grad_(True)
+                
+            # compute gradient of variational cost
+            var_cost, var_cost_grad = self.model.var_cost(x, y, mask)
+            
+            # apply degradation
+            x_ = x - self.degradation(x)
+            x_ = x_ + self.degradation(x_)
+            dx = x - x_
+            
+            n_dx = np.sqrt( np.mean( dx**2 ) + self.epsilon )
+            n_grad = np.sqrt( np.mean( var_cost_grad**2 ) + self.epsilon )
+
+            loss = 1.0 - torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) )
+        else:
+            loss = 0.
+            
+        return loss
+
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
-        #print('... Inference mode')
-        #print( torch.is_inference_mode_enabled() )
-        #print('-----------------')
- 
         with torch.set_grad_enabled(True):
             inputs_init_,inputs_obs,masks,targets_GT = batch
      
@@ -717,27 +773,24 @@ class Lit4dVarNet_L63(pl.LightningModule):
             if phase == 'train' :                
                 inputs_init = inputs_init.detach()
             
-            # with torch.set_grad_enabled(phase == 'train'):
-            #inputs_init = torch.autograd.Variable(inputs_init, requires_grad=True)
-
-            #outputs, hidden_new, cell_new, normgrad_ = self.model(inputs_init_, inputs_obs, masks)#,hidden = hidden , cell = cell , normgrad = normgrad)
-            #outputs, hidden_new, cell_new, normgrad_ = self.model(inputs_init, inputs_obs, masks ,hidden = None , cell = None , normgrad = normgrad )            
             outputs, hidden_new, cell_new, normgrad_ = self.model(inputs_init, inputs_obs, masks, hidden = hidden , cell = cell , normgrad = normgrad, prev_iter = prev_iter )
 
-            #loss_mse   = solver_4DVarNet.compute_WeightedLoss((outputs - targets_GT), self.w_loss)
+            # losses
             loss_mse = torch.mean((outputs - targets_GT) ** 2)
             loss_prior = torch.mean((self.model.phi_r(outputs) - outputs) ** 2)
             loss_prior_gt = torch.mean((self.model.phi_r(targets_GT) - targets_GT) ** 2)
 
+            loss_var_cost_grad = self.loss_from_perturbation(outputs,inputs_obs,masks,phase)
+
             loss = self.hparams.alpha_mse * loss_mse
             loss += 0.5 * self.hparams.alpha_prior * (loss_prior + loss_prior_gt)
-            
+            loss += self.hparams.alpha_var_cost_grad * loss_var_cost_grad
             # metrics
             mse       = loss_mse.detach()
-            metrics   = dict([('mse',mse)])
-            #print(mse.cpu().detach().numpy())
+            metrics   = dict([('mse',mse),('var_grad',loss_var_cost_grad)])
+
             if (phase == 'val') or (phase == 'test'):                
-                outputs = outputs.detach()#.requires_grad_(True)
+                outputs = outputs.detach()
         
         out = [outputs,hidden_new, cell_new, normgrad_]
         
