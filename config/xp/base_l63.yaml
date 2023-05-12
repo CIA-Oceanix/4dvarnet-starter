@@ -43,6 +43,7 @@ model:
     sig_lstm_init: 0e-2
     suffix_exp: '-new'
     UsePeriodicBoundary: False
+    degradation_operator: None
     shapeData:
       - 3
       - ${datamodule.input_data.param_dataset.dT}
