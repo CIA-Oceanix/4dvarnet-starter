@@ -626,9 +626,9 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
 
     def degradation(self,x):
-        print(x)
+
         x = kornia.filters.median_blur(x, (3, 1))
-        print(x,flush=True)
+
         return x
 
     def configure_optimizers(self):
