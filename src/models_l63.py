@@ -739,7 +739,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
     def loss_from_perturbation(self,x,y,mask,phase):
         
-        if self.hparams.degradation_operator is not None:
+        if self.hparams.degradation_operator is not 'no-degradation' :
             if phase == 'test' :
                 x = x.detach().requires_grad_(True)
                 
