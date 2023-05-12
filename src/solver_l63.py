@@ -213,9 +213,9 @@ class model_Grad_with_lstm(torch.nn.Module):
         self.sig_lstm_init = sig_lstm_init
 
         if len(self.shape) == 2: ## 1D Data
-            self.lstm = ConvLSTM1d(2*self.shape[0]+1,self.DimState,3,padding_mode=padding_mode)
+            self.lstm = ConvLSTM1d(self.shape[0],self.DimState,3,padding_mode=padding_mode)
         elif len(self.shape) == 3: ## 2D Data
-            self.lstm = ConvLSTM2d(2*self.shape[0]+1,self.DimState,3,padding_mode=padding_mode)
+            self.lstm = ConvLSTM2d(self.shape[0],self.DimState,3,padding_mode=padding_mode)
 
     def _make_ConvGrad(self):
         layers = []
@@ -226,15 +226,6 @@ class model_Grad_with_lstm(torch.nn.Module):
         elif len(self.shape) == 3: ## 2D Data
             layers.append(torch.nn.Conv2d(self.DimState, self.shape[0], (1,1), padding=0,bias=False))
             #layers.append(torch.nn.Conv2d(self.shape[0]+self.DimState, self.shape[0], (1,1), padding=0,bias=False))
-
-        return torch.nn.Sequential(*layers)
-    def _make_LSTMGrad(self):
-        layers = []
-
-        if len(self.shape) == 2: ## 1D Data
-            layers.append(ConvLSTM1d(2*self.shape[0],self.DimState,3))
-        elif len(self.shape) == 3: ## 2D Data
-            layers.append(ConvLSTM2d(2*self.shape[0]+1,self.DimState,3))
 
         return torch.nn.Sequential(*layers)
 
