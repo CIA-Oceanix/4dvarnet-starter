@@ -98,6 +98,20 @@ def get_triang_time_wei(patch_dims, crop=0, offset=0):
         patch_dims.values(),
     )
 
+def load_enatl(*args, obs_from_tgt=False, **kwargs):
+    ssh = xr.open_zarr('../sla-data-registry/enatl_preproc/truth_SLA_SSH_NATL60.zarr/').ssh
+    nadirs = xr.open_zarr('../sla-data-registry/enatl_preproc/SLA_SSH_5nadirs.zarr/').ssh
+    ssh = ssh.interp(
+        lon=np.arange(ssh.lon.min(), ssh.lon.max(), 1/20),
+        lat=np.arange(ssh.lat.min(), ssh.lat.max(), 1/20)
+    )
+    nadirs = nadirs.interp(time=ssh.time, method='nearest').interp(lat=ssh.lat, lon=ssh.lon, method='nearest')
+    ds =  xr.Dataset(dict(input=nadirs, tgt=(ssh.dims, ssh.values)), nadirs.coords)
+
+    if obs_from_tgt:
+        ds = ds.assign(input=ds.tgt.transpose(*ds.input.dims).where(np.isfinite(ds.input), np.nan))
+    return ds.transpose('time', 'lat', 'lon').to_array().load()
+
 
 def load_altimetry_data(path, obs_from_tgt=False):
     ds =  (
