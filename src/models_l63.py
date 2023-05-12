@@ -760,12 +760,10 @@ class Lit4dVarNet_L63(pl.LightningModule):
             x_ = x - self.degradation(x)
             x_ = x_ + self.degradation(x_)
             
-            print(x,flush=True)
-            print(x_,flush=True)
             dx = x - x_
             
-            n_dx = np.sqrt( np.mean( dx**2 ) + self.epsilon )
-            n_grad = np.sqrt( np.mean( var_cost_grad**2 ) + self.epsilon )
+            n_dx = torch.sqrt( torch.mean( dx**2 ) + self.epsilon )
+            n_grad = torch.sqrt( torch.mean( var_cost_grad**2 ) + self.epsilon )
 
             loss = 1.0 - torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) )
             
