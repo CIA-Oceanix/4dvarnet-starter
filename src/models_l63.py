@@ -83,7 +83,7 @@ def create_filename_ckpt(suffix,params_data,params_model):
     if params_model.degradation_operator == 'no-degradation' :
         filename_chkpt = filename_chkpt +  params_model.solver +'-' 
     else:
-        filename_chkpt = filename_chkpt +  params_model.solver +'degrad-' 
+        filename_chkpt = filename_chkpt +  params_model.solver +'-degrad-' 
         
     filename_chkpt = filename_chkpt + params_data.genSuffixObs 
     filename_chkpt = filename_chkpt + '-Obs%02d'%params_data.sampling_step + '-Noise%02d'%(params_data.varNoise)        
