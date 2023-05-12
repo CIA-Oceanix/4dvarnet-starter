@@ -31,7 +31,7 @@ model:
     batch_size: 128
     DimAE: 10
     phi_param: 'unet'
-    solver: '4dvarnet-with-state-and-rnd' #'4dvarnet-with-state-and-rnd' #4dvarnet-with-no-grad' 
+    solver: '4dvarnet-with-rnd' #'4dvarnet-with-state-and-rnd' #'4dvarnet-with-state-and-rnd' #4dvarnet-with-no-grad' 
     dim_grad_solver: 100 #25
     dropout: 0.2
     alpha_prior: 0.1
@@ -43,7 +43,7 @@ model:
     sig_lstm_init: 0e-2
     suffix_exp: '-new'
     UsePeriodicBoundary: False
-    degradation_operator: 'median-degradation' #'no-degradation'
+    degradation_operator: 'no-degradation' #'median-degradation' #
     shapeData:
       - 3
       - ${datamodule.input_data.param_dataset.dT}
