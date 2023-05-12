@@ -625,7 +625,10 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
 
     def degradation(self,x):
-        return kornia.filters.median_blur(x, (3, 1))
+        print(x)
+        x = kornia.filters.median_blur(x, (3, 1))
+        print(x,flush=True)
+        return x
 
     def configure_optimizers(self):
         #optimizer   = optim.Adam([{'params': self.model.model_Grad.parameters(), 'lr': self.hparams.lr_update[0]},
@@ -756,6 +759,9 @@ class Lit4dVarNet_L63(pl.LightningModule):
             # apply degradation
             x_ = x - self.degradation(x)
             x_ = x_ + self.degradation(x_)
+            
+            print(x,flush=True)
+            print(x_,flush=True)
             dx = x - x_
             
             n_dx = np.sqrt( np.mean( dx**2 ) + self.epsilon )
