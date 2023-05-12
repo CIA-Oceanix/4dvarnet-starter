@@ -739,7 +739,9 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
     def loss_from_perturbation(self,x,y,mask,phase):
         
-        if self.hparams.degradation_operator is not 'no-degradation' :
+        if self.hparams.degradation_operator == 'no-degradation' :
+            loss = 0.
+        else:
             if phase == 'test' :
                 x = x.detach().requires_grad_(True)
                 
@@ -755,8 +757,6 @@ class Lit4dVarNet_L63(pl.LightningModule):
             n_grad = np.sqrt( np.mean( var_cost_grad**2 ) + self.epsilon )
 
             loss = 1.0 - torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) )
-        else:
-            loss = 0.
             
         return loss
 
