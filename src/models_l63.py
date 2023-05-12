@@ -618,6 +618,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self._set_norm_stats()
         
         self.automatic_optimization = True
+        self.epsilon = 1e-8
         
         
     def forward(self):
