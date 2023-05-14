@@ -405,6 +405,12 @@ class Solver_with_nograd(nn.Module):
         super(Solver_with_nograd, self).__init__()
         self.phi_r         = phi_r
                     
+        if  m_NormObs is None :
+            m_NormObs = Model_WeightedL2Norm()
+        
+        if  m_NormPhi is None :
+            m_NormPhi = Model_WeightedL2Norm()
+
         self.model_H = mod_H
         self.model_Grad = m_Grad
         self.model_VarCost = Model_Var_Cost(m_NormObs, m_NormPhi, ShapeData,mod_H.DimObs,mod_H.dimObsChannel)
@@ -475,8 +481,6 @@ class Solver_with_nograd(nn.Module):
             dy = self.model_H(x,yobs,mask)
             dx = x - self.phi_r(x)
             
-            print(dx,flush=True)
-            print(dy,flush=True)
             loss = self.model_VarCost( dx , dy )
             
             if self.no_grad_type == 'sampling-randn' :          
