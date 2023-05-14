@@ -500,13 +500,7 @@ class Solver_with_nograd(nn.Module):
                 dx = x_pertubed - self.phi_r(x_pertubed)
                 loss_perturbed = self.model_VarCost( dx , dy )
                 
-                print(loss)
-                print(loss_perturbed)
-           
-                var_cost_grad = (loss_perturbed - loss) / ( torch.sign(z ) * torch.sqrt( z**2 + 1e-6 ) )
-                
-                print( torch.sqrt( torch.mean( var_cost_grad ** 2) ) )
-                
+                var_cost_grad = (loss_perturbed - loss) / ( (torch.sign( z ) + 1e-6) * torch.sqrt( z**2 + 1e-8 ) )
             elif self.no_grad_type == 'sub-gradients' :
                 var_cost_grad = torch.cat((dx,dy),dim=1)                
               
