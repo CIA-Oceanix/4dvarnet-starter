@@ -474,6 +474,9 @@ class Solver_with_nograd(nn.Module):
             # variational cost for current solution            
             dy = self.model_H(x,yobs,mask)
             dx = x - self.phi_r(x)
+            
+            print(dx,flush=True)
+            print(dy,flush=True)
             loss = self.model_VarCost( dx , dy )
             
             if self.no_grad_type == 'sampling-randn' :          
