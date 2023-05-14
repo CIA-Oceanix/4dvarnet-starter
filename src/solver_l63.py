@@ -401,7 +401,7 @@ class Model_Var_Cost(nn.Module):
 # updated inner modles to account for the variational model module
 class Solver_with_nograd(nn.Module):
     def __init__(self ,phi_r,mod_H, m_Grad, m_NormObs, m_NormPhi, 
-                 ShapeData,n_iter_grad,eps=0.,k_step_grad=0.,lr_grad=0.,lr_rnd=0.,no_grad_type='sampling-randn'):
+                 ShapeData,n_iter_grad,eps=0.,k_step_grad=0.,lr_grad=0.,lr_rnd=0.,no_grad_type='sampling-randn',sig_perturbation_grad=1e-3):
         super(Solver_with_nograd, self).__init__()
         self.phi_r         = phi_r
                     
@@ -417,6 +417,7 @@ class Solver_with_nograd(nn.Module):
         
         self.eps = eps
         self.no_grad_type = no_grad_type
+        self.sig_perturbation_grad = sig_perturbation_grad
                 
         with torch.no_grad():
             self.n_grad = int(n_iter_grad)
