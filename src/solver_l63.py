@@ -486,8 +486,10 @@ class Solver_with_nograd(nn.Module):
             
             if self.no_grad_type == 'sampling-randn' :          
                 # variational cost for perturbed solution
-                z = self.sig_perturbation_grad * torch.randn( (x.size(0),self.DimState,x.size(2),x.size(3)) ).to(device)
-                x_pertubed = x + z                  
+                z = self.sig_perturbation_grad * torch.randn( (x.size(0),x.size(1),x.size(2),x.size(3)) ).to(device)
+                z = x - self.phi_r( x + z )
+                
+                x_pertubed = x + z
                 dy = self.model_H(x_pertubed,yobs,mask)
                 dx = x_pertubed - self.phi_r(x_pertubed)
                 loss_perturbed = self.model_VarCost( dx , dy )
