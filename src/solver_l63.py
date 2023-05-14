@@ -267,11 +267,16 @@ class model_Grad_with_lstm(torch.nn.Module):
         return grad,hidden_,cell_
 
 class model_Grad_with_lstm_and_state(torch.nn.Module):
-    def __init__(self,ShapeData,periodicBnd=False,DimLSTM=0,rateDropout=0.,padding_mode='zeros',sig_lstm_init=0.):
+    def __init__(self,ShapeDataIn,periodicBnd=False,DimLSTM=0,rateDropout=0.,padding_mode='zeros',sig_lstm_init=0.,dim_state_out=None):
         super(model_Grad_with_lstm_and_state, self).__init__()
 
         with torch.no_grad():
-            self.shape     = ShapeData
+            self.shape     = ShapeDataIn
+            if dim_state_out == None :
+                self.dim_shape_out = self.shape[0]
+            else:
+                self.dim_shape_out = self.dim_shape_out
+            
             if DimLSTM == 0 :
                 self.DimState  = 5*self.shape[0]
             else :
@@ -297,10 +302,10 @@ class model_Grad_with_lstm_and_state(torch.nn.Module):
         layers = []
 
         if len(self.shape) == 2: ## 1D Data
-            layers.append(torch.nn.Conv1d(self.DimState, self.shape[0], 1, padding=0,bias=False))
+            layers.append(torch.nn.Conv1d(self.DimState, self.dim_shape_out, 1, padding=0,bias=False))
             #layers.append(torch.nn.Conv1d(self.DimState, self.shape[0], 1, padding=0,bias=False))
         elif len(self.shape) == 3: ## 2D Data
-            layers.append(torch.nn.Conv2d(self.DimState, self.shape[0], (1,1), padding=0,bias=False))
+            layers.append(torch.nn.Conv2d(self.DimState, self.dim_shape_out, (1,1), padding=0,bias=False))
             #layers.append(torch.nn.Conv2d(self.shape[0]+self.DimState, self.shape[0], (1,1), padding=0,bias=False))
 
         return torch.nn.Sequential(*layers)
