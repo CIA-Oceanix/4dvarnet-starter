@@ -473,7 +473,7 @@ class Solver_with_nograd(nn.Module):
 
         state_update = (
             1 / (iter + 1) * grad_update
-            + self.lr_grad * (iter + 1) / self.n_step * var_cost_grad
+            + self.lr_grad * (iter + 1) / self.n_step * var_cost_grad[:,:grad_update.size(1),:,:]
             + self.lr_rnd * np.sqrt( (iter + 1) / self.n_step ) * torch.randn(grad_update.size()).to(device)
             )
                             
