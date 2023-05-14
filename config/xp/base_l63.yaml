@@ -31,8 +31,7 @@ model:
     batch_size: 128
     DimAE: 10
     phi_param: 'unet'
-    solver: '4dvarnet-with-subgradients' #'4dvarnet-with-rnd-grad' #'4dvarnet-with-rnd' #'4dvarnet-with-state-and-rnd' #'4dvarnet-with-state-and-rnd' #
-    solver_no_grad_type: ''
+    solver: ?? #'4dvarnet-with-subgradients' #'4dvarnet-with-rnd-grad' #'4dvarnet-with-rnd' #'4dvarnet-with-state-and-rnd' #'4dvarnet-with-state-and-rnd' #
     dim_grad_solver: 100 #25
     dropout: 0.2
     alpha_prior: 0.1
@@ -45,7 +44,7 @@ model:
     suffix_exp: '-new'
     UsePeriodicBoundary: False
     degradation_operator: 'no-degradation' #'median-degradation' #
-    sig_perturbation_grad: 1e-3
+    sig_perturbation_grad: 1e-6
     shapeData:
       - 3
       - ${datamodule.input_data.param_dataset.dT}

@@ -501,6 +501,9 @@ class Solver_with_nograd(nn.Module):
                 loss_perturbed = self.model_VarCost( dx , dy )
            
                 var_cost_grad = (loss_perturbed - loss) / ( torch.sign(z ) * torch.sqrt( z**2 + 1e-6 ) )
+                
+                print( torch.sqrt( torch.mean( var_cost_grad ** 2) ) )
+                
             elif self.no_grad_type == 'sub-gradients' :
                 var_cost_grad = torch.cat((dx,dy),dim=1)                
               
