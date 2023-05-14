@@ -206,9 +206,9 @@ class model_Grad_with_lstm(torch.nn.Module):
                 self.PeriodicBnd = False
 
             if dim_state_out == None :
-                self.dim_shape_out = self.shape[0]
+                self.dim_state_out = self.shape[0]
             else:
-                self.dim_shape_out = self.dim_shape_out
+                self.dim_state_out = dim_state_out
 
         self.convLayer     = self._make_ConvGrad()
         K = torch.Tensor([0.1]).view(1,1,1,1)
