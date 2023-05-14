@@ -505,8 +505,7 @@ class GradSolver_with_rnd(nn.Module):
                  ShapeData,n_iter_grad,eps=0.,k_step_grad=0.,lr_grad=0.,lr_rnd=0.,flag_mr_solver=False,iter_mr_solver=2):
         super(GradSolver_with_rnd, self).__init__()
         self.phi_r         = phi_r
-                    
-        
+                            
         if  m_NormObs is None :
             m_NormObs = Model_WeightedL2Norm()
         
