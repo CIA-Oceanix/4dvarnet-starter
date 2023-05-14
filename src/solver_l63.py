@@ -499,6 +499,9 @@ class Solver_with_nograd(nn.Module):
                 dy = self.model_H(x_pertubed,yobs,mask)
                 dx = x_pertubed - self.phi_r(x_pertubed)
                 loss_perturbed = self.model_VarCost( dx , dy )
+                
+                print(loss)
+                print(loss_perturbed)
            
                 var_cost_grad = (loss_perturbed - loss) / ( torch.sign(z ) * torch.sqrt( z**2 + 1e-6 ) )
                 
