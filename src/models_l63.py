@@ -597,7 +597,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
                                                                     solver_4DVarNet.model_Grad_with_lstm(shapeData_grad, self.hparams.UsePeriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
                                                                     None, None, 
                                                                     self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd,
-                                                                    no_grad_type='subgradients')#, self.hparams.eps_norm_grad)
+                                                                    no_grad_type='sub-gradients')#, self.hparams.eps_norm_grad)
 
                 
                 
