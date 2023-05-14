@@ -407,7 +407,7 @@ class Model_Var_Cost(nn.Module):
 # updated inner modles to account for the variational model module
 class Solver_with_nograd(nn.Module):
     def __init__(self ,phi_r,mod_H, m_Grad, m_NormObs, m_NormPhi, 
-                 ShapeData,n_iter_grad,eps=0.,k_step_grad=0.,lr_grad=0.,lr_rnd=0.,no_grad_type='sampling-randn',sig_perturbation_grad=1e-3):
+                 ShapeData,n_iter_grad,eps=0.,k_step_grad=0.,lr_grad=0.,lr_rnd=0.,no_grad_type='sampling-randn',sig_perturbation_grad=1e-3,alpha_perturbation_grad=0.9):
         super(Solver_with_nograd, self).__init__()
         self.phi_r         = phi_r
                     
@@ -423,7 +423,7 @@ class Solver_with_nograd(nn.Module):
         
         self.eps = eps
         self.no_grad_type = no_grad_type
-        self.sig_perturbation_grad = sig_perturbation_grad
+        self.alpha_perturbation_grad = torch.nn.Parameter(torch.Tensor([alpha_perturbation_grad]))
                 
         with torch.no_grad():
             self.n_grad = int(n_iter_grad)
@@ -432,6 +432,7 @@ class Solver_with_nograd(nn.Module):
             self.lr_grad = lr_grad
             self.lr_rnd  = lr_rnd
             self.n_step  = self.n_grad
+            self.sig_perturbation_grad = sig_perturbation_grad
         
     def forward(self, x, yobs, mask, hidden = None , cell = None, normgrad = 0.,prev_iter=0):
         
@@ -493,7 +494,7 @@ class Solver_with_nograd(nn.Module):
             if self.no_grad_type == 'sampling-randn' :          
                 # variational cost for perturbed solution
                 z = self.sig_perturbation_grad * torch.randn( (x.size(0),x.size(1),x.size(2),x.size(3)) ).to(device)
-                z = x - self.phi_r( x + z )
+                z = self.phi_r( self.alpha_perturbation_grad * x + z ) - x
                 
                 x_pertubed = x + z
                 dy = self.model_H(x_pertubed,yobs,mask)

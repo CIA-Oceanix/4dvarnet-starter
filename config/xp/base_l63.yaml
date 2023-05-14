@@ -45,6 +45,7 @@ model:
     UsePeriodicBoundary: False
     degradation_operator: 'no-degradation' #'median-degradation' #
     sig_perturbation_grad: 1e-2
+    alpha_perturbation_grad: 0.99
     shapeData:
       - 3
       - ${datamodule.input_data.param_dataset.dT}
