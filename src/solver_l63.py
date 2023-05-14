@@ -226,10 +226,10 @@ class model_Grad_with_lstm(torch.nn.Module):
         layers = []
 
         if len(self.shape) == 2: ## 1D Data
-            layers.append(torch.nn.Conv1d(self.DimState, self.dim_shape_out, 1, padding=0,bias=False))
+            layers.append(torch.nn.Conv1d(self.DimState, self.dim_state_out, 1, padding=0,bias=False))
             #layers.append(torch.nn.Conv1d(self.DimState, self.shape[0], 1, padding=0,bias=False))
         elif len(self.shape) == 3: ## 2D Data
-            layers.append(torch.nn.Conv2d(self.DimState, self.dim_shape_out, (1,1), padding=0,bias=False))
+            layers.append(torch.nn.Conv2d(self.DimState, self.dim_state_out, (1,1), padding=0,bias=False))
             #layers.append(torch.nn.Conv2d(self.shape[0]+self.DimState, self.shape[0], (1,1), padding=0,bias=False))
 
         return torch.nn.Sequential(*layers)
