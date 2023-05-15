@@ -26,7 +26,7 @@ model:
   _target_: src.models_l63.Lit4dVarNet_L63
   params:
     k_n_grad: 2
-    n_grad: 5
+    n_grad: 10
     lr: 1e-3 
     batch_size: 128
     DimAE: 10
