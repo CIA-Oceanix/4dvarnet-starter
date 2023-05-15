@@ -31,7 +31,7 @@ model:
     batch_size: 128
     DimAE: 10
     phi_param: 'unet'
-    solver: 'xx' #?? #'4dvarnet-with-subgradients' #'4dvarnet-with-rnd-grad' #'4dvarnet-with-rnd' #'4dvarnet-with-state-and-rnd' #'4dvarnet-with-state-and-rnd' #
+    solver: '4dvarnet-with-state-and-rnd' # #?? #'4dvarnet-with-subgradients' #'4dvarnet-with-rnd-grad' #'4dvarnet-with-rnd' #'4dvarnet-with-state-and-rnd' #
     dim_grad_solver: 100 #25
     dropout: 0.2
     alpha_prior: 0.1
