@@ -33,6 +33,7 @@ def fine_tuning(trainer, dm, lit_mod, test_dm=None, test_fn=None, ckpt=None):
 
     lit_mod.set_norm_stats = dm.norm_stats()  
     if ckpt is not None:
+        print('.... Load model: '+ckpt)
         lit_mod.load_state_dict(torch.load(ckpt)['state_dict'])
     trainer.fit(lit_mod, datamodule=dm)
 
