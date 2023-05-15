@@ -19,7 +19,7 @@ datamodule:
       time_step: 1
       dT: 200
       varNoise: 2.0
-      sampling_step: ??
+      sampling_step: 8 #??
       flagTypeMissData: 2
       
 model:
@@ -31,7 +31,7 @@ model:
     batch_size: 128
     DimAE: 10
     phi_param: 'unet'
-    solver: ?? #'4dvarnet-with-subgradients' #'4dvarnet-with-rnd-grad' #'4dvarnet-with-rnd' #'4dvarnet-with-state-and-rnd' #'4dvarnet-with-state-and-rnd' #
+    solver: 'xx' #?? #'4dvarnet-with-subgradients' #'4dvarnet-with-rnd-grad' #'4dvarnet-with-rnd' #'4dvarnet-with-state-and-rnd' #'4dvarnet-with-state-and-rnd' #
     dim_grad_solver: 100 #25
     dropout: 0.2
     alpha_prior: 0.1
