@@ -223,9 +223,9 @@ class BaseDataModule(pl.LightningDataModule):
             # print("Norm stats", self._norm_stats)
         return self._norm_stats
 
-    def train_mean_std(self):
+    def train_mean_std(self, variable='tgt'):
         train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {})).sel(self.domains['train'])
-        return train_data.sel(variable='tgt').pipe(lambda da: (da.mean().values.item(), da.std().values.item()))
+        return train_data.sel(variable=variable).pipe(lambda da: (da.mean().values.item(), da.std().values.item()))
 
     def post_fn(self):
         normalize = lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1]

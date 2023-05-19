@@ -38,6 +38,8 @@ class Lit4dVarNet(pl.LightningModule):
 
     def step(self, batch, phase="", opt_idx=None):
         out = self(batch=batch)
+        if self.training and batch.tgt.isfinite().float().mean() < 0.9:
+            return None, None
         loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
         grad_loss = self.weighted_mse(
             kornia.filters.sobel(out) - kornia.filters.sobel(batch.tgt), self.rec_weight
@@ -112,11 +114,12 @@ class GradSolver(nn.Module):
     def solver_step(self, state, batch, step):
         var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
-
+        gmod = self.grad_mod(grad)
         state_update = (
-            1 / (step + 1) * self.grad_mod(grad)
+            1 / (step + 1) * gmod
             + self.lr_grad * (step + 1) / self.n_step * grad
         )
+            
         return state - state_update
 
     def forward(self, batch):
@@ -199,8 +202,9 @@ class BaseObsCost(nn.Module):
 
 
 class BilinAEPriorCost(nn.Module):
-    def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None):
+    def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None, bilin_quad=True):
         super().__init__()
+        self.bilin_quad = bilin_quad
         self.conv_in = nn.Conv2d(
             dim_in, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
         )
@@ -234,9 +238,14 @@ class BilinAEPriorCost(nn.Module):
         x = self.conv_in(x)
         x = self.conv_hidden(F.relu(x))
 
-        x = self.conv_out(
-            torch.cat([self.bilin_1(x), self.bilin_21(x) * self.bilin_21(x)], dim=1)
-        )
+        if self.bilin_quad:
+            x = self.conv_out(
+                torch.cat([self.bilin_1(x), self.bilin_21(x) * self.bilin_21(x)], dim=1)
+            )
+        else: 
+            x = self.conv_out(
+                torch.cat([self.bilin_1(x), self.bilin_21(x) * self.bilin_22(x)], dim=1)
+            )
         x = self.up(x)
         return x
 

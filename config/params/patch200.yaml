@@ -1,0 +1,22 @@
+# @package _global_
+trainer:
+  max_epochs: 300
+
+datamodule:
+  xrds_kw:
+    patch_dims: { time: 15, lat: 200, lon: 200}
+    domain_limits: ${domain.test}
+  aug_factor: 5
+  aug_only: False
+
+model:
+  rec_weight:
+    crop: {lat: 5, lon: 5}
+  solver:
+    lr_grad: 100
+    n_step: 12
+    prior_cost:
+      dim_hidden: 64
+    grad_mod:
+      dim_hidden: 96
+

@@ -1,0 +1,20 @@
+# @package _global_
+trainer:
+  max_epochs: 300
+  accumulate_grad_batches: 10
+
+datamodule:
+  aug_factor: 5
+  aug_only: False
+  dl_kw: {batch_size: 8}
+
+model:
+  opt_fn: {_target_: src.utils.cosanneal_lr_lion}
+  solver:
+    n_step: 15
+    prior_cost:
+      dim_hidden: 64
+    grad_mod:
+      dim_hidden: 96
+
+

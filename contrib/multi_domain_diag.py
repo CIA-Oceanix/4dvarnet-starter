@@ -75,6 +75,12 @@ def multi_domain_osse_diag(
     metrics_df.to_csv(save_dir / "multi_domain_metrics.csv")
 
 
+def load_oi():
+    oi = xr.open_dataset('../sla-data-registry/NATL60/NATL/oi/ssh_NATL60_4nadir.nc')
+    ssh = xr.open_dataset('../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_ssh_y2013.1y.nc')
+    ssh['time'] = pd.to_datetime('2012-10-01') + pd.to_timedelta(ssh.time, 's')
+    return ssh.assign(rec_ssh=oi.ssh_mod.interp(time=ssh.time, method='nearest').interp(lat=ssh.lat, lon=ssh.lon, method='nearest'))
+
 def multi_domain_osse_metrics(tdat, test_domains, test_periods,):
     metrics = []
     for d in test_domains:
