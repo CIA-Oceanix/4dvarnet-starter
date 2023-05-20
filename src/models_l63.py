@@ -773,11 +773,16 @@ class Lit4dVarNet_L63(pl.LightningModule):
             var_cost, var_cost_grad = self.model.var_cost(x, y, mask)
             
             # apply degradation
-            x_ = x - self.degradation(x)
-            #x_ = x_ + self.degradation(x_)
+            x_1 = self.degradation(x)
+            x_2 = self.degradation(x_1)
             
-            dx = x - x_
+            f_x_0 = x_1 - x
+            f_x_1 = x_2 - x_1
             
+            dx = f_x_0 - f_x_1
+            
+            var_cost, var_cost_grad = self.model.var_cost(x + 1e-2 * f_x_0, y, mask)
+                        
             n_dx = torch.sqrt( torch.mean( dx**2 ) + self.epsilon )
             n_grad = torch.sqrt( torch.mean( var_cost_grad**2 ) + self.epsilon )
 
