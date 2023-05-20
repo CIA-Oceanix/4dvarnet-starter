@@ -734,7 +734,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         self.log('val_loss', self.stdTr**2 * metrics['mse'] )
         self.log("val_mse", self.stdTr**2 * metrics['mse'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("val_gvar", self.stdTr**2 * metrics['var_grad'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("val_gvar", metrics['var_grad'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
 
     def test_step(self, test_batch, batch_idx):
@@ -788,10 +788,10 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
             loss = 1.0 - torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) )
             
-            print()
+            #print()
             #print( torch.sqrt( torch.mean( dx**2 )) )
             #print( torch.sqrt( torch.mean( var_cost_grad**2 )) )
-            print(loss)
+            #print(loss)
         return loss
 
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
@@ -816,6 +816,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
             loss_var_cost_grad = self.loss_from_perturbation(outputs,inputs_obs,masks,phase)
 
+            print( loss_var_cost_grad )
+            
             loss = self.hparams.alpha_mse * loss_mse
             loss += 0.5 * self.hparams.alpha_prior * (loss_prior + loss_prior_gt)
             loss += self.hparams.alpha_var_cost_grad * loss_var_cost_grad
