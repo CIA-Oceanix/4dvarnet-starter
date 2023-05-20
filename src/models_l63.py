@@ -774,7 +774,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
             
             # apply degradation
             x_ = x - self.degradation(x)
-            x_ = x_ + self.degradation(x_)
+            #x_ = x_ + self.degradation(x_)
             
             dx = x - x_
             
