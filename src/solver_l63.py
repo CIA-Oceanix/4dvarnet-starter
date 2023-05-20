@@ -625,6 +625,9 @@ class GradSolver_with_state_rnd(nn.Module):
             
             self.type_step_lstm = type_step_lstm
             self.param_lstm_step = param_lstm_step
+            
+            print()
+            print(self.type_step_lstm,flush=True)
         
     def forward(self, x, yobs, mask, hidden = None , cell = None, normgrad = 0.,prev_iter=0):
         
@@ -666,7 +669,7 @@ class GradSolver_with_state_rnd(nn.Module):
    
         if self.type_step_lstm == 'linear' :
             alpha_step_lstm = 1. / (iter + 1)
-        elif self.type_step_lstm == 'atan' :
+        elif self.type_step_lstm == 'sigmoid' :
             alpha_step_lstm = np.exp(-1. * iter / self.param_lstm_step )
             alpha_step_lstm = alpha_step_lstm / ( 1. + alpha_step_lstm )
 
