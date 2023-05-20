@@ -46,7 +46,7 @@ model:
     degradation_operator: 'median-degradation' # 'no-degradation' #
     sig_perturbation_grad: 1e-2
     alpha_perturbation_grad: 0.9
-    type_step_lstm: 'linear'
+    type_step_lstm: 'sigmoid'
     param_lstm_step: 10
     shapeData:
       - 3
