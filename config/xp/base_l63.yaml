@@ -89,7 +89,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-     ckpt: 'outputs/2023-05-19/22-31-25/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_03-dgrad100val_mse=0.6094-epoch=384.ckpt'
+#     ckpt: 'outputs/2023-05-19/22-31-25/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_03-dgrad100val_mse=0.6094-epoch=384.ckpt'
 #    ckpt: 'outputs/2023-05-15/16-14-35/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_02-dgrad100val_mse=1.6871-epoch=297.ckpt'
 #    ckpt: 'outputs/2023-05-15/16-56-23/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_02-dgrad100val_mse=0.6081-epoch=380.ckpt'
 #    ckpt: 'outputs/2023-05-07/22-59-30/base_l63/checkpoints/val_mse=0.6534-epoch=379.ckpt'
