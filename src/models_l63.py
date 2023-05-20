@@ -642,7 +642,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
     def degradation(self,x):
 
-        x = kornia.filters.median_blur(x, (3, 1))
+        x = kornia.filters.gaussian_blur2d(x, (3, 1), (1.0, 1.))
+        #x = kornia.filters.median_blur(x, (3, 1))
 
         return x
 
