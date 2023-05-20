@@ -783,6 +783,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
             loss = 1.0 - torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) )
             
+            print(loss)
         return loss
 
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
