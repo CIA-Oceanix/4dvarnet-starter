@@ -599,7 +599,7 @@ class GradSolver_with_rnd(nn.Module):
 
 class GradSolver_with_state_rnd(nn.Module):
     def __init__(self ,phi_r,mod_H, m_Grad, m_NormObs, m_NormPhi, 
-                 ShapeData,n_iter_grad,eps=0.,k_step_grad=0.,lr_grad=0.,lr_rnd=0.,flag_mr_solver=False,iter_mr_solver=2):
+                 ShapeData,n_iter_grad,eps=0.,k_step_grad=0.,lr_grad=0.,lr_rnd=0.,type_step_lstm='linear',param_lstm_step=None):
         super(GradSolver_with_state_rnd, self).__init__()
         self.phi_r         = phi_r
                     
@@ -621,7 +621,10 @@ class GradSolver_with_state_rnd(nn.Module):
 
             self.lr_grad = lr_grad
             self.lr_rnd  = lr_rnd
-            self.n_step  = self.n_grad
+            self.n_step  = self.n_grad * self.k_step_grad
+            
+            self.type_step_lstm = type_step_lstm
+            self.param_lstm_step = param_lstm_step
         
     def forward(self, x, yobs, mask, hidden = None , cell = None, normgrad = 0.,prev_iter=0):
         
@@ -661,8 +664,14 @@ class GradSolver_with_state_rnd(nn.Module):
 
         grad_update, hidden, cell = self.model_Grad(hidden, cell, x_k, var_cost_grad, normgrad_, iter)
    
+        if self.type_step_lstm == 'linear' :
+            alpha_step_lstm = 1. / (iter + 1)
+        elif self.type_step_lstm == 'atan' :
+            alpha_step_lstm = np.exp(-1. * iter / self.param_lstm_step )
+            alpha_step_lstm = alpha_step_lstm / ( 1. + alpha_step_lstm )
+
         state_update = (
-            1 / (iter + 1) * grad_update
+            alpha_step_lstm * grad_update
             + self.lr_grad * (iter + 1) / self.n_step * var_cost_grad
             + self.lr_rnd * np.sqrt( (iter + 1) / self.n_step ) * torch.randn(grad_update.size()).to(device)
             )
