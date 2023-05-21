@@ -43,7 +43,7 @@ model:
     sig_lstm_init: 0e-2
     suffix_exp: '-new'
     UsePeriodicBoundary: False
-    degradation_operator: 'median-degradation' # 'no-degradation' #
+    degradation_operator: 'no-degradation' # 'median-degradation' # 
     sig_perturbation_grad: 1e-2
     alpha_perturbation_grad: 0.9
     type_step_lstm: 'linear-relu'
