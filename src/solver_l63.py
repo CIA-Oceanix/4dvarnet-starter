@@ -668,7 +668,10 @@ class GradSolver_with_state_rnd(nn.Module):
         grad_update, hidden, cell = self.model_Grad(hidden, cell, x_k, var_cost_grad, normgrad_, iter)
    
         if self.type_step_lstm == 'linear' :
-            alpha_step_lstm = 1. / (iter + 1)
+            alpha_step_lstm = 1. / (iter + 1) 
+        elif self.type_step_lstm == 'linear-relu' :
+            alpha_step_lstm = torch.relu( 1. / (iter + 1) - 1. / (self.n_step + 1) )
+            print( alpha_step_lstm )
         elif self.type_step_lstm == 'sigmoid' :
             alpha_step_lstm = np.exp(-1. * iter / self.param_lstm_step )
             alpha_step_lstm = alpha_step_lstm / ( 1. + alpha_step_lstm )
