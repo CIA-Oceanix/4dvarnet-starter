@@ -585,7 +585,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
                                                                                                                    self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
                                                                                                                    sig_lstm_init = self.hparams.sig_lstm_init), 
                                                                     None, None, 
-                                                                    self.hparams.shapeData, self.hparams.n_grad, self.hparams.k_n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd,
+                                                                    self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD, self.hparams.k_n_grad, self.hparams.lr_grad,self.hparams.lr_rnd,
                                                                     self.hparams.type_step_lstm,self.hparams.param_lstm_step)#, self.hparams.eps_norm_grad)
         elif self.hparams.solver =='4dvarnet-with-rnd-grad':
             shapeData_grad = np.array([self.hparams.shapeData[0],self.hparams.shapeData[1],1])
