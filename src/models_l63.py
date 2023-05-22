@@ -645,12 +645,12 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         x_ = kornia.filters.gaussian_blur2d(x, (3, 1), (1.0, 1.))
         
-        print()
-        print( torch.mean(x_) )
-        print( torch.mean(x) )
 
         dx = x + self.hparams.gamma_degradation * (x_ - x)
         #x = kornia.filters.median_blur(x, (3, 1))
+        print()
+        print( torch.mean(dx**2) )
+        print( torch.mean(x) )
 
         return x + dx
 
