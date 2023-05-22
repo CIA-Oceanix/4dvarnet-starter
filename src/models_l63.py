@@ -818,7 +818,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
             loss_prior = torch.mean((self.model.phi_r(outputs) - outputs) ** 2)
             loss_prior_gt = torch.mean((self.model.phi_r(targets_GT) - targets_GT) ** 2)
 
-            loss_var_cost_grad = self.loss_from_perturbation(outputs,inputs_obs,masks,phase)
+            loss_var_cost_grad = self.loss_from_perturbation(targets_GT,inputs_obs,masks,phase)
 
             #print( loss_var_cost_grad )
             
