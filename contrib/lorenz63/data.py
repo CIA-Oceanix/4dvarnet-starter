@@ -21,18 +21,23 @@ def trajectory_da(fn, y0, solver_kw, warmup_kw=None):
     return xr.DataArray(warmup.y, dims=('component', 'time'), coords={'component': ['x', 'y', 'z'], 'time': warmup.t})
 
 
-def obs_only_first(da, sampling_step=20):
+def only_first_obs(da):
     new_da = xr.full_like(da, np.nan)
-    new_da.loc['x', ::sampling_step]=da.loc['x', ::sampling_step]
+    new_da.loc['x']=da.loc['x']
+    return new_da
+
+def subsample(da, sample_step=20):
+    new_da = xr.full_like(da, np.nan)
+    new_da.loc[:, ::sample_step]=da.loc[:, ::sample_step]
     return new_da
 
 def add_noise(da, sigma=2**.5):
     return da  + np.random.randn(*da.shape) * sigma
 
-def training_da(traj_da, mask_fn, noise_fn):
+def training_da(traj_da, obs_fn):
     return xr.Dataset(
         dict(
             tgt=traj_da,
-            input=traj_da.pipe(mask_fn).pipe(noise_fn)
+            input=traj_da.pipe(obs_fn)
     )).to_array().sortby('variable')
 

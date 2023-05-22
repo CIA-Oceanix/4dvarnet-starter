@@ -1,6 +1,6 @@
 import numpy as np
 import pytorch_lightning as pl
-import kornia
+import kornia.filters as kfilts
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -40,15 +40,10 @@ class Lit4dVarNet(pl.LightningModule):
         if self.training and batch.tgt.isfinite().float().mean() < 0.9:
             return None, None
 
-        out, loss = self.base_step(batch, phase):
-        grad_loss = self.weighted_mse(
-            kornia.filters.sobel(out) - kornia.filters.sobel(batch.tgt), self.rec_weight
-        )
+        out, loss = self.base_step(batch, phase)
+        grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilt.sobel(batch.tgt), self.rec_weight)
         prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
-        with torch.no_grad():
-            self.log(
-                f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True
-            )
+        self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
 
         training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost
         return training_loss, out
@@ -56,12 +51,11 @@ class Lit4dVarNet(pl.LightningModule):
     def base_step(self, batch, phase=""):
         out = self(batch=batch)
         loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
+
         with torch.no_grad():
-            rmse = (
-                self.weighted_mse(
-                    (out - batch.tgt) * self.norm_stats[1], self.rec_weight
-                ) ** 0.5
-            )
+            rmse = (self.weighted_mse(
+                (out - batch.tgt) * self.norm_stats[1], self.rec_weight
+            ) ** 0.5)
             self.log(f"{phase}_rmse", rmse, prog_bar=True, on_step=False, on_epoch=True)
             self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
 

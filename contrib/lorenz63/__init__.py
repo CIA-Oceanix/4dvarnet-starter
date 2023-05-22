@@ -22,8 +22,13 @@ dm_cfg = dict(
     input_da=dict(
         _target_='contrib.lorenz63.data.training_da',
         traj_da=trajectory_config,
-        mask_fn=dict(_target_="contrib.lorenz63.data.obs_only_first", _partial_=True),
-        noise_fn=dict(_target_="contrib.lorenz63.data.add_noise", _partial_=True),
+        obs_fn=dict( _target_='toolz.pipe', _partial_=True,
+            funcs=[ 
+                # dict(_target_="contrib.lorenz63.data.obs_only_first", _partial_=True),
+                dict(_target_="contrib.lorenz63.data.subsample", sample_step=8, _partial_=True),
+                dict(_target_="contrib.lorenz63.data.add_noise", _partial_=True),
+            ]
+        )
     ),
     domains=dict(
         train=dict(time=sl_cfg(0, 90)),
@@ -72,15 +77,14 @@ node = dict(
         _target_='pytorch_lightning.Trainer',
         accelerator='cuda',
         devices=1,
-        logger=False,
         inference_mode=False,
         max_epochs=150,
-    logger= {
-        '_target_': 'pytorch_lightning.loggers.CSVLogger',
-        'save_dir': '${hydra:runtime.output_dir}',
-        'name': '${hydra:runtime.choices.xp}',
-        'version': ''}
-  max_epochs: 150
+        logger= {
+            '_target_': 'pytorch_lightning.loggers.CSVLogger',
+            'save_dir': '${hydra:runtime.output_dir}',
+            'name': '${hydra:runtime.choices.xp}',
+            'version': ''
+        },
     ),
     entrypoints=[dict(
         _target_='src.train.base_training',
