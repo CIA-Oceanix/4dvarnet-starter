@@ -796,7 +796,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
             #print()
             #print( torch.sqrt( torch.mean( dx**2 )) )
             #print( torch.sqrt( torch.mean( var_cost_grad**2 )) )
-            #print(loss)
+            print(loss)
         return loss
 
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
