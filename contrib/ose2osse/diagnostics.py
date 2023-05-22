@@ -143,6 +143,8 @@ def test_ose(trainer, lit_mod, ose_dm, ckpt, diag_data_dir, test_track_path, oi_
     print(ose_metrics.to_markdown())
 
     if diag_data_dir is not None:
+        diag_data_dir = Path(diag_data_dir)
+        diag_data_dir.mkdir(parents=True, exist_ok=True)
         if (diag_data_dir / "ose_test_data.nc").exists():
             xr.open_dataset(diag_data_dir / "ose_test_data.nc").close()
         ose_tdat.to_netcdf(diag_data_dir / "ose_test_data.nc")

@@ -78,3 +78,35 @@ class MultiModalObsCost(nn.Module):
         )
         return ssh_cost + sst_cost
 
+class NonLinearMultiModalObsCost(nn.Module):
+    def __init__(self, dim_in, dim_hidden):
+        super().__init__()
+        self.base_cost = src.models.BaseObsCost()
+        conv = lambda i, o: torch.nn.Conv2d(i, o, (3, 3), padding=1, bias=False)
+        self.head = torch.nn.Sequential(
+            torch.nn.ReLU(),
+            conv(dim_hidden, dim_hidden),
+            torch.nn.Tanh(),
+            conv(dim_hidden, dim_hidden),
+            torch.nn.BatchNorm2d(dim_hidden, track_running_stats=False)
+        )
+        self.leg_ssh = torch.nn.Sequential(
+            conv(dim_in, 2*dim_hidden),
+            torch.nn.ReLU(),
+            conv(2*dim_hidden, dim_hidden),
+        )
+
+        self.leg_sst = torch.nn.Sequential(
+            conv(dim_in, 2*dim_hidden),
+            torch.nn.ReLU(),
+            conv(2*dim_hidden, dim_hidden),
+        ) 
+
+    def forward(self, state, batch):
+        ssh_cost =  self.base_cost(state, batch)
+        sst_cost =  torch.nn.functional.mse_loss(
+            self.head(self.leg_ssh(state)),
+            self.head(self.leg_sst(batch.sst.nan_to_num())),
+        )
+        return ssh_cost + sst_cost
+

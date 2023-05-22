@@ -55,7 +55,7 @@ entrypoints:
     lit_mod: ${lit_mod}
     ose_dm: ${dm}
     ckpt: ${ckpt}
-    diag_data_dir: null
+    diag_data_dir: ${xpd}/diag_data/natl
     test_track_path: '../sla-data-registry/data_OSE/along_track/dt_gulfstream_c2_phy_l3_20161201-20180131_285-315_23-53.nc'
     oi_path: '../sla-data-registry/data_OSE/NATL/training/ssh_alg_h2g_j2g_j2n_j3_s3a_duacs.nc'
 

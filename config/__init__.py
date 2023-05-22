@@ -1,7 +1,5 @@
 from hydra.core.config_store import ConfigStore
 from omegaconf import OmegaConf
-from pathlib import Path
-from itertools import product
 
 OmegaConf.register_new_resolver(
     "_singleton",

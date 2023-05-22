@@ -100,3 +100,7 @@ for fname, start_date, end_date in [
         defaults=["/xp/ose2osse", "_self_"],
     )
     cs.store(name=f"o2o_{fname}_randval", node=node, package="_global_", group="xp")
+
+if __name__== '__main__':
+    for xp in cs.list('xp'):
+        print(xp)
