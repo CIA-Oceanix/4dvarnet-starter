@@ -645,7 +645,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         x_ = kornia.filters.gaussian_blur2d(x, (3, 1), (1.0, 1.))
         
-        dx = x + 1e-2 * (x_ - x)
+        dx = x + self.hparams.gamma_degradation * (x_ - x)
         #x = kornia.filters.median_blur(x, (3, 1))
 
         return x + dx
@@ -790,8 +790,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
             n_dx = torch.sqrt( torch.mean( dx**2 ) + self.epsilon )
             n_grad = torch.sqrt( torch.mean( var_cost_grad**2 ) + self.epsilon )
 
-            #loss = 1.0 - torch.sqrt( torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) )**2 + self.epsilon )
-            loss = 1.0 - torch.sqrt( torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) )**2 + 1e-6 ) 
+            loss = 1.0 - torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) )**2  
+            #loss = 1.0 - torch.sqrt( torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) )**2 + 1e-6 ) 
             
             
             print(' %f -- %f'%(loss.detach().cpu().numpy(), torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) ).detach().cpu().numpy() ) )
