@@ -634,7 +634,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self._set_norm_stats()
         
         self.automatic_optimization = True
-        self.epsilon = 1e-9
+        self.epsilon = 1e-6
         
         
     def forward(self):
@@ -779,7 +779,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
             # apply degradation
             x_1 = self.degradation(x)
             f_x_0 = x_1 - x
-            
+                        
             var_cost_x_1, var_cost_grad_x_1 = self.model.var_cost(x_1, y, mask)
             
             x_2 = self.degradation(x_1)
@@ -787,14 +787,14 @@ class Lit4dVarNet_L63(pl.LightningModule):
             
             dx = f_x_1 - f_x_0 
                                     
-            n_dx = torch.sqrt( torch.mean( dx**2 ) + self.epsilon )
-            n_grad = torch.sqrt( torch.mean( var_cost_grad**2 ) + self.epsilon )
+            n_dx = torch.sqrt( torch.mean( dx**2 ) + self.epsilon**2 )
+            n_grad = torch.sqrt( torch.mean( var_cost_grad**2 ) + self.epsilon**2 )
 
             loss = 1.0 - torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) )  
             #loss = 1.0 - torch.sqrt( torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) )**2 + 1e-6 ) 
             
             
-            print('%f -- %e --  %f -- %f'%(torch.mean( dx**2 ).detach().cpu().numpy(),torch.mean( var_cost_grad**2 ).detach().cpu().numpy(),loss.detach().cpu().numpy(), torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) ).detach().cpu().numpy() ) )
+            print('%f -- %f -- %e --  %f -- %f'%(torch.mean( f_x_0**2 ).detach().cpu().numpy(),torch.mean( dx**2 ).detach().cpu().numpy(),torch.mean( var_cost_grad**2 ).detach().cpu().numpy(),loss.detach().cpu().numpy(), torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) ).detach().cpu().numpy() ) )
             #print( torch.sqrt( torch.mean( dx**2 )) )
             #print( torch.sqrt( torch.mean( var_cost_grad**2 )) )
         return loss
