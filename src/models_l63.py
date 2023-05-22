@@ -796,7 +796,6 @@ class Lit4dVarNet_L63(pl.LightningModule):
             #print()
             #print( torch.sqrt( torch.mean( dx**2 )) )
             #print( torch.sqrt( torch.mean( var_cost_grad**2 )) )
-            print(loss)
         return loss
 
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
@@ -821,6 +820,9 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
             if prev_iter == self.model.n_grad * (self.hparams.k_n_grad -1) :
                 loss_var_cost_grad = self.loss_from_perturbation(targets_GT,inputs_obs,masks,phase)
+                
+                print( self.hparams.alpha_mse * loss_mse )
+                print( self.hparams.alpha_var_cost_grad * loss_var_cost_grad )
             else:
                 loss_var_cost_grad = 0.
             #print( loss_var_cost_grad )
