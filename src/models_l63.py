@@ -650,7 +650,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         #x = kornia.filters.median_blur(x, (3, 1))
         print()
         print( torch.mean(dx**2) )
-        print( torch.mean(x) )
+        print( torch.mean((x-x_)) )
 
         return x + dx
 
