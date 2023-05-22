@@ -35,16 +35,27 @@ class Lit4dVarNet(pl.LightningModule):
 
     def forward(self, batch):
         return self.solver(batch)
-
-    def step(self, batch, phase="", opt_idx=None):
-        out = self(batch=batch)
+    
+    def step(self, batch, phase=""):
         if self.training and batch.tgt.isfinite().float().mean() < 0.9:
             return None, None
-        loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
+
+        out, loss = self.base_step(batch, phase):
         grad_loss = self.weighted_mse(
             kornia.filters.sobel(out) - kornia.filters.sobel(batch.tgt), self.rec_weight
         )
         prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
+        with torch.no_grad():
+            self.log(
+                f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True
+            )
+
+        training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost
+        return training_loss, out
+
+    def base_step(self, batch, phase=""):
+        out = self(batch=batch)
+        loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
         with torch.no_grad():
             rmse = (
                 self.weighted_mse(
@@ -53,12 +64,8 @@ class Lit4dVarNet(pl.LightningModule):
             )
             self.log(f"{phase}_rmse", rmse, prog_bar=True, on_step=False, on_epoch=True)
             self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
-            self.log(
-                f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True
-            )
 
-        training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost
-        return training_loss, out
+        return loss, out
 
     def configure_optimizers(self):
         return self.opt_fn(self)
@@ -154,7 +161,6 @@ class ConvLstmGradModel(nn.Module):
 
         self.dropout = torch.nn.Dropout(dropout)
         self._state = []
-
         self.down = nn.AvgPool2d(downsamp) if downsamp is not None else nn.Identity()
         self.up = (
             nn.UpsamplingBilinear2d(scale_factor=downsamp)

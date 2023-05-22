@@ -254,7 +254,7 @@ class BaseDataModule(pl.LightningDataModule):
 
 
     def train_dataloader(self):
-        return torch.utils.data.DataLoader(self.train_ds, shuffle=True, **self.dl_kw)
+        return  torch.utils.data.DataLoader(self.train_ds, shuffle=True, **self.dl_kw)
 
     def val_dataloader(self):
         return torch.utils.data.DataLoader(self.val_ds, shuffle=False, **self.dl_kw)
