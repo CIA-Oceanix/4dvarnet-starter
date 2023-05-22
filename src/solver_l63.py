@@ -625,10 +625,9 @@ class GradSolver_with_state_rnd(nn.Module):
             
             self.type_step_lstm = type_step_lstm
             self.param_lstm_step = param_lstm_step
-            
-            print()
-            print(self.type_step_lstm,flush=True)
-        
+            if self.param_lstm_step == -1 :
+                self.param_lstm_step = self.n_step
+                    
     def forward(self, x, yobs, mask, hidden = None , cell = None, normgrad = 0.,prev_iter=0):
         
         return self.solve(
@@ -646,8 +645,7 @@ class GradSolver_with_state_rnd(nn.Module):
         hidden_ = hidden
         cell_ = cell 
         normgrad_ = normgrad
-        
-        
+                
         for _ii in range(self.n_grad):
             x_k_plus_1, hidden_, cell_, normgrad_ = self.solver_step(x_k, obs, mask,hidden_, cell_, normgrad_,_ii+prev_iter)
 
@@ -675,6 +673,10 @@ class GradSolver_with_state_rnd(nn.Module):
         elif self.type_step_lstm == 'sigmoid' :
             alpha_step_lstm = np.exp(-1. * iter / self.param_lstm_step )
             alpha_step_lstm = alpha_step_lstm / ( 1. + alpha_step_lstm )
+
+        print()
+        print( torch.sqrt( torch.mean(grad_update)**2 ))
+        print( torch.sqrt( torch.mean(var_cost_grad)**2 ))
 
         state_update = (
             alpha_step_lstm * grad_update
@@ -781,6 +783,7 @@ class GradSolverMR(nn.Module):
                 grad_update = torch.nn.functional.interpolate(grad_update, scale_factor=5, mode='bicubic')
     
             if 1*1 : 
+                
                 state_update = (
                     1 / (iter + 1) * grad_update
                     + self.lr_grad * (iter + 1) / self.n_step * var_cost_grad
