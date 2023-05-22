@@ -648,10 +648,6 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         dx = self.hparams.gamma_degradation * (x_ - x)
         #x = kornia.filters.median_blur(x, (3, 1))
-        print()
-        print( torch.mean(dx**2) )
-        print( torch.mean((x-x_)**2) )
-
         return x + dx
 
     def configure_optimizers(self):
@@ -798,7 +794,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
             #loss = 1.0 - torch.sqrt( torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) )**2 + 1e-6 ) 
             
             
-            print('%f -- %f -- %e --  %f -- %f'%(torch.mean( f_x_1**2 ).detach().cpu().numpy(),torch.mean( dx**2 ).detach().cpu().numpy(),torch.mean( var_cost_grad**2 ).detach().cpu().numpy(),loss.detach().cpu().numpy(), torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) ).detach().cpu().numpy() ) )
+            print('%e -- %e -- %e --  %f -- %f'%(torch.mean( f_x_1**2 ).detach().cpu().numpy(),torch.mean( dx**2 ).detach().cpu().numpy(),torch.mean( var_cost_grad**2 ).detach().cpu().numpy(),loss.detach().cpu().numpy(), torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) ).detach().cpu().numpy() ) )
             #print( torch.sqrt( torch.mean( dx**2 )) )
             #print( torch.sqrt( torch.mean( var_cost_grad**2 )) )
         return loss
