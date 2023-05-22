@@ -821,6 +821,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
             if prev_iter == self.model.n_grad * (self.hparams.k_n_grad -1) :
                 loss_var_cost_grad = self.loss_from_perturbation(targets_GT,inputs_obs,masks,phase)
                 
+                print()
                 print( self.hparams.alpha_mse * loss_mse )
                 print( self.hparams.alpha_var_cost_grad * loss_var_cost_grad )
             else:
