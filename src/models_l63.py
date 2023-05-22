@@ -781,7 +781,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
             f_x_0 = x_1 - x
             f_x_1 = x_2 - x_1
             
-            dx = f_x_1 - f_x_0 
+            dx = f_x_0 - f_x_1
             
             var_cost, var_cost_grad = self.model.var_cost(x + 1e-2 * f_x_0, y, mask)
                         
