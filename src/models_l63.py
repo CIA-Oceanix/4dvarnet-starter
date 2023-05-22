@@ -794,7 +794,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
             #loss = 1.0 - torch.sqrt( torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) )**2 + 1e-6 ) 
             
             
-            print('%f -- %f -- %e --  %f -- %f'%(torch.mean( f_x_0**2 ).detach().cpu().numpy(),torch.mean( dx**2 ).detach().cpu().numpy(),torch.mean( var_cost_grad**2 ).detach().cpu().numpy(),loss.detach().cpu().numpy(), torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) ).detach().cpu().numpy() ) )
+            print('%f -- %f -- %e --  %f -- %f'%(torch.mean( f_x_1**2 ).detach().cpu().numpy(),torch.mean( dx**2 ).detach().cpu().numpy(),torch.mean( var_cost_grad**2 ).detach().cpu().numpy(),loss.detach().cpu().numpy(), torch.nanmean( dx * var_cost_grad / ( n_dx * n_grad ) ).detach().cpu().numpy() ) )
             #print( torch.sqrt( torch.mean( dx**2 )) )
             #print( torch.sqrt( torch.mean( var_cost_grad**2 )) )
         return loss
