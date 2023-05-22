@@ -104,7 +104,8 @@ entrypoints:
 #    ckpt: 'outputs/2023-05-09/12-22-22/base_l63/checkpoints/val_mse=0.0106-epoch=005.ckpt'
 #    ckpt: 'outputs/2023-05-20/10-58-12/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-degrad-JamesData-Obs08-Noise02-unet-igrad10_02-dgrad100val_mse=0.6231-epoch=383.ckpt'
 #    ckpt: 'outputs/2023-05-22/00-06-34/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_02-dgrad100val_mse=0.6331-epoch=380.ckpt'
-    ckpt: 'outputs/2023-05-22/08-04-45/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100val_mse=0.6312-epoch=097.ckpt'
+    ckpt: 'outputs/2023-05-22/07-48-57/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_03-dgrad100val_mse=0.6289-epoch=060.ckpt'
+#    ckpt: 'outputs/2023-05-22/08-04-45/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100val_mse=0.6312-epoch=097.ckpt'
 
 #    test_fn:
 #      _target_: src.utils.diagnostics
