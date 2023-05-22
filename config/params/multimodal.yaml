@@ -6,11 +6,9 @@ sst_da:
   obs_var: five_nadirs
 
 obs_cost:
-  # _target_: contrib.multimodal.MultiModalObsCost
-  _target_: contrib.multimodal.NonLinearMultiModalObsCost
+  _target_: contrib.multimodal.MultiModalObsCost
   dim_in: ${datamodule.xrds_kw.patch_dims.time}
   dim_hidden: 5
-
 
 
 ## Override config
