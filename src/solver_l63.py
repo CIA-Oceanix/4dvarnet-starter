@@ -675,8 +675,8 @@ class GradSolver_with_state_rnd(nn.Module):
             alpha_step_lstm = alpha_step_lstm / ( 1. + alpha_step_lstm )
 
         print()
-        print( torch.sqrt( torch.mean( (grad_update)**2 ) ))
-        print( torch.sqrt( torch.mean( (var_cost_grad)**2 ) ))
+        print( torch.sqrt( torch.mean( (alpha_step_lstm * grad_update)**2 ) ))
+        print( torch.sqrt( torch.mean( (self.lr_grad * (iter + 1) / self.n_step * var_cost_grad)**2 ) ))
 
         state_update = (
             alpha_step_lstm * grad_update
