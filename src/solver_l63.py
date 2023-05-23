@@ -686,6 +686,7 @@ class GradSolver_with_state_rnd(nn.Module):
             + self.lr_rnd * np.sqrt( (iter + 1) / self.n_step ) * torch.randn(grad_update.size()).to(device)
             )
         
+        print( normgrad_ )
         print(' %e -- %e'%( np.sqrt( np.mean(var_cost_grad.detach().cpu().numpy()**2 ) ) ,
                             1. / (normgrad_) * np.sqrt( np.mean(var_cost_grad.detach().cpu().numpy()**2 ) )) )        
                             
