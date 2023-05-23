@@ -81,7 +81,7 @@ trainer:
       save_top_k: 3
       filename: 
         _target_: src.models_l63.create_filename_ckpt
-        suffix: '{val_mse:.4f}-{epoch:03d}'
+        suffix: '{-val_loss:.4f}-{epoch:03d}'#'{val_mse:.4f}-{epoch:03d}'
         params_data: ${datamodule.input_data.param_dataset}
         params_model: ${model.params}
         
