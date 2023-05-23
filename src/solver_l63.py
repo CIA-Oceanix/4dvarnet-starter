@@ -686,9 +686,9 @@ class GradSolver_with_state_rnd(nn.Module):
             + self.lr_rnd * np.sqrt( (iter + 1) / self.n_step ) * torch.randn(grad_update.size()).to(device)
             )
         
-        print( normgrad_ )
-        print(' %e -- %e'%( np.sqrt( np.nanmean( (alpha_step_lstm * grad_update).detach().cpu().numpy()**2 ) ) ,
-                            self.lr_grad * (iter + 1) /  ( normgrad_ * self.n_step ) * np.sqrt( np.mean(var_cost_grad.detach().cpu().numpy()**2 ) )) , flush=True)        
+        #print( normgrad_ )
+        #rint(' %e -- %e'%( np.sqrt( np.nanmean( (alpha_step_lstm * grad_update).detach().cpu().numpy()**2 ) ) ,
+        #                    self.lr_grad * (iter + 1) /  ( normgrad_ * self.n_step ) * np.sqrt( np.mean(var_cost_grad.detach().cpu().numpy()**2 ) )) , flush=True)        
                             
         x_k_plus_1 = x_k - state_update
         
