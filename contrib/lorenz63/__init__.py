@@ -18,15 +18,16 @@ trajectory_config = dict(_target_='contrib.lorenz63.data.trajectory_da',
 )
 sl_cfg = lambda *a: dict(_target_='builtins.slice', _args_=a)
 dm_cfg = dict(
-    _target_='src.data.BaseDataModule',
+    _target_='contrib.lorenz63.data.LorenzDataModule',
+    aug_kw=dict(aug_factor=0, noise_sigma=1**.5),
     input_da=dict(
         _target_='contrib.lorenz63.data.training_da',
         traj_da=trajectory_config,
-        obs_fn=dict( _target_='toolz.pipe', _partial_=True,
-            funcs=[ 
-                # dict(_target_="contrib.lorenz63.data.obs_only_first", _partial_=True),
+        obs_fn=dict( _target_='src.utils.pipe', _partial_=True,
+            fns=[ 
+                dict(_target_="contrib.lorenz63.data.only_first_obs", _partial_=True),
                 dict(_target_="contrib.lorenz63.data.subsample", sample_step=8, _partial_=True),
-                dict(_target_="contrib.lorenz63.data.add_noise", _partial_=True),
+                dict(_target_="contrib.lorenz63.data.add_noise", sigma=2**.5,  _partial_=True),
             ]
         )
     ),
@@ -36,29 +37,38 @@ dm_cfg = dict(
         test=dict(time=sl_cfg(150, 200))
     ),
     xrds_kw=dict(patch_dims=dict(time=200), strides=dict(time=1)),
-    dl_kw=dict(batch_size=512, num_workers=2),
+    dl_kw=dict(batch_size=128, num_workers=5),
 )
+
 solver_cfg=dict(
     _target_='src.models.GradSolver',
     n_step=15,
+    lr_grad=1e1,
     prior_cost=dict(
-        _target_='contrib.lorenz63.models.RearrangedBilinAEPriorCost',
-        rearrange_from='b c t',
-        # rearrange_to='b t c ()',
-        # dim_in=200,
-        rearrange_to='b c t ()',
-        dim_in=3,
-        dim_hidden=30,
-        kernel_size=5
+        _target_='contrib.lorenz63.models.MultiPrior',
+        _args_=[
+            dict(
+                _target_='contrib.lorenz63.models.RearrangedBilinAEPriorCost',
+                rearrange_from='b c t',
+                # rearrange_to='b t c ()',
+                # dim_in='${datamodule.xrds_kw.patch_dims.time}',
+                rearrange_to='b c t ()',
+                dim_in=3,
+                bilin_quad=False,
+                downsamp=dict(_target_="builtins.tuple", _args_=[down]),
+                dim_hidden=30,
+                kernel_size=3
+        ) for down in [[8, 1], [2, 1]]]
     ),
-    obs_cost=dict(_target_='src.models.BaseObsCost' ),
+    obs_cost=dict(_target_='src.models.BaseObsCost', w=0.1),
     grad_mod=dict(
         _target_='contrib.lorenz63.models.RearrangedConvLstmGradModel',
         rearrange_from='b c t',
-        # rearrange_to='b t c ()',
-        # dim_in=200,
-        rearrange_to='b c t ()',
-        dim_in=3,
+        rearrange_to='b t c ()',
+        dim_in='${datamodule.xrds_kw.patch_dims.time}',
+        # rearrange_to='b c t ()',
+        # dim_in=3,
+        downsamp=dict(_target_="builtins.tuple", _args_=[[1, 1]]),
         dim_hidden=50,
         kernel_size=3
     ),
@@ -66,8 +76,13 @@ solver_cfg=dict(
 
 lit_mod_cfg = dict(
     _target_='contrib.lorenz63.models.LitLorenz',
-    rec_weight=dict(_target_='numpy.ones', shape=(3, 200)),
-    opt_fn=dict(_target_='src.utils.half_lr_adam', lr=1e-3, _partial_=True),
+    rec_weight=dict(
+        _target_='src.utils.get_constant_crop',
+        patch_dims= '${datamodule.xrds_kw.patch_dims}',
+        crop= {'time': 20},
+        dim_order=['time'],
+    ),
+    opt_fn=dict(_target_='src.utils.cosanneal_lr_adam', lr=2e-3, T_max='${trainer.max_epochs}', weight_decay=3e-6, _partial_=True),
     solver=solver_cfg
 )
 node = dict(
@@ -78,7 +93,7 @@ node = dict(
         accelerator='cuda',
         devices=1,
         inference_mode=False,
-        max_epochs=150,
+        max_epochs=300,
         logger= {
             '_target_': 'pytorch_lightning.loggers.CSVLogger',
             'save_dir': '${hydra:runtime.output_dir}',

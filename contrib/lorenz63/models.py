@@ -1,7 +1,9 @@
 import src.models
+import kornia.filters as kfilts
 import torch
 import einops
 import contrib.lorenz63
+
 
 
 class RearrangedBilinAEPriorCost(src.models.BilinAEPriorCost):
@@ -19,6 +21,25 @@ class RearrangedBilinAEPriorCost(src.models.BilinAEPriorCost):
         x = super().forward_ae(x)
         x = einops.rearrange(x, self.rearrange_aft)
         return x
+
+class MultiPrior(torch.nn.Module):
+    def __init__(self, *priors) -> None:
+        super().__init__()
+        self.priors = torch.nn.ModuleList(priors)
+
+    def forward_ae(self, x):
+        return torch.mean(torch.stack([prior.forward_ae(x) for prior in self.priors],0), 0)
+
+    def forward(self, x):
+        return torch.sum(torch.stack([prior.forward(x) for prior in self.priors]))
+
+
+class SolverWithInit(src.models.GradSolver):
+    def init_state(self, batch, x_init=None):
+        if x_init is not None:
+            return x_init
+
+        return batch.init.nan_to_num().detach().requires_grad_(True)
 
 class RearrangedConvLstmGradModel(src.models.ConvLstmGradModel):
     """
@@ -42,5 +63,9 @@ class RearrangedConvLstmGradModel(src.models.ConvLstmGradModel):
 
 class LitLorenz(src.models.Lit4dVarNet):
     def step(self, batch, phase="", opt_idx=None):
-        return super().base_step(batch, phase)
+        loss, out = super().base_step(batch, phase)
+        prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
+        grad_loss = self.weighted_mse( kfilts.sobel(out[..., None]).squeeze()
+            - kfilts.sobel(batch.tgt[..., None]).squeeze(), self.rec_weight)
+        return  loss + prior_cost, out
 

@@ -196,9 +196,13 @@ class ConvLstmGradModel(nn.Module):
 
 
 class BaseObsCost(nn.Module):
+    def __init__(self, w=1) -> None:
+        super().__init__()
+        self.w=w
+
     def forward(self, state, batch):
         msk = batch.input.isfinite()
-        return F.mse_loss(state[msk], batch.input.nan_to_num()[msk])
+        return self.w * F.mse_loss(state[msk], batch.input.nan_to_num()[msk])
 
 
 class BilinAEPriorCost(nn.Module):
@@ -218,9 +222,12 @@ class BilinAEPriorCost(nn.Module):
         self.bilin_21 = nn.Conv2d(
             dim_hidden, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
         )
-        self.bilin_22 = nn.Conv2d(
-            dim_hidden, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
-        )
+        if bilin_quad:
+            self.bilin_22 = self.bilin_21
+        else:
+            self.bilin_22 = nn.Conv2d(
+                dim_hidden, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
+            )
 
         self.conv_out = nn.Conv2d(
             2 * dim_hidden, dim_in, kernel_size=kernel_size, padding=kernel_size // 2
@@ -238,14 +245,9 @@ class BilinAEPriorCost(nn.Module):
         x = self.conv_in(x)
         x = self.conv_hidden(F.relu(x))
 
-        if self.bilin_quad:
-            x = self.conv_out(
-                torch.cat([self.bilin_1(x), self.bilin_21(x) * self.bilin_21(x)], dim=1)
-            )
-        else: 
-            x = self.conv_out(
-                torch.cat([self.bilin_1(x), self.bilin_21(x) * self.bilin_22(x)], dim=1)
-            )
+        x = self.conv_out(
+            torch.cat([self.bilin_1(x), self.bilin_21(x) * self.bilin_22(x)], dim=1)
+        )
         x = self.up(x)
         return x
 

@@ -4,8 +4,9 @@ trainer:
   accumulate_grad_batches: 10
 
 datamodule:
-  aug_factor: 5
-  aug_only: False
+  aug_kw:
+    aug_factor: 5
+    aug_only: False
   dl_kw: {batch_size: 8}
 
 model:

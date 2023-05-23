@@ -6,8 +6,9 @@ datamodule:
   xrds_kw:
     patch_dims: { time: 15, lat: 200, lon: 200}
     domain_limits: ${domain.test}
-  aug_factor: 5
-  aug_only: False
+  aug_kw:
+    aug_factor: 5
+    aug_only: False
 
 model:
   rec_weight:

@@ -11,6 +11,7 @@ datamodule:
   xrds_kw:
     strides: { time: 1, lat: 200, lon: 200}
   dl_kw: {batch_size: 8}
-  aug_factor: 2
-  aug_only: False
+  aug_kw:
+    aug_factor: 2
+    aug_only: False
 

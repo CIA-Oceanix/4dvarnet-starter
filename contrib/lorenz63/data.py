@@ -1,8 +1,14 @@
-from bokeh.embed import components
 import numpy as np
-from torch.autograd import variable
+import functools as ft
 import xarray as xr
 from scipy.integrate import solve_ivp
+import scipy.interpolate
+import collections
+import src.data
+
+TrainingItemWithInit = collections.namedtuple(
+    "TrainingItemWithInit", sorted(["init", "input", "tgt"])
+)
 
 def dyn_lorenz63(t, x, sigma=10., rho=28., beta=8./3):
     """ Lorenz-63 dynamical model. """
@@ -34,10 +40,60 @@ def subsample(da, sample_step=20):
 def add_noise(da, sigma=2**.5):
     return da  + np.random.randn(*da.shape) * sigma
 
+def interpolate_grid_data(npa):
+    data_points = np.nonzero(np.isfinite(npa))
+
+    if len(data_points[0]) == 0:
+        return npa
+    data_values = npa[data_points]
+    tgt_points = np.nonzero(np.ones_like(npa))
+    tgt_values = scipy.interpolate.griddata(
+        points=data_points,
+        values=data_values,
+        xi=tgt_points,
+        method='cubic'
+    )
+
+    new_npa = np.zeros_like(npa)
+    new_npa[tgt_points] = tgt_values
+    return new_npa
+
 def training_da(traj_da, obs_fn):
     return xr.Dataset(
         dict(
+            input=traj_da.pipe(obs_fn),
             tgt=traj_da,
-            input=traj_da.pipe(obs_fn)
-    )).to_array().sortby('variable')
+    )).assign(
+        init=lambda ds: (
+                ds.input
+                .to_dataset(dim='component')
+                .map(lambda da: xr.apply_ufunc(interpolate_grid_data, da))
+                .to_array(dim='component')
+        )
+    ).to_array().sortby('variable')
+
+
+class LorenzDataModule(src.data.BaseDataModule):
+    def post_fn(self):
+
+        normalize = lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1]
+        return ft.partial(
+            ft.reduce,
+            lambda i, f: f(i),
+            [
+                TrainingItemWithInit._make,
+                lambda item: item._replace(tgt=normalize(item.tgt)),
+                lambda item: item._replace(input=normalize(item.input)),
+                lambda item: item._replace(init=normalize(item.init)),
+            ],
+        )
+
+if __name__ == '__main__':
+    import contrib.lorenz63
+    import hydra
+    with hydra.initialize(None, None, version_base='1.3'):
+        cfg = hydra.compose("base_lorenz")
+
+
+
 

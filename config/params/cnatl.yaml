@@ -13,6 +13,7 @@ datamodule:
     _target_: src.utils.load_full_natl_data
     obs_var: five_nadirs
   dl_kw: {batch_size: 8}
-  aug_factor: 4
-  aug_only: False
+  aug_kw:
+    aug_factor: 4
+    aug_only: False
 
