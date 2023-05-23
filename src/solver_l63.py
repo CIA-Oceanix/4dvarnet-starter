@@ -682,7 +682,7 @@ class GradSolver_with_state_rnd(nn.Module):
 
         state_update = (
             alpha_step_lstm * grad_update
-            + self.lr_grad * (iter + 1) /  ( normgrad * self.n_step ) * var_cost_grad
+            + self.lr_grad * (iter + 1) /  ( normgrad_ * self.n_step ) * var_cost_grad
             + self.lr_rnd * np.sqrt( (iter + 1) / self.n_step ) * torch.randn(grad_update.size()).to(device)
             )
         
