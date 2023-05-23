@@ -687,8 +687,8 @@ class GradSolver_with_state_rnd(nn.Module):
             )
         
         print( normgrad_ )
-        print(' %e -- %e'%( np.sqrt( np.mean(var_cost_grad.detach().cpu().numpy()**2 ) ) ,
-                            1. / (normgrad_) * np.sqrt( np.mean(var_cost_grad.detach().cpu().numpy()**2 ) )) )        
+        print(' %e -- %e'%( np.sqrt( np.nanmean( var_cost_grad.detach().cpu().numpy()**2 ) ) ,
+                            1. / (normgrad_) * np.sqrt( np.mean(var_cost_grad.detach().cpu().numpy()**2 ) )) , flush=True)        
                             
         x_k_plus_1 = x_k - state_update
         
