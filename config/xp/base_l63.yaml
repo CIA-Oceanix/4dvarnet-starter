@@ -36,7 +36,7 @@ model:
     dropout: 0.2
     alpha_prior: 0.1
     alpha_mse: 1.
-    alpha_var_cost_grad: 0.005
+    alpha_var_cost_grad: 0.001
     lr_grad: 1e-2 #1.e3
     lr_rnd: 0.e-3
     sig_rnd_init: 0e-2
@@ -88,7 +88,7 @@ trainer:
 entrypoints:
   - _target_: pytorch_lightning.seed_everything
     seed: 333
-  - _target_: src.train.base_training  # src.train.fine_tuning # 
+  - _target_: src.train.fine_tuning # src.train.base_training  # 
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
@@ -97,7 +97,7 @@ entrypoints:
 #    ckpt: 'outputs/2023-05-15/16-56-23/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_02-dgrad100val_mse=0.6081-epoch=380.ckpt'
 #    ckpt: 'outputs/2023-05-07/22-59-30/base_l63/checkpoints/val_mse=0.6534-epoch=379.ckpt'
 #    ckpt: 'outputs/2023-05-22/00-06-34/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_02-dgrad100val_mse=0.6331-epoch=380.ckpt'
-#    ckpt: 'outputs/2023-05-22/07-48-57/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_03-dgrad100val_mse=0.6289-epoch=060.ckpt'
+    ckpt: 'outputs/2023-05-22/07-48-57/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_03-dgrad100val_mse=0.6289-epoch=060.ckpt'
 #  - _target_: src.test.base_testing #
 #    trainer: ${trainer}
 #    lit_mod: ${model}
