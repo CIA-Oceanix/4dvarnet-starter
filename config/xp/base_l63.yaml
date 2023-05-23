@@ -38,9 +38,9 @@ model:
     alpha_mse: 1.
     alpha_var_cost_grad: 0.001
     lr_grad: 1e-2 #1.e3
-    lr_rnd: 0.e-3
-    sig_rnd_init: 0e-2
-    sig_lstm_init: 0e-2
+    lr_rnd: 1.e-3
+    sig_rnd_init: 1e-2
+    sig_lstm_init: 1e-2
     suffix_exp: '-new'
     UsePeriodicBoundary: False
     degradation_operator: 'median-degradation' # 'no-degradation' # 
