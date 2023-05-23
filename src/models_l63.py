@@ -736,7 +736,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
             loss1, out, metrics = self.compute_loss(val_batch, phase='val',batch_init=out[0],hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
             loss = loss1
 
-        self.log('val_loss', loss , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log('val_loss', 1e3 * loss , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log("val_mse", self.stdTr**2 * metrics['mse'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log("val_gvar", metrics['var_grad'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
