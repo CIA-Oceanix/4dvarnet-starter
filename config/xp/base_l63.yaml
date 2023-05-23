@@ -37,7 +37,7 @@ model:
     alpha_prior: 0.1
     alpha_mse: 1.
     alpha_var_cost_grad: 0.001
-    lr_grad: 0. #1e-2 #1.e3
+    lr_grad: 1e-2 #1.e3
     lr_rnd: 0.e-3
     sig_rnd_init: 0e-2
     sig_lstm_init: 0e-2
