@@ -18,7 +18,7 @@ def base_testing(trainer, dm, lit_mod,ckpt):
     lit_mod.set_norm_stats = dm.norm_stats()
     
     print('... Evaluated model: '+ckpt)
-    lit_mod = lit_mod.load_from_checkpoint(ckpt)
+    #lit_mod = lit_mod.load_from_checkpoint(ckpt)
     
     print('............... Model evaluation on validation dataset')
     trainer.test(lit_mod, dataloaders=dm.val_dataloader())
