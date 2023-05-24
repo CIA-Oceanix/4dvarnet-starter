@@ -636,7 +636,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.automatic_optimization = True
         self.epsilon = 1e-6
         
-        
+        self.init_state = self.hparams.init_state if hasattr(self.hparams, 'init_state') else 'obs_interp'
     def forward(self):
         return 1
 
@@ -765,7 +765,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         print('... mse test: %.3f '%mse)
 
-    def loss_from_perturbation(self,x,y,mask,phase):
+    def loss_var_cost_grad(self,x,y,mask,phase):
         
         if self.hparams.degradation_operator == 'no-degradation' :
             loss = 0.
@@ -804,9 +804,12 @@ class Lit4dVarNet_L63(pl.LightningModule):
      
             #inputs_init = inputs_init_
             if batch_init is None :
-                inputs_init = inputs_init_
+                if self.init_state == 'zeros':
+                    inputs_init = self.hparams.sig_rnd_init *  torch.randn( batch_init.size() ).to(device)
+                else:
+                    inputs_init = inputs_init_ + self.hparams.sig_rnd_init *  torch.randn( batch_init.size() ).to(device)
             else:
-                inputs_init = batch_init + self.hparams.sig_rnd_init *  torch.randn( batch_init.size() ).to(device)
+                inputs_init = batch_init 
                 
             if phase == 'train' :                
                 inputs_init = inputs_init.detach()
@@ -819,7 +822,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
             loss_prior_gt = torch.mean((self.model.phi_r(targets_GT) - targets_GT) ** 2)
 
             if prev_iter == self.model.n_grad * (self.hparams.k_n_grad -1) :
-                loss_var_cost_grad = self.loss_from_perturbation(targets_GT,inputs_obs,masks,phase)
+                loss_var_cost_grad = self.loss_var_cost_grad(targets_GT,inputs_obs,masks,phase)
                 
                 #print()
                 #print( self.hparams.alpha_mse * loss_mse )

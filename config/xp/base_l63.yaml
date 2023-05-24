@@ -41,6 +41,7 @@ model:
     lr_rnd: 0.e-3
     sig_rnd_init: 0.e-2
     sig_lstm_init: 0.e-2
+    init_state: 'zeros'
     suffix_exp: '-new'
     UsePeriodicBoundary: False
     degradation_operator: 'no-degradation' # 'median-degradation' # 
