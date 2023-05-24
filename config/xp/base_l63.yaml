@@ -13,7 +13,7 @@ datamodule:
       path_l63_dataset: '../../Dataset4DVarNet/dataset_L63_with_noise.nc'
       genSuffixObs: 'JamesData'
       flag_load_all_data: False
-      flag_generate_L63_data: True #False
+      flag_generate_L63_data: False #True #
       NbTraining: 10000
       NbTest: 200
       time_step: 1
