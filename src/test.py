@@ -17,12 +17,31 @@ def base_testing(trainer, dm, lit_mod,ckpt):
     trainer.callbacks = []
     lit_mod.set_norm_stats = dm.norm_stats()
     
+    
+    # load checkpoints
     print('... Evaluated model: '+ckpt)
+    cfg_params = lit_mod.hparams
+    print('')
+    print('...... Loaded cfg parameters')
+    print(cfg_params)
     lit_mod = lit_mod.load_from_checkpoint(ckpt)
+    print('...... cfg parameters from chekpoint')
+    print(lit_mod.hparams)
+       
     lit_mod.set_norm_stats = dm.norm_stats()
     
+    # force optimization parameters
+    lit_mod.hparams.n_grad = cfg_params.n_grad
+    lit_mod.hparams.k_n_grad = cfg_params.k_n_grad
+    
+    lit_mod.hparams.lr_grad = cfg_params.lr_grad
+    lit_mod.hparams.lr_rnd = cfg_params.lr_rnd
+    lit_mod.hparams.sig_rnd_init = cfg_params.sig_rnd_init
+    lit_mod.hparams.sig_lstm_init = cfg_params.sig_lstm_init
+    lit_mod.hparams.param_lstm_step = cfg_params.param_lstm_step
+    print('...... Updated parameters')
     print(lit_mod.hparams)
-
+ 
     print('............... Model evaluation on validation dataset')
     trainer.test(lit_mod, dataloaders=dm.val_dataloader())
     
