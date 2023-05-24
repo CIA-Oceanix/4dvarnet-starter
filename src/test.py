@@ -97,7 +97,9 @@ def base_testing(trainer, dm, lit_mod,ckpt):
     x_rec_1 = 1. * lit_mod.x_rec
     trainer.test(lit_mod, dataloaders=dm.test_dataloader())#, ckpt_path=ckpt)
     var_rec = np.mean( (x_rec_1-lit_mod.x_rec)**2 )
+    max_diff = np.max( np.abs(x_rec_1-lit_mod.x_rec) )
     bias_rec = np.mean( (x_rec_1-lit_mod.x_rec) )
     print('..')
     print('.. Mean difference between 2 runs : %.3f'%bias_rec)
     print('.. MSE between 2 runs             : %.3f'%var_rec)
+    print('.. Maximum absolute difference between 2 runs : %.3f'%max_diff)
