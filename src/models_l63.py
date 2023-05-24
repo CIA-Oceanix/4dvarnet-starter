@@ -805,7 +805,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
             #inputs_init = inputs_init_
             if batch_init is None :
                 if self.init_state == 'zeros':
-                    inputs_init = self.hparams.sig_rnd_init *  torch.randn( batch_init.size() ).to(device)
+                    inputs_init = self.hparams.sig_rnd_init *  torch.randn( inputs_init_.size() ).to(device)
                 else:
                     inputs_init = inputs_init_ + self.hparams.sig_rnd_init *  torch.randn( batch_init.size() ).to(device)
             else:
