@@ -42,6 +42,8 @@ def base_testing(trainer, dm, lit_mod,ckpt):
     
     print('...... Updated parameters from cfg files')
     print(lit_mod.hparams)
+    print('.... param_lstm_step = %d'%lit_mod.model.param_lstm_step)
+    print()
  
     print('............... Model evaluation on validation dataset')
     trainer.test(lit_mod, dataloaders=dm.val_dataloader())
