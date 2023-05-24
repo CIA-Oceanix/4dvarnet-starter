@@ -37,7 +37,7 @@ model:
     alpha_prior: 0.1
     alpha_mse: 1.
     alpha_var_cost_grad: 0.001
-    lr_grad: 0 #1e-2 #1.e3
+    lr_grad: 1e-2 #1.e3
     lr_rnd: 0.e-3
     sig_rnd_init: 0.e-2
     sig_lstm_init: 0.e-2
@@ -49,11 +49,12 @@ model:
     alpha_perturbation_grad: 0.9
     gamma_degradation: 1e-1
     type_step_lstm: 'linear-relu'#'linear'#
-    param_lstm_step: -1 #-1 #20 #-1 #
+    param_lstm_step: 40 #-1 #20 #-1 #
     shapeData:
       - 3
       - ${datamodule.input_data.param_dataset.dT}
       - 1
+  ckpt: 'outputs/2023-05-23/22-14-34/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.0530-epoch=337.ckpt'
   patch_weight:
     _target_: src.models_l63.get_constant_crop_l63
     patch_dims: ${model.params.shapeData}
