@@ -44,7 +44,7 @@ model:
     init_state: 'obs_interp' #'zeros'
     suffix_exp: '-new'
     UsePeriodicBoundary: False
-    degradation_operator: 'no-degradation' # 'median-degradation' # 
+    degradation_operator: 'gaussian_smoothing' # 'no-degradation' 
     sig_perturbation_grad: 1e-2
     alpha_perturbation_grad: 0.9
     gamma_degradation: 1e-1
@@ -90,16 +90,17 @@ trainer:
 entrypoints:
   - _target_: pytorch_lightning.seed_everything
     seed: 333
-#  - _target_: src.train.base_training  # src.train.fine_tuning # 
-#    trainer: ${trainer}
-#    lit_mod: ${model}
-#    dm: ${datamodule}
-  - _target_: src.test.base_testing #
+  - _target_: src.train.fine_tuning # src.train.base_training  # 
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-#    ckpt: 'outputs/2023-05-23/14-35-56/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-degrad-JamesData-Obs08-Noise02-unet-igrad10_02-dgrad100-val_loss=3.4006-epoch=382.ckpt'
     ckpt: 'outputs/2023-05-23/22-14-34/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.0530-epoch=337.ckpt'
+#  - _target_: src.test.base_testing #
+#    trainer: ${trainer}
+#    lit_mod: ${model}
+#    dm: ${datamodule}
+#    ckpt: 'outputs/2023-05-23/14-35-56/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-degrad-JamesData-Obs08-Noise02-unet-igrad10_02-dgrad100-val_loss=3.4006-epoch=382.ckpt'
+#    ckpt: 'outputs/2023-05-23/22-14-34/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.0530-epoch=337.ckpt'
 #    test_fn:
 #      _target_: src.utils.diagnostics
 #      _partial_: true
