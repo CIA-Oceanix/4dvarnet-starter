@@ -38,7 +38,7 @@ def base_testing(trainer, dm, lit_mod,ckpt):
     lit_mod.hparams.lr_rnd = cfg_params.lr_rnd
     lit_mod.hparams.sig_rnd_init = cfg_params.sig_rnd_init
     lit_mod.hparams.sig_lstm_init = cfg_params.sig_lstm_init
-    lit_mod.hparams.param_lstm_step = cfg_params.param_lstm_step
+    #lit_mod.hparams.param_lstm_step = cfg_params.param_lstm_step
     
     print('...... Updated parameters from cfg files')
     print(lit_mod.hparams)
