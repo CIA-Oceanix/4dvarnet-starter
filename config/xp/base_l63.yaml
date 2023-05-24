@@ -90,7 +90,7 @@ trainer:
 entrypoints:
   - _target_: pytorch_lightning.seed_everything
     seed: 333
-  - _target_: src.train.fine_tuning # src.train.base_training  # 
+  - _target_: src.train.base_training  # src.train.fine_tuning # 
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
