@@ -46,7 +46,7 @@ def base_testing(trainer, dm, lit_mod,ckpt):
     print('............... Model evaluation on validation dataset')
     trainer.test(lit_mod, dataloaders=dm.val_dataloader())
     
-    trainer.test(lit_mod, dataloaders=dm.val_dataloader(),ckpt_path=ckpt)
+    #trainer.test(lit_mod, dataloaders=dm.val_dataloader(),ckpt_path=ckpt)
 
     X_train, x_train, mask_train, x_train_Init, x_train_obs = dm.input_data[0]    
     idx_val = X_train.shape[0]-500
