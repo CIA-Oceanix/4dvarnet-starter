@@ -22,6 +22,7 @@ def base_testing(trainer, dm, lit_mod,ckpt):
     cfg_params = lit_mod.hparams
     
     print('')
+    print('.... Loaded model: '+ckpt)
     #print('...... Loaded cfg parameters')
     #print(cfg_params)
     lit_mod = lit_mod.load_from_checkpoint(ckpt)
