@@ -83,6 +83,7 @@ class Lit4dVarNet(pl.LightningModule):
         rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
             self.test_data, self.rec_weight.cpu().numpy()
         )
+
         if isinstance(rec_da, list):
             rec_da = rec_da[0]
 

@@ -26,7 +26,7 @@ dm_cfg = dict(
         obs_fn=dict( _target_='src.utils.pipe', _partial_=True,
             fns=[ 
                 dict(_target_="contrib.lorenz63.data.only_first_obs", _partial_=True),
-                dict(_target_="contrib.lorenz63.data.subsample", sample_step=8, _partial_=True),
+                dict(_target_="contrib.lorenz63.data.subsample", sample_step=20, _partial_=True),
                 dict(_target_="contrib.lorenz63.data.add_noise", sigma=2**.5,  _partial_=True),
             ]
         )

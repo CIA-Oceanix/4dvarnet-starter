@@ -36,7 +36,7 @@ dm:
 
 ckpt: 
   _target_: src.utils.best_ckpt
-  xp_dir: ${xpd}/base
+  xp_dir: ${xpd}
 
 test_domains: 
   train: ${domain}

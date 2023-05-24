@@ -334,8 +334,10 @@ def geo_energy(da):
 
 
 def best_ckpt(xp_dir):
+    _, xpn = load_cfg(xp_dir)
+    print(Path(xp_dir) / xpn / 'checkpoints')
     ckpt_last = max(
-        (Path(xp_dir) / "checkpoints").glob("*.ckpt"), key=lambda p: p.stat().st_mtime
+        (Path(xp_dir) / xpn / 'checkpoints').glob("*.ckpt"), key=lambda p: p.stat().st_mtime
     )
     cbs = torch.load(ckpt_last)["callbacks"]
     ckpt_cb = cbs[next(k for k in cbs.keys() if "ModelCheckpoint" in k)]
@@ -343,8 +345,8 @@ def best_ckpt(xp_dir):
 
 
 def load_cfg(xp_dir):
-    hydra_cfg = OmegaConf.load(Path(xp_dir) / "hydra.yaml").hydra
-    cfg = OmegaConf.load(Path(xp_dir) / "config.yaml")
+    hydra_cfg = OmegaConf.load(Path(xp_dir) / ".hydra/hydra.yaml").hydra
+    cfg = OmegaConf.load(Path(xp_dir) / ".hydra/config.yaml")
     OmegaConf.register_new_resolver(
         "hydra", lambda k: OmegaConf.select(hydra_cfg, k), replace=True
     )

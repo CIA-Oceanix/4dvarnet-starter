@@ -13,7 +13,7 @@ import hydra
 
 def load_cfg_from_xp(xpd, key, overrides=None, call=True):
     xpd = Path(xpd)
-    src_cfg, xp = src.utils.load_cfg(xpd / ".hydra")
+    src_cfg, xp = src.utils.load_cfg(xpd)
     overrides = overrides or dict()
     OmegaConf.set_struct(src_cfg, True)
     with omegaconf.open_dict(src_cfg):

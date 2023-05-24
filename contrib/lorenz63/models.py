@@ -1,4 +1,6 @@
 import src.models
+import xarray as xr
+import numpy as np
 import kornia.filters as kfilts
 import torch
 import einops
@@ -68,4 +70,19 @@ class LitLorenz(src.models.Lit4dVarNet):
         grad_loss = self.weighted_mse( kfilts.sobel(out[..., None]).squeeze()
             - kfilts.sobel(batch.tgt[..., None]).squeeze(), self.rec_weight)
         return  loss + prior_cost, out
+
+    def on_test_epoch_end(self):
+        rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+            self.test_data, self.rec_weight.cpu().numpy()
+        )
+        m, s = self.trainer.datamodule.norm_stats()
+        rec_ds  = (rec_da * s + m).assign_coords(v0=['input', 'tgt', 'out']).to_dataset(dim='v0')
+        rec_ds.to_netcdf('tmp/lorenz.nc')
+        print(
+            xr.Dataset(dict(
+                mse=((rec_ds.tgt - rec_ds.out)**2).mean(),
+                percent_err=np.mean((rec_ds.tgt - rec_ds.out)**2)/np.mean(rec_ds.tgt**2)
+            )).to_array()
+            .to_dataframe(name='4dVarNet').to_markdown()
+        )
 
