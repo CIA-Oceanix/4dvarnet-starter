@@ -32,14 +32,10 @@ def base_testing(trainer, dm, lit_mod,ckpt):
     lit_mod.set_norm_stats = dm.norm_stats()
     
     # force optimization parameters
-    lit_mod.hparams.n_grad = cfg_params.n_grad
-    lit_mod.hparams.k_n_grad = cfg_params.k_n_grad
-    
-    lit_mod.hparams.lr_grad = cfg_params.lr_grad
-    lit_mod.hparams.lr_rnd = cfg_params.lr_rnd
-    lit_mod.hparams.sig_rnd_init = cfg_params.sig_rnd_init
-    lit_mod.hparams.sig_lstm_init = cfg_params.sig_lstm_init
-    lit_mod.hparams.param_lstm_step = cfg_params.param_lstm_step
+    lit_mod.update_params( n_grad = cfg_params.n_grad , k_n_grad = cfg_params.k_n_grad, 
+                          lr_grad = cfg_params.lr_grad, lr_rnd = cfg_params.lr_rnd,
+                          sig_rnd_init = cfg_params.sig_rnd_init, sig_lstm_init = cfg_params.sig_lstm_init,
+                          param_lstm_step = cfg_params.param_lstm_step)
     
     print('...... Updated parameters from cfg files')
     print(lit_mod.hparams)

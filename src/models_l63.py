@@ -637,6 +637,31 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.epsilon = 1e-6
         
         self.init_state = self.hparams.init_state if hasattr(self.hparams, 'init_state') else 'obs_interp'
+        
+    def update_params(self,n_grad = None , k_n_grad = None,lr_grad=None,lr_rnd=None,sig_rnd_init=None,sig_lstm_init=None,param_lstm_step=None):
+
+        if n_grad is not None:
+            self.hparams.n_grad = n_grad
+
+        if k_n_grad is not None:
+            self.hparams.k_n_grad = k_n_grad
+
+        if lr_grad is not None:
+            self.hparams.lr_grad = lr_grad
+            
+        if lr_rnd is not None:
+            self.hparams.lr_rnd = lr_rnd
+            
+        if sig_rnd_init is not None:
+            self.hparams.sig_rnd_init = sig_rnd_init
+
+        if sig_lstm_init is not None:
+            self.hparams.sig_lstm_init = sig_lstm_init
+
+        if param_lstm_step is not None:
+            self.hparams.param_lstm_step = param_lstm_step
+            self.model.param_lstm_step = self.hparams.param_lstm_step            
+        
     def forward(self):
         return 1
 
