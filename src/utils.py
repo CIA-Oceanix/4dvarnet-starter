@@ -16,21 +16,44 @@ import xarray as xr
 import matplotlib.pyplot as plt
 
 
+def pipe(inp, fns):
+    for f in fns:
+        inp = f(inp)
+    return inp
+
+def kwgetattr(obj, name):
+    return getattr(obj, name)
+
 def half_lr_adam(lit_mod, lr):
     return torch.optim.Adam(
         [
             {"params": lit_mod.solver.grad_mod.parameters(), "lr": lr},
+            {"params": lit_mod.solver.obs_cost.parameters(), "lr": lr},
             {"params": lit_mod.solver.prior_cost.parameters(), "lr": lr / 2},
         ],
     )
 
 
-def cosanneal_lr_adam(lit_mod, lr, T_max=100):
+def cosanneal_lr_adam(lit_mod, lr, T_max=100, weight_decay=0.):
     opt = torch.optim.Adam(
         [
             {"params": lit_mod.solver.grad_mod.parameters(), "lr": lr},
+            {"params": lit_mod.solver.obs_cost.parameters(), "lr": lr},
             {"params": lit_mod.solver.prior_cost.parameters(), "lr": lr / 2},
-        ],
+        ], weight_decay=weight_decay
+    )
+    return {
+        "optimizer": opt,
+        "lr_scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=T_max),
+    }
+
+def cosanneal_lr_lion(lit_mod, lr, T_max=100):
+    import lion_pytorch
+    opt = lion_pytorch.Lion(
+        [
+            {"params": lit_mod.solver.grad_mod.parameters(), "lr": lr},
+            {"params": lit_mod.solver.prior_cost.parameters(), "lr": lr / 2},
+        ], weight_decay=1e-3
     )
     return {
         "optimizer": opt,
@@ -97,6 +120,20 @@ def get_triang_time_wei(patch_dims, crop=0, offset=0):
         ),
         patch_dims.values(),
     )
+
+def load_enatl(*args, obs_from_tgt=False, **kwargs):
+    ssh = xr.open_zarr('../sla-data-registry/enatl_preproc/truth_SLA_SSH_NATL60.zarr/').ssh
+    nadirs = xr.open_zarr('../sla-data-registry/enatl_preproc/SLA_SSH_5nadirs.zarr/').ssh
+    ssh = ssh.interp(
+        lon=np.arange(ssh.lon.min(), ssh.lon.max(), 1/20),
+        lat=np.arange(ssh.lat.min(), ssh.lat.max(), 1/20)
+    )
+    nadirs = nadirs.interp(time=ssh.time, method='nearest').interp(lat=ssh.lat, lon=ssh.lon, method='nearest')
+    ds =  xr.Dataset(dict(input=nadirs, tgt=(ssh.dims, ssh.values)), nadirs.coords)
+
+    if obs_from_tgt:
+        ds = ds.assign(input=ds.tgt.transpose(*ds.input.dims).where(np.isfinite(ds.input), np.nan))
+    return ds.transpose('time', 'lat', 'lon').to_array().load()
 
 
 def load_altimetry_data(path, obs_from_tgt=False):
@@ -297,8 +334,10 @@ def geo_energy(da):
 
 
 def best_ckpt(xp_dir):
+    _, xpn = load_cfg(xp_dir)
+    print(Path(xp_dir) / xpn / 'checkpoints')
     ckpt_last = max(
-        (Path(xp_dir) / "checkpoints").glob("*.ckpt"), key=lambda p: p.stat().st_mtime
+        (Path(xp_dir) / xpn / 'checkpoints').glob("*.ckpt"), key=lambda p: p.stat().st_mtime
     )
     cbs = torch.load(ckpt_last)["callbacks"]
     ckpt_cb = cbs[next(k for k in cbs.keys() if "ModelCheckpoint" in k)]
@@ -306,8 +345,8 @@ def best_ckpt(xp_dir):
 
 
 def load_cfg(xp_dir):
-    hydra_cfg = OmegaConf.load(Path(xp_dir) / "hydra.yaml").hydra
-    cfg = OmegaConf.load(Path(xp_dir) / "config.yaml")
+    hydra_cfg = OmegaConf.load(Path(xp_dir) / ".hydra/hydra.yaml").hydra
+    cfg = OmegaConf.load(Path(xp_dir) / ".hydra/config.yaml")
     OmegaConf.register_new_resolver(
         "hydra", lambda k: OmegaConf.select(hydra_cfg, k), replace=True
     )

@@ -1,0 +1,41 @@
+# @package _global_
+xpd: ???
+
+
+xp_overrides: {}
+  
+trainer: 
+  _target_: pytorch_lightning.Trainer
+  inference_mode: False
+  accelerator: gpu
+  devices: 1
+  logger: False
+
+lit_mod: 
+  _target_: contrib.multi_domain_diag.load_cfg_from_xp
+  key: model
+  xpd : ${xpd}
+  overrides: ${xp_overrides}
+
+dm: 
+  _target_: contrib.multi_domain_diag.load_cfg_from_xp
+  key: datamodule
+  xpd : ${xpd}
+  overrides: ${xp_overrides}
+
+ckpt: 
+  _target_: src.utils.best_ckpt
+  xp_dir: ${xpd}
+
+entrypoints:
+  - _target_: pytorch_lightning.seed_everything
+    seed: 333
+  - _target_: pytorch_lightning.Trainer.test
+    self: ${trainer}
+    model: ${lit_mod}
+    datamodule: ${dm}
+    ckpt_path: ${ckpt}
+
+defaults:
+  - _self_
+

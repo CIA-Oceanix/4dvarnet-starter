@@ -1,6 +1,6 @@
 import numpy as np
 import pytorch_lightning as pl
-import kornia
+import kornia.filters as kfilts
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -35,28 +35,31 @@ class Lit4dVarNet(pl.LightningModule):
 
     def forward(self, batch):
         return self.solver(batch)
+    
+    def step(self, batch, phase=""):
+        if self.training and batch.tgt.isfinite().float().mean() < 0.9:
+            return None, None
 
-    def step(self, batch, phase="", opt_idx=None):
-        out = self(batch=batch)
-        loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
-        grad_loss = self.weighted_mse(
-            kornia.filters.sobel(out) - kornia.filters.sobel(batch.tgt), self.rec_weight
-        )
+        out, loss = self.base_step(batch, phase)
+        grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilt.sobel(batch.tgt), self.rec_weight)
         prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
-        with torch.no_grad():
-            rmse = (
-                self.weighted_mse(
-                    (out - batch.tgt) * self.norm_stats[1], self.rec_weight
-                ) ** 0.5
-            )
-            self.log(f"{phase}_rmse", rmse, prog_bar=True, on_step=False, on_epoch=True)
-            self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
-            self.log(
-                f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True
-            )
+        self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
 
         training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost
         return training_loss, out
+
+    def base_step(self, batch, phase=""):
+        out = self(batch=batch)
+        loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
+
+        with torch.no_grad():
+            rmse = (self.weighted_mse(
+                (out - batch.tgt) * self.norm_stats[1], self.rec_weight
+            ) ** 0.5)
+            self.log(f"{phase}_rmse", rmse, prog_bar=True, on_step=False, on_epoch=True)
+            self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
+
+        return loss, out
 
     def configure_optimizers(self):
         return self.opt_fn(self)
@@ -80,6 +83,7 @@ class Lit4dVarNet(pl.LightningModule):
         rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
             self.test_data, self.rec_weight.cpu().numpy()
         )
+
         if isinstance(rec_da, list):
             rec_da = rec_da[0]
 
@@ -112,11 +116,12 @@ class GradSolver(nn.Module):
     def solver_step(self, state, batch, step):
         var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
-
+        gmod = self.grad_mod(grad)
         state_update = (
-            1 / (step + 1) * self.grad_mod(grad)
+            1 / (step + 1) * gmod
             + self.lr_grad * (step + 1) / self.n_step * grad
         )
+            
         return state - state_update
 
     def forward(self, batch):
@@ -151,7 +156,6 @@ class ConvLstmGradModel(nn.Module):
 
         self.dropout = torch.nn.Dropout(dropout)
         self._state = []
-
         self.down = nn.AvgPool2d(downsamp) if downsamp is not None else nn.Identity()
         self.up = (
             nn.UpsamplingBilinear2d(scale_factor=downsamp)
@@ -193,14 +197,19 @@ class ConvLstmGradModel(nn.Module):
 
 
 class BaseObsCost(nn.Module):
+    def __init__(self, w=1) -> None:
+        super().__init__()
+        self.w=w
+
     def forward(self, state, batch):
         msk = batch.input.isfinite()
-        return F.mse_loss(state[msk], batch.input.nan_to_num()[msk])
+        return self.w * F.mse_loss(state[msk], batch.input.nan_to_num()[msk])
 
 
 class BilinAEPriorCost(nn.Module):
-    def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None):
+    def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None, bilin_quad=True):
         super().__init__()
+        self.bilin_quad = bilin_quad
         self.conv_in = nn.Conv2d(
             dim_in, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
         )
@@ -214,9 +223,12 @@ class BilinAEPriorCost(nn.Module):
         self.bilin_21 = nn.Conv2d(
             dim_hidden, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
         )
-        self.bilin_22 = nn.Conv2d(
-            dim_hidden, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
-        )
+        if bilin_quad:
+            self.bilin_22 = self.bilin_21
+        else:
+            self.bilin_22 = nn.Conv2d(
+                dim_hidden, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
+            )
 
         self.conv_out = nn.Conv2d(
             2 * dim_hidden, dim_in, kernel_size=kernel_size, padding=kernel_size // 2
@@ -235,7 +247,7 @@ class BilinAEPriorCost(nn.Module):
         x = self.conv_hidden(F.relu(x))
 
         x = self.conv_out(
-            torch.cat([self.bilin_1(x), self.bilin_21(x) * self.bilin_21(x)], dim=1)
+            torch.cat([self.bilin_1(x), self.bilin_21(x) * self.bilin_22(x)], dim=1)
         )
         x = self.up(x)
         return x

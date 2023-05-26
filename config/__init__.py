@@ -1,7 +1,5 @@
 from hydra.core.config_store import ConfigStore
 from omegaconf import OmegaConf
-from pathlib import Path
-from itertools import product
 
 OmegaConf.register_new_resolver(
     "_singleton",
@@ -34,6 +32,7 @@ cs = ConfigStore.instance()
 
 domains = {
     "eNATL": dict(lon=[-100, 42], lat=[7, 69]),
+    "ceNATL": dict(lon=[-61, -9], lat=[12, 64]),
     "NATL": dict(lon=[-77, 5], lat=[27, 64]),
     "cNATL": dict(lon=[-51, -9], lat=[32, 54]),
     "osmosis": dict(lon=[-22.5, -10.5], lat=[44, 56]),
@@ -42,7 +41,8 @@ domains = {
     "4gf": dict(lon=[-71., -29.], lat=[32, 44]),
     "calm": dict(lon=[-41., -29.], lat=[32, 44]),
     "qnatl": dict(lon=[-77., 0.], lat=[27., 64.]),
-    "canaries": dict(lon=[-30, -15], lat=[32, 47])
+    "canaries": dict(lon=[-31, -14], lat=[33, 46]),
+    "canaries_t": dict(lon=[-29, -17], lat=[33, 45]),
 }
 
 for n, d in domains.items():

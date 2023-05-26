@@ -1,6 +1,6 @@
 import hydra
 
-@hydra.main(config_path='config', config_name='main', version_base='1.2')
+@hydra.main(config_path='config', config_name='main', version_base='1.3')
 def main(cfg):
     hydra.utils.call(cfg.entrypoints)
 

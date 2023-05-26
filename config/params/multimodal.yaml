@@ -1,0 +1,22 @@
+# @package _global_
+
+## Specific components
+sst_da: 
+  _target_: contrib.multimodal.load_data_with_sst
+  obs_var: five_nadirs
+
+obs_cost:
+  _target_: contrib.multimodal.MultiModalObsCost
+  dim_in: ${datamodule.xrds_kw.patch_dims.time}
+  dim_hidden: 5
+
+
+## Override config
+datamodule:
+  _target_: contrib.multimodal.MultiModalDataModule
+  input_da: ${sst_da}
+
+model:
+  solver:
+    obs_cost: ${obs_cost}
+
