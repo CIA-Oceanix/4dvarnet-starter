@@ -43,8 +43,9 @@ datamodule:
     strides: { time: 1, lat: 200, lon: 200}
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 4, num_workers: 1}
-  aug_factor: 2
-  aug_only: True
+  aug_kw:
+    aug_factor: 2
+    aug_only: True
 
 model:
   _target_: src.models.Lit4dVarNet
@@ -88,7 +89,7 @@ entrypoints:
       test_domain:
         time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
         lat: ${domain.test.lat}
-        lon: ${domain.test.lat}
+        lon: ${domain.test.lon}
 
 defaults:
   - /domain: gf

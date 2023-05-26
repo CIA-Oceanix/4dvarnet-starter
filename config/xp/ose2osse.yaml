@@ -16,8 +16,9 @@ osse_datamodule:
     obs_from_tgt: true
   xrds_kw: ${datamodule.xrds_kw}
   dl_kw: ${datamodule.dl_kw}
-  aug_factor: 5
-  aug_only: 0
+  aug_kw:
+    aug_factor: 5
+    aug_only: 0
 
 ose_datamodule:
   _target_: src.data.BaseDataModule

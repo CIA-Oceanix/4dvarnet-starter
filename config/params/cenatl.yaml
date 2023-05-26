@@ -1,0 +1,22 @@
+# @package _global_
+
+defaults:
+  # - /params/bigger_model.yaml
+  - override /domain: canaries_t
+  - _self_
+
+# trainer:
+#   accumulate_grad_batches: 0
+
+datamodule:
+  input_da:
+    _target_: src.utils.load_enatl
+  domains:
+    val: {time: {_args_: ["2009-07-01", "2010-09-30"]}}
+    test: {time: {_args_: ["2009-10-01", "2010-12-30"]}}
+    train: {time: {_args_: ["2010-01-01", "2010-06-30"]}}
+  dl_kw: {batch_size: 8}
+  aug_kw:
+    aug_factor: 5
+    aug_only: False
+
