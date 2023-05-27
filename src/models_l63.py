@@ -79,7 +79,7 @@ def create_filename_ckpt(suffix,params_data,params_model):
     print(params_data)
     print(params_model)
     
-    filename_chkpt = 'model-l63-' 
+    filename_chkpt = 'model-l63-'+params_model.suffix_exp 
     if params_model.degradation_operator == 'no-degradation' :
         filename_chkpt = filename_chkpt +  params_model.solver +'-' 
     else:
