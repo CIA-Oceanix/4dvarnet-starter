@@ -63,6 +63,8 @@ class RearrangedConvLstmGradModel(src.models.ConvLstmGradModel):
         x = einops.rearrange(x, self.rearrange_aft)
         return x
 
+
+
 class LitLorenz(src.models.Lit4dVarNet):
     def step(self, batch, phase="", opt_idx=None):
         loss, out = super().base_step(batch, phase)
@@ -71,18 +73,6 @@ class LitLorenz(src.models.Lit4dVarNet):
             - kfilts.sobel(batch.tgt[..., None]).squeeze(), self.rec_weight)
         return  loss + prior_cost, out
 
-    def on_test_epoch_end(self):
-        rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
-            self.test_data, self.rec_weight.cpu().numpy()
-        )
-        m, s = self.trainer.datamodule.norm_stats()
-        rec_ds  = (rec_da * s + m).assign_coords(v0=['input', 'tgt', 'out']).to_dataset(dim='v0')
-        rec_ds.to_netcdf('tmp/lorenz.nc')
-        print(
-            xr.Dataset(dict(
-                mse=((rec_ds.tgt - rec_ds.out)**2).mean(),
-                percent_err=np.mean((rec_ds.tgt - rec_ds.out)**2)/np.mean(rec_ds.tgt**2)
-            )).to_array()
-            .to_dataframe(name='4dVarNet').to_markdown()
-        )
 
+def mse(rec_ds): return ((rec_ds.tgt - rec_ds.out)**2).mean().values.item()
+def percent_err(rec_ds): return (np.mean((rec_ds.tgt - rec_ds.out)**2)/np.mean(rec_ds.tgt**2)).mean().values.item()

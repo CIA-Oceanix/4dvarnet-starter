@@ -24,6 +24,9 @@ def pipe(inp, fns):
 def kwgetattr(obj, name):
     return getattr(obj, name)
 
+def callmap(inp, fns):
+    return [fn(inp) for fn in fns]
+
 def half_lr_adam(lit_mod, lr):
     return torch.optim.Adam(
         [
@@ -112,8 +115,8 @@ def get_cropped_hanning_mask(patch_dims, crop, **kwargs):
     return patch_weight.cpu().numpy()
 
 
-def get_triang_time_wei(patch_dims, crop=0, offset=0):
-    pw = get_constant_crop(patch_dims, crop)
+def get_triang_time_wei(patch_dims, offset=0, **crop_kw):
+    pw = get_constant_crop(patch_dims, **crop_kw)
     return np.fromfunction(
         lambda t, *a: (
             (1 - np.abs(offset + 2 * t - patch_dims["time"]) / patch_dims["time"]) * pw
@@ -174,6 +177,18 @@ def load_full_natl_data(
     return xr.Dataset(dict(input=inp, tgt=(gt.dims, gt.values)), inp.coords).to_array()
 
 
+def rmse_based_scores_from_ds(ds, ref_variable='tgt', study_variable='out'):
+    try:
+        return rmse_based_scores(ds[ref_variable], ds[study_variable])[2:]
+    except:
+        return [np.nan, np.nan]
+
+def psd_based_scores_from_ds(ds, ref_variable='tgt', study_variable='out'):
+    try:
+        return psd_based_scores(ds[ref_variable], ds[study_variable])[1:]
+    except:
+        return [np.nan, np.nan]
+
 def rmse_based_scores(da_rec, da_ref):
     rmse_t = (
         1.0
@@ -190,8 +205,8 @@ def rmse_based_scores(da_rec, da_ref):
     return (
         rmse_t,
         rmse_xy,
-        np.round(leaderboard_rmse.values, 5),
-        np.round(reconstruction_error_stability_metric, 5),
+        np.round(leaderboard_rmse.values, 5).item(),
+        np.round(reconstruction_error_stability_metric, 5).item(),
     )
 
 
@@ -229,8 +244,8 @@ def psd_based_scores(da_rec, da_ref):
     psd_da.name = "psd_score"
     return (
         psd_da.to_dataset(),
-        np.round(shortest_spatial_wavelength_resolved, 3),
-        np.round(shortest_temporal_wavelength_resolved, 3),
+        np.round(shortest_spatial_wavelength_resolved, 3).item(),
+        np.round(shortest_temporal_wavelength_resolved, 3).item(),
     )
 
 
