@@ -37,7 +37,7 @@ model:
     alpha_prior: 0.1
     alpha_mse: 1.
     alpha_var_cost_grad: 0.001
-    lr_grad: ?? #1e-2 #1.e3
+    lr_grad: 0. #?? #1e-2 #1.e3
     lr_rnd: 0.e-3
     sig_rnd_init: 0.e-2
     sig_lstm_init: 0.e-2
@@ -48,7 +48,7 @@ model:
     sig_perturbation_grad: 1e-2
     alpha_perturbation_grad: 0.9
     gamma_degradation: 1e-1
-    type_step_lstm: 'linear-relu'#'linear'#
+    type_step_lstm: 'linear-relu' #'linear'#
     param_lstm_step: -1 # 80 #20 #-1 #
     shapeData:
       - 3
