@@ -112,7 +112,8 @@ entrypoints:
 #    ckpt: 'outputs/2023-05-27/10-52-49/base_l63/checkpoints/model-l63--lstmonly-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.5454-epoch=377.ckpt'
 #    ckpt: 'outputs/2023-05-27/10-50-07/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.0794-epoch=302.ckpt'
 #    ckpt: 'outputs/2023-05-29/10-36-42/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_02-dgrad100-val_loss=3.3930-epoch=379.ckpt'
-    ckpt: 'outputs/2023-05-27/10-53-10/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.4943-epoch=375.ckpt'
+#    ckpt: 'outputs/2023-05-27/10-53-10/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.4943-epoch=375.ckpt'
+    ckpt: 'outputs/2023-05-27/10-51-18/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.3069-epoch=377.ckpt'
 #    ckpt: 'outputs/2023-05-29/10-36-42/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_02-dgrad100-val_loss=3.3930-epoch=379.ckpt'
 #    ckpt: 'outputs/2023-05-27/10-53-10/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.4943-epoch=375.ckpt'
 #    test_fn:
