@@ -84,7 +84,7 @@ def base_testing(trainer, dm, lit_mod,ckpt):
     x_rec = lit_mod.x_rec[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
 
     var_test  = np.mean( (X_test - np.mean(X_test,axis=0))**2 )
-    mse = np.mean( (lit_mod.x_rec-X_test) **2 ) 
+    mse = np.mean( (x_rec-X_test) **2 ) 
     mse_i   = np.mean( (1.-mask_test.squeeze()) * (x_rec-X_test) **2 ) / np.mean( (1.-mask_test) )
     mse_r   = np.mean( mask_test.squeeze() * (x_rec-X_test) **2 ) / np.mean( mask_test )
     
