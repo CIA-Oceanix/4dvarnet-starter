@@ -50,6 +50,7 @@ model:
     gamma_degradation: 1e-1
     type_step_lstm: 'linear-relu' #'linear'#
     param_lstm_step: 80 #20 #-1 #
+    dt_mse_test: 10
     shapeData:
       - 3
       - ${datamodule.input_data.param_dataset.dT}
