@@ -576,24 +576,22 @@ class GradSolver_with_rnd(nn.Module):
         grad_update, hidden, cell = self.model_Grad(hidden, cell, x_k, var_cost_grad, normgrad_, iter)
 
         if self.type_step_lstm == 'linear' :
-            alpha_step_lstm = 1. / (iter + 1) 
+            alpha_step_lstm = 1. / (iter + 1)
         elif self.type_step_lstm == 'linear-relu' :
             alpha_step_lstm = torch.relu( torch.Tensor( [1. / (iter + 1) - 1. / (self.param_lstm_step + 1) ]) ).to(device)
+            self.lr_grad * (iter + 1) /  ( normgrad_ * self.n_step )
         elif self.type_step_lstm == 'sigmoid' :
             alpha_step_lstm = np.exp(-1. * iter / self.param_lstm_step )
             alpha_step_lstm = alpha_step_lstm / ( 1. + alpha_step_lstm )
 
+
         state_update = (
             alpha_step_lstm * grad_update
             #+ self.lr_grad * (iter + 1) / self.n_step * var_cost_grad
-            + self.lr_grad * (iter + 1) /  ( normgrad_ * self.n_step ) * var_cost_grad
+            + self.lr_grad * (1. - alpha_step_lstm ) /  ( normgrad_ ) * var_cost_grad
             + self.lr_rnd * np.sqrt( (iter + 1) / self.n_step ) * torch.randn(grad_update.size()).to(device)
             )
                             
-        print('')
-        m1 = torch.mean( torch.abs( alpha_step_lstm *  grad_update ) )
-        m2 = torch.mean( torch.abs( (iter + 1) /  ( normgrad_ * self.n_step ) * var_cost_grad ) )
-        print('.. %.3e -- %.3e'%(m1.detach().cpu().numpy(),m2.detach().cpu().numpy()))
         x_k_plus_1 = x_k - state_update
         
         return x_k_plus_1, hidden, cell, normgrad_
@@ -696,7 +694,8 @@ class GradSolver_with_state_rnd(nn.Module):
 
         state_update = (
             alpha_step_lstm * grad_update
-            + self.lr_grad * (iter + 1) /  ( normgrad_ * self.n_step ) * var_cost_grad
+            #+ self.lr_grad * (iter + 1) /  ( normgrad_ * self.n_step ) * var_cost_grad
+            + self.lr_grad * (1. - alpha_step_lstm ) /  ( normgrad_ ) * var_cost_grad
             + self.lr_rnd * np.sqrt( (iter + 1) / self.n_step ) * torch.randn(grad_update.size()).to(device)
             )
         
