@@ -583,7 +583,7 @@ class GradSolver_with_rnd(nn.Module):
                             
         print('')
         m1 = torch.mean( torch.abs( grad_update ) )
-        m2 = torch.mean( torch.abs( (1./normgrad_,) * var_cost_grad ) )
+        m2 = torch.mean( torch.abs( (1./normgrad_) * var_cost_grad ) )
         print('.. %.3e -- %.3e'%(m1.detach().cpu().numpy(),m2.detach().cpu().numpy()))
         x_k_plus_1 = x_k - state_update
         
