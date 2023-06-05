@@ -527,6 +527,10 @@ class GradSolver_with_rnd(nn.Module):
         self.model_VarCost = Model_Var_Cost(m_NormObs, m_NormPhi, ShapeData,mod_H.DimObs,mod_H.dimObsChannel)
         
         self.type_step_lstm = type_step_lstm
+        self.param_lstm_step = param_lstm_step
+        if self.param_lstm_step == -1 :
+            self.param_lstm_step = self.n_step
+        
         self.eps = eps
                 
         with torch.no_grad():
