@@ -581,6 +581,8 @@ class GradSolver_with_rnd(nn.Module):
             + self.lr_rnd * np.sqrt( (iter + 1) / self.n_step ) * torch.randn(grad_update.size()).to(device)
             )
                             
+        print('')
+        print('.. %.3e -- %.3e'%(grad_update.detach().cpu().numpy(),(( normgrad_ * self.n_step ) * var_cost_grad).detach().cpu().numpy()))
         x_k_plus_1 = x_k - state_update
         
         return x_k_plus_1, hidden, cell, normgrad_
