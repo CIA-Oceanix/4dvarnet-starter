@@ -579,11 +579,11 @@ class GradSolver_with_rnd(nn.Module):
             alpha_step_lstm = 1. / (iter + 1)
         elif self.type_step_lstm == 'linear-relu' :
             alpha_step_lstm = torch.relu( torch.Tensor( [1. / (iter + 1) - 1. / (self.param_lstm_step + 1) ]) ).to(device)
-            self.lr_grad * (iter + 1) /  ( normgrad_ * self.n_step )
         elif self.type_step_lstm == 'sigmoid' :
             alpha_step_lstm = np.exp(-1. * iter / self.param_lstm_step )
             alpha_step_lstm = alpha_step_lstm / ( 1. + alpha_step_lstm )
 
+        print(iter)
         print( alpha_step_lstm )
         m1 = torch.sqrt( torch.mean( (alpha_step_lstm * grad_update)**2 ) ).detach().cpu().numpy()
         m2 = torch.sqrt( torch.mean( (self.lr_grad * (1. - alpha_step_lstm ) / ( normgrad_ )* var_cost_grad)**2 ) ).detach().cpu().numpy()
