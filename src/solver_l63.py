@@ -582,7 +582,9 @@ class GradSolver_with_rnd(nn.Module):
             )
                             
         print('')
-        print('.. %.3e -- %.3e'%(grad_update.detach().cpu().numpy(),(( normgrad_ * self.n_step ) * var_cost_grad).detach().cpu().numpy()))
+        m1 = torch.mean( torch.abs( grad_update ) )
+        m2 = torch.mean( torch.abs( var_cost_grad ) )
+        print('.. %.3e -- %.3e'%(m1.detach().cpu().numpy(),m2.detach().cpu().numpy()))
         x_k_plus_1 = x_k - state_update
         
         return x_k_plus_1, hidden, cell, normgrad_
