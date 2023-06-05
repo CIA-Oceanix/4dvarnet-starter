@@ -31,7 +31,7 @@ model:
     batch_size: 128
     DimAE: 10
     phi_param: 'unet'
-    solver: '4dvarnet-with-rnd' #'4dvarnet-with-state-and-rnd' # #'4dvarnet-with-subgradients' #'4dvarnet-with-rnd-grad' #''4dvarnet-with-state-and-rnd' #
+    solver: ?? #'4dvarnet-with-rnd' #'4dvarnet-with-state-and-rnd' # #'4dvarnet-with-subgradients' #'4dvarnet-with-rnd-grad' #''4dvarnet-with-state-and-rnd' #
     dim_grad_solver: 100 #25
     dropout: 0.2
     alpha_prior: 0.1
@@ -42,14 +42,14 @@ model:
     sig_rnd_init: 0.e-2
     sig_lstm_init: 0.e-2
     init_state: 'obs_interp' # ?? #'zeros' #
-    suffix_exp: '-lstm+grad' #?? #'
+    suffix_exp: ?? #'-lstm+grad' #'
     UsePeriodicBoundary: False
     degradation_operator: 'gaussian_smoothing' #'no-degradation' #??  # 
     sig_perturbation_grad: 1e-2
     alpha_perturbation_grad: 0.9
     gamma_degradation: 1e-1
     type_step_lstm: 'linear-relu' #'linear'#
-    param_lstm_step: 80 #20 #-1 #
+    param_lstm_step: 50 #20 #-1 #
     dt_mse_test: 10
     shapeData:
       - 3
@@ -91,16 +91,16 @@ trainer:
 entrypoints:
   - _target_: pytorch_lightning.seed_everything
     seed: 333
-#  - _target_: src.train.base_training  # src.train.fine_tuning # 
-#    trainer: ${trainer}
-#    lit_mod: ${model}
-#    dm: ${datamodule}
-#    ckpt: 'outputs/2023-05-24/16-55-55/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.2830-epoch=179.ckpt'
-#    ckpt: 'outputs/2023-05-23/22-14-34/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.0530-epoch=337.ckpt'
-  - _target_: src.test.base_testing #
+  - _target_: src.train.base_training  # src.train.fine_tuning # 
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
+#    ckpt: 'outputs/2023-05-24/16-55-55/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.2830-epoch=179.ckpt'
+#    ckpt: 'outputs/2023-05-23/22-14-34/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.0530-epoch=337.ckpt'
+#  - _target_: src.test.base_testing #
+#    trainer: ${trainer}
+#    lit_mod: ${model}
+#    dm: ${datamodule}
 #    ckpt: 'outputs/2023-05-23/14-35-56/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-degrad-JamesData-Obs08-Noise02-unet-igrad10_02-dgrad100-val_loss=3.4006-epoch=382.ckpt'
 #    ckpt: 'outputs/2023-05-23/22-14-34/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.0530-epoch=337.ckpt'
 #    ckpt: 'outputs/2023-05-23/22-00-02/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_02-dgrad100-val_loss=8.8671-epoch=341.ckpt'
@@ -118,7 +118,7 @@ entrypoints:
 #    ckpt: 'outputs/2023-05-27/10-53-10/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=9.2530-epoch=383.ckpt'
 #    ckpt: 'outputs/2023-05-29/10-35-40/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_02-dgrad100-val_loss=10.1159-epoch=373.ckpt'
 #    ckpt: 'outputs/2023-05-29/18-04-04/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_02-dgrad100-val_loss=8.7649-epoch=297.ckpt'
-    ckpt: 'outputs/2023-05-29/12-30-19/base_l63/checkpoints/model-l63--lstmonly-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.4942-epoch=219.ckpt'
+#    ckpt: 'outputs/2023-05-29/12-30-19/base_l63/checkpoints/model-l63--lstmonly-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.4942-epoch=219.ckpt'
 #    ckpt: 'outputs/2023-05-27/10-02-47/base_l63/checkpoints/model-l63--lstmonly-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_02-dgrad100-val_loss=8.6829-epoch=225.ckpt'
 #    ckpt: 'outputs/2023-05-27/10-47-03/base_l63/checkpoints/model-l63--lstmonly-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.4832-epoch=377.ckpt'
 #    ckpt: 'outputs/2023-06-04/09-45-50/base_l63/checkpoints/model-l63--lstmonly-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.3915-epoch=339.ckpt'
