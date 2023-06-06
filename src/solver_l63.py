@@ -579,7 +579,9 @@ class GradSolver_with_rnd(nn.Module):
 
         grad_update, hidden, cell = self.model_Grad(hidden, cell, x_k, var_cost_grad, normgrad_, iter)
 
-        if self.type_step_lstm == 'linear' :
+        if self.type_step_lstm == 'constant' :
+            alpha_step_lstm = 1. / (self.param_lstm_step)            
+        elif self.type_step_lstm == 'linear' :
             alpha_step_lstm = 1. / (iter + 1)
         elif self.type_step_lstm == 'linear-relu' :
             alpha_step_lstm = torch.relu( torch.Tensor( [1. / (iter + 1) - 1. / (self.param_lstm_step + 1) ]) ).to(device)
@@ -690,7 +692,9 @@ class GradSolver_with_state_rnd(nn.Module):
 
         grad_update, hidden, cell = self.model_Grad(hidden, cell, x_k, var_cost_grad, normgrad_, iter)
    
-        if self.type_step_lstm == 'linear' :
+        if self.type_step_lstm == 'constant' :
+            alpha_step_lstm = 1. / (self.param_lstm_step)            
+        elif self.type_step_lstm == 'linear' :
             alpha_step_lstm = 1. / (iter + 1) 
         elif self.type_step_lstm == 'linear-relu' :
             alpha_step_lstm = torch.relu( torch.Tensor( [1. / (iter + 1) - 1. / (self.param_lstm_step + 1) ]) ).to(device)
