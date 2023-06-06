@@ -589,9 +589,9 @@ class GradSolver_with_rnd(nn.Module):
 
         #print(iter)
         #print( alpha_step_lstm )
-        m1 = torch.sqrt( torch.mean( (alpha_step_lstm * grad_update)**2 ) ).detach().cpu().numpy()
-        m2 = torch.sqrt( torch.mean( (self.lr_grad * (1. - alpha_step_lstm ) / ( normgrad_ )* var_cost_grad)**2 ) ).detach().cpu().numpy()
-        print('.. %.3e -- %.3e'%(m1,m2))
+        #m1 = torch.sqrt( torch.mean( (alpha_step_lstm * grad_update)**2 ) ).detach().cpu().numpy()
+        #m2 = torch.sqrt( torch.mean( (self.lr_grad * (1. - alpha_step_lstm ) / ( normgrad_ )* var_cost_grad)**2 ) ).detach().cpu().numpy()
+        #print('.. %.3e -- %.3e'%(m1,m2))
         #print( ))
         #print( torch.sqrt( torch.mean( (self.lr_grad * (1. - alpha_step_lstm ) / ( normgrad_ )* var_cost_grad)**2 ) ))
 
