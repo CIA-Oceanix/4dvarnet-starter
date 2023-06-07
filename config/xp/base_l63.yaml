@@ -55,7 +55,7 @@ model:
     dt_mse: 10
     post_projection: False
     post_median_filter: True
-    median_filter_width: 5
+    median_filter_width: 15
     shapeData:
       - 3
       - ${datamodule.input_data.param_dataset.dT}
