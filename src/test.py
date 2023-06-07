@@ -145,17 +145,11 @@ def base_testing(trainer, dm, lit_mod,ckpt,num_members=1):
     # metrics for the mean among members
     mean_x_rec = mean_x_rec.squeeze()
     mse = np.mean( (mean_x_rec-X_test) **2 ) 
-    mse_i   = np.mean( (1.-mask_test.squeeze()) * (x_rec-X_test) **2 ) / np.mean( (1.-mask_test) )
-    mse_r   = np.mean( mask_test.squeeze() * (x_rec-X_test) **2 ) / np.mean( mask_test )
     
     nmse = mse / var_test
-    nmse_i = mse_i / var_test
-    nmse_r = mse_r / var_test
     
     print("..... Performance metrics, mean member(test data)")
     print(".. MSE ALL.   : %.3f / %.3f"%(mse,nmse))
-    print(".. MSE ObsData: %.3f / %.3f"%(mse_r,nmse_r))
-    print(".. MSE Interp : %.3f / %.3f"%(mse_i,nmse_i))     
     
     
     # saving dataset
