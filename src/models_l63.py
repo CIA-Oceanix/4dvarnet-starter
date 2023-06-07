@@ -744,6 +744,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
             loss = loss + loss1
         
         self.log("tr_mse", self.stdTr**2 * metrics['mse'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("tr_gmse", self.stdTr**2 * metrics['mse_grad'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         
         # initial grad value
         if self.hparams.automatic_optimization == False :
@@ -767,6 +768,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         self.log('val_loss', 1e3 * loss , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log("val_mse", self.stdTr**2 * metrics['mse'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("val_gmse", self.stdTr**2 * metrics['mse_grad'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log("val_gvar", metrics['var_grad'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
 
@@ -781,6 +783,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
             out[0] = self.model.phi_r(out[0]) 
 
         self.log("test_mse", self.stdTr**2 * metrics['mse'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("test_gmse", self.stdTr**2 * metrics['mse_grad'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log("test_gvar", metrics['var_grad'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
 
         if self.x_rec is None :
@@ -871,15 +874,17 @@ class Lit4dVarNet_L63(pl.LightningModule):
                 #print( self.hparams.alpha_var_cost_grad * loss_var_cost_grad )
             else:
                 loss_var_cost_grad = 0.
-            #print( loss_var_cost_grad )
-            
-            print(' %.3e -- %.3e'%( loss_mse.detach().cpu().numpy() , loss_gmse.detach().cpu().numpy()) )
+
+            #print( loss_var_cost_grad )            
+            #print(' %.3e -- %.3e'%( loss_mse.detach().cpu().numpy() , loss_gmse.detach().cpu().numpy()) )
+
             loss = self.hparams.alpha_mse * loss_mse + self.hparams.alpha_gmse * loss_gmse
             loss += 0.5 * self.hparams.alpha_prior * (loss_prior + loss_prior_gt)
             loss += self.hparams.alpha_var_cost_grad * loss_var_cost_grad
             # metrics
             mse       = loss_mse.detach()
-            metrics   = dict([('mse',mse),('var_grad',loss_var_cost_grad)])
+            mse_grad  = loss_gmse.detach()
+            metrics   = dict([('mse',mse),('mse_grad',mse_grad),('var_grad',loss_var_cost_grad)])
 
             if (phase == 'val') or (phase == 'test'):                
                 outputs = outputs.detach()
