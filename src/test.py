@@ -13,6 +13,10 @@ def save_netcdf(saved_path1, gt, pred, obs,mask):
     lat: 1d numpy array
     time: 1d array-like of time corresponding to the experiment
     '''
+    print(gt.shape)
+    print(obs.shape)
+    print(pred.shape)
+    print(mask.shape)
 
     xrdata = xr.Dataset( \
         data_vars={'gt': (('idx', 'l63','time'), gt),
