@@ -815,7 +815,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         gt = self.x_gt[:,:,self.hparams.dt_mse:self.x_gt.shape[2]-self.hparams.dt_mse]
 
         mse = np.mean( (rec - gt)**2 )
-        gmse = torch.mean(( (rec[:,:,1:] - rec[:,:,:-1]) - (gt[:,:,1:] - gt[:,:,:-1])) ** 2)
+        gmse = np.mean(( (rec[:,:,1:] - rec[:,:,:-1]) - (gt[:,:,1:] - gt[:,:,:-1])) ** 2)
 
         print('... mse/gmse test: %.3f -- %.3f '%(mse,gmse))
 
