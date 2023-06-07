@@ -638,6 +638,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.epsilon = 1e-6
         
         self.init_state = self.hparams.init_state if hasattr(self.hparams, 'init_state') else 'obs_interp'
+        self.hparams.dt_mse = self.hparams.dt_mse if hasattr(self.hparams, 'dt_mse') else 10
+        self.hparams.alpha_gmse = self.hparams.alpha_gmse if hasattr(self.hparams, 'alpha_gmse') else 0.
         
     def update_params(self,n_grad = None , k_n_grad = None,lr_grad=None,lr_rnd=None,sig_rnd_init=None,sig_lstm_init=None,param_lstm_step=None):
 
