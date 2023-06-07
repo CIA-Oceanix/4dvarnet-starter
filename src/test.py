@@ -5,7 +5,7 @@ import xarray as xr
 torch.set_float32_matmul_precision('high')
 
 
-def save_netcdf(saved_path1, gt, pred, obs):
+def save_netcdf(saved_path1, gt, pred, obs,mask):
     '''
     saved_path1: string
     pred: 3d numpy array (4DVarNet-based predictions)
@@ -16,8 +16,9 @@ def save_netcdf(saved_path1, gt, pred, obs):
 
     xrdata = xr.Dataset( \
         data_vars={'gt': (('idx', 'l63','time'), gt),
-                   'obs': (('idx', 'l63','time'), gt),
-                   'rec': (('idx', 'l63','time'), gt)}, \
+                   'obs': (('idx', 'l63','time'), obs),
+                   'mask': (('idx', 'l63','time'), mask),
+                   'rec': (('idx', 'l63','time'), pred)}, \
         coords={'idx': np.arange(gt.shape[0]), 'l63': np.arange(gt.shape[1]), 'time': np.arange(gt.shape[2])})
     xrdata.to_netcdf(path=saved_path1, mode='w')
 
@@ -134,6 +135,7 @@ def base_testing(trainer, dm, lit_mod,ckpt):
     # saving dataset
     result_path = '/tmp/res.nc'
     x_test_obs = x_test_obs[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
+    mask_test_obs = mask_test[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
     print('..... save .c file with results: '+result_path)
-    save_netcdf(result_path, X_test, x_rec, x_test_obs )
+    save_netcdf(result_path, X_test, x_rec, x_test_obs, mask_test_obs )
     
