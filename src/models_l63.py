@@ -628,7 +628,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         
         self.w_loss  = 1.#torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
         self.x_rec   = None # variable to store output of test method
-        self.x_rec_obs = None
+        self.x_obs = None
         self.x_gt   = None # variable to store output of test method
 
         self.set_norm_stats = stats_training_data if stats_training_data is not None else (0.0,1.)
@@ -823,7 +823,16 @@ class Lit4dVarNet_L63(pl.LightningModule):
             #print( torch.sqrt( torch.mean( dx**2 )) )
             #print( torch.sqrt( torch.mean( var_cost_grad**2 )) )
         return loss
+    def compute_mse_loss(self,outputs,targets_GT):
+        
+        rec = outputs[:,:,self.params.dt_mse:outputs.size(2)-self.params.dt_mse]
+        gt = targets_GT[:,:,self.params.dt_mse:outputs.size(2)-self.params.dt_mse]
+        
+        loss_mse = torch.mean((rec - gt) ** 2)        
+        loss_gmse = torch.mean(( (rec[:,:,1:] - rec[:,:,:-1]) - (gt[:,:,1:] - gt[:,:,:-1])) ** 2)
 
+        return loss_mse,loss_gmse
+    
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
         with torch.set_grad_enabled(True):
             inputs_init_,inputs_obs,masks,targets_GT = batch
@@ -843,6 +852,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
             outputs, hidden_new, cell_new, normgrad_ = self.model(inputs_init, inputs_obs, masks, hidden = hidden , cell = cell , normgrad = normgrad, prev_iter = prev_iter )
 
             # losses
+            loss_mse,loss_gmse = self.compute_mse_loss(outputs,targets_GT)
             loss_mse = torch.mean((outputs - targets_GT) ** 2)
             loss_prior = torch.mean((self.model.phi_r(outputs) - outputs) ** 2)
             loss_prior_gt = torch.mean((self.model.phi_r(targets_GT) - targets_GT) ** 2)
@@ -857,7 +867,9 @@ class Lit4dVarNet_L63(pl.LightningModule):
                 loss_var_cost_grad = 0.
             #print( loss_var_cost_grad )
             
-            loss = self.hparams.alpha_mse * loss_mse
+            print( loss_mse )
+            print( loss_gmse )
+            loss = self.hparams.alpha_mse * loss_mse + self.hparams.alpha_gmse * loss_gmse
             loss += 0.5 * self.hparams.alpha_prior * (loss_prior + loss_prior_gt)
             loss += self.hparams.alpha_var_cost_grad * loss_var_cost_grad
             # metrics
