@@ -133,7 +133,7 @@ def base_testing(trainer, dm, lit_mod,ckpt):
     
     # saving dataset
     result_path = ckpt.replace('.ckpt','_res.nc')
-    x_test_obs = x_test_obs[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
+    x_test_obs = lit_mod.x_obs[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
     print('..... save .c file with results: '+result_path)
     save_netcdf(result_path, X_test, x_rec, x_test_obs.squeeze(), mask_test.squeeze() )
     
