@@ -36,6 +36,7 @@ model:
     dropout: 0.2
     alpha_prior: 0.1
     alpha_mse: 1.
+    alpha_gmse: 10.
     alpha_var_cost_grad: 0.001
     lr_grad: ?? #1e-2 #1.e3
     lr_rnd: 0.e-3
@@ -51,6 +52,7 @@ model:
     type_step_lstm: 'constant' #'linear-relu' #'linear'#
     param_lstm_step: 50 #20 #-1 #
     dt_mse_test: 10
+    dt_mse: 10
     shapeData:
       - 3
       - ${datamodule.input_data.param_dataset.dT}

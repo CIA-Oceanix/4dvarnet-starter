@@ -825,8 +825,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
         return loss
     def compute_mse_loss(self,outputs,targets_GT):
         
-        rec = outputs[:,:,self.params.dt_mse:outputs.size(2)-self.params.dt_mse]
-        gt = targets_GT[:,:,self.params.dt_mse:outputs.size(2)-self.params.dt_mse]
+        rec = outputs[:,:,self.hparams.dt_mse:outputs.size(2)-self.hparams.dt_mse]
+        gt = targets_GT[:,:,self.hparams.dt_mse:outputs.size(2)-self.hparams.dt_mse]
         
         loss_mse = torch.mean((rec - gt) ** 2)        
         loss_gmse = torch.mean(( (rec[:,:,1:] - rec[:,:,:-1]) - (gt[:,:,1:] - gt[:,:,:-1])) ** 2)
