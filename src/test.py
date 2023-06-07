@@ -13,11 +13,6 @@ def save_netcdf(saved_path1, gt, pred, obs,mask):
     lat: 1d numpy array
     time: 1d array-like of time corresponding to the experiment
     '''
-    print(gt.shape)
-    print(obs.shape)
-    print(pred.shape)
-    print(mask.shape)
-
     xrdata = xr.Dataset( \
         data_vars={'gt': (('idx', 'l63','time'), gt),
                    'obs': (('idx', 'l63','time'), obs),
@@ -137,7 +132,7 @@ def base_testing(trainer, dm, lit_mod,ckpt):
     print('.. Maximum absolute difference between 2 runs : %.3f'%max_diff)
     
     # saving dataset
-    result_path = '/tmp/res.nc'
+    result_path = ckpt.repalce('.ckpt','_res.nc')
     x_test_obs = x_test_obs[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
     print('..... save .c file with results: '+result_path)
     save_netcdf(result_path, X_test, x_rec, x_test_obs.squeeze(), mask_test.squeeze() )
