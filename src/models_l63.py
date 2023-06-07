@@ -809,9 +809,15 @@ class Lit4dVarNet_L63(pl.LightningModule):
             self.x_obs  = np.concatenate((self.x_obs,inputs_obs.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
                     
     def on_test_epoch_end(self):
-        mse = np.mean( (self.x_rec - self.x_gt)**2 )
+        #mse = np.mean( (self.x_rec - self.x_gt)**2 )
 
-        print('... mse test: %.3f '%mse)
+        rec = self.x_rec[:,:,self.hparams.dt_mse:self.x_gt.shape[2]-self.hparams.dt_mse]
+        gt = self.x_gt[:,:,self.hparams.dt_mse:self.x_gt.shape[2]-self.hparams.dt_mse]
+
+        mse = np.mean( (rec - gt)**2 )
+        gmse = torch.mean(( (rec[:,:,1:] - rec[:,:,:-1]) - (gt[:,:,1:] - gt[:,:,:-1])) ** 2)
+
+        print('... mse/gmse test: %.3f -- %.3f '%(mse,gmse))
 
     def loss_var_cost_grad(self,x,y,mask,phase):
         
