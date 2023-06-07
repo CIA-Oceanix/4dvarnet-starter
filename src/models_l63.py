@@ -641,6 +641,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.hparams.dt_mse = self.hparams.dt_mse if hasattr(self.hparams, 'dt_mse') else 10
         self.hparams.alpha_gmse = self.hparams.alpha_gmse if hasattr(self.hparams, 'alpha_gmse') else 0.
         self.hparams.post_projection = self.hparams.post_projection if hasattr(self.hparams, 'post_projection') else False
+        self.hparams.post_median_filter = self.hparams.post_median_filter if hasattr(self.hparams, 'post_median_filter') else False
+        self.hparams.median_filter_width = self.hparams.median_filter_width if hasattr(self.hparams, 'median_filter_width') else 3
         
     def update_params(self,n_grad = None , k_n_grad = None,lr_grad=None,lr_rnd=None,sig_rnd_init=None,sig_lstm_init=None,param_lstm_step=None):
 
@@ -781,6 +783,9 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         if self.hparams.post_projection == True :
             out[0] = self.model.phi_r(out[0]) 
+            
+        if self.hparams.post_median_filter == True :
+            out[0] = kornia.filters.median_blur(out[0], (self.hparams.median_filter_width, self.hparams.median_filter_width))
 
         self.log("test_mse", self.stdTr**2 * metrics['mse'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log("test_gmse", self.stdTr**2 * metrics['mse_grad'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
