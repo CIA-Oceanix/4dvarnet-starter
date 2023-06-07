@@ -793,7 +793,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
             out[0] = self.model.phi_r(out[0]) 
             
         if self.hparams.post_median_filter == True :
-            out[0] = kornia.filters.median_blur(out[0], (self.hparams.median_filter_width, self.hparams.median_filter_width))
+            out[0] = kornia.filters.median_blur(out[0], (self.hparams.median_filter_width, 1))
 
         self.log("test_mse", self.stdTr**2 * metrics['mse'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log("test_gmse", self.stdTr**2 * metrics['mse_grad'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
