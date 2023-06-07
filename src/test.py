@@ -18,7 +18,7 @@ def save_netcdf(saved_path1, gt, pred, obs):
         data_vars={'gt': (('idx', 'l63','time'), gt),
                    'obs': (('idx', 'l63','time'), gt),
                    'rec': (('idx', 'l63','time'), gt)}, \
-        coords={'idx': np.arange(gt.shape[0]), 'l63': np.arange(gt.shape[3]), 'time': np.arange(gt.shape[2])})
+        coords={'idx': np.arange(gt.shape[0]), 'l63': np.arange(gt.shape[1]), 'time': np.arange(gt.shape[2])})
     xrdata.to_netcdf(path=saved_path1, mode='w')
 
 
