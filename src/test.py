@@ -137,9 +137,6 @@ def base_testing(trainer, dm, lit_mod,ckpt,num_members=1):
     
     var_rec = np.mean( (x_rec-mean_x_rec)**2 )
     max_diff = np.max( np.abs(x_rec-mean_x_rec) )
-    print('..')
-    print('.. Variance among members runs             : %.3f'%var_rec)
-    print('.. Maximum absolute difference between 2 runs : %.3f'%max_diff)
     
     
     # metrics for the mean among members
@@ -148,8 +145,23 @@ def base_testing(trainer, dm, lit_mod,ckpt,num_members=1):
     
     nmse = mse / var_test
     
-    print("..... Performance metrics, mean member(test data)")
-    print(".. MSE ALL.   : %.3f / %.3f"%(mse,nmse))
+    print()
+    print('.. Metrics for mean member')
+    print(".. MSE mean member (test data): %.3f / %.3f"%(mse,nmse))
+    print('.. Variance among members runs             : %.3f'%var_rec)
+    print('.. Maximum absolute difference between 2 runs : %.3f'%max_diff)
+
+    median_x_rec = np.median(x_rec , axis = 3)
+    mse = np.mean( (median_x_rec-X_test) **2 )     
+    nmse = mse / var_test
+    var_rec = np.mean( (x_rec-median_x_rec)**2 )
+    max_diff = np.max( np.abs(x_rec-median_x_rec) )
+    
+    print()
+    print('.. Metrics for median member')
+    print(".. MSE median member (test data): %.3f / %.3f"%(mse,nmse))
+    print('.. Variance among members runs             : %.3f'%var_rec)
+    print('.. Maximum absolute difference between 2 runs : %.3f'%max_diff)
     
     
     # saving dataset
