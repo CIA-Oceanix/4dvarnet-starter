@@ -783,7 +783,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         return loss
 
     def test_step(self, test_batch, batch_idx):
-        _,inputs_obs,___,targets_GT = test_batch
+        _,inputs_obs,masks,targets_GT = test_batch
         loss, out, metrics = self.compute_loss(test_batch, phase='test')
     
         for kk in range(0,self.hparams.k_n_grad-1):
@@ -795,9 +795,13 @@ class Lit4dVarNet_L63(pl.LightningModule):
         if self.hparams.post_median_filter == True :
             out[0] = kornia.filters.median_blur(out[0], (self.hparams.median_filter_width, 1))
 
-        self.log("test_mse", self.stdTr**2 * metrics['mse'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("test_gmse", self.stdTr**2 * metrics['mse_grad'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("test_gvar", metrics['var_grad'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        mse,gmse = self.compute_mse_loss(out[0],targets_GT)
+
+        var_cost_grad = self.loss_var_cost_grad(targets_GT,inputs_obs,masks,phase='test')
+                
+        self.log("test_mse", self.stdTr**2 * mse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("test_gmse", self.stdTr**2 * gmse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("test_gvar", var_cost_grad , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
 
         if self.x_rec is None :
             self.x_rec = out[0].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
