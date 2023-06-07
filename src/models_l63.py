@@ -644,7 +644,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.hparams.post_median_filter = self.hparams.post_median_filter if hasattr(self.hparams, 'post_median_filter') else False
         self.hparams.median_filter_width = self.hparams.median_filter_width if hasattr(self.hparams, 'median_filter_width') else 3
         
-    def update_params(self,n_grad = None , k_n_grad = None,lr_grad=None,lr_rnd=None,sig_rnd_init=None,sig_lstm_init=None,param_lstm_step=None):
+    def update_params(self,n_grad = None , k_n_grad = None,lr_grad=None,lr_rnd=None,sig_rnd_init=None,sig_lstm_init=None,param_lstm_step=None,
+                      post_projection = False,post_median_filter = False,median_filter_width = False):
 
         if n_grad is not None:
             self.hparams.n_grad = n_grad
@@ -668,6 +669,13 @@ class Lit4dVarNet_L63(pl.LightningModule):
             self.hparams.param_lstm_step = param_lstm_step
             self.model.param_lstm_step = self.hparams.param_lstm_step            
         
+        if post_projection is not None:
+            self.hparams.post_projection = post_projection
+
+        if post_median_filter is not None:
+            self.hparams.post_median_filter = post_median_filter
+            self.hparams.median_filter_width = median_filter_width
+
     def forward(self):
         return 1
 
