@@ -640,6 +640,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.init_state = self.hparams.init_state if hasattr(self.hparams, 'init_state') else 'obs_interp'
         self.hparams.dt_mse = self.hparams.dt_mse if hasattr(self.hparams, 'dt_mse') else 10
         self.hparams.alpha_gmse = self.hparams.alpha_gmse if hasattr(self.hparams, 'alpha_gmse') else 0.
+        self.hparams.post_projection = self.hparams.post_projection if hasattr(self.hparams, 'post_projection') else False
         
     def update_params(self,n_grad = None , k_n_grad = None,lr_grad=None,lr_rnd=None,sig_rnd_init=None,sig_lstm_init=None,param_lstm_step=None):
 
@@ -775,6 +776,9 @@ class Lit4dVarNet_L63(pl.LightningModule):
     
         for kk in range(0,self.hparams.k_n_grad-1):
             loss1, out, metrics = self.compute_loss(test_batch, phase='test',batch_init=out[0].detach(),hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
+
+        if self.hparams.post_projection == True :
+            out[0] = self.model.phi_r(out[0]) 
 
         self.log("test_mse", self.stdTr**2 * metrics['mse'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log("test_gvar", metrics['var_grad'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
