@@ -152,6 +152,7 @@ def base_testing(trainer, dm, lit_mod,ckpt,num_members=1):
     print('.. Maximum absolute difference between 2 runs : %.3f'%max_diff)
 
     median_x_rec = np.median(x_rec , axis = 3)
+    median_x_rec = np.reshape(median_x_rec,(median_x_rec.shape[0],median_x_rec.shape[1],median_x_rec.shape[2],1))
     mse = np.mean( (median_x_rec-X_test) **2 )     
     nmse = mse / var_test
     var_rec = np.mean( (x_rec-median_x_rec)**2 )
