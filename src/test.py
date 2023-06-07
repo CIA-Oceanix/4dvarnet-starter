@@ -5,7 +5,7 @@ import xarray as xr
 torch.set_float32_matmul_precision('high')
 
 
-def save_netcdf(saved_path1, gt, pred1, pred2, obs,mask):
+def save_netcdf(saved_path1, gt, pred, obs,mask):
     '''
     saved_path1: string
     pred: 3d numpy array (4DVarNet-based predictions)
@@ -17,13 +17,12 @@ def save_netcdf(saved_path1, gt, pred1, pred2, obs,mask):
         data_vars={'gt': (('idx', 'l63','time'), gt),
                    'obs': (('idx', 'l63','time'), obs),
                    'mask': (('idx', 'l63','time'), mask),
-                   'rec1': (('idx', 'l63','time'), pred1),
-                   'rec2': (('idx', 'l63','time'), pred2)}, \
-        coords={'idx': np.arange(gt.shape[0]), 'l63': np.arange(gt.shape[1]), 'time': np.arange(gt.shape[2])})
+                   'rec': (('idx', 'l63','time','members'), pred)}, \
+        coords={'idx': np.arange(gt.shape[0]), 'l63': np.arange(gt.shape[1]), 'time': np.arange(gt.shape[2]), 'members': np.arange(pred.shape[3])})
     xrdata.to_netcdf(path=saved_path1, mode='w')
 
 
-def base_testing(trainer, dm, lit_mod,ckpt):
+def base_testing(trainer, dm, lit_mod,ckpt,num_members=1):
     if trainer.logger is not None:
         print()
         print("Logdir:", trainer.logger.log_dir)
@@ -122,22 +121,29 @@ def base_testing(trainer, dm, lit_mod,ckpt):
     
     print()
     print()
-    print('............... Second run on test dataset to check stochasticity')
-    x_rec_1 = 1. * x_rec
-    trainer.test(lit_mod, dataloaders=dm.test_dataloader())#, ckpt_path=ckpt)
-    x_rec = lit_mod.x_rec[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
+    x_rec = np.reshape(x_rec,(x_rec.shape[0],x_rec.shape[1],x_rec.shape[2],1))
+    if num_members > 1 :
+        for _ii in range(1,num_members):
+        
+            print('............... run %d on test dataset to generate members'%_ii)
+            trainer.test(lit_mod, dataloaders=dm.test_dataloader())#, ckpt_path=ckpt)
+            x_rec_ii = lit_mod.x_rec[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
+            x_rec_ii = np.reshape(x_rec_ii,(x_rec_ii.shape[0],x_rec_ii.shape[1],x_rec_ii.shape[2],1))
 
-    var_rec = np.mean( (x_rec_1-x_rec)**2 )
-    max_diff = np.max( np.abs(x_rec_1-x_rec) )
-    bias_rec = np.mean( (x_rec_1-x_rec) )
+            x_rec = np.concatenate((x_rec,x_rec_ii),axis=3)
+     
+    mean_x_rec = np.mean( x_rec , axis = 3)
+    mean_x_rec = np.reshape(mean_x_rec,(mean_x_rec.shape[0],mean_x_rec.shape[1],mean_x_rec.shape[2],1))
+    
+    var_rec = np.mean( (x_rec-mean_x_rec)**2 )
+    max_diff = np.max( np.abs(x_rec-mean_x_rec) )
     print('..')
-    print('.. Mean difference between 2 runs : %.3f'%bias_rec)
-    print('.. MSE between 2 runs             : %.3f'%var_rec)
+    print('.. Variance among members runs             : %.3f'%var_rec)
     print('.. Maximum absolute difference between 2 runs : %.3f'%max_diff)
     
     # saving dataset
     result_path = ckpt.replace('.ckpt','_res.nc')
     x_test_obs = lit_mod.x_obs[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
     print('..... save .c file with results: '+result_path)
-    save_netcdf(result_path, X_test, x_rec, x_rec_1, x_test_obs.squeeze(), mask_test.squeeze() )
+    save_netcdf(result_path, X_test, x_rec, x_test_obs.squeeze(), mask_test.squeeze() )
     
