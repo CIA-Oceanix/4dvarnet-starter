@@ -1,7 +1,26 @@
 import torch
 import numpy as np
+import xarray as xr
 
 torch.set_float32_matmul_precision('high')
+
+
+def save_netcdf(saved_path1, gt, pred, obs):
+    '''
+    saved_path1: string
+    pred: 3d numpy array (4DVarNet-based predictions)
+    lon: 1d numpy array
+    lat: 1d numpy array
+    time: 1d array-like of time corresponding to the experiment
+    '''
+
+    xrdata = xr.Dataset( \
+        data_vars={'gt': (('idx', 'l63','time'), gt),
+                   'obs': (('idx', 'l63','time'), gt),
+                   'rec': (('idx', 'l63','time'), gt)}, \
+        coords={'idx': np.arange(gt.shape[0]), 'l63': np.arange(gt.shape[3]), 'time': np.arange(gt.shape[2])})
+    xrdata.to_netcdf(path=saved_path1, mode='w')
+
 
 def base_testing(trainer, dm, lit_mod,ckpt):
     if trainer.logger is not None:
@@ -111,3 +130,10 @@ def base_testing(trainer, dm, lit_mod,ckpt):
     print('.. Mean difference between 2 runs : %.3f'%bias_rec)
     print('.. MSE between 2 runs             : %.3f'%var_rec)
     print('.. Maximum absolute difference between 2 runs : %.3f'%max_diff)
+    
+    # saving dataset
+    result_path = '/tmp/res.nc'
+    print('..... save .c file with results: '+result_path)
+    X_test, x_test, mask_test, x_test_Init, x_test_obs = dm.input_data[1]
+    save_netcdf(result_path, X_test, lit_mod.x_rec, x_test_obs * lit_mod.set_norm_stats[1] + lit_mod.set_norm_stats[0])
+    
