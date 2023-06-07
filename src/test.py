@@ -95,7 +95,6 @@ def base_testing(trainer, dm, lit_mod,ckpt):
     print(".. MSE ObsData: %.3f / %.3f"%(mse_r,nmse_r))
     print(".. MSE Interp : %.3f / %.3f"%(mse_i,nmse_i))
 
-
     # test dataset
     print()
     print()
