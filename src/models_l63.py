@@ -869,8 +869,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
                 loss_var_cost_grad = 0.
             #print( loss_var_cost_grad )
             
-            print( loss_mse )
-            print( loss_gmse )
+            print(' %.3e -- %.3e'%( loss_mse.detach().cpu().numpy() , loss_gmse.detach().cpu().numpy()) )
             loss = self.hparams.alpha_mse * loss_mse + self.hparams.alpha_gmse * loss_gmse
             loss += 0.5 * self.hparams.alpha_prior * (loss_prior + loss_prior_gt)
             loss += self.hparams.alpha_var_cost_grad * loss_var_cost_grad
