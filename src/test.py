@@ -54,7 +54,11 @@ def base_testing(trainer, dm, lit_mod,ckpt):
     lit_mod.update_params( n_grad = cfg_params.n_grad , k_n_grad = cfg_params.k_n_grad, 
                           lr_grad = cfg_params.lr_grad, lr_rnd = cfg_params.lr_rnd,
                           sig_rnd_init = cfg_params.sig_rnd_init, sig_lstm_init = cfg_params.sig_lstm_init,
-                          param_lstm_step = cfg_params.param_lstm_step)
+                          param_lstm_step = cfg_params.param_lstm_step,
+                          post_projection = cfg_params.post_projection,
+                          post_median_filter = cfg_params.post_median_filter,
+                          median_filter_width = cfg_params.median_filter_width)
+        
     
     print('...... Updated parameters from cfg files')
     print(lit_mod.hparams)
