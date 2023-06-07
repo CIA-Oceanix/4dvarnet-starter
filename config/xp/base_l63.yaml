@@ -139,7 +139,7 @@ entrypoints:
 #    ckpt: 'outputs/2023-06-06/00-30-20/base_l63/checkpoints/model-l63-lstmonly-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.3152-epoch=381.ckpt'
 #    ckpt: 'outputs/2023-06-06/00-23-31/base_l63/checkpoints/model-l63-lstmonly-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_02-dgrad100-val_loss=8.7234-epoch=376.ckpt'
 #    ckpt: 'outputs/2023-06-06/00-33-52/base_l63/checkpoints/model-l63-lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.2662-epoch=262.ckpt'
-    ckpt: 'outputs/2023-06-07/17-06-08/base_l63/checkpoints/model-l63-lstm+gmse-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=13.8624-epoch=259.ckpt
+    ckpt: 'outputs/2023-06-07/17-06-08/base_l63/checkpoints/model-l63-lstm+gmse-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=13.8624-epoch=259.ckpt'
 #    ckpt: 'outputs/2023-06-07/00-59-53/base_l63/checkpoints/model-l63-lstm+cst-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.2275-epoch=379.ckpt'
 #    ckpt: 'outputs/2023-06-07/00-29-11/base_l63/checkpoints/model-l63-lstm+cst-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_02-dgrad100-val_loss=8.7955-epoch=382.ckpt'
 #    test_fn:
