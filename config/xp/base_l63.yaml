@@ -96,12 +96,12 @@ trainer:
 entrypoints:
   - _target_: pytorch_lightning.seed_everything
     seed: 333
-#  - _target_: src.train.base_training  # src.train.fine_tuning # 
-#    trainer: ${trainer}
-#    lit_mod: ${model}
-#    dm: ${datamodule}
-#    ckpt: 'outputs/2023-05-24/16-55-55/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.2830-epoch=179.ckpt'
-#    ckpt: 'outputs/2023-05-23/22-14-34/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.0530-epoch=337.ckpt'
+  - _target_: src.train.base_training  # src.train.fine_tuning # 
+    trainer: ${trainer}
+    lit_mod: ${model}
+    dm: ${datamodule}
+    ckpt: 'outputs/2023-05-24/16-55-55/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.2830-epoch=179.ckpt'
+    ckpt: 'outputs/2023-05-23/22-14-34/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.0530-epoch=337.ckpt'
   - _target_: src.test.base_testing #
     trainer: ${trainer}
     lit_mod: ${model}
@@ -143,7 +143,7 @@ entrypoints:
 #    ckpt: 'outputs/2023-06-07/17-06-08/base_l63/checkpoints/model-l63-lstm+gmse-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=13.8624-epoch=259.ckpt'
 #    ckpt: 'outputs/2023-06-07/00-59-53/base_l63/checkpoints/model-l63-lstm+cst-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.2275-epoch=379.ckpt'
 #    ckpt: 'outputs/2023-06-07/00-29-11/base_l63/checkpoints/model-l63-lstm+cst-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_02-dgrad100-val_loss=8.7955-epoch=382.ckpt'
-    ckpt: 'outputs/2023-06-08/12-47-25/base_l63/checkpoints/model-l63-lstm+grad+gmse-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=16.4013-epoch=098.ckpt'
+#    ckpt: 'outputs/2023-06-08/12-47-25/base_l63/checkpoints/model-l63-lstm+grad+gmse-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=16.4013-epoch=098.ckpt'
 
 #    test_fn:
 #      _target_: src.utils.diagnostics
