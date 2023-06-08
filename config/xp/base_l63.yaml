@@ -73,7 +73,7 @@ model:
     _target_: src.solver_l63.Model_WeightedGL2Norm #src.solver_l63.Model_WeightedL2Norm #
     kernel_x: 5
     kernel_y: 1
-    sigma: 1.
+    sigma: 0.5
   m_NormPhi:
     _target_: src.solver_l63.Model_WeightedL2Norm
 
