@@ -68,6 +68,13 @@ model:
       - 0
       - 0
       - 0
+  m_NormObs:
+    _target_: src.solver_l63.Model_WeightedGL2Norm
+    kernel_x: 1
+    kernel_y: 1
+    sigma: 1
+  m_NormPhi:
+    _target_: src.solver_l63.Model_WeightedL2Norm
 
 trainer:
   _target_: pytorch_lightning.Trainer

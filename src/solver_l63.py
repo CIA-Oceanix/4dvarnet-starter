@@ -539,8 +539,8 @@ class GradSolver_with_rnd(nn.Module):
         self.phi_r         = phi_r
                             
         if  m_NormObs is None :
-            #m_NormObs = Model_WeightedL2Norm()
-            m_NormObs = Model_WeightedGL2Norm(kernel_x=7,kernel_y=1,sigma=2.)
+            m_NormObs = Model_WeightedL2Norm()
+            #m_NormObs = Model_WeightedGL2Norm(kernel_x=7,kernel_y=1,sigma=2.)
         
         if  m_NormPhi is None :
             m_NormPhi = Model_WeightedL2Norm()
