@@ -10,6 +10,7 @@ import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
+import kornia
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -131,6 +132,27 @@ class Model_WeightedL2Norm(torch.nn.Module):
         super(Model_WeightedL2Norm, self).__init__()
  
     def forward(self,x,w,eps=0.):
+        loss_ = torch.nansum( x**2 , dim = 3)
+        loss_ = torch.nansum( loss_ , dim = 2)
+        loss_ = torch.nansum( loss_ , dim = 0)
+        loss_ = torch.nansum( loss_ * w )
+        loss_ = loss_ / (torch.sum(~torch.isnan(x)) / x.shape[1] )
+
+        return loss_
+
+class Model_WeightedGL2Norm(torch.nn.Module):
+    def __init__(self,kernel_x=3,kernel_y=3,sigma=1.):
+        super(Model_WeightedGL2Norm, self).__init__()
+        
+        self.sigma = sigma
+        self.kernel_x = kernel_x
+        self.kernel_y = kernel_y
+        
+    def forward(self,x,w,eps=0.):
+        x = torch.nan_to_num(x**2,nan=0.)
+        if self.kernel_x * self.kernel_y > 1 :
+            x = kornia.filters.gaussian_blur2d(x, (self.kernel_x,self.kernel_y), (self.sigma,self.sigma), border_type='reflect')
+        
         loss_ = torch.nansum( x**2 , dim = 3)
         loss_ = torch.nansum( loss_ , dim = 2)
         loss_ = torch.nansum( loss_ , dim = 0)
@@ -517,7 +539,8 @@ class GradSolver_with_rnd(nn.Module):
         self.phi_r         = phi_r
                             
         if  m_NormObs is None :
-            m_NormObs = Model_WeightedL2Norm()
+            #m_NormObs = Model_WeightedL2Norm()
+            m_NormObs = Model_WeightedGL2Norm(kernel_x=7,kernel_y=1,sigma=2.)
         
         if  m_NormPhi is None :
             m_NormPhi = Model_WeightedL2Norm()
