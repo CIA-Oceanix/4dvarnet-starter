@@ -42,7 +42,7 @@ model:
     lr_rnd: 0.e-3
     sig_rnd_init: 0.e-2
     sig_lstm_init: 0.e-2
-    sig_obs_noise: 1e-1
+    sig_obs_noise: ?? #1e-1
     init_state: 'obs_interp' # ?? #'zeros' #
     suffix_exp: ?? #'-lstm+grad' #'
     UsePeriodicBoundary: False
