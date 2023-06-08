@@ -39,6 +39,9 @@ def base_testing(trainer, dm, lit_mod,ckpt,num_members=1):
     
     # load checkpoints
     cfg_params = lit_mod.hparams
+    m_NormObs = lit_mod.model.model_VarCost.m_NormObs
+    m_NormPhi = lit_mod.model.model_VarCost.m_NormPhi
+    print(m_NormObs)
     
     print('')
     print('...... Loaded model: '+ckpt)
@@ -58,7 +61,10 @@ def base_testing(trainer, dm, lit_mod,ckpt,num_members=1):
                           post_projection = cfg_params.post_projection,
                           post_median_filter = cfg_params.post_median_filter,
                           median_filter_width = cfg_params.median_filter_width)
-        
+    
+    # update normObs
+    lit_mod.model.model_VarCost.m_NormObs = m_NormObs
+    
     
     print('...... Updated parameters from cfg files')
     print(lit_mod.hparams)
