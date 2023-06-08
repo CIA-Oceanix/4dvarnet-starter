@@ -548,7 +548,7 @@ class HParam:
 
 
 class Lit4dVarNet_L63(pl.LightningModule):
-    def __init__(self,params=None,patch_weight=None,m_NormObs=None, m_NormPhi=None,stats_training_data=None,*args, **kwargs):
+    def __init__(self,ckpt_path=None,params=None,patch_weight=None,m_NormObs=None, m_NormPhi=None,stats_training_data=None,*args, **kwargs):
         super().__init__()
         #self.hparams = HParam() if params is None else params
         #hparam = {} if params is None else params
@@ -556,6 +556,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
         #hparams = hparam
 
         #print(hparams,flush=True)
+        
+        
         self.save_hyperparameters(params)
         #self.save_hyperparameters({**hparams, **kwargs})
 
@@ -645,8 +647,10 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.hparams.post_projection = self.hparams.post_projection if hasattr(self.hparams, 'post_projection') else False
         self.hparams.post_median_filter = self.hparams.post_median_filter if hasattr(self.hparams, 'post_median_filter') else False
         self.hparams.median_filter_width = self.hparams.median_filter_width if hasattr(self.hparams, 'median_filter_width') else 3
+        self.hparams.sig_obs_noise = self.hparams.sig_obs_noise if hasattr(self.hparams, 'sig_obs_noise') else 0.
         
-    def update_params(self,n_grad = None , k_n_grad = None,lr_grad=None,lr_rnd=None,sig_rnd_init=None,sig_lstm_init=None,param_lstm_step=None,
+    def update_params(self,n_grad = None , k_n_grad = None,lr_grad=None,lr_rnd=None,sig_rnd_init=None,sig_lstm_init=None,
+                      sig_obs_noise = None, param_lstm_step=None,
                       post_projection = False,post_median_filter = False,median_filter_width = False):
 
         if n_grad is not None:
@@ -667,6 +671,10 @@ class Lit4dVarNet_L63(pl.LightningModule):
         if sig_lstm_init is not None:
             self.hparams.sig_lstm_init = sig_lstm_init
 
+
+        if self.hparams.sig_obs_noise is not None :
+            self.hparams.sig_obs_noise = sig_obs_noise
+            
         if param_lstm_step is not None:
             self.hparams.param_lstm_step = param_lstm_step
             self.model.param_lstm_step = self.hparams.param_lstm_step            
@@ -785,7 +793,15 @@ class Lit4dVarNet_L63(pl.LightningModule):
         return loss
 
     def test_step(self, test_batch, batch_idx):
-        _,inputs_obs,masks,targets_GT = test_batch
+        
+        inputs_init,inputs_obs,masks,targets_GT = test_batch
+        if self.hparams.sig_obs_noise > 0. :
+            inputs_obs = inputs_obs + self.hparams.sig_obs_noise * masks *  torch.randn( masks.size() ).to(device)
+        
+            test_batch = inputs_init,inputs_obs,masks,targets_GT
+        
+        self.hparams.sig_obs_noise
+        
         loss, out, metrics = self.compute_loss(test_batch, phase='test')
     
         for kk in range(0,self.hparams.k_n_grad-1):

@@ -57,6 +57,7 @@ def base_testing(trainer, dm, lit_mod,ckpt,num_members=1):
                           lr_grad = cfg_params.lr_grad, lr_rnd = cfg_params.lr_rnd,
                           sig_rnd_init = cfg_params.sig_rnd_init, sig_lstm_init = cfg_params.sig_lstm_init,
                           param_lstm_step = cfg_params.param_lstm_step,
+                          sig_obs_noise = cfg_params.sig_obs_noise,
                           post_projection = cfg_params.post_projection,
                           post_median_filter = cfg_params.post_median_filter,
                           median_filter_width = cfg_params.median_filter_width)
