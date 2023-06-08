@@ -40,7 +40,7 @@ def base_testing(trainer, dm, lit_mod,ckpt,num_members=1):
     # load checkpoints
     cfg_params = lit_mod.hparams
     m_NormObs = lit_mod.model.model_VarCost.normObs
-    m_NormPhi = lit_mod.model.model_VarCost.normPhi
+    m_NormPhi = lit_mod.model.model_VarCost.normPrior
     print(m_NormObs)
     
     print('')
