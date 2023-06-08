@@ -159,6 +159,7 @@ class Model_WeightedGL2Norm(torch.nn.Module):
         loss_ = torch.nansum( loss_ * w )
         loss_ = loss_ / (torch.sum(~torch.isnan(x)) / x.shape[1] )
 
+        print(loss_)
         return loss_
 
 class Model_WeightedL1Norm(torch.nn.Module):
