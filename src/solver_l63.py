@@ -150,11 +150,11 @@ class Model_WeightedGL2Norm(torch.nn.Module):
         
     def forward(self,x,w,eps=0.):
         x = torch.nan_to_num(x**2,nan=0.)
-        print()
-        print( torch.nansum(x) )
+        #print()
+        #print( torch.nansum(x) )
         if self.kernel_x * self.kernel_y > 1 :
             x = kornia.filters.gaussian_blur2d(x, (self.kernel_x,self.kernel_y), (self.sigma,self.sigma), border_type='reflect')
-            print( torch.nansum(x) )
+            #print( torch.nansum(x) )
         
         loss_ = torch.nansum( x**2 , dim = 3)
         loss_ = torch.nansum( loss_ , dim = 2)
