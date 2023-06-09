@@ -31,19 +31,19 @@ def fine_tuning(trainer, dm, lit_mod, test_dm=None, test_fn=None, ckpt=None,upda
         print("Logdir:", trainer.logger.log_dir)
         print()
 
-    if ckpt is not None:
-        print('.... Load model: '+ckpt)
-        lit_mod.load_state_dict(torch.load(ckpt)['state_dict'])
-
-    cfg_params = lit_mod.hparams
-    
-    print('')
-    lit_mod = lit_mod.load_from_checkpoint(ckpt)
-    print('...... cfg parameters from chekpoint',flush=True)
-    print(lit_mod.hparams)
-       
-    # force optimization parameters
     if update_params == True :
+        if ckpt is not None:
+            print('.... Load model: '+ckpt)
+            lit_mod.load_state_dict(torch.load(ckpt)['state_dict'])
+    
+        cfg_params = lit_mod.hparams
+        
+        print('')
+        lit_mod = lit_mod.load_from_checkpoint(ckpt)
+        print('...... cfg parameters from chekpoint',flush=True)
+        print(lit_mod.hparams)
+           
+        # force optimization parameters
         lit_mod.update_params( n_grad = cfg_params.n_grad , k_n_grad = cfg_params.k_n_grad, 
                               lr_grad = cfg_params.lr_grad, lr_rnd = cfg_params.lr_rnd,
                               sig_rnd_init = cfg_params.sig_rnd_init, sig_lstm_init = cfg_params.sig_lstm_init,
@@ -56,11 +56,12 @@ def fine_tuning(trainer, dm, lit_mod, test_dm=None, test_fn=None, ckpt=None,upda
         print('...... Updated parameters from cfg files')
         print(lit_mod.hparams)
     
-    # normalisation parameters
-    lit_mod.set_norm_stats = dm.norm_stats()
-
-    trainer.fit(lit_mod, datamodule=dm)
-
+        # normalisation parameters
+        lit_mod.set_norm_stats = dm.norm_stats()
+    
+        trainer.fit(lit_mod, datamodule=dm)
+    else:
+        trainer.fit(lit_mod, datamodule=dm, ckpt=ckpt)
             
     if test_fn is not None:
         if test_dm is None:
