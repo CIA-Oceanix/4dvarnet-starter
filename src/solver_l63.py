@@ -174,7 +174,7 @@ class Model_WeightedTrainableL2Norm(torch.nn.Module):
 
     def forward(self,x,w,eps=0.):
         
-        self.conv.weight = torch.relu( self.conv.weight )
+        self.conv.weight = torch.nn.Parameter( torch.relu( self.conv.weight ) )
         
         x = torch.nan_to_num(x**2,nan=0.)
         #print()
