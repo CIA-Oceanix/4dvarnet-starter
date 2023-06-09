@@ -165,7 +165,7 @@ class Model_WeightedGL2Norm(torch.nn.Module):
         return loss_
 
 class Model_WeightedTrainableL2Norm(torch.nn.Module):
-    def __init__(self,dim_inputs,kernel_x=3,kernel_y=3):
+    def __init__(self,kernel_x=3,kernel_y=3):
         super(Model_WeightedTrainableL2Norm, self).__init__()
         
         self.kernel_x = kernel_x
