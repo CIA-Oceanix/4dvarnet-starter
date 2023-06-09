@@ -109,7 +109,8 @@ entrypoints:
     lit_mod: ${model}
     dm: ${datamodule}
     update_params: False
-    ckpt: 'outputs/2023-06-08/18-32-56/base_l63/checkpoints/model-l63-lstmonly+gobs-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_08-dgrad100-val_loss=8.8370-epoch=222.ckpt'
+    ckpt: 'outputs/2023-06-08/23-23-08/base_l63/checkpoints/model-l63-lstmonly+gobs-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=9.7803-epoch=092.ckpt'
+#    ckpt: 'outputs/2023-06-08/18-32-56/base_l63/checkpoints/model-l63-lstmonly+gobs-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_08-dgrad100-val_loss=8.8370-epoch=222.ckpt'
 #    ckpt: 'outputs/2023-05-24/16-55-55/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.2830-epoch=179.ckpt'
 #    ckpt: 'outputs/2023-05-23/22-14-34/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.0530-epoch=337.ckpt'
 #  - _target_: src.test.base_testing #
