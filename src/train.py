@@ -61,7 +61,7 @@ def fine_tuning(trainer, dm, lit_mod, test_dm=None, test_fn=None, ckpt=None,upda
     
         trainer.fit(lit_mod, datamodule=dm)
     else:
-        trainer.fit(lit_mod, datamodule=dm, ckpt=ckpt)
+        trainer.fit(lit_mod, datamodule=dm, ckpt_path=ckpt)
             
     if test_fn is not None:
         if test_dm is None:
