@@ -77,7 +77,7 @@ model:
   m_NormPhi:
     _target_: src.solver_l63.Model_WeightedL2Norm
   mod_H:
-    _target_: src.model_l63.Model_HwithTrainableLocalisation #src.model_l63.Model_HwithLocalisation
+    _target_: src.models_l63.Model_HwithTrainableLocalisation #src.models_l63.Model_HwithLocalisation
     shapeData: ${model.params.shapeData}
 
 trainer:
