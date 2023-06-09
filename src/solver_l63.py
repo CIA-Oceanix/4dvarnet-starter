@@ -164,6 +164,37 @@ class Model_WeightedGL2Norm(torch.nn.Module):
 
         return loss_
 
+class Model_WeightedTrainableL2Norm(torch.nn.Module):
+    def __init__(self,dim_inputs,kernel_x=3,kernel_y=3):
+        super(Model_WeightedGL2Norm, self).__init__()
+        
+        self.kernel_x = kernel_x
+        self.kernel_y = kernel_y
+        self.conv = torch.nn.Conv2d(1, 1, kernel_size = (self.kernel_x,self.kernel_y), stride = 1, padding = 'same',padding_mode='reflect')
+
+    def forward(self,x,w,eps=0.):
+        
+        self.conv.weight = torch.relu( self.conv.weight )
+        
+        x = torch.nan_to_num(x**2,nan=0.)
+        #print()
+        #print( torch.nansum(x) )
+        if self.kernel_x * self.kernel_y > 1 :
+            x_ = self.conv( x[:,0,:,:].view(-1,1,x.size(2),x.size(3)) )
+            
+            for kk in range(1,x.size(1)):
+                x_ = torch.cat( (x_,self.conv( x[:,kk,:,:].view(-1,1,x.size(2),x.size(3)) )) , dim=1)
+            x = 1. * x_
+            #print( torch.nansum(x) )
+        
+        loss_ = torch.nansum( x**2 , dim = 3)
+        loss_ = torch.nansum( loss_ , dim = 2)
+        loss_ = torch.nansum( loss_ , dim = 0)
+        loss_ = torch.nansum( loss_ * w )
+        loss_ = loss_ / (torch.sum(~torch.isnan(x)) / x.shape[1] )
+
+        return loss_
+
 class Model_WeightedL1Norm(torch.nn.Module):
     def __init__(self):
         super(Model_WeightedL1Norm, self).__init__()
