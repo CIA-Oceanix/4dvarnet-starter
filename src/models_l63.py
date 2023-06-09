@@ -606,7 +606,8 @@ class HParam:
 
 
 class Lit4dVarNet_L63(pl.LightningModule):
-    def __init__(self,ckpt_path=None,params=None,patch_weight=None,m_NormObs=None, m_NormPhi=None,mod_H=None,*args, **kwargs):
+    def __init__(self,ckpt_path=None,params=None,patch_weight=None,m_NormObs=None, m_NormPhi=None,mod_H=None,
+                 stats_training_data=None,*args, **kwargs):
         super().__init__()
         #self.hparams = HParam() if params is None else params
         #hparam = {} if params is None else params
