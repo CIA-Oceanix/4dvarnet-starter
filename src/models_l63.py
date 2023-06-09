@@ -551,9 +551,14 @@ class Model_HwithTrainableLocalisation(torch.nn.Module):
         
         return x_
 
+    def _renormalize_conv_weight(self):
+        self.conv.weight = torch.sqrt( self.conv.weight**2 + 1e-9 )
+        self.conv.weight = self.conv.weight / torch.sum( self.conv.weight )
+        self.conv.weight = torch.nn.Parameter( self.conv.weight )
+        
     def forward(self, x, y, mask):
         
-        self.conv.weight = torch.nn.Parameter( torch.sqrt( self.conv.weight**2 + 1e-9 ) )
+        self._renormalize_conv_weight()#conv.weight = torch.nn.Parameter( torch.sqrt( self.conv.weight**2 + 1e-9 ) )
 
         s_mask = self.apply_conv(mask)
         s_y = self.apply_conv(y)
