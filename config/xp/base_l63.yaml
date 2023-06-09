@@ -70,7 +70,7 @@ model:
       - 0
       - 0
   m_NormObs:
-    _target_: Model_WeightedTrainableL2Norm #src.solver_l63.Model_WeightedGL2Norm # src.solver_l63.Model_WeightedL2Norm #
+    _target_: src.solver_l63.Model_WeightedTrainableL2Norm #src.solver_l63.Model_WeightedGL2Norm # src.solver_l63.Model_WeightedL2Norm #
     kernel_x: 5
     kernel_y: 1
     #sigma: 1.
