@@ -507,7 +507,7 @@ class Phi_unet(torch.nn.Module):
 
 class Model_HwithLocalisation(torch.nn.Module):
     def __init__(self,shapeData,kernel_t=5,sigma=1.):
-        super(Model_H, self).__init__()
+        super(Model_HwithLocalisation, self).__init__()
         #self.DimObs = 1
         #self.dimObsChannel = np.array([shapeData[0]])
         self.dim_obs = 1
@@ -515,14 +515,48 @@ class Model_HwithLocalisation(torch.nn.Module):
 
         self.DimObs = 1
         self.dimObsChannel = np.array([shapeData[0]])
-        self.kernel_x = 5
+        self.kernel_x = kernel_t
         self.kernel_y = 1
-        self.sigma = 1.
+        self.sigma = sigma
 
     def forward(self, x, y, mask):
         
         s_mask = kornia.filters.gaussian_blur2d(mask, (self.kernel_x,self.kernel_y), (self.sigma,self.sigma), border_type='reflect') 
         s_y = kornia.filters.gaussian_blur2d(y, (self.kernel_x,self.kernel_y), (self.sigma,self.sigma), border_type='reflect') 
+        s_y = s_y / ( 1e-5 + s_mask )
+        
+        dyout = (x - s_y) * s_mask
+        
+        return dyout
+
+class Model_HwithTrainableLocalisation(torch.nn.Module):
+    def __init__(self,shapeData,kernel_t=5):
+        super(Model_HwithTrainableLocalisation, self).__init__()
+        #self.DimObs = 1
+        #self.dimObsChannel = np.array([shapeData[0]])
+        self.dim_obs = 1
+        self.dim_obs_channel = np.array([shapeData[0]])
+
+        self.DimObs = 1
+        self.dimObsChannel = np.array([shapeData[0]])
+        self.kernel_x = kernel_t
+        self.kernel_y = 1
+        self.conv = torch.nn.Conv2d(1, 1, kernel_size = (self.kernel_x,self.kernel_y), stride = 1, padding = 'same',padding_mode='reflect')
+
+    def apply_conv(self,x):
+        x_ = self.conv( x[:,0,:,:].view(-1,1,x.size(2),x.size(3)) )
+        
+        for kk in range(1,x.size(1)):
+            x_ = torch.cat( (x_,self.conv( x[:,kk,:,:].view(-1,1,x.size(2),x.size(3)) )) , dim=1)
+        
+        return x_
+
+    def forward(self, x, y, mask):
+        
+        self.conv.weight = torch.nn.Parameter( torch.sqrt( self.conv.weight**2 + 1e-9 ) )
+
+        s_mask = self.apply_conv(mask)
+        s_y = self.apply_conv(y)
         s_y = s_y / ( 1e-5 + s_mask )
         
         dyout = (x - s_y) * s_mask
@@ -600,6 +634,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
             
         if mod_H == None :
             mod_H = Model_H(self.hparams.shapeData)
+        print(mod_H)
             
         if self.hparams.solver =='4dvarnet-with-rnd' :
             self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi, 
@@ -622,7 +657,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         elif self.hparams.solver =='4dvarnet-with-rnd-grad':
             shapeData_grad = np.array([self.hparams.shapeData[0],self.hparams.shapeData[1],1])
             self.model        = solver_4DVarNet.Solver_with_nograd(Phi, 
-                                                                    mod_H;#Model_H(self.hparams.shapeData), 
+                                                                    mod_H,#Model_H(self.hparams.shapeData), 
                                                                     solver_4DVarNet.model_Grad_with_lstm(shapeData_grad, self.hparams.UsePeriodicBoundary, 
                                                                                                          self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
                                                                                                          sig_lstm_init = self.hparams.sig_lstm_init), 
