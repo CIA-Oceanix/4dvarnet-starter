@@ -560,7 +560,7 @@ class Model_HwithSSTBN_nolin_tanh(torch.nn.Module):
         self.DimObs = 2
         self.dimObsChannel = np.array([shape_data, dim])
 
-        self.bn_feat = torch.nn.BatchNorm2d(self.dim_obs_channel[1],track_running_stats=False)
+        self.bn_feat = torch.nn.BatchNorm2d(self.dimObsChannel[1],track_running_stats=False)
 
         self.convx11 = torch.nn.Conv2d(2*shape_data, 2*self.dimObsChannel[1], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
         self.convx12 = torch.nn.Conv2d(2*self.dimObsChannel[1], self.dimObsChannel[1], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
