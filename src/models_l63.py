@@ -506,15 +506,15 @@ class Phi_unet(torch.nn.Module):
 
 
 class Model_HwithLocalisation(torch.nn.Module):
-    def __init__(self,shapeData,kernel_t=5,sigma=1.):
+    def __init__(self,shape_data,kernel_t=5,sigma=1.):
         super(Model_HwithLocalisation, self).__init__()
         #self.DimObs = 1
         #self.dimObsChannel = np.array([shapeData[0]])
         self.dim_obs = 1
-        self.dim_obs_channel = np.array([shapeData[0]])
+        self.dim_obs_channel = np.array([shape_data[0]])
 
         self.DimObs = 1
-        self.dimObsChannel = np.array([shapeData[0]])
+        self.dimObsChannel = np.array([shape_data[0]])
         self.kernel_x = kernel_t
         self.kernel_y = 1
         self.sigma = sigma
@@ -530,15 +530,15 @@ class Model_HwithLocalisation(torch.nn.Module):
         return dyout
 
 class Model_HMulti(torch.nn.Module):
-    def __init__(self,shapeData,kernel_t=5,sigma=1.):
+    def __init__(self,shape_data,kernel_t=5,sigma=1.):
         super(Model_HMulti, self).__init__()
         #self.DimObs = 1
         #self.dimObsChannel = np.array([shapeData[0]])
         self.dim_obs = 2
-        self.dim_obs_channel = np.array([shapeData[0]])
+        self.dim_obs_channel = np.array([shape_data[0]])
 
         self.DimObs = 1
-        self.dimObsChannel = np.array([shapeData[0]])
+        self.dimObsChannel = np.array([shape_data[0]])
         self.kernel_x = kernel_t
         self.kernel_y = 1
         self.sigma = sigma
