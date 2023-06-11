@@ -61,7 +61,7 @@ model:
       - 3
       - ${datamodule.input_data.param_dataset.dT}
       - 1
-  ckpt: 'outputs/2023-06-10/23-30-37/base_l63/checkpoints/model-l63-lstmonly+gobs+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_08-dgrad100-val_loss=8.5268-epoch=216.ckpt'
+#  ckpt: 'outputs/2023-06-10/23-30-37/base_l63/checkpoints/model-l63-lstmonly+gobs+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_08-dgrad100-val_loss=8.5268-epoch=216.ckpt'
   patch_weight:
     _target_: src.models_l63.get_constant_crop_l63
     patch_dims: ${model.params.shapeData}
@@ -162,7 +162,7 @@ entrypoints:
 #    ckpt: 'outputs/2023-06-07/00-29-11/base_l63/checkpoints/model-l63-lstm+cst-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_02-dgrad100-val_loss=8.7955-epoch=382.ckpt'
 #    ckpt: 'outputs/2023-06-08/12-47-25/base_l63/checkpoints/model-l63-lstm+grad+gmse-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=16.4013-epoch=098.ckpt'
 #    ckpt: 'outputs/2023-06-08/12-47-25/base_l63/checkpoints/model-l63-lstm+grad+gmse-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=14.0869-epoch=380.ckpt'
-#    ckpt: 'outputs/2023-06-10/23-30-37/base_l63/checkpoints/model-l63-lstmonly+gobs+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_08-dgrad100-val_loss=8.5268-epoch=216.ckpt'
+  ckpt: 'outputs/2023-06-10/23-30-37/base_l63/checkpoints/model-l63-lstmonly+gobs+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_08-dgrad100-val_loss=8.5268-epoch=216.ckpt'
 #    test_fn:
 #      _target_: src.utils.diagnostics
 #      _partial_: true
