@@ -78,8 +78,7 @@ model:
     _target_: src.solver_l63.Model_WeightedL2Norm
   mod_H:
     _target_: src.models_l63.Model_HwithSSTBN_nolin_tanh #src.models_l63.Model_H #src.models_l63.Model_HwithTrainableLocalisation #src.models_l63.Model_HwithLocalisation
-    shape_data: ${model.params.shapeData}
-    dT: ${datamodule.input_data.param_dataset.dT}
+    shape_data: ${datamodule.input_data.param_dataset.dT}
     dim: 5
 
 trainer:

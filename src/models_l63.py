@@ -554,7 +554,7 @@ class Model_HMulti(torch.nn.Module):
         return dyout
 
 class Model_HwithSSTBN_nolin_tanh(torch.nn.Module):
-    def __init__(self,shape_data, dT=5,dim=5,padding_mode='reflect'):
+    def __init__(self,shape_data,dim=5,padding_mode='reflect'):
         super(Model_HwithSSTBN_nolin_tanh, self).__init__()
 
         self.dim_obs = 2
@@ -567,13 +567,7 @@ class Model_HwithSSTBN_nolin_tanh(torch.nn.Module):
         self.convx21 = torch.nn.Conv2d(self.dim_obs_channel[1], 2*self.dim_obs_channel[1], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
         self.convx22 = torch.nn.Conv2d(2*self.dim_obs_channel[1], self.dim_obs_channel[1], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
 
-        self.convy11 = torch.nn.Conv2d(dT, 2*self.dim_obs_channel[1], (3, 3), padding=1, bias=False,padding_mode=padding_mode)
-
-    def extract_feature(self,y1):
-        y1     = self.convy12( torch.tanh( self.convy11(y1) ) )
-        y_feat = self.bn_feat( self.convy22( torch.tanh( self.convy21( torch.tanh(y1) ) ) ) )
-       
-        return y_feat
+        self.convy11 = torch.nn.Conv2d(shape_data, self.dim_obs_channel[1], (3, 3), padding=1, bias=False,padding_mode=padding_mode)
         
     def extract_state_feature(self,x):
         x1     = self.convx12( torch.tanh( self.convx11(x) ) )
@@ -585,8 +579,8 @@ class Model_HwithSSTBN_nolin_tanh(torch.nn.Module):
     def forward(self, x, y, mask):
         dyout = (x - y) * mask
                 
-        x_feat = self.extract_state_feature(x)
-        y_feat = self.extract_sst_feature(y * mask)
+        x_feat = self.extract_state_feature(torch.cat((x,mask),dim=1))
+        y_feat = y * mask
         dyout1 = (x_feat - y_feat) * mask
 
         return [dyout, dyout1]
