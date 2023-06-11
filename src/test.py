@@ -46,12 +46,11 @@ def base_testing(trainer, dm, lit_mod,ckpt,num_members=1):
     print('...... Loaded model: '+ckpt)
     #print('...... Loaded cfg parameters')
     #print(cfg_params)
-
-    print(lit_mod.model.model_H,flush=True)
+#    print(lit_mod.model.model_H,flush=True)
     
     print('............... Model evaluation on validation dataset')
-    #trainer.test(lit_mod, dataloaders=dm.val_dataloader(), ckpt_path=ckpt)
-    lit_mod = lit_mod.load_from_checkpoint(ckpt)
+    trainer.test(lit_mod, dataloaders=dm.val_dataloader())#, ckpt_path=ckpt)
+    #lit_mod = lit_mod.load_from_checkpoint(ckpt)
 
     print('...... cfg parameters from chekpoint',flush=True)
     print(lit_mod.hparams)
