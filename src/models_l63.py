@@ -580,7 +580,7 @@ class Model_HwithSSTBN_nolin_tanh(torch.nn.Module):
         dyout = (x - y) * mask
                 
         x_feat = self.extract_state_feature(torch.cat((x,mask),dim=1))
-        y_feat = y * mask
+        y_feat = self.convy11( y * mask )
         dyout1 = (x_feat - y_feat) * mask
 
         return [dyout, dyout1]
