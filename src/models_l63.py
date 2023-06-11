@@ -557,8 +557,8 @@ class Model_HwithSSTBN_nolin_tanh(torch.nn.Module):
     def __init__(self,shape_data,dim=5,padding_mode='reflect'):
         super(Model_HwithSSTBN_nolin_tanh, self).__init__()
 
-        self.dim_obs = 2
-        self.dim_obs_channel = np.array([shape_data, dim])
+        self.DimObs = 2
+        self.dimObsChannel = np.array([shape_data, dim])
 
         self.bn_feat = torch.nn.BatchNorm2d(self.dim_obs_channel[1],track_running_stats=False)
 
