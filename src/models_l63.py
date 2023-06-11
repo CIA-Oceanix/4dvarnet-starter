@@ -567,7 +567,7 @@ class Model_HwithSSTBN_nolin_tanh(torch.nn.Module):
         self.convx21 = torch.nn.Conv2d(self.dimObsChannel[1], 2*self.dimObsChannel[1], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
         self.convx22 = torch.nn.Conv2d(2*self.dimObsChannel[1], self.dimObsChannel[1], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
 
-        self.convy11 = torch.nn.Conv2d(shape_data, self.dimObsChannel[1], (3, 3), padding=1, bias=False,padding_mode=padding_mode)
+        self.convy11 = torch.nn.Conv2d(shape_data, self.dimObsChannel[1], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
         
     def extract_state_feature(self,x):
         x1     = self.convx12( torch.tanh( self.convx11(x) ) )
