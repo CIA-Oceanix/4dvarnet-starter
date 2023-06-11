@@ -529,6 +529,68 @@ class Model_HwithLocalisation(torch.nn.Module):
         
         return dyout
 
+class Model_HMulti(torch.nn.Module):
+    def __init__(self,shapeData,kernel_t=5,sigma=1.):
+        super(Model_HMulti, self).__init__()
+        #self.DimObs = 1
+        #self.dimObsChannel = np.array([shapeData[0]])
+        self.dim_obs = 2
+        self.dim_obs_channel = np.array([shapeData[0]])
+
+        self.DimObs = 1
+        self.dimObsChannel = np.array([shapeData[0]])
+        self.kernel_x = kernel_t
+        self.kernel_y = 1
+        self.sigma = sigma
+
+    def forward(self, x, y, mask):
+        
+        s_mask = kornia.filters.gaussian_blur2d(mask, (self.kernel_x,self.kernel_y), (self.sigma,self.sigma), border_type='reflect') 
+        s_y = kornia.filters.gaussian_blur2d(y, (self.kernel_x,self.kernel_y), (self.sigma,self.sigma), border_type='reflect') 
+        s_y = s_y / ( 1e-5 + s_mask )
+        
+        dyout = (x - s_y) * s_mask
+        
+        return dyout
+
+class Model_HwithSSTBN_nolin_tanh(torch.nn.Module):
+    def __init__(self,shape_data, dT=5,dim=5,padding_mode='reflect'):
+        super(Model_HwithSSTBN_nolin_tanh, self).__init__()
+
+        self.dim_obs = 2
+        self.dim_obs_channel = np.array([shape_data, dim])
+
+        self.bn_feat = torch.nn.BatchNorm2d(self.dim_obs_channel[1],track_running_stats=False)
+
+        self.convx11 = torch.nn.Conv2d(2*shape_data, 2*self.dim_obs_channel[1], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+        self.convx12 = torch.nn.Conv2d(2*self.dim_obs_channel[1], self.dim_obs_channel[1], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+        self.convx21 = torch.nn.Conv2d(self.dim_obs_channel[1], 2*self.dim_obs_channel[1], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+        self.convx22 = torch.nn.Conv2d(2*self.dim_obs_channel[1], self.dim_obs_channel[1], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+
+        self.convy11 = torch.nn.Conv2d(dT, 2*self.dim_obs_channel[1], (3, 3), padding=1, bias=False,padding_mode=padding_mode)
+
+    def extract_feature(self,y1):
+        y1     = self.convy12( torch.tanh( self.convy11(y1) ) )
+        y_feat = self.bn_feat( self.convy22( torch.tanh( self.convy21( torch.tanh(y1) ) ) ) )
+       
+        return y_feat
+        
+    def extract_state_feature(self,x):
+        x1     = self.convx12( torch.tanh( self.convx11(x) ) )
+        x_feat = self.bn_feat( self.convx22( torch.tanh( self.convx21( torch.tanh(x1) ) ) ) )
+        
+        return x_feat
+
+
+    def forward(self, x, y, mask):
+        dyout = (x - y) * mask
+                
+        x_feat = self.extract_state_feature(x)
+        y_feat = self.extract_sst_feature(y * mask)
+        dyout1 = (x_feat - y_feat) * mask
+
+        return [dyout, dyout1]
+
 class Model_HwithTrainableLocalisation(torch.nn.Module):
     def __init__(self,shapeData,kernel_t=5):
         super(Model_HwithTrainableLocalisation, self).__init__()
