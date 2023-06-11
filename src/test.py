@@ -22,7 +22,7 @@ def save_netcdf(saved_path1, gt, pred, obs,mask):
     xrdata.to_netcdf(path=saved_path1, mode='w')
 
 
-def base_testing(trainer, dm, lit_mod,ckpt,num_members=1):
+def base_testing(trainer, dm, lit_mod,ckpt=None,num_members=1):
     if trainer.logger is not None:
         print()
         print("Logdir:", trainer.logger.log_dir)
@@ -43,14 +43,14 @@ def base_testing(trainer, dm, lit_mod,ckpt,num_members=1):
     m_NormPhi = lit_mod.model.model_VarCost.normPrior
     
     print('')
-    print('...... Loaded model: '+ckpt)
+    #print('...... Loaded model: '+ckpt)
     #print('...... Loaded cfg parameters')
     #print(cfg_params)
 #    print(lit_mod.model.model_H,flush=True)
     
     print('............... Model evaluation on validation dataset')
     #trainer.test(lit_mod, dataloaders=dm.val_dataloader())#, ckpt_path=ckpt)
-    lit_mod = lit_mod.load_from_checkpoint(ckpt)
+    #lit_mod = lit_mod.load_from_checkpoint(ckpt)
 
     print('...... cfg parameters from chekpoint',flush=True)
     print(lit_mod.hparams)
