@@ -880,6 +880,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         
     def training_step(self, train_batch, batch_idx, optimizer_idx=0):
         opt = self.optimizers()
+        inputs_init,inputs_obs,masks,targets_GT = train_batch
                     
         # compute loss and metrics
         loss, out, metrics = self.compute_loss(train_batch, phase='train')
@@ -887,9 +888,17 @@ class Lit4dVarNet_L63(pl.LightningModule):
         for kk in range(0,self.hparams.k_n_grad-1):
             loss1, out, metrics = self.compute_loss(train_batch, phase='train',batch_init=out[0],hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
             loss = loss + loss1
+
+            if self.hparams.post_projection == True :
+                out[0] = self.model.phi_r(out[0]) 
+                
+            if self.hparams.post_median_filter == True :
+                out[0] = kornia.filters.median_blur(out[0], (self.hparams.median_filter_width, 1))
         
-        self.log("tr_mse", self.stdTr**2 * metrics['mse'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("tr_gmse", self.stdTr**2 * metrics['mse_grad'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        mse,gmse = self.compute_mse_loss(out[0],targets_GT)
+
+        self.log("tr_mse", self.stdTr**2 * mse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("tr_gmse", self.stdTr**2 * gmse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         
         # initial grad value
         if self.hparams.automatic_optimization == False :
@@ -906,15 +915,26 @@ class Lit4dVarNet_L63(pl.LightningModule):
         return loss
     
     def validation_step(self, val_batch, batch_idx):
+        inputs_init,inputs_obs,masks,targets_GT = val_batch
+
         loss, out, metrics = self.compute_loss(val_batch, phase='val')
         for kk in range(0,self.hparams.k_n_grad-1):
             loss1, out, metrics = self.compute_loss(val_batch, phase='val',batch_init=out[0],hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
             loss = loss1
 
+            if self.hparams.post_projection == True :
+                out[0] = self.model.phi_r(out[0]) 
+                
+            if self.hparams.post_median_filter == True :
+                out[0] = kornia.filters.median_blur(out[0], (self.hparams.median_filter_width, 1))
+
+        mse,gmse = self.compute_mse_loss(out[0],targets_GT)
+        var_cost_grad = self.loss_var_cost_grad(targets_GT,inputs_obs,masks,phase='test')
+
         self.log('val_loss', 1e3 * loss , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("val_mse", self.stdTr**2 * metrics['mse'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("val_gmse", self.stdTr**2 * metrics['mse_grad'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("val_gvar", metrics['var_grad'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("val_mse", self.stdTr**2 * mse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("val_gmse", self.stdTr**2 * gmse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("val_gvar", var_cost_grad , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
 
     def test_step(self, test_batch, batch_idx):
@@ -932,11 +952,11 @@ class Lit4dVarNet_L63(pl.LightningModule):
         for kk in range(0,self.hparams.k_n_grad-1):
             loss1, out, metrics = self.compute_loss(test_batch, phase='test',batch_init=out[0].detach(),hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
 
-        if self.hparams.post_projection == True :
-            out[0] = self.model.phi_r(out[0]) 
-            
-        if self.hparams.post_median_filter == True :
-            out[0] = kornia.filters.median_blur(out[0], (self.hparams.median_filter_width, 1))
+            if self.hparams.post_projection == True :
+                out[0] = self.model.phi_r(out[0]) 
+                
+            if self.hparams.post_median_filter == True :
+                out[0] = kornia.filters.median_blur(out[0], (self.hparams.median_filter_width, 1))
 
         mse,gmse = self.compute_mse_loss(out[0],targets_GT)
 
