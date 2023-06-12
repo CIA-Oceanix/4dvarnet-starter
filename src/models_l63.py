@@ -626,15 +626,15 @@ class Model_HwithTrainableLocalisation(torch.nn.Module):
         return dyout
 
 class Model_H(torch.nn.Module):
-    def __init__(self,shapeData):
+    def __init__(self,shape_data):
         super(Model_H, self).__init__()
         #self.DimObs = 1
         #self.dimObsChannel = np.array([shapeData[0]])
         self.dim_obs = 1
-        self.dim_obs_channel = np.array([shapeData[0]])
+        self.dim_obs_channel = np.array([shape_data[0]])
 
         self.DimObs = 1
-        self.dimObsChannel = np.array([shapeData[0]])
+        self.dimObsChannel = np.array([shape_data[0]])
 
     def forward(self, x, y, mask):
         dyout = (x - y) * mask
