@@ -77,9 +77,9 @@ model:
   m_NormPhi:
     _target_: src.solver_l63.Model_WeightedL2Norm
   mod_H:
-    _target_: src.models_l63.Model_HwithSSTBN_nolin_tanh #src.models_l63.Model_H #src.models_l63.Model_HwithTrainableLocalisation #src.models_l63.Model_HwithLocalisation
-    shape_data: 3
-    dim: 5
+    _target_: src.models_l63.Model_H # src.models_l63.Model_HwithSSTBN_nolin_tanh #src.models_l63.Model_HwithTrainableLocalisation #src.models_l63.Model_HwithLocalisation
+    shape_data: ${model.params.shapeData}
+    #dim: 5
 
 trainer:
   _target_: pytorch_lightning.Trainer
