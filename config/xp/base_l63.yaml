@@ -1,0 +1,174 @@
+# @package _global_
+
+xp_name: baseline
+
+
+datamodule:
+  _target_: src.data_l63.BaseDataModule
+  param_datamodule:
+    dl_kw: {batch_size: 128, num_workers: 1}
+  input_data:
+    _target_: src.data_l63.create_l63_datasets
+    param_dataset:
+      path_l63_dataset: '../../Dataset4DVarNet/dataset_L63_with_noise.nc'
+      genSuffixObs: 'JamesData'
+      flag_load_all_data: False
+      flag_generate_L63_data: False #True #
+      NbTraining: 10000
+      NbTest: 200
+      time_step: 1
+      dT: 200
+      varNoise: 2.0
+      sampling_step: ??
+      flagTypeMissData: 2
+      
+model:
+  _target_: src.models_l63.Lit4dVarNet_L63
+  params:
+    k_n_grad: ??
+    n_grad: 10
+    lr: 1e-3 
+    batch_size: 128
+    DimAE: 10
+    phi_param: 'unet'
+    solver: ?? #'4dvarnet-with-rnd' #'4dvarnet-with-state-and-rnd' # #'4dvarnet-with-subgradients' #'4dvarnet-with-rnd-grad' #''4dvarnet-with-state-and-rnd' #
+    dim_grad_solver: 100 #25
+    dropout: 0.2
+    alpha_prior: 0.1
+    alpha_mse: 1.
+    alpha_gmse: 0. #50.
+    alpha_var_cost_grad: 0.001
+    lr_grad: ?? #1e-2 #1.e3
+    lr_rnd: 0.e-3
+    sig_rnd_init: 0.e-2
+    sig_lstm_init: 0.e-2
+    sig_obs_noise: ?? #1e-1
+    init_state: 'obs_interp' # ?? #'zeros' #
+    suffix_exp: ?? #'-lstm+grad' #'
+    UsePeriodicBoundary: False
+    degradation_operator: 'no-degradation'  #'gaussian_smoothing' #??  # 
+    sig_perturbation_grad: 1e-2
+    alpha_perturbation_grad: 0.9
+    gamma_degradation: 1e-1
+    type_step_lstm: 'linear-relu' #'constant'  #'linear'#
+    param_lstm_step: 50 #20 #-1 #
+    dt_mse_test: 10
+    dt_mse: 10
+    post_projection: False # True # 
+    post_median_filter: True #False # 
+    median_filter_width: 3
+    shapeData:
+      - 3
+      - ${datamodule.input_data.param_dataset.dT}
+      - 1
+#  ckpt: 'outputs/2023-06-10/23-30-37/base_l63/checkpoints/model-l63-lstmonly+gobs+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_08-dgrad100-val_loss=8.5268-epoch=216.ckpt'
+  patch_weight:
+    _target_: src.models_l63.get_constant_crop_l63
+    patch_dims: ${model.params.shapeData}
+    crop: 
+      - 0
+      - 0
+      - 0
+  m_NormObs:
+    _target_: src.solver_l63.Model_WeightedL2Norm #src.solver_l63.Model_WeightedTrainableL2Norm #src.solver_l63.Model_WeightedGL2Norm # src.solver_l63.Model_WeightedL2Norm #
+    #kernel_x: 5
+    #kernel_y: 1
+    #sigma: 1.
+  m_NormPhi:
+    _target_: src.solver_l63.Model_WeightedL2Norm
+  mod_H:
+    _target_: src.models_l63.Model_H # src.models_l63.Model_HwithSSTBN_nolin_tanh #src.models_l63.Model_HwithTrainableLocalisation #src.models_l63.Model_HwithLocalisation
+    shape_data: ${model.params.shapeData}
+    #dim: 5
+
+trainer:
+  _target_: pytorch_lightning.Trainer
+  inference_mode: False
+  #gradient_clip_val: 0.5
+  accelerator: gpu
+  devices: 1
+  logger: 
+    _target_: pytorch_lightning.loggers.CSVLogger
+    save_dir: ${hydra:runtime.output_dir}
+    name: ${hydra:runtime.choices.xp}
+    version: ''
+  max_epochs: 400
+  callbacks:
+    - _target_: src.versioning_cb.VersioningCallback
+    - _target_: pytorch_lightning.callbacks.LearningRateMonitor
+    - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+      monitor: val_mse
+      save_top_k: 3
+      filename: 
+        _target_: src.models_l63.create_filename_ckpt
+        suffix: '-{val_loss:.4f}-{epoch:03d}'#'{val_mse:.4f}-{epoch:03d}'
+        params_data: ${datamodule.input_data.param_dataset}
+        params_model: ${model.params}
+        
+entrypoints:
+  - _target_: pytorch_lightning.seed_everything
+    seed: 333
+  - _target_: src.train.base_training  # src.train.fine_tuning # 
+    trainer: ${trainer}
+    lit_mod: ${model}
+    dm: ${datamodule}
+#    update_params: False
+#    ckpt: 'outputs/2023-06-08/23-38-13/base_l63/checkpoints/model-l63-lstmonly+gobs+grad-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=15.7092-epoch=014.ckpt'
+#    ckpt: 'outputs/2023-06-08/23-23-08/base_l63/checkpoints/model-l63-lstmonly+gobs-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=9.7803-epoch=092.ckpt'
+#    ckpt: 'outputs/2023-06-08/18-32-56/base_l63/checkpoints/model-l63-lstmonly+gobs-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_08-dgrad100-val_loss=8.8370-epoch=222.ckpt'
+#    ckpt: 'outputs/2023-05-24/16-55-55/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.2830-epoch=179.ckpt'
+#    ckpt: 'outputs/2023-05-23/22-14-34/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.0530-epoch=337.ckpt'
+#    ckpt: 'outputs/2023-06-10/23-30-37/base_l63/checkpoints/model-l63-lstmonly+gobs+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_08-dgrad100-val_loss=8.5268-epoch=216.ckpt'
+#  - _target_: src.test.base_testing #
+#    trainer: ${trainer}
+#    lit_mod: ${model}
+#    dm: ${datamodule}
+#    num_members: 1
+#    'model-l63-lstmonly+gobs+grad-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.6350-epoch=343.ckpt'
+#    ckpt: 'outputs/2023-05-23/14-35-56/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-degrad-JamesData-Obs08-Noise02-unet-igrad10_02-dgrad100-val_loss=3.4006-epoch=382.ckpt'
+#    ckpt: 'outputs/2023-05-23/22-14-34/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.0530-epoch=337.ckpt'
+#    ckpt: 'outputs/2023-05-23/22-00-02/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_02-dgrad100-val_loss=8.8671-epoch=341.ckpt'
+#    ckpt: 'outputs/2023-05-24/10-50-57/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-degrad-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.3704-epoch=181.ckpt'
+#    ckpt: 'outputs/2023-05-24/23-15-20/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.1530-epoch=259.ckpt'
+#
+#    ckpt: 'outputs/2023-05-29/12-28-48/base_l63/checkpoints/model-l63--lstmonly-4dvarnet-with-rnd-JamesData-Obs08-Noise02-unet-igrad10_02-dgrad100-val_loss=3.1659-epoch=377.ckpt'
+#    ckpt: 'outputs/2023-05-27/09-24-21/base_l63/checkpoints/model-l63--lstmonly-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_02-dgrad100-val_loss=3.1691-epoch=378.ckpt'
+#    ckpt: 'outputs/2023-05-27/10-52-49/base_l63/checkpoints/model-l63--lstmonly-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.5454-epoch=377.ckpt'
+#    ckpt: 'outputs/2023-05-27/10-50-07/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.0794-epoch=302.ckpt'
+#    ckpt: 'outputs/2023-05-29/10-36-42/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_02-dgrad100-val_loss=3.3930-epoch=379.ckpt'
+#    ckpt: 'outputs/2023-05-27/10-53-10/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.4943-epoch=375.ckpt'
+#
+#    ckpt: 'outputs/2023-05-27/10-51-18/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.3069-epoch=377.ckpt'
+#    ckpt: 'outputs/2023-05-27/10-53-10/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=9.2530-epoch=383.ckpt'
+#    ckpt: 'outputs/2023-05-29/10-35-40/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_02-dgrad100-val_loss=10.1159-epoch=373.ckpt'
+#    ckpt: 'outputs/2023-05-29/18-04-04/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_02-dgrad100-val_loss=8.7649-epoch=297.ckpt'
+#    ckpt: 'outputs/2023-05-29/12-30-19/base_l63/checkpoints/model-l63--lstmonly-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.4942-epoch=219.ckpt'
+#    ckpt: 'outputs/2023-05-27/10-02-47/base_l63/checkpoints/model-l63--lstmonly-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_02-dgrad100-val_loss=8.6829-epoch=225.ckpt'
+#    ckpt: 'outputs/2023-05-27/10-47-03/base_l63/checkpoints/model-l63--lstmonly-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.4832-epoch=377.ckpt'
+#    ckpt: 'outputs/2023-06-04/09-45-50/base_l63/checkpoints/model-l63--lstmonly-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.3915-epoch=339.ckpt'
+#    ckpt: 'outputs/2023-06-03/13-48-53/base_l63/checkpoints/model-l63--lstmonly-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_02-dgrad100-val_loss=8.8838-epoch=337.ckpt'
+#    ckpt: 'outputs/2023-06-05/07-42-41/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.2495-epoch=379.ckpt'
+#
+#    ckpt: 'outputs/2023-05-29/10-36-42/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_02-dgrad100-val_loss=3.3930-epoch=379.ckpt'
+#    ckpt: 'outputs/2023-05-27/10-53-10/base_l63/checkpoints/model-l63--lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.4943-epoch=375.ckpt'
+#
+#    ckpt: 'outputs/2023-06-06/00-05-38/base_l63/checkpoints/model-l63-lstmonly-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_02-dgrad100-val_loss=8.6590-epoch=381.ckpt'
+#    ckpt: 'outputs/2023-06-06/00-38-04/base_l63/checkpoints/model-l63-lstmonly-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.4630-epoch=378.ckpt'
+#    ckpt: 'outputs/2023-06-06/00-13-22/base_l63/checkpoints/model-l63-lstm+grad-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.2650-epoch=335.ckpt'
+#    ckpt: 'outputs/2023-06-06/00-30-20/base_l63/checkpoints/model-l63-lstmonly-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.3152-epoch=381.ckpt'
+#    ckpt: 'outputs/2023-06-06/00-23-31/base_l63/checkpoints/model-l63-lstmonly-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_02-dgrad100-val_loss=8.7234-epoch=376.ckpt'
+#    ckpt: 'outputs/2023-06-06/00-33-52/base_l63/checkpoints/model-l63-lstm+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.2662-epoch=262.ckpt'
+#    ckpt: 'outputs/2023-06-07/17-06-08/base_l63/checkpoints/model-l63-lstm+gmse-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=13.8624-epoch=259.ckpt'
+#    ckpt: 'outputs/2023-06-07/00-59-53/base_l63/checkpoints/model-l63-lstm+cst-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.2275-epoch=379.ckpt'
+#    ckpt: 'outputs/2023-06-07/00-29-11/base_l63/checkpoints/model-l63-lstm+cst-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_02-dgrad100-val_loss=8.7955-epoch=382.ckpt'
+#    ckpt: 'outputs/2023-06-08/12-47-25/base_l63/checkpoints/model-l63-lstm+grad+gmse-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=16.4013-epoch=098.ckpt'
+#    ckpt: 'outputs/2023-06-08/12-47-25/base_l63/checkpoints/model-l63-lstm+grad+gmse-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=14.0869-epoch=380.ckpt'
+#    ckpt: 'outputs/2023-06-10/23-30-37/base_l63/checkpoints/model-l63-lstmonly+gobs+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_08-dgrad100-val_loss=8.5268-epoch=216.ckpt'
+#    test_fn:
+#      _target_: src.utils.diagnostics
+#      _partial_: true
+#      test_domain:
+#        time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
+#        lat: ${domain.test.lat}
+#        lon: ${domain.test.lat}
+  
