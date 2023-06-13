@@ -651,7 +651,7 @@ class Model_H_with_relu(torch.nn.Module):
         self.DimObs = 1
         self.dimObsChannel = np.array([shape_data[0]])
         
-        self.beta = torch.nn.Parameter( 1e-2 )
+        self.beta = torch.nn.Parameter( torch.Tensor([1e-2]) )
         self.epsilon = 1e-10
 
     def forward(self, x, y, mask):
