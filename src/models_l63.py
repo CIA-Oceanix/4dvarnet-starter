@@ -642,7 +642,7 @@ class Model_H(torch.nn.Module):
 
 class Model_H_with_relu(torch.nn.Module):
     def __init__(self,shape_data):
-        super(Model_H, self).__init__()
+        super(Model_H_with_relu, self).__init__()
         #self.DimObs = 1
         #self.dimObsChannel = np.array([shapeData[0]])
         self.dim_obs = 1
