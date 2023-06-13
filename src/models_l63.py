@@ -640,6 +640,27 @@ class Model_H(torch.nn.Module):
         dyout = (x - y) * mask
         return dyout
 
+class Model_H_with_relu(torch.nn.Module):
+    def __init__(self,shape_data):
+        super(Model_H, self).__init__()
+        #self.DimObs = 1
+        #self.dimObsChannel = np.array([shapeData[0]])
+        self.dim_obs = 1
+        self.dim_obs_channel = np.array([shape_data[0]])
+
+        self.DimObs = 1
+        self.dimObsChannel = np.array([shape_data[0]])
+        
+        self.beta = torch.nn.Parameter( 1e-2 )
+        self.epsilon = 1e-10
+
+    def forward(self, x, y, mask):
+        dyout = (x - y) * mask
+        
+        dyout = torch.relu( torch.sqrt( dyout**2 + self.epsilon) - self.beta**2 )
+        
+        return dyout
+
 class HParam:
     def __init__(self,phi='unet',
                  n_grad = 10,
