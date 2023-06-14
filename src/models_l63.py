@@ -543,8 +543,8 @@ class Phi_unet_1_layer(torch.nn.Module):
         # LR block
         x_lr = torch.cat((x_lr,x),dim=1)
         
-        print(x_lr.size())
         x_lr = self.conv_lr4( F.relu( self.conv_lr3(x_lr) ) )
+        print(x_lr.size())
          
         x = x.view(-1,self.shapeData[0],self.shapeData[1],1)
         return x
