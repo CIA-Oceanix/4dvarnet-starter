@@ -54,6 +54,7 @@ def base_testing(trainer, dm, lit_mod,ckpt=None,num_members=1):
 
     print('...... cfg parameters from chekpoint',flush=True)
     print(lit_mod.hparams)
+    print(lit_mod.model.model_H.beta)
        
     lit_mod.set_norm_stats = dm.norm_stats()
     
