@@ -973,11 +973,11 @@ class Lit4dVarNet_L63(pl.LightningModule):
         for kk in range(0,self.hparams.k_n_grad-1):
             loss1, out, metrics = self.compute_loss(test_batch, phase='test',batch_init=out[0].detach(),hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
 
-            if self.hparams.post_projection == True :
-                out[0] = self.model.phi_r(out[0]) 
-                
-            if self.hparams.post_median_filter == True :
-                out[0] = kornia.filters.median_blur(out[0], (self.hparams.median_filter_width, 1))
+        if self.hparams.post_projection == True :
+            out[0] = self.model.phi_r(out[0]) 
+            
+        if self.hparams.post_median_filter == True :
+            out[0] = kornia.filters.median_blur(out[0], (self.hparams.median_filter_width, 1))
 
         mse,gmse = self.compute_mse_loss(out[0],targets_GT)
 
