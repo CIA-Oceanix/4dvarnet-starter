@@ -15,7 +15,8 @@ import copy
 import torch
 import torch.optim as optim
 from torch.optim import lr_scheduler
-import torch.nn.functional as nn
+import torch.nn.functional as F
+import torch.nn as nn
 from netCDF4 import Dataset
 
 from sklearn import decomposition
@@ -487,7 +488,7 @@ class Phi_unet_like(torch.nn.Module):
         #x = self.pool1( xinp )
         x = self.pool1( xinp )
         x = self.conv1( x )
-        x = self.conv2( nn.relu(x) )
+        x = self.conv2( F.relu(x) )
         x = torch.cat((self.conv21(x), self.conv22(x) * self.conv23(x)),dim=1)
         x = self.conv3( x )
         x = self.conv2Tr( x )
@@ -495,7 +496,7 @@ class Phi_unet_like(torch.nn.Module):
         #x = self.conv6( F.relu(x) )
         
         xHR = self.convHR1( xinp )
-        xHR = self.convHR2( nn.relu(xHR) )
+        xHR = self.convHR2( F.relu(xHR) )
         xHR = torch.cat((self.convHR21(xHR), self.convHR22(xHR) * self.convHR23(xHR)),dim=1)
         xHR = self.convHR3( xHR )
         
