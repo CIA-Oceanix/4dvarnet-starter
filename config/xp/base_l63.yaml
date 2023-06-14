@@ -70,9 +70,9 @@ model:
       - 0
       - 0
   Phi:
-    _target_: src.models_l63.UNet_3_layers #src.models_l63.Phi_unet_like
-#    shapeData: ${model.params.shapeData}
-#    DimAE: ${model.params.DimAE}
+    _target_: src.models_l63.Phi_unet_1_layer #src.models_l63.UNet_3_layers #src.models_l63.Phi_unet_like
+    shapeData: ${model.params.shapeData}
+    DimAE: ${model.params.DimAE}
   m_NormObs:
     _target_: src.solver_l63.Model_WeightedL2Norm #src.solver_l63.Model_WeightedTrainableL2Norm #src.solver_l63.Model_WeightedGL2Norm # src.solver_l63.Model_WeightedL2Norm #
     #kernel_x: 5
