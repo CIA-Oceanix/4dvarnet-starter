@@ -55,7 +55,7 @@ model:
     dt_mse_test: 10
     dt_mse: 10
     post_projection: False # True # 
-    post_median_filter: False # True #
+    post_median_filter: True # False # 
     median_filter_width: 3
     shapeData:
       - 3
