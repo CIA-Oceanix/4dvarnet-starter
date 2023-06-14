@@ -39,9 +39,9 @@ model:
     alpha_gmse: 0. #50.
     alpha_var_cost_grad: 0.001
     lr_grad: ?? #1e-2 #1.e3
-    lr_rnd: 0.e-3
-    sig_rnd_init: 0.e-2
-    sig_lstm_init: 0.e-2
+    lr_rnd: 1.e-3
+    sig_rnd_init: 1.e-2
+    sig_lstm_init: 1.e-2
     sig_obs_noise: ?? #1e-1
     init_state: 'obs_interp' # ?? #'zeros' #
     suffix_exp: ?? #'-lstm+grad' #'
