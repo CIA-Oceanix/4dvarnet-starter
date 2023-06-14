@@ -454,9 +454,9 @@ class Phi_ode(torch.nn.Module):
         
         return xnew
 
-class Phi_unet__layers_bilin(torch.nn.Module):
+class Phi_unet_like_bilin(torch.nn.Module):
     def __init__(self,shapeData,DimAE,dW=5):
-        super(Phi_unet_like, self).__init__()
+        super(Phi_unet_like_bilin, self).__init__()
         self.pool1  = torch.nn.AvgPool2d((4,1))
         #self.conv1  = ConstrainedConv2d(shapeData[0],2*shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
         self.conv1  = torch.nn.Conv2d(shapeData[0],2*shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
