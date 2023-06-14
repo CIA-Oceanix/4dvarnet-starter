@@ -70,7 +70,7 @@ model:
       - 0
       - 0
   Phi:
-    _target_: src.models_l63.Phi_unet_1_layer #src.models_l63.UNet_3_layers #src.models_l63.Phi_unet_like
+    _target_: src.models_l63.Phi_unet_like #src.models_l63.Phi_unet_1_layer #src.models_l63.UNet_3_layers #
     shapeData: ${model.params.shapeData}
     DimAE: ${model.params.DimAE}
   m_NormObs:
