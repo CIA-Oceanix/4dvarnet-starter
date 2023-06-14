@@ -599,7 +599,7 @@ class OutConv(nn.Module):
         return self.conv(x)
 
 class UNet_3_layers(nn.Module):
-    def __init__(self, n_channels, n_classes, bilinear=False):
+    def __init__(self, n_channels=3, n_classes=3, bilinear=False):
         super(UNet_3_layers, self).__init__()
         self.n_channels = n_channels
         self.n_classes = n_classes
