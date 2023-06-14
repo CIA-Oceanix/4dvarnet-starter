@@ -547,6 +547,8 @@ class DoubleConv(torch.nn.Module):
                     nn.LogSigmoid(inplace=True) )
 #        elif activation == 'bilin' :
 #            self.double_conv = DoubleConvBILIN(in_channels, mid_channels,padding_mode=padding_mode)
+    def forward(self, x):
+        return self.double_conv(x)
 
 class Down(nn.Module):
     """Downscaling with maxpool then double conv"""
