@@ -88,7 +88,7 @@ def create_filename_ckpt(suffix,params_data,params_model):
         
     filename_chkpt = filename_chkpt + params_data.genSuffixObs 
     filename_chkpt = filename_chkpt + '-Obs%02d'%params_data.sampling_step + '-Noise%02d'%(params_data.varNoise)        
-    filename_chkpt = filename_chkpt + '-' + params_model.phi_param
+    #filename_chkpt = filename_chkpt + '-' + params_model.phi_param
     filename_chkpt = filename_chkpt + '-igrad%02d_%02d'%(params_model.n_grad,params_model.k_n_grad)+'-dgrad%d'%params_model.dim_grad_solver          
     #filename_chkpt = filename_chkpt + '-drop%02d'%(100*params_model.dropout)
     #filename_chkpt = filename_chkpt + '-rnd-init%02d'%(100*params_model.sig_rnd_init)
@@ -394,19 +394,20 @@ def create_dataloaders(data_module):
 
 class Phi_ode(torch.nn.Module):
     def __init__(self,meanTr,stdTr):
-          super(Phi_ode, self).__init__()
-          self.sigma = torch.nn.Parameter(torch.Tensor([np.random.randn()]))
-          self.rho    = torch.nn.Parameter(torch.Tensor([np.random.randn()]))
-          self.beta   = torch.nn.Parameter(torch.Tensor([np.random.randn()]))
+        super(Phi_ode, self).__init__()
+        self.sigma = torch.nn.Parameter(torch.Tensor([np.random.randn()]))
+        self.rho    = torch.nn.Parameter(torch.Tensor([np.random.randn()]))
+        self.beta   = torch.nn.Parameter(torch.Tensor([np.random.randn()]))
 
-          self.sigma  = torch.nn.Parameter(torch.Tensor([10.]))
-          self.rho    = torch.nn.Parameter(torch.Tensor([28.]))
-          self.beta   = torch.nn.Parameter(torch.Tensor([8./3.]))
+        self.sigma  = torch.nn.Parameter(torch.Tensor([10.]))
+        self.rho    = torch.nn.Parameter(torch.Tensor([28.]))
+        self.beta   = torch.nn.Parameter(torch.Tensor([8./3.]))
 
-          self.dt        = 0.01
-          self.IntScheme = 'rk4'
-          self.stdTr     = stdTr
-          self.meanTr    = meanTr                      
+        self.dt        = 0.01
+        self.IntScheme = 'rk4'
+        self.stdTr     = stdTr
+        self.meanTr    = meanTr                      
+        self.model_name='ode'
     def _odeL63(self, xin):
         x1  = xin[:,0,:]
         x2  = xin[:,1,:]
@@ -483,6 +484,8 @@ class Phi_unet_like(torch.nn.Module):
         self.convHR3  = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0],1,padding=0,bias=False)
 
         self.shapeData = shapeData
+
+        self.model_name='unet-like'
     def forward(self, xinp):
         #x = self.fc1( torch.nn.Flatten(x) )
         #x = self.pool1( xinp )
@@ -614,6 +617,8 @@ class UNet_3_layers(nn.Module):
         self.up3 = Up(128, 64 // factor, bilinear)
         self.up4 = Up(64, 32, bilinear)
         self.outc = OutConv(32, n_classes)
+        
+        self.model_name='unet-3-layers'
 
     def forward(self, x):
         x1 = self.inc(x)
@@ -1251,7 +1256,7 @@ class LitModel_FixedPoint(pl.LightningModule):
         self.hparams.lr    = 1.e-3
 
         # main model
-        self.model        = Phi_unet()
+        self.model        = Phi_unet_like()
         self.x_rec    = None # variable to store output of test method
         self.x_rec_obs = None
         self.curr = 0
