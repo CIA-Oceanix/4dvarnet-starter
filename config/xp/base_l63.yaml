@@ -39,9 +39,9 @@ model:
     alpha_gmse: 0. #50.
     alpha_var_cost_grad: 0.001
     lr_grad: ?? #1e-2 #1.e3
-    lr_rnd: 1.e-3
-    sig_rnd_init: 1.e-2
-    sig_lstm_init: 1.e-2
+    lr_rnd: 0.e-3
+    sig_rnd_init: 0.e-2
+    sig_lstm_init: 0.e-2
     sig_obs_noise: ?? #1e-1
     init_state: 'obs_interp' # ?? #'zeros' #
     suffix_exp: ?? #'-lstm+grad' #'
@@ -54,7 +54,7 @@ model:
     param_lstm_step: 50 #20 #-1 #
     dt_mse_test: 10
     dt_mse: 10
-    post_projection: True # False # ?? # 
+    post_projection: False #True #  ?? # 
     post_median_filter: False # True # 
     median_filter_width: 3
     shapeData:
@@ -70,7 +70,7 @@ model:
       - 0
       - 0
   Phi:
-    _target_: src.models_l63.Phi_unet_like_bilin #src.models_l63.Phi_unet_1_layer #src.models_l63.UNet_3_layers #
+    _target_: src.models_l63.Phi_unet_1_layer_bis #src.models_l63.Phi_unet_like_bilin #src.models_l63.UNet_3_layers #
     shapeData: ${model.params.shapeData}
     DimAE: ${model.params.DimAE}
   m_NormObs:
