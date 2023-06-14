@@ -519,30 +519,30 @@ class DoubleConv(torch.nn.Module):
             
         if activation == 'relu':
             self.double_conv = nn.Sequential(
-                    nn.Conv2d(in_channels, mid_channels, kernel_size=3, padding=1, bias=False,padding_mode=padding_mode),
+                    nn.Conv2d(in_channels, mid_channels, kernel_size=(3,1), padding=(1,0), bias=False,padding_mode=padding_mode),
                     nn.BatchNorm2d(mid_channels),
                     nn.ReLU(inplace=True),
                     nn.Dropout(rateDropout),
-                    nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1, bias=False,padding_mode=padding_mode),
+                    nn.Conv2d(mid_channels, out_channels, kernel_size=(3,1), padding=(1,0), bias=False,padding_mode=padding_mode),
                     nn.BatchNorm2d(out_channels),
                     nn.ReLU(inplace=True)
                 )
         elif activation == 'tanh' :
             self.double_conv = nn.Sequential(
-                    nn.Conv2d(in_channels, mid_channels, kernel_size=3, padding=1, bias=False,padding_mode=padding_mode),
+                    nn.Conv2d(in_channels, mid_channels, kernel_size=(3,1), padding=(1,0), bias=False,padding_mode=padding_mode),
                     nn.BatchNorm2d(mid_channels),
                     nn.Tanh(inplace=True),
                     nn.Dropout(rateDropout),
-                    nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1, bias=False,padding_mode=padding_mode),
+                    nn.Conv2d(mid_channels, out_channels, kernel_size=(3,1), padding=(1,0), bias=False,padding_mode=padding_mode),
                     nn.BatchNorm2d(out_channels),
                     nn.Tanh(inplace=True) )
         elif activation == 'logsigmoid' :
             self.double_conv = nn.Sequential(
-                    nn.Conv2d(in_channels, mid_channels, kernel_size=3, padding=1, bias=False,padding_mode=padding_mode),
+                    nn.Conv2d(in_channels, mid_channels, kernel_size=(3,1), padding=(1,0), bias=False,padding_mode=padding_mode),
                     nn.BatchNorm2d(mid_channels),
                     nn.LogSigmoid(inplace=True),
                     nn.Dropout(rateDropout),
-                    nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1, bias=False,padding_mode=padding_mode),
+                    nn.Conv2d(mid_channels, out_channels, kernel_size=(3,1), padding=(1,0), bias=False,padding_mode=padding_mode),
                     nn.BatchNorm2d(out_channels),
                     nn.LogSigmoid(inplace=True) )
 #        elif activation == 'bilin' :
