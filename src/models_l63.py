@@ -549,7 +549,7 @@ class Phi_unet_1_layer(torch.nn.Module):
         x_lr = self.conv_lr2( F.relu( self.conv_lr1(xinp) ) )
 
         # HR block
-        x = self.conv_hr1( F.relu(self.conv_hr1( self.pool1( x_lr ) )) )
+        x = self.conv_hr2( F.relu(self.conv_hr1( self.pool1( x_lr ) )) )
         x = self.conv_hr4( F.relu( self.conv_hr3( x ) ) )        
         x = self.conv2Tr( x )
         
