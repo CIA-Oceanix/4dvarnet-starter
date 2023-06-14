@@ -30,7 +30,7 @@ model:
     lr: 1e-3 
     batch_size: 128
     DimAE: 10
-    phi_param: 'unet'
+#    phi_param: 'unet'
     solver: ?? #'4dvarnet-with-rnd' #'4dvarnet-with-state-and-rnd' # #'4dvarnet-with-subgradients' #'4dvarnet-with-rnd-grad' #''4dvarnet-with-state-and-rnd' #
     dim_grad_solver: 100 #25
     dropout: 0.2
@@ -54,7 +54,7 @@ model:
     param_lstm_step: 50 #20 #-1 #
     dt_mse_test: 10
     dt_mse: 10
-    post_projection: ?? # False # 
+    post_projection: False # ?? # 
     post_median_filter: False # True # 
     median_filter_width: 3
     shapeData:
@@ -69,6 +69,10 @@ model:
       - 0
       - 0
       - 0
+  Phi:
+    _target_: src.solver_l63.Phi_unet_like #src.solver_l63.Model_WeightedTrainableL2Norm #src.solver_l63.Model_WeightedGL2Norm # src.solver_l63.Model_WeightedL2Norm #
+    shapeData: ${model.params.shapeData}
+    DimAE: ${model.params.DimAE}
   m_NormObs:
     _target_: src.solver_l63.Model_WeightedL2Norm #src.solver_l63.Model_WeightedTrainableL2Norm #src.solver_l63.Model_WeightedGL2Norm # src.solver_l63.Model_WeightedL2Norm #
     #kernel_x: 5
