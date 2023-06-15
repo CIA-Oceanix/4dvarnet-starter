@@ -485,7 +485,7 @@ class Phi_unet_like_bilin(torch.nn.Module):
 
         self.shapeData = shapeData
 
-        self.model_name='unet-2-layers-bilin'
+        self.model_name='unet-like-bilin'
     def forward(self, xinp):
         #x = self.fc1( torch.nn.Flatten(x) )
         #x = self.pool1( xinp )
@@ -515,15 +515,15 @@ class Phi_unet_1_layer(torch.nn.Module):
         self.pool1  = torch.nn.AvgPool2d((4,1))
 
         self.conv_lr1  = torch.nn.Conv2d(shapeData[0],2*shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
-        self.conv_lr2  = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0]*DimAE,1,padding=0,bias=False)
+        self.conv_lr2  = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
         
         self.conv_lr3  = torch.nn.Conv2d(2*shapeData[0]*DimAE,2*shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
-        self.conv_lr4  = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0],1,padding=0,bias=False)
+        self.conv_lr4  = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0],(2*dW+1,1),padding=(dW,0),bias=False)
 
-        self.conv_hr1 = torch.nn.Conv2d(shapeData[0]*DimAE,2*shapeData[0]*DimAE,1,padding=0,bias=False)
-        self.conv_hr2 = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0]*DimAE,1,padding=0,bias=False)
-        self.conv_hr3 = torch.nn.Conv2d(shapeData[0]*DimAE,2*shapeData[0]*DimAE,1,padding=0,bias=False)
-        self.conv_hr4  = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0]*DimAE,1,padding=0,bias=False)
+        self.conv_hr1 = torch.nn.Conv2d(shapeData[0]*DimAE,2*shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
+        self.conv_hr2 = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
+        self.conv_hr3 = torch.nn.Conv2d(shapeData[0]*DimAE,2*shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
+        self.conv_hr4  = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
 
         self.conv2Tr = torch.nn.ConvTranspose2d(shapeData[0]*DimAE,shapeData[0]*DimAE,(4,1),stride=(4,1),bias=False)          
 
@@ -554,15 +554,15 @@ class Phi_unet_1_layer_bis(torch.nn.Module):
         self.pool1  = torch.nn.AvgPool2d((4,1))
 
         self.conv_lr1  = torch.nn.Conv2d(shapeData[0],2*shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
-        self.conv_lr2  = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0]*DimAE,1,padding=0,bias=False)
+        self.conv_lr2  = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
         
         self.conv_lr3  = torch.nn.Conv2d(shapeData[0]*DimAE,2*shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
-        self.conv_lr4  = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0],1,padding=0,bias=False)
+        self.conv_lr4  = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0],(2*dW+1,1),padding=(dW,0),bias=False)
 
-        self.conv_hr1 = torch.nn.Conv2d(shapeData[0],2*shapeData[0]*DimAE,1,padding=0,bias=False)
-        self.conv_hr2 = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0]*DimAE,1,padding=0,bias=False)
-        self.conv_hr3 = torch.nn.Conv2d(shapeData[0]*DimAE,2*shapeData[0]*DimAE,1,padding=0,bias=False)
-        self.conv_hr4  = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0]*DimAE,1,padding=0,bias=False)
+        self.conv_hr1 = torch.nn.Conv2d(shapeData[0],2*shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
+        self.conv_hr2 = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
+        self.conv_hr3 = torch.nn.Conv2d(shapeData[0]*DimAE,2*shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
+        self.conv_hr4  = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
 
         self.conv2Tr = torch.nn.ConvTranspose2d(shapeData[0]*DimAE,shapeData[0],(4,1),stride=(4,1),bias=False)          
 
