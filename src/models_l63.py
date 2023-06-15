@@ -568,7 +568,7 @@ class Phi_unet_1_layer_bis(torch.nn.Module):
 
         self.shapeData = shapeData
 
-        self.model_name='unet-one-layer'
+        self.model_name='unet-one-layer-bis'
     def forward(self, xinp):
 
         # HR block
