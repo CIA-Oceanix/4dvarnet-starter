@@ -564,7 +564,7 @@ class Phi_unet_1_layer_bis(torch.nn.Module):
         self.conv_hr3 = torch.nn.Conv2d(shapeData[0]*DimAE,2*shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
         self.conv_hr4  = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
 
-        self.conv2Tr = torch.nn.ConvTranspose2d(shapeData[0]*DimAE,shapeData[0]*shapeData[0],(4,1),stride=(4,1),bias=False)          
+        self.conv2Tr = torch.nn.ConvTranspose2d(shapeData[0]*DimAE,DimAE*shapeData[0],(4,1),stride=(4,1),bias=False)          
 
         self.shapeData = shapeData
 
