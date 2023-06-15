@@ -90,7 +90,7 @@ lit_mod_cfg = dict(
         mse=dict(_target_='contrib.lorenz63.models.mse', _partial_=True),
         percent_err=dict(_target_='contrib.lorenz63.models.percent_err', _partial_=True),
     ),
-    pre_metric_fn=dict( _target_= "xarray.Dataset.isel", _partial_= True, time= sl_cfg(10, -10))
+    pre_metric_fn=dict( _target_= "xarray.Dataset.isel", _partial_= True, time=sl_cfg(10, -10))
 )
 node = dict(
     datamodule=dm_cfg,

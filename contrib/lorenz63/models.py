@@ -72,6 +72,17 @@ class LitLorenz(src.models.Lit4dVarNet):
         grad_loss = self.weighted_mse( kfilts.sobel(out[..., None]).squeeze()
             - kfilts.sobel(batch.tgt[..., None]).squeeze(), self.rec_weight)
         return  loss + prior_cost, out
+    
+    def on_test_epoch_end(self):
+        crop = 20
+
+        test_data = torch.cat([td[..., crop:-crop] for td in self.test_data])
+        print('\n\nPATCH MSE', ((test_data[:, 1] - test_data[:, 2])**2).mean(), '\n\n')
+        super().on_test_epoch_end()
+
+        test_data = self.pre_metric_fn(self.test_data)
+        print(mse(test_data))
+        print(percent_err(test_data))
 
 
 def mse(rec_ds): return ((rec_ds.tgt - rec_ds.out)**2).mean().values.item()
