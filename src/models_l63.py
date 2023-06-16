@@ -559,7 +559,7 @@ class Phi_unet_1_layer_bis(torch.nn.Module):
         self.conv_lr3  = torch.nn.Conv2d(2*shapeData[0]*DimAE,2*shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
         self.conv_lr4  = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0],(2*dW+1,1),padding=(dW,0),bias=False)
 
-        self.conv_hr1 = torch.nn.Conv2d(shapeData[0]*DimAE,2*shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
+        self.conv_hr1 = torch.nn.Conv2d(shapeData[0],2*shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
         self.conv_hr2 = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
         self.conv_hr3 = torch.nn.Conv2d(shapeData[0]*DimAE,2*shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
         self.conv_hr4  = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
@@ -571,16 +571,15 @@ class Phi_unet_1_layer_bis(torch.nn.Module):
         self.model_name='unet-one-layer-bis'
     def forward(self, xinp):
 
-        x_lr = self.conv_lr2( F.relu( self.conv_lr1(xinp) ) )
-
         # HR block
-        x = self.conv_hr2( F.relu(self.conv_hr1( self.pool1( x_lr ) )) )
+        x = self.conv_hr2( F.relu(self.conv_hr1( self.pool1( xinp ) )) )
         x = self.conv_hr4( F.relu( self.conv_hr3( x ) ) )        
         x = self.conv2Tr( x )
         
         # LR block
         #x_lr = self.conv_lr2( F.relu( self.conv_lr1(xinp) ) )
         #x = x + self.conv_lr4( F.relu( self.conv_lr3(x_lr) ) )
+        x_lr = self.conv_lr2( F.relu( self.conv_lr1(xinp) ) )
         x = torch.cat( (x_lr,x),dim=1 ) 
         x = self.conv_lr4( F.relu( self.conv_lr3(x) ) )
         
