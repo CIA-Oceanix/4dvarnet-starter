@@ -549,7 +549,7 @@ class Phi_unet_1_layer(torch.nn.Module):
         return x
 
 class Phi_unet_1_layer_bis(torch.nn.Module):
-    def __init__(self,shapeData,DimAE,dW=5):
+    def __init__(self,shapeData,DimAE,rateDropout=0.,dW=5):
         super(Phi_unet_1_layer_bis, self).__init__()
         self.pool1  = torch.nn.AvgPool2d((4,1))
 
@@ -565,6 +565,7 @@ class Phi_unet_1_layer_bis(torch.nn.Module):
         self.conv_hr4  = torch.nn.Conv2d(2*shapeData[0]*DimAE,shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
 
         self.conv2Tr = torch.nn.ConvTranspose2d(shapeData[0]*DimAE,DimAE*shapeData[0],(4,1),stride=(4,1),bias=False)          
+        self.dropout = torch.nn.Dropout(rateDropout)
 
         self.shapeData = shapeData
 
@@ -573,7 +574,10 @@ class Phi_unet_1_layer_bis(torch.nn.Module):
 
         # HR block
         x = self.conv_hr2( F.relu(self.conv_hr1( self.pool1( xinp ) )) )
+        x = self.dropout( x )
+        
         x = self.conv_hr4( F.relu( self.conv_hr3( x ) ) )        
+        x = self.dropout( x )
         x = self.conv2Tr( x )
         
         # LR block
@@ -581,6 +585,7 @@ class Phi_unet_1_layer_bis(torch.nn.Module):
         #x = x + self.conv_lr4( F.relu( self.conv_lr3(x_lr) ) )
         x_lr = self.conv_lr2( F.relu( self.conv_lr1(xinp) ) )
         x = torch.cat( (x_lr,x),dim=1 ) 
+        x = self.dropout( x )
         x = self.conv_lr4( F.relu( self.conv_lr3(x) ) )
         
         x = x.view(-1,self.shapeData[0],self.shapeData[1],1)

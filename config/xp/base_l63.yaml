@@ -73,6 +73,7 @@ model:
     _target_: src.models_l63.Phi_unet_1_layer_bis #src.models_l63.Phi_unet_like_bilin #src.models_l63.UNet_3_layers #
     shapeData: ${model.params.shapeData}
     DimAE: ${model.params.DimAE}
+    rateDropout: 0.2
   m_NormObs:
     _target_: src.solver_l63.Model_WeightedL2Norm #src.solver_l63.Model_WeightedTrainableL2Norm #src.solver_l63.Model_WeightedGL2Norm # src.solver_l63.Model_WeightedL2Norm #
     #kernel_x: 5
