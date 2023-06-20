@@ -100,7 +100,6 @@ class Lit4dVarNet(pl.LightningModule):
         self.test_data = rec_da.assign_coords(
             dict(v0=self.test_quantities)
         ).to_dataset(dim='v0')
-        import numpy as np
 
         metric_data = self.test_data.pipe(self.pre_metric_fn)
         metrics = pd.Series({
@@ -116,14 +115,13 @@ class Lit4dVarNet(pl.LightningModule):
 
 
 class GradSolver(nn.Module):
-    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.2, grad_mod_step=None, **kwargs):
+    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.2, **kwargs):
         super().__init__()
         self.prior_cost = prior_cost
         self.obs_cost = obs_cost
         self.grad_mod = grad_mod
 
         self.n_step = n_step
-        self.grad_mod_step = grad_mod_step or n_step
         self.lr_grad = lr_grad
 
         self._grad_norm = None
@@ -138,14 +136,11 @@ class GradSolver(nn.Module):
         var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
 
-        if step < self.grad_mod_step:
-            gmod = self.grad_mod(grad)
-            state_update = (
-                1 / (step + 1) * gmod
-                    + self.lr_grad * (step + 1) / self.grad_mod_step * grad
-            )
-        else:
-            state_update = self.lr_grad * grad
+        gmod = self.grad_mod(grad)
+        state_update = (
+            1 / (step + 1) * gmod
+                + self.lr_grad * (step + 1) / self.n_step * grad
+        )
         
 
         return state - state_update
@@ -249,12 +244,9 @@ class BilinAEPriorCost(nn.Module):
         self.bilin_21 = nn.Conv2d(
             dim_hidden, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
         )
-        if bilin_quad:
-            self.bilin_22 = self.bilin_21
-        else:
-            self.bilin_22 = nn.Conv2d(
-                dim_hidden, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
-            )
+        self.bilin_22 = nn.Conv2d(
+            dim_hidden, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
+        )
 
         self.conv_out = nn.Conv2d(
             2 * dim_hidden, dim_in, kernel_size=kernel_size, padding=kernel_size // 2
@@ -272,8 +264,9 @@ class BilinAEPriorCost(nn.Module):
         x = self.conv_in(x)
         x = self.conv_hidden(F.relu(x))
 
+        nonlin = self.bilin_21(x)**2 if self.bilin_quad else (self.bilin_21(x) * self.bilin_22(x))
         x = self.conv_out(
-            torch.cat([self.bilin_1(x), self.bilin_21(x) * self.bilin_22(x)], dim=1)
+            torch.cat([self.bilin_1(x), nonlin], dim=1)
         )
         x = self.up(x)
         return x

@@ -257,7 +257,7 @@ def diagnostics(lit_mod, test_domain):
 def diagnostics_from_ds(test_data, test_domain):
     test_data = test_data.sel(test_domain)
     metrics = {
-        "RMSE (m)": test_data.pipe(lambda ds: (ds.out - ds.ssh))
+        "RMSE (m)": test_data.pipe(lambda ds: (ds.out - ds.tgt))
         .pipe(lambda da: da**2)
         .mean()
         .pipe(np.sqrt)
@@ -265,13 +265,13 @@ def diagnostics_from_ds(test_data, test_domain):
         **dict(
             zip(
                 ["λx", "λt"],
-                test_data.pipe(lambda ds: psd_based_scores(ds.out, ds.ssh)[1:]),
+                test_data.pipe(lambda ds: psd_based_scores(ds.out, ds.tgt)[1:]),
             )
         ),
         **dict(
             zip(
                 ["μ", "σ"],
-                test_data.pipe(lambda ds: rmse_based_scores(ds.out, ds.ssh)[2:]),
+                test_data.pipe(lambda ds: rmse_based_scores(ds.out, ds.tgt)[2:]),
             )
         ),
     }
