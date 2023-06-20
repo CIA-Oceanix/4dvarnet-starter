@@ -120,7 +120,7 @@ def ose_diags_from_da(rec, test_track, oi, crop_psd=50):
 def ose_diags(model, test_track_path, oi_path, save_rec_path=None):
     test_track = xr.open_dataset(test_track_path).load()
     oi = xr.open_dataset(oi_path).ssh
-    rec = model.test_data.rec_ssh
+    rec = model.test_data.out
     if save_rec_path is not None:
         rec.to_netcdf(save_rec_path + "/ose_ssh_rec.nc")
     metric_df = ose_diags_from_da(rec, test_track, oi)
@@ -133,13 +133,13 @@ def ose_diags(model, test_track_path, oi_path, save_rec_path=None):
 
 
 def test_ose(trainer, lit_mod, ose_dm, ckpt, diag_data_dir, test_track_path, oi_path):
-    lit_mod.norm_stats = ose_dm.norm_stats()
+    lit_mod._norm_stats = ose_dm.norm_stats()
     trainer.test(lit_mod, datamodule=ose_dm, ckpt_path=ckpt)
     ose_tdat = lit_mod.test_data
 
     test_track = xr.open_dataset(test_track_path).load()
     oi = xr.open_dataset(oi_path).ssh
-    ose_metrics = ose_diags_from_da(ose_tdat.rec_ssh, test_track, oi, crop_psd=60)
+    ose_metrics = ose_diags_from_da(ose_tdat.out, test_track, oi, crop_psd=60)
     print(ose_metrics.to_markdown())
 
     if diag_data_dir is not None:
@@ -193,17 +193,17 @@ def ensemble_metrics(
 
         if i == 0:
             test_data = lit_mod.test_data
-            test_data = test_data.rename(rec_ssh=f"rec_ssh_{i}")
+            test_data = test_data.rename(out=f"out_{i}")
         else:
-            test_data = test_data.assign(**{f"rec_ssh_{i}": lit_mod.test_data.rec_ssh})
-        test_data[f"rec_ssh_{i}"] = test_data[f"rec_ssh_{i}"].assign_attrs(
+            test_data = test_data.assign(**{f"out_{i}": lit_mod.test_data.out})
+        test_data[f"out_{i}"] = test_data[f"out_{i}"].assign_attrs(
             ckpt=str(ckpt)
         )
 
     print(metrics_df.T.to_markdown())
     print(metrics_df.T.applymap(float).describe().to_markdown())
     metrics_df.to_csv(save_path / "metrics.csv")
-    test_data.to_netcdf(save_path / "ens_ose_rec_ssh.nc")
+    test_data.to_netcdf(save_path / "ens_ose_out.nc")
 
 
 if __name__ == "__main__":
@@ -222,7 +222,7 @@ if __name__ == "__main__":
         "/raid/localscratch/qfebvre/4dvarnet-starter/outputs/2023-01-18/11-38-40/ose_ssh_rec.nc"
     )
 
-    rec = test_data.rec_ssh
+    rec = test_data.out
     test_track = xr.open_dataset(
         "../sla-data-registry/data_ose/along_track/dt_gulfstream_c2_phy_l3_20161201-20180131_285-315_23-53.nc"
     ).load()

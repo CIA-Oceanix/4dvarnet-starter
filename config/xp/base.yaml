@@ -22,9 +22,9 @@ trainer:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
     - _target_: pytorch_lightning.callbacks.ModelCheckpoint
-      monitor: val_rmse
-      save_top_k: 10
-      filename: '{val_rmse:.4f}-{epoch:03d}'
+      monitor: val_mse
+      save_top_k: 3
+      filename: '{val_mse:.5f}-{epoch:03d}'
 
 datamodule:
   _target_: src.data.BaseDataModule
@@ -49,6 +49,7 @@ datamodule:
 
 model:
   _target_: src.models.Lit4dVarNet
+  persist_rw: False
   opt_fn:
     _target_: src.utils.cosanneal_lr_adam
     _partial_: true
@@ -58,15 +59,18 @@ model:
       _target_: src.utils.get_triang_time_wei
       patch_dims: ${datamodule.xrds_kw.patch_dims}
       crop: {time: 0, lat: 20, lon: 20}
-      offset: 0
+      offset: 1
   solver: 
     _target_: src.models.GradSolver
     n_step: 10
-    lr_grad: 0.2
+    lr_grad: 1e3
+    # lr_grad: 0.2
     prior_cost: 
       _target_: src.models.BilinAEPriorCost
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
       dim_hidden: 32
+      bilin_quad: False
+      # bilin_quad: True
       downsamp: 2
     obs_cost: 
       _target_: src.models.BaseObsCost
@@ -74,7 +78,24 @@ model:
       _target_: src.models.ConvLstmGradModel
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
       dim_hidden: 48
+  test_metrics: ${metrics.test_metrics}
+  pre_metric_fn: 
+        _target_: xarray.Dataset.sel
+        _partial_: True
+        time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
+        lat: ${domain.test.lat}
+        lon: ${domain.test.lon}
 
+metrics:
+  nrmse_scores: {_target_: src.utils.rmse_based_scores_from_ds, _partial_: True}
+  psd_scores: {_target_: src.utils.psd_based_scores_from_ds, _partial_: True}
+  get0: {_target_: operator.itemgetter, _args_: [0]}
+  get1: {_target_: operator.itemgetter, _args_: [1]}
+  test_metrics:
+    'mu': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.nrmse_scores}', '${metrics.get0}']}
+    'sig': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.nrmse_scores}', '${metrics.get1}']}
+    'lx': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.psd_scores}', '${metrics.get0}']}
+    'lt': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.psd_scores}', '${metrics.get1}']}
 
 entrypoints:
   - _target_: pytorch_lightning.seed_everything
@@ -83,13 +104,6 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    test_fn:
-      _target_: src.utils.diagnostics
-      _partial_: true
-      test_domain:
-        time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
-        lat: ${domain.test.lat}
-        lon: ${domain.test.lon}
 
 defaults:
   - /domain: gf

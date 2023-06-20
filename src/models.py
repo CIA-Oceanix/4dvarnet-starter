@@ -1,21 +1,30 @@
-import numpy as np
+import pandas as pd
+from pathlib import Path
 import pytorch_lightning as pl
 import kornia.filters as kfilts
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import xarray as xr
-import einops
 
 
 class Lit4dVarNet(pl.LightningModule):
-    def __init__(self, solver, rec_weight, opt_fn, norm_stats=None):
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
         super().__init__()
         self.solver = solver
-        self.register_buffer('rec_weight', torch.from_numpy(rec_weight))
+        self.register_buffer('rec_weight', torch.from_numpy(rec_weight), persistent=persist_rw)
         self.test_data = None
-        self.norm_stats = norm_stats if norm_stats is not None else (0.0, 1.0)
+        self._norm_stats = norm_stats
         self.opt_fn = opt_fn
+        self.metrics = test_metrics or {}
+        self.pre_metric_fn = pre_metric_fn or (lambda x: x)
+
+    @property
+    def norm_stats(self):
+        if self._norm_stats is not None:
+            return self._norm_stats
+        elif self.trainer.datamodule is not None:
+            return self.trainer.datamodule.norm_stats()
+        return (0., 1.)
 
     @staticmethod
     def weighted_mse(err, weight):
@@ -40,8 +49,8 @@ class Lit4dVarNet(pl.LightningModule):
         if self.training and batch.tgt.isfinite().float().mean() < 0.9:
             return None, None
 
-        out, loss = self.base_step(batch, phase)
-        grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilt.sobel(batch.tgt), self.rec_weight)
+        loss, out = self.base_step(batch, phase)
+        grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
         prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
         self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
 
@@ -53,10 +62,7 @@ class Lit4dVarNet(pl.LightningModule):
         loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
 
         with torch.no_grad():
-            rmse = (self.weighted_mse(
-                (out - batch.tgt) * self.norm_stats[1], self.rec_weight
-            ) ** 0.5)
-            self.log(f"{phase}_rmse", rmse, prog_bar=True, on_step=False, on_epoch=True)
+            self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
             self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
 
         return loss, out
@@ -79,6 +85,10 @@ class Lit4dVarNet(pl.LightningModule):
             dim=1,
         ))
 
+    @property
+    def test_quantities(self):
+        return ['inp', 'tgt', 'out']
+
     def on_test_epoch_end(self):
         rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
             self.test_data, self.rec_weight.cpu().numpy()
@@ -87,22 +97,33 @@ class Lit4dVarNet(pl.LightningModule):
         if isinstance(rec_da, list):
             rec_da = rec_da[0]
 
-        self.test_data = xr.Dataset(
-            {
-                k: rec_da.isel(v0=i)
-                for i, k in enumerate(["obs", "ssh", "rec_ssh"])
-            }
-        )
+        self.test_data = rec_da.assign_coords(
+            dict(v0=self.test_quantities)
+        ).to_dataset(dim='v0')
+        import numpy as np
+
+        metric_data = self.test_data.pipe(self.pre_metric_fn)
+        metrics = pd.Series({
+            metric_n: metric_fn(metric_data) 
+            for metric_n, metric_fn in self.metrics.items()
+        })
+
+        print(metrics.to_frame(name="Metrics").to_markdown())
+        if self.logger:
+            self.test_data.to_netcdf(Path(self.logger.log_dir) / 'test_data.nc')
+            print(Path(self.trainer.log_dir) / 'test_data.nc')
+            self.logger.log_metrics(metrics.to_dict())
 
 
 class GradSolver(nn.Module):
-    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.1, **kwargs):
+    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.2, grad_mod_step=None, **kwargs):
         super().__init__()
         self.prior_cost = prior_cost
         self.obs_cost = obs_cost
         self.grad_mod = grad_mod
 
         self.n_step = n_step
+        self.grad_mod_step = grad_mod_step or n_step
         self.lr_grad = lr_grad
 
         self._grad_norm = None
@@ -116,12 +137,17 @@ class GradSolver(nn.Module):
     def solver_step(self, state, batch, step):
         var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
-        gmod = self.grad_mod(grad)
-        state_update = (
-            1 / (step + 1) * gmod
-            + self.lr_grad * (step + 1) / self.n_step * grad
-        )
-            
+
+        if step < self.grad_mod_step:
+            gmod = self.grad_mod(grad)
+            state_update = (
+                1 / (step + 1) * gmod
+                    + self.lr_grad * (step + 1) / self.grad_mod_step * grad
+            )
+        else:
+            state_update = self.lr_grad * grad
+        
+
         return state - state_update
 
     def forward(self, batch):

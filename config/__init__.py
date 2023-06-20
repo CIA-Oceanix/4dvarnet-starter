@@ -37,6 +37,7 @@ domains = {
     "cNATL": dict(lon=[-51, -9], lat=[32, 54]),
     "osmosis": dict(lon=[-22.5, -10.5], lat=[44, 56]),
     "gf": dict(lon=[-66, -54], lat=[32, 44]),
+    "fgf": dict(lon=[-66, -54], lat=[33, 45]),
     "2gf": dict(lon=[-71., -49.], lat=[32, 44]),
     "4gf": dict(lon=[-71., -29.], lat=[32, 44]),
     "calm": dict(lon=[-41., -29.], lat=[32, 44]),

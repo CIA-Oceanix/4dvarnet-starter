@@ -7,9 +7,9 @@ xp_overrides:
   datamodule:
     input_da:
       _target_: src.utils.load_full_natl_data
-      obs_var: five_nadirs
+      obs_var: four_nadirs
     xrds_kw: 
-      strides: {lat: 100, lon: 100}
+      # strides: {lat: 100, lon: 100}
       domain_limits: ${domain.train}
   
 trainer: 
@@ -30,6 +30,11 @@ dm:
   key: datamodule
   xpd : ${xpd}
   overrides: ${xp_overrides}
+
+src_dm: 
+  _target_: contrib.multi_domain_diag.load_cfg_from_xp
+  key: datamodule
+  xpd : ${xpd}
 
 ckpt: 
   _target_: src.utils.best_ckpt
@@ -54,8 +59,10 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${lit_mod}
     dm: ${dm}
+    # src_dm: ${src_dm}
+    src_dm: null
     ckpt_path: ${ckpt}
-    rec_weight: ${rec_weight}
+    # rec_weight: ${rec_weight}
     test_domains: ${test_domains}
     test_periods: ${test_periods}
     save_dir: ${hydra:runtime.output_dir}

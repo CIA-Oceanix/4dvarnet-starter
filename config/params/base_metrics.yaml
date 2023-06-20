@@ -1,0 +1,12 @@
+#@package _global_
+
+domain: ${base.domain}
+metrics: ${base.metrics}
+xp_overrides:
+  model:
+    test_metrics: ${metrics.test_metrics}
+    pre_metric_fn: ${base.model.pre_metric_fn}
+
+defaults:
+  - /xp@base: base
+  - _self_
