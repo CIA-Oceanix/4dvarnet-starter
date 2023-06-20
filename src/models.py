@@ -131,24 +131,19 @@ class GradSolver(nn.Module):
         self.n_step = n_step
         self.lr_grad = lr_grad
 
-        self._grad_norm = None
 
     def solver_step(self, state, batch, step):
         var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
 
-        if self._grad_norm is None:
-            self._grad_norm = (grad**2).mean().sqrt()
-
         state_update = (
-            1 / (step + 1) * self.grad_mod(grad / self._grad_norm)
+            1 / (step + 1) * self.grad_mod(grad)
             + self.lr_grad * (step + 1) / self.n_step * grad
         )
         return state - state_update
 
     def forward(self, batch):
         with torch.set_grad_enabled(True):
-            red = lambda f, t: einops.reduce(t, "b t lat lon -> b () () ()", f)
             state = batch.input.nan_to_num().detach().requires_grad_(True)
             self.grad_mod.reset_state(batch.input)
             self._grad_norm = None
@@ -180,7 +175,6 @@ class ConvLstmGradModel(nn.Module):
 
         self.dropout = torch.nn.Dropout(dropout)
         self._state = []
-
         self.down = nn.AvgPool2d(downsamp) if downsamp is not None else nn.Identity()
         self.up = (
             nn.UpsamplingBilinear2d(scale_factor=downsamp)
@@ -190,15 +184,16 @@ class ConvLstmGradModel(nn.Module):
 
     def reset_state(self, inp):
         size = [inp.shape[0], self.dim_hidden, *inp.shape[-2:]]
+        self._grad_norm = None
         self._state = [
             self.down(torch.zeros(size, device=inp.device)),
             self.down(torch.zeros(size, device=inp.device)),
         ]
 
-    def detach_state(self):
-        self._state = [s.detach().requires_grad_(True) for s in self._state]
-
     def forward(self, x):
+        if self._grad_norm is None:
+            self._grad_norm = (x**2).mean().sqrt()
+        x =  x / self._grad_norm
         hidden, cell = self._state
         x = self.dropout(x)
         x = self.down(x)
