@@ -1,6 +1,9 @@
+from contrib.lorenz63.models import percent_err
 from hydra.core.config_store import ConfigStore
 
 cs = ConfigStore().instance()
+
+sl_cfg = lambda *a: dict(_target_='builtins.slice', _args_=a)
 
 trajectory_config = dict(_target_='contrib.lorenz63.data.trajectory_da',
     fn=dict(_target_="contrib.lorenz63.data.dyn_lorenz63", _partial_=True),
@@ -16,7 +19,7 @@ trajectory_config = dict(_target_='contrib.lorenz63.data.trajectory_da',
         t_eval=dict(_target_='numpy.arange', start=0.01, stop= 5 + 1e-6, step=0.01),
     )
 )
-sl_cfg = lambda *a: dict(_target_='builtins.slice', _args_=a)
+
 dm_cfg = dict(
     _target_='contrib.lorenz63.data.LorenzDataModule',
     aug_kw=dict(aug_factor=0, noise_sigma=1**.5),
@@ -26,7 +29,7 @@ dm_cfg = dict(
         obs_fn=dict( _target_='src.utils.pipe', _partial_=True,
             fns=[ 
                 dict(_target_="contrib.lorenz63.data.only_first_obs", _partial_=True),
-                dict(_target_="contrib.lorenz63.data.subsample", sample_step=20, _partial_=True),
+                dict(_target_="contrib.lorenz63.data.subsample", sample_step=8, _partial_=True),
                 dict(_target_="contrib.lorenz63.data.add_noise", sigma=2**.5,  _partial_=True),
             ]
         )
@@ -50,15 +53,13 @@ solver_cfg=dict(
             dict(
                 _target_='contrib.lorenz63.models.RearrangedBilinAEPriorCost',
                 rearrange_from='b c t',
-                # rearrange_to='b t c ()',
-                # dim_in='${datamodule.xrds_kw.patch_dims.time}',
                 rearrange_to='b c t ()',
                 dim_in=3,
                 bilin_quad=False,
                 downsamp=dict(_target_="builtins.tuple", _args_=[down]),
                 dim_hidden=30,
                 kernel_size=3
-        ) for down in [[8, 1], [2, 1]]]
+        ) for down in [[5, 1], [1, 1]]]
     ),
     obs_cost=dict(_target_='src.models.BaseObsCost', w=0.1),
     grad_mod=dict(
@@ -79,11 +80,17 @@ lit_mod_cfg = dict(
     rec_weight=dict(
         _target_='src.utils.get_constant_crop',
         patch_dims= '${datamodule.xrds_kw.patch_dims}',
-        crop= {'time': 20},
+        crop= {'time': 10},
         dim_order=['time'],
     ),
     opt_fn=dict(_target_='src.utils.cosanneal_lr_adam', lr=2e-3, T_max='${trainer.max_epochs}', weight_decay=3e-6, _partial_=True),
-    solver=solver_cfg
+    solver=solver_cfg,
+    persist_rw=False,
+    test_metrics=dict(
+        mse=dict(_target_='contrib.lorenz63.models.mse', _partial_=True),
+        percent_err=dict(_target_='contrib.lorenz63.models.percent_err', _partial_=True),
+    ),
+    pre_metric_fn=dict( _target_= "xarray.Dataset.isel", _partial_= True, time=sl_cfg(10, -10))
 )
 node = dict(
     datamodule=dm_cfg,

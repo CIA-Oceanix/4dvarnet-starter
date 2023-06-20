@@ -2,6 +2,7 @@
 outputs
 logs
 multirun
+lightning_logs
 **/*.ipynb
 scratches
 tmp

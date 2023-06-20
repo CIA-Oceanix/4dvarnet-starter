@@ -58,17 +58,17 @@ def multi_domain_osse_diag(
         lit_mod.rec_weight = torch.from_numpy(rec_weight)
 
     norm_dm = src_dm or dm
-    lit_mod.norm_stats = norm_dm.norm_stats()
+    lit_mod._norm_stats = norm_dm.norm_stats()
+    dm._norm_stats = norm_dm.norm_stats()
+    print(lit_mod._norm_stats)
 
     trainer.test(lit_mod, datamodule=dm)
-    tdat = lit_mod.test_data
-    tdat = tdat.assign(rec_ssh=tdat.rec_ssh.where(np.isfinite(tdat.ssh), np.nan)).drop(
-        "obs"
-    )
+    tdat = lit_mod.test_data.rename(tgt='ssh', out='out')
+    tdat = tdat.assign(out=tdat.out.where(np.isfinite(tdat.ssh), np.nan)).drop("inp")
     if save_dir is not None:
         save_dir = Path(save_dir)
         save_dir.mkdir(parents=True, exist_ok=True)
-    tdat.to_netcdf(save_dir / "multi_domain_tdat.nc")
+        tdat.to_netcdf(save_dir / "multi_domain_tdat.nc")
     metrics_df = multi_domain_osse_metrics(tdat, test_domains, test_periods)
 
     print(metrics_df.to_markdown())
@@ -79,7 +79,7 @@ def load_oi():
     oi = xr.open_dataset('../sla-data-registry/NATL60/NATL/oi/ssh_NATL60_4nadir.nc')
     ssh = xr.open_dataset('../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_ssh_y2013.1y.nc')
     ssh['time'] = pd.to_datetime('2012-10-01') + pd.to_timedelta(ssh.time, 's')
-    return ssh.assign(rec_ssh=oi.ssh_mod.interp(time=ssh.time, method='nearest').interp(lat=ssh.lat, lon=ssh.lon, method='nearest'))
+    return ssh.assign(out=oi.ssh_mod.interp(time=ssh.time, method='nearest').interp(lat=ssh.lat, lon=ssh.lon, method='nearest'))
 
 def multi_domain_osse_metrics(tdat, test_domains, test_periods,):
     metrics = []
@@ -87,7 +87,6 @@ def multi_domain_osse_metrics(tdat, test_domains, test_periods,):
         for p in test_periods:
             tdom_spat = test_domains[d].test
             test_domain = dict(time=slice(*p), **tdom_spat)
-
             da_rec, da_ref = tdat.sel(test_domain).drop("ssh"), tdat.sel(test_domain).ssh
             leaderboard_rmse = (
                 1.0
@@ -95,7 +94,7 @@ def multi_domain_osse_metrics(tdat, test_domains, test_periods,):
                 / (((da_ref) ** 2).mean()) ** 0.5
             )
             psd, lx, lt = src.utils.psd_based_scores(
-                da_rec.rec_ssh.pipe(lambda da: xr.apply_ufunc(np.nan_to_num, da)),
+                da_rec.out.pipe(lambda da: xr.apply_ufunc(np.nan_to_num, da)),
                 da_ref.copy().pipe(lambda da: xr.apply_ufunc(np.nan_to_num, da)),
             )
             mdf = (
@@ -104,7 +103,7 @@ def multi_domain_osse_metrics(tdat, test_domains, test_periods,):
                         {
                             "domain": d,
                             "period": p,
-                            "variable": "rec_ssh",
+                            "variable": "out",
                             "lt": lt,
                             "lx": lx,
                             "lats": test_domains[d].test["lat"],

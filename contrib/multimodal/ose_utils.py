@@ -3,15 +3,16 @@ import numpy as np
 import src.data
 from pathlib import Path
 
-def load_ose_data_with_mursst(path='../sla-data-registry/data_OSE/NATL/training/data_OSE_OSSE_nad.nc', pp_sst_ds='tmp/mur_pp.nc'):
-    ose_ssh =  xr.open_dataset(path).load().assign(
-        input=lambda ds: ds.ssh,
-        tgt=lambda ds: ds.ssh,
-    )[[*src.data.TrainingItem._fields]].load()
+def load_ose_data_with_mursst(pp_sst_ds='../sla-data-registry/mur_pp.nc'):
+    ds = xr.open_dataset(pp_sst_ds)
+    return ds.to_array()
 
-    if Path(pp_sst_ds).exists():
-        ds = xr.open_dataset(pp_sst_ds)
-    else:
+def preprocess_mur(path='../sla-data-registry/data_OSE/NATL/training/data_OSE_OSSE_nad.nc', pp_sst_ds='../sla-data-registry/mur_pp.nc'):
+        ose_ssh =  xr.open_dataset(path).load().assign(
+            input=lambda ds: ds.ssh,
+            tgt=lambda ds: ds.ssh,
+        )[[*src.data.TrainingItem._fields]].load()
+
         sst_dses = []
         for p in sorted(
             [*Path('../mur_sst/data/MUR-JPL-L4-GLOB-v4.1').glob('201612*.nc')]+
@@ -29,7 +30,5 @@ def load_ose_data_with_mursst(path='../sla-data-registry/data_OSE/NATL/training/
             .assign(sst=(sst_dses[0].analysed_sst.dims, np.concatenate([ds.analysed_sst.values for ds in sst_dses], axis=0)))
         ).transpose('time', 'lat', 'lon')
         ds.to_netcdf(pp_sst_ds)
-
-    return ds.to_array()
 
 

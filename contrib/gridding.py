@@ -33,8 +33,8 @@ def grid_da(da, binning):
     """
     binning.clear()
     values = np.ravel(da.values)
-    lons = np.ravel(da.values)
-    lats = np.ravel(da.values)
+    lons = np.ravel(da.lon.values)
+    lats = np.ravel(da.lat.values)
     msk = np.isfinite(values)
     binning.push(lons[msk], lats[msk], values[msk])
     return (('time', 'lat', 'lon'), binning.variable('mean').T[None, ...])
