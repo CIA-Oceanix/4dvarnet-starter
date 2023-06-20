@@ -102,6 +102,12 @@ class Lit4dVarNet(pl.LightningModule):
         ).to_dataset(dim='v0')
         import numpy as np
 
+        import src.utils
+        print(src.utils.diagnostics_from_ds(
+            self.test_data,
+            dict(lat=slice(33, 43), lon=slice(-65,-55), time=slice("2012-10-22", "2012-12-02"))
+        ).to_markdown())
+        
         metric_data = self.test_data.pipe(self.pre_metric_fn)
         metrics = pd.Series({
             metric_n: metric_fn(metric_data) 
@@ -116,44 +122,36 @@ class Lit4dVarNet(pl.LightningModule):
 
 
 class GradSolver(nn.Module):
-    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.2, grad_mod_step=None, **kwargs):
+    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.1, **kwargs):
         super().__init__()
         self.prior_cost = prior_cost
         self.obs_cost = obs_cost
         self.grad_mod = grad_mod
 
         self.n_step = n_step
-        self.grad_mod_step = grad_mod_step or n_step
         self.lr_grad = lr_grad
 
         self._grad_norm = None
-
-    def init_state(self, batch, x_init=None):
-        if x_init is not None:
-            return x_init
-
-        return batch.input.nan_to_num().detach().requires_grad_(True)
 
     def solver_step(self, state, batch, step):
         var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
 
-        if step < self.grad_mod_step:
-            gmod = self.grad_mod(grad)
-            state_update = (
-                1 / (step + 1) * gmod
-                    + self.lr_grad * (step + 1) / self.grad_mod_step * grad
-            )
-        else:
-            state_update = self.lr_grad * grad
-        
+        if self._grad_norm is None:
+            self._grad_norm = (grad**2).mean().sqrt()
 
+        state_update = (
+            1 / (step + 1) * self.grad_mod(grad / self._grad_norm)
+            + self.lr_grad * (step + 1) / self.n_step * grad
+        )
         return state - state_update
 
     def forward(self, batch):
         with torch.set_grad_enabled(True):
-            state = self.init_state(batch)
+            red = lambda f, t: einops.reduce(t, "b t lat lon -> b () () ()", f)
+            state = batch.input.nan_to_num().detach().requires_grad_(True)
             self.grad_mod.reset_state(batch.input)
+            self._grad_norm = None
 
             for step in range(self.n_step):
                 state = self.solver_step(state, batch, step=step)
@@ -182,6 +180,7 @@ class ConvLstmGradModel(nn.Module):
 
         self.dropout = torch.nn.Dropout(dropout)
         self._state = []
+
         self.down = nn.AvgPool2d(downsamp) if downsamp is not None else nn.Identity()
         self.up = (
             nn.UpsamplingBilinear2d(scale_factor=downsamp)
@@ -191,16 +190,15 @@ class ConvLstmGradModel(nn.Module):
 
     def reset_state(self, inp):
         size = [inp.shape[0], self.dim_hidden, *inp.shape[-2:]]
-        self._grad_norm = None
         self._state = [
             self.down(torch.zeros(size, device=inp.device)),
             self.down(torch.zeros(size, device=inp.device)),
         ]
 
+    def detach_state(self):
+        self._state = [s.detach().requires_grad_(True) for s in self._state]
+
     def forward(self, x):
-        if self._grad_norm is None:
-            self._grad_norm = (x**2).mean().sqrt()
-        x =  x / self._grad_norm
         hidden, cell = self._state
         x = self.dropout(x)
         x = self.down(x)
@@ -223,19 +221,14 @@ class ConvLstmGradModel(nn.Module):
 
 
 class BaseObsCost(nn.Module):
-    def __init__(self, w=1) -> None:
-        super().__init__()
-        self.w=w
-
     def forward(self, state, batch):
         msk = batch.input.isfinite()
-        return self.w * F.mse_loss(state[msk], batch.input.nan_to_num()[msk])
+        return F.mse_loss(state[msk], batch.input.nan_to_num()[msk])
 
 
 class BilinAEPriorCost(nn.Module):
-    def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None, bilin_quad=True):
+    def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None):
         super().__init__()
-        self.bilin_quad = bilin_quad
         self.conv_in = nn.Conv2d(
             dim_in, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
         )
@@ -249,12 +242,9 @@ class BilinAEPriorCost(nn.Module):
         self.bilin_21 = nn.Conv2d(
             dim_hidden, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
         )
-        if bilin_quad:
-            self.bilin_22 = self.bilin_21
-        else:
-            self.bilin_22 = nn.Conv2d(
-                dim_hidden, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
-            )
+        self.bilin_22 = nn.Conv2d(
+            dim_hidden, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
+        )
 
         self.conv_out = nn.Conv2d(
             2 * dim_hidden, dim_in, kernel_size=kernel_size, padding=kernel_size // 2
@@ -273,7 +263,7 @@ class BilinAEPriorCost(nn.Module):
         x = self.conv_hidden(F.relu(x))
 
         x = self.conv_out(
-            torch.cat([self.bilin_1(x), self.bilin_21(x) * self.bilin_22(x)], dim=1)
+            torch.cat([self.bilin_1(x), self.bilin_21(x) * self.bilin_21(x)], dim=1)
         )
         x = self.up(x)
         return x
