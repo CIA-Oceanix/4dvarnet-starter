@@ -100,14 +100,7 @@ class Lit4dVarNet(pl.LightningModule):
         self.test_data = rec_da.assign_coords(
             dict(v0=self.test_quantities)
         ).to_dataset(dim='v0')
-        import numpy as np
 
-        import src.utils
-        print(src.utils.diagnostics_from_ds(
-            self.test_data,
-            dict(lat=slice(33, 43), lon=slice(-65,-55), time=slice("2012-10-22", "2012-12-02"))
-        ).to_markdown())
-        
         metric_data = self.test_data.pipe(self.pre_metric_fn)
         metrics = pd.Series({
             metric_n: metric_fn(metric_data) 
@@ -235,8 +228,9 @@ class BaseObsCost(nn.Module):
 
 
 class BilinAEPriorCost(nn.Module):
-    def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None):
+    def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None, bilin_quad=True):
         super().__init__()
+        self.bilin_quad = bilin_quad
         self.conv_in = nn.Conv2d(
             dim_in, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
         )
@@ -270,8 +264,9 @@ class BilinAEPriorCost(nn.Module):
         x = self.conv_in(x)
         x = self.conv_hidden(F.relu(x))
 
+        nonlin = self.bilin_21(x)**2 if self.bilin_quad else (self.bilin_21(x) * self.bilin_22(x))
         x = self.conv_out(
-            torch.cat([self.bilin_1(x), self.bilin_21(x) * self.bilin_21(x)], dim=1)
+            torch.cat([self.bilin_1(x), nonlin], dim=1)
         )
         x = self.up(x)
         return x
