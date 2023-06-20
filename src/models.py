@@ -122,7 +122,7 @@ class Lit4dVarNet(pl.LightningModule):
 
 
 class GradSolver(nn.Module):
-    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.1, **kwargs):
+    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.2, **kwargs):
         super().__init__()
         self.prior_cost = prior_cost
         self.obs_cost = obs_cost
@@ -143,10 +143,13 @@ class GradSolver(nn.Module):
         var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
 
+        gmod = self.grad_mod(grad)
         state_update = (
-            1 / (step + 1) * self.grad_mod(grad)
-            + self.lr_grad * (step + 1) / self.n_step * grad
+            1 / (step + 1) * gmod
+                + self.lr_grad * (step + 1) / self.n_step * grad
         )
+        
+
         return state - state_update
 
     def forward(self, batch):
