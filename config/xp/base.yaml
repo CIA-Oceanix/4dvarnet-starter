@@ -63,12 +63,14 @@ model:
   solver: 
     _target_: src.models.GradSolver
     n_step: 10
-    lr_grad: 0.1
+    lr_grad: 1e3
+    # lr_grad: 0.2
     prior_cost: 
       _target_: src.models.BilinAEPriorCost
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
       dim_hidden: 32
       bilin_quad: False
+      # bilin_quad: True
       downsamp: 2
     obs_cost: 
       _target_: src.models.BaseObsCost

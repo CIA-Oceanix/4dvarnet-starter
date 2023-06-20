@@ -51,13 +51,15 @@ class MultiPrior(torch.nn.Module):
         self.priors = torch.nn.ModuleList(priors)
 
     def forward_ae(self, x):
-        return torch.mean(torch.stack([prior.forward_ae(x) for prior in self.priors],0), 0)
+        return torch.mean(torch.stack([
+            prior.forward_ae(x) for prior in self.priors
+        ],0), 0)
 
     def forward(self, x):
         return torch.sum(torch.stack([prior.forward(x) for prior in self.priors]))
 
 class ConvLstmGradModel(nn.Module):
-    def __init__(self, dim_in, dim_hidden, kernel_size, dropout, pre=None, post=None):
+    def __init__(self, dim_in, dim_hidden, kernel_size=3, dropout=0.1, pre=None, post=None):
         super().__init__()
         self.pre = pre if pre is not None else nn.Identity()
         self.post = post if post is not None else nn.Identity()
@@ -69,16 +71,17 @@ class ConvLstmGradModel(nn.Module):
         conv_kw = dict(kernel_size=kernel_size, padding=tuple([k//2 for k in kernel_size]))
 
         self.dim_hidden = dim_hidden
+        self.conv_state = torch.nn.Conv3d(dim_in, dim_hidden, bias=False, **conv_kw)
         self.gates = torch.nn.Conv3d( dim_in + dim_hidden, 4 * dim_hidden, **conv_kw)
         self.conv_out = torch.nn.Conv3d( dim_hidden, dim_in, **conv_kw)
         self.dropout = torch.nn.Dropout(dropout)
 
     def reset_state(self, inp):
         self._grad_norm = None
-        size = [inp.shape[0], self.dim_hidden, *inp.shape[-3:]]
+        # size = [inp.shape[0], self.dim_hidden, *inp.shape[-3:]]
         self._state = [
-            self.pre(torch.zeros(size, device=inp.device)),
-            self.pre(torch.zeros(size, device=inp.device)),
+            self.conv_state(self.pre(torch.zeros_like(inp))),
+            self.conv_state(self.pre(torch.zeros_like(inp))),
         ]
 
     def forward(self, x):

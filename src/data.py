@@ -232,7 +232,8 @@ class BaseDataModule(pl.LightningDataModule):
         return train_data.sel(variable=variable).pipe(lambda da: (da.mean().values.item(), da.std().values.item()))
 
     def post_fn(self):
-        normalize = lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1]
+        m, s = self.norm_stats()
+        normalize = lambda item: (item - m) / s
         return ft.partial(ft.reduce,lambda i, f: f(i), [
             TrainingItem._make,
             lambda item: item._replace(tgt=normalize(item.tgt)),
@@ -290,7 +291,7 @@ class ConcatDataModule(BaseDataModule):
             for domain in self.domains['train']
         ])
         if self.aug_factor >= 1:
-            self.train_ds = AugmentedDataset(self.train_ds, self.aug_factor, self.aug_only)
+            self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
 
         self.val_ds = XrConcatDataset([
             XrDataset(self.input_da.sel(domain), **self.xrds_kw, postpro_fn=post_fn,)
@@ -315,7 +316,7 @@ class RandValDataModule(BaseDataModule):
         self.train_ds, self.val_ds = torch.utils.data.random_split(train_ds, [n_train, n_val])
 
         if self.aug_factor > 1:
-            self.train_ds = AugmentedDataset(self.train_ds, self.aug_factor)
+            self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
 
         self.test_ds = XrDataset(self.input_da.sel(self.domains['test']), **self.xrds_kw, postpro_fn=post_fn,)
 

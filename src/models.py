@@ -22,7 +22,7 @@ class Lit4dVarNet(pl.LightningModule):
     def norm_stats(self):
         if self._norm_stats is not None:
             return self._norm_stats
-        if self.trainer.datamodule is not None:
+        elif self.trainer.datamodule is not None:
             return self.trainer.datamodule.norm_stats()
         return (0., 1.)
 
@@ -62,7 +62,7 @@ class Lit4dVarNet(pl.LightningModule):
         loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
 
         with torch.no_grad():
-            self.log(f"{phase}_mse", loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
+            self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
             self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
 
         return loss, out
@@ -100,6 +100,7 @@ class Lit4dVarNet(pl.LightningModule):
         self.test_data = rec_da.assign_coords(
             dict(v0=self.test_quantities)
         ).to_dataset(dim='v0')
+        import numpy as np
 
         metric_data = self.test_data.pipe(self.pre_metric_fn)
         metrics = pd.Series({
@@ -115,13 +116,14 @@ class Lit4dVarNet(pl.LightningModule):
 
 
 class GradSolver(nn.Module):
-    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.1, **kwargs):
+    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.2, grad_mod_step=None, **kwargs):
         super().__init__()
         self.prior_cost = prior_cost
         self.obs_cost = obs_cost
         self.grad_mod = grad_mod
 
         self.n_step = n_step
+        self.grad_mod_step = grad_mod_step or n_step
         self.lr_grad = lr_grad
 
         self._grad_norm = None
@@ -135,12 +137,17 @@ class GradSolver(nn.Module):
     def solver_step(self, state, batch, step):
         var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
-        gmod = self.grad_mod(grad)
-        state_update = (
-            1 / (step + 1) * gmod + 
-            self.lr_grad * (step + 1) / self.n_step * grad
-        )
-            
+
+        if step < self.grad_mod_step:
+            gmod = self.grad_mod(grad)
+            state_update = (
+                1 / (step + 1) * gmod
+                    + self.lr_grad * (step + 1) / self.grad_mod_step * grad
+            )
+        else:
+            state_update = self.lr_grad * grad
+        
+
         return state - state_update
 
     def forward(self, batch):
