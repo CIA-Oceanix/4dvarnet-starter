@@ -222,9 +222,13 @@ class ConvLstmGradModel(nn.Module):
 
 
 class BaseObsCost(nn.Module):
+    def __init__(self, w=1) -> None:
+        super().__init__()
+        self.w=w
+
     def forward(self, state, batch):
         msk = batch.input.isfinite()
-        return F.mse_loss(state[msk], batch.input.nan_to_num()[msk])
+        return self.w * F.mse_loss(state[msk], batch.input.nan_to_num()[msk])
 
 
 class BilinAEPriorCost(nn.Module):
