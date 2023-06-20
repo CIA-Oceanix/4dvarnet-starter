@@ -131,6 +131,13 @@ class GradSolver(nn.Module):
         self.n_step = n_step
         self.lr_grad = lr_grad
 
+        self._grad_norm = None
+
+    def init_state(self, batch, x_init=None):
+        if x_init is not None:
+            return x_init
+
+        return batch.input.nan_to_num().detach().requires_grad_(True)
 
     def solver_step(self, state, batch, step):
         var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
@@ -144,9 +151,8 @@ class GradSolver(nn.Module):
 
     def forward(self, batch):
         with torch.set_grad_enabled(True):
-            state = batch.input.nan_to_num().detach().requires_grad_(True)
+            state = self.init_state(batch)
             self.grad_mod.reset_state(batch.input)
-            self._grad_norm = None
 
             for step in range(self.n_step):
                 state = self.solver_step(state, batch, step=step)
