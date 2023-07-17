@@ -26,20 +26,20 @@ datamodule:
 model:
   _target_: src.models_l63.Lit4dVarNet_L63
   params:
-    k_n_grad: 4
+    k_n_grad: ??
     n_grad: 10
     lr: 1e-3 
     batch_size: 128
     DimAE: 10 # ?? #
 #    phi_param: 'unet'
-    solver: '4dvarnet-with-rnd' #?? #''4dvarnet-with-state-and-rnd' # #'4dvarnet-with-subgradients' #'4dvarnet-with-rnd-grad' #''4dvarnet-with-state-and-rnd' #
+    solver: ?? #'4dvarnet-with-rnd' #?? #''4dvarnet-with-state-and-rnd' # #'4dvarnet-with-subgradients' #'4dvarnet-with-rnd-grad' #''4dvarnet-with-state-and-rnd' #
     dim_grad_solver: 100 #25
     dropout: 0.2
     alpha_prior: 0.1
     alpha_mse: 1.
     alpha_gmse: 0. #50.
     alpha_var_cost_grad: 0.001
-    lr_grad: 0. #1e-2 #1.e3
+    lr_grad: ?? #1e-2 #1.e3
     lr_rnd: 0.e-3
     sig_rnd_init: 0.e-2
     sig_lstm_init: 0.e-2
