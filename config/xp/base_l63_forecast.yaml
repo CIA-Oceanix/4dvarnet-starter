@@ -8,7 +8,7 @@ datamodule:
   param_datamodule:
     dl_kw: {batch_size: 128, num_workers: 1}
   input_data:
-    _target_: src.data_l63.create_l63_datasets
+    _target_: src.data_l63.create_l63_forecast_datasets
     param_dataset:
       path_l63_dataset: '../../Dataset4DVarNet/dataset_l63_normalized_20230717.nc' #'../../Dataset4DVarNet/dataset_L63_with_noise.nc'# '../../Dataset4DVarNet/dataset_L63_with_noise.nc'
       genSuffixObs: 'JamesData'
@@ -17,7 +17,7 @@ datamodule:
       NbTraining: 10000
       NbTest: 1000
       time_step: 1
-      dT: 50
+      dT: 48
       dt_forecast: 40
       varNoise: 2.0
       sampling_step: ??
