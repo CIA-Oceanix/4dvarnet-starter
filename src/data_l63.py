@@ -101,8 +101,8 @@ def create_l63_datasets(param_dataset):
                 dataTrainingNoNaN = stdTr * dataTrainingNoNaN + meanTr
                 dataTestNoNaN     = stdTr * dataTestNoNaN + meanTr
             else:
-                meanTr = ncfile.variables['meanTr'][:]
-                stdTr = ncfile.variables['stdTr'][:]
+                meanTr = np.mean( dataTrainingNoNaN )
+                stdTr = np.std( dataTrainingNoNaN )
             
     
             dataTrainingNoNaN = np.moveaxis(dataTrainingNoNaN,-1,1)
