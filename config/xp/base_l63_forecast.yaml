@@ -65,13 +65,6 @@ model:
     dt_forecast: ${datamodule.input_data.param_dataset.dt_forecast}
     keep_obs: True
 #  ckpt: 'outputs/2023-06-10/23-30-37/base_l63/checkpoints/model-l63-lstmonly+gobs+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_08-dgrad100-val_loss=8.5268-epoch=216.ckpt'
-  patch_weight:
-    _target_: src.models_l63.get_constant_crop_l63
-    patch_dims: ${model.params.shapeData}
-    crop: 
-      - 0
-      - 0
-      - 0
   Phi:
     _target_: src.models_l63.Phi_unet_like_bilin #src.models_l63.Phi_unet_1_layer_bis #src.models_l63.UNet_3_layers #
     shapeData: ${model.params.shapeData}
