@@ -621,7 +621,6 @@ class GradSolver_with_rnd(nn.Module):
             x_k_plus_1, hidden_, cell_, normgrad_ = self.solver_step(x_k, obs, mask,hidden_, cell_, normgrad_,_ii+prev_iter)
 
             if self.keep_obs == True:
-                print( )
                 x_k_plus_1 = x_k * mask + (1.-mask) * x_k_plus_1
 
             x_k = 1. * x_k_plus_1
