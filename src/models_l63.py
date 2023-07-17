@@ -67,7 +67,7 @@ def get_forecasting_mask(patch_dims, dt_forecast, **kwargs):
     
 def get_forecastingonly_mask(patch_dims, dt_forecast):
     
-    w1 = np.zeros((1,patch_dims[0]-dt_forecast,1))
+    w1 = np.zeros((1,patch_dims[1]-dt_forecast,1))
     patch_weight = np.concatenate((w1,np.ones((1,dt_forecast,1)))) 
     
     patch_weight = np.tile(patch_weight,(patch_dims[0],1,patch_dims[2]))
