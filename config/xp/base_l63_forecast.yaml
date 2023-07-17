@@ -17,8 +17,8 @@ datamodule:
       NbTraining: 10000
       NbTest: 1000
       time_step: 1
-      dT: 48
-      dt_forecast: 40
+      dT: ??
+      dt_forecast: 24
       varNoise: 2.0
       sampling_step: ??
       flagTypeMissData: 2
