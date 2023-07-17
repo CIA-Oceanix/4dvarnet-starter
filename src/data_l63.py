@@ -88,8 +88,8 @@ def create_l63_datasets(param_dataset):
         
         else:
             ds_ncfile = xr.open_dataset(path_l63_dataset)
-            dataTrainingNoNaN = ds_ncfile['x_train'][:]
-            dataTestNoNaN = ds_ncfile['x_test'][:]
+            dataTrainingNoNaN = ds_ncfile['x_train'].data
+            dataTestNoNaN = ds_ncfile['x_test'].data
                         
             if hasattr(ds_ncfile,'meanTr') == True :
                 meanTr = ds_ncfile['meanTr'][:]
