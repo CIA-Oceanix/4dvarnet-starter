@@ -548,9 +548,18 @@ def create_l63_forecast_datasets(param_dataset):
     
         X_test_Init[ii,:,:] = XInit
     
+        idx_last_obs = param_dataset.dT - param_dataset.dt_forecast
+
+      X_train_Init[:,idx_last_obs+1:,:] =  np.tile( X_train_Init[:,idx_last_obs,:].reshape((X_train_Init.shape[0],1,X_train_Init.shape[2])) , (1,param_dataset.dt_forecast,1) )
+      X_test_Init[:,idx_last_obs+1:,:]  =  np.tile( X_test_Init[:,idx_last_obs,:].reshape((X_test_Init.shape[0],1,X_test_Init.shape[2])) , (1,param_dataset.dt_forecast,1) )
+        
         
     x_train_Init = ( X_train_Init - meanTr ) / stdTr
     x_test_Init = ( X_test_Init - meanTr ) / stdTr
+    
+    
+    print(x_train_Init[1,idx_last_obs:idx_last_obs+10,1])
+    print(x_train_Init[100,idx_last_obs:idx_last_obs+10,1])
     
     # reshape to 2D tensors
     dT = param_dataset.dT
