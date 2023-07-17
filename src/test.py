@@ -238,6 +238,7 @@ def base_testing_forecast(trainer, dm, lit_mod,ckpt=None,num_members=1):
     print('...... Updated parameters from cfg files')
     print(lit_mod.hparams)
     print('.... param_lstm_step = %d'%lit_mod.model.param_lstm_step)
+    print('.... dt_forecast = %d'%lit_mod.model.dt_forecast)
     print()
  
     print('............... Model evaluation on validation dataset')
