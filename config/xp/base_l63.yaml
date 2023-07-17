@@ -15,7 +15,7 @@ datamodule:
       flag_load_all_data: False
       flag_generate_L63_data: False #True #
       NbTraining: 10000
-      NbTest: 500
+      NbTest: 1000
       time_step: 1
       dT: 200
       dt_forecast: 50
