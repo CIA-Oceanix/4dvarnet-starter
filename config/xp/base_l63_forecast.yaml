@@ -19,7 +19,7 @@ datamodule:
       time_step: 1
       dT: ??
       dt_forecast: 24
-      varNoise: 2.0
+      varNoise: ??
       sampling_step: ??
       flagTypeMissData: 2
       
