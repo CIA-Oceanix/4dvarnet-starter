@@ -17,11 +17,11 @@ datamodule:
       NbTraining: 10000
       NbTest: 1000
       time_step: 1
-      dT: ??
+      dT: 48
       dt_forecast: 24
       varNoise: 0.
-      sampling_step: ??
-      flagTypeMissData: 2
+      sampling_step: 1
+      flagTypeMissData: -1
       
 model:
   _target_: src.models_l63.Lit4dVarNet_L63
