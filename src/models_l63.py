@@ -65,6 +65,17 @@ def get_forecasting_mask(patch_dims, dt_forecast, **kwargs):
 
     return  patch_weight   
     
+def get_forecastingonly_mask(patch_dims, dt_forecast, **kwargs):
+    
+    w1 = np.zeros((patch_dims[0]-dt_forecast,1,1))
+    patch_weight = np.concatenate((w1,np.ones((dt_forecast,1,1)))) 
+    
+    patch_weight = np.tile(patch_weight,(1,patch_dims[1],patch_dims[2]))
+    patch_weight = patch_weight / np.sum(patch_weight)
+
+    print(patch_weight.shape)
+    return  patch_weight   
+    
 if 1*0:
     print('........ Data generation')
     flagRandomSeed = 0
