@@ -291,10 +291,15 @@ def create_l63_datasets(param_dataset):
         x_test_Init = ncfile.variables['x_test_Init'][:]
         x_test_obs = ncfile.variables['x_test_obs'][:]
     
-        meanTr = ncfile.variables['meanTr'][:]
-        stdTr = ncfile.variables['stdTr'][:]
-        meanTr = float(meanTr.data)    
-        stdTr = float(stdTr.data)
+    
+        meanTr = np.mean(x_train) 
+        stdTr  = np.std( x_train )
+
+        if 1*0 :        
+            meanTr = ncfile.variables['meanTr'][:]
+            stdTr = ncfile.variables['stdTr'][:]
+            meanTr = float(meanTr.data)    
+            stdTr = float(stdTr.data)
             
         print('... meanTr/stdTr:')
         print(meanTr)
@@ -376,6 +381,7 @@ def create_l63_forecast_datasets(param_dataset):
         ncfile = Dataset(path_l63_dataset,"r")
         dataTrainingNoNaN = ncfile.variables['x_train'][:]
         dataTestNoNaN = ncfile.variables['x_test'][:]
+        
         
         meanTr = ncfile.variables['meanTr'][:]
         stdTr = ncfile.variables['stdTr'][:]
