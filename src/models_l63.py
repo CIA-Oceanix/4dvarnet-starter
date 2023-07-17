@@ -933,7 +933,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         #self.save_hyperparameters({**hparams, **kwargs})
 
                         
-        self.hparams.w_loss          = torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
+        self.w_loss          = torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
         self.hparams.automatic_optimization = True# False#
 
         # prior
@@ -1001,7 +1001,6 @@ class Lit4dVarNet_L63(pl.LightningModule):
                                                                     #solver_4DVarNet.Model_Var_Cost2(m_NormObs, m_NormPhi, self.hparams.ShapeData,1,np.array([self.hparams.shapeData[0]])),
                                                                     self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd)#, self.hparams.eps_norm_grad)
         
-        self.w_loss  = 1.#torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
         self.x_rec   = None # variable to store output of test method
         self.x_obs = None
         self.x_gt   = None # variable to store output of test method
@@ -1273,7 +1272,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         rec = outputs[:,:,self.hparams.dt_mse:outputs.size(2)-self.hparams.dt_mse]
         gt = targets_GT[:,:,self.hparams.dt_mse:outputs.size(2)-self.hparams.dt_mse]
         
-        err = (rec - gt) * self.patch_weight[None,...]        
+        err = (rec - gt) * self.w_loss[None,...]        
         loss_mse = torch.sum( err ** 2) / outputs.size(0)     
 
         #loss_mse = torch.mean((rec - gt) ** 2)        
