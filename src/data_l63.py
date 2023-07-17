@@ -396,14 +396,12 @@ def create_l63_forecast_datasets(param_dataset):
         dataTrainingNoNaN = stdTr * dataTrainingNoNaN + meanTr
         dataTestNoNaN     = stdTr * dataTestNoNaN + meanTr
                   
-        dataTrainingNoNaN = np.moveaxis(dataTrainingNoNaN,-1,1)
-        dataTestNoNaN = np.moveaxis(dataTestNoNaN,-1,1)
-    
         dataTrainingNoNaN = dataTrainingNoNaN[:,:,:param_dataset.dT]
         dataTestNoNaN = dataTestNoNaN[:,:,:param_dataset.dT]
-        
-        print(dataTrainingNoNaN.shape)
-    
+
+        dataTrainingNoNaN = np.moveaxis(dataTrainingNoNaN,-1,1)
+        dataTestNoNaN = np.moveaxis(dataTestNoNaN,-1,1)
+     
     if param_dataset.NbTraining < dataTrainingNoNaN.shape[0] :
         dataTrainingNoNaN = dataTrainingNoNaN[:param_dataset.NbTraining,:,:]
 
