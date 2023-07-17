@@ -357,4 +357,8 @@ def base_testing_forecast(trainer, dm, lit_mod,ckpt=None,num_members=1):
     result_path = ckpt.replace('.ckpt','_res.nc')
     x_test_obs = lit_mod.x_obs[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
     print('..... save .c file with results: '+result_path)
+    
+    print(x_test_obs.shape)
+    print(X_test.shape)
+    print(x_rec.shape)
     save_netcdf(result_path, X_test, x_rec, x_test_obs.squeeze(), mask_test.squeeze() )
