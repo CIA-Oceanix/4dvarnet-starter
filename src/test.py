@@ -251,11 +251,6 @@ def base_testing_forecast(trainer, dm, lit_mod,ckpt=None,num_members=1):
     
     X_val = X_train[idx_val::,:,:]
     mask_val = mask_train[idx_val::,:,:,:].squeeze()
-    
-    print(X_val.shape)
-    
-    #X_val = X_val[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
-    #mask_val = mask_val[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
     x_rec = lit_mod.x_rec#[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
     
     var_val  = np.mean( (X_val - np.mean(X_val,axis=0))**2 )
@@ -276,16 +271,12 @@ def base_testing_forecast(trainer, dm, lit_mod,ckpt=None,num_members=1):
         mse = np.sqrt( np.mean( (X_val[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast+dt]-x_rec[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast+dt] )**2 ) )
         print(".. dt = %d -- mse = %.3f"%(dt,mse))
     
-    # test dataset
     print()
     print()
     print('............... Model evaluation on test dataset')
     trainer.test(lit_mod, dataloaders=dm.test_dataloader())
     X_test, x_test, mask_test, x_test_Init, x_test_obs = dm.input_data[1]
-
-    #X_test = X_test[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
-    #mask_test = mask_test[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
-    x_rec = lit_mod.x_rec#[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
+    x_rec = lit_mod.x_rec
 
     var_test  = np.mean( (X_test - np.mean(X_test,axis=0))**2 )
     mse = np.mean( (x_rec-X_test) **2 ) 
@@ -355,10 +346,7 @@ def base_testing_forecast(trainer, dm, lit_mod,ckpt=None,num_members=1):
     
     # saving dataset
     result_path = ckpt.replace('.ckpt','_res.nc')
-    x_test_obs = lit_mod.x_obs[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
+    x_test_obs = lit_mod.x_obs
     print('..... save .c file with results: '+result_path)
     
-    print(x_test_obs.shape)
-    print(X_test.shape)
-    print(x_rec.shape)
     save_netcdf(result_path, X_test, x_rec, x_test_obs.squeeze(), mask_test.squeeze() )
