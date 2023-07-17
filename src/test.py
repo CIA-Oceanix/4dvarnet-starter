@@ -88,6 +88,8 @@ def base_testing(trainer, dm, lit_mod,ckpt=None,num_members=1):
     X_val = X_train[idx_val::,:,:]
     mask_val = mask_train[idx_val::,:,:,:].squeeze()
     
+    print(X_val.shape)
+    
     X_val = X_val[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
     mask_val = mask_val[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
     x_rec = lit_mod.x_rec[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
