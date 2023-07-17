@@ -85,10 +85,6 @@ def create_l63_datasets(param_dataset):
             dataTrainingNoNaN = ds_ncfile['x_train'].data
             dataTestNoNaN = ds_ncfile['x_test'].data
             
-            print(param_dataset.path_l63_dataset)
-             
-            print(ds_ncfile)
-            
             if hasattr(ds_ncfile,'meanTr') == True :
                 meanTr = ds_ncfile['meanTr']
                 stdTr = ds_ncfile['stdTr']
