@@ -401,6 +401,8 @@ def create_l63_forecast_datasets(param_dataset):
     
         dataTrainingNoNaN = dataTrainingNoNaN[:,:,:param_dataset.dT]
         dataTestNoNaN = dataTestNoNaN[:,:,:param_dataset.dT]
+        
+        print(dataTrainingNoNaN.shape)
     
     if param_dataset.NbTraining < dataTrainingNoNaN.shape[0] :
         dataTrainingNoNaN = dataTrainingNoNaN[:param_dataset.NbTraining,:,:]
