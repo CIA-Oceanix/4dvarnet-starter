@@ -458,7 +458,7 @@ def create_l63_forecast_datasets(param_dataset):
         genSuffixObs    = genSuffixObs+'Sub_%02d_%02d'%(int(param_dataset.sampling_step),10*param_dataset.varNoise)
             
     # set to NaN the forecasting window
-    idx_last_obs = param_dataset.dT - param_dataset.dt_forecast
+    idx_last_obs = param_dataset.dT - param_dataset.dt_forecast-1
     dataTraining[:,idx_last_obs:,:] =  float('nan')
     dataTest[:,idx_last_obs:,:]     =  float('nan')
     
