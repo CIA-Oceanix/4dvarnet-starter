@@ -273,7 +273,7 @@ def base_testing_forecast(trainer, dm, lit_mod,ckpt=None,num_members=1):
     print(".. mse all: %.3f "%mse,flush=True)
     
     for dt in range(0,lit_mod.hparams.dt_forecast):
-        mse = np.sqrt( np.mean( (X_val[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast+dt])**2 ) )
+        mse = np.sqrt( np.mean( (X_val[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast+dt]-x_rec[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast+dt] )**2 ) )
         print(".. dt = %d -- mse = %.3f"%(dt,mse))
     
     # test dataset
@@ -297,10 +297,10 @@ def base_testing_forecast(trainer, dm, lit_mod,ckpt=None,num_members=1):
     nmse_r = mse_r / var_test
     
     print("..... Assimilation performance (test data)")
-    mse = np.sqrt( np.mean( (X_val[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast:]-x_rec[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast:])**2 ) )
+    mse = np.sqrt( np.mean( (X_test[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast:]-x_rec[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast:])**2 ) )
     print(".. mse all: %.3f "%mse)
     for dt in range(0,lit_mod.hparams.dt_forecast):
-        mse = np.sqrt( np.mean( (X_val[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast+dt])**2 ) )
+        mse = np.sqrt( np.mean( (X_test[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast+dt]-x_rec[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast+dt] )**2 ) )
         print(".. dt = %d -- mse = %.3f"%(dt,mse))
 
     print(".. MSE ALL.   : %.3f / %.3f"%(mse,nmse))
