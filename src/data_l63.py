@@ -188,12 +188,12 @@ def create_l63_datasets(param_dataset):
         
         ############################################
         ## normalized data
-        meanTr          = np.mean(X_train_missing[:]) / np.mean(mask_train) 
-        stdTr           = np.sqrt( np.mean( (X_train_missing-meanTr)**2 ) / np.mean(mask_train) )
-        
-        if param_dataset.flagTypeMissData == 2:
-            meanTr          = np.mean(X_train[:]) 
-            stdTr           = np.sqrt( np.mean( (X_train-meanTr)**2 ) )
+        #meanTr          = np.mean(X_train_missing[:]) / np.mean(mask_train) 
+        #stdTr           = np.sqrt( np.mean( (X_train_missing-meanTr)**2 ) / np.mean(mask_train) )
+
+        #if param_dataset.flagTypeMissData == 2:
+        #    meanTr          = np.mean(X_train[:]) 
+        #    stdTr           = np.sqrt( np.mean( (X_train-meanTr)**2 ) )
         
         #x_train_missing = ( X_train_missing - meanTr ) / stdTr
         #x_test_missing  = ( X_test_missing - meanTr ) / stdTr
