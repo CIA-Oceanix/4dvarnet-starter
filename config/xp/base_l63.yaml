@@ -18,7 +18,7 @@ datamodule:
       NbTest: 200
       time_step: 1
       dT: 200
-      dt_forecast:50
+      dt_forecast: 50
       varNoise: 2.0
       sampling_step: ??
       flagTypeMissData: 2
