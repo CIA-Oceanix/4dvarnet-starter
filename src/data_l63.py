@@ -102,6 +102,9 @@ def create_l63_datasets(param_dataset):
                 meanTr = 7.820 #np.mean( dataTrainingNoNaN )
                 stdTr = 14.045 #np.std( dataTrainingNoNaN )            
 
+            print(dataTrainingNoNaN.shape)
+            print(dataTestNoNaN.shape)
+
             dataTrainingNoNaN = np.moveaxis(dataTrainingNoNaN,-1,1)
             dataTestNoNaN = np.moveaxis(dataTestNoNaN,-1,1)
         
