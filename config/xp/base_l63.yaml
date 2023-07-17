@@ -10,7 +10,7 @@ datamodule:
   input_data:
     _target_: src.data_l63.create_l63_datasets
     param_dataset:
-      path_l63_dataset: '../../Dataset4DVarNet/dataset_L63_with_noise.nc'
+      path_l63_dataset: '../../Dataset4DVarNet/dataset_L63_20230713.nc' #'../../Dataset4DVarNet/dataset_L63_with_noise.nc'#'../../Dataset4DVarNet/dataset_L63_with_noise.nc'
       genSuffixObs: 'JamesData'
       flag_load_all_data: False
       flag_generate_L63_data: False #True #
