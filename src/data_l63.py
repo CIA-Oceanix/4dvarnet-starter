@@ -92,8 +92,8 @@ def create_l63_datasets(param_dataset):
             dataTestNoNaN = ds_ncfile['x_test'].data
                         
             if hasattr(ds_ncfile,'meanTr') == True :
-                meanTr = ds_ncfile['meanTr'][:]
-                stdTr = ds_ncfile['stdTr'][:]
+                meanTr = ds_ncfile['meanTr']
+                stdTr = ds_ncfile['stdTr']
 
                 meanTr = float(meanTr.data)    
                 stdTr = float(stdTr.data)
