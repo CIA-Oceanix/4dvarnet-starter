@@ -383,40 +383,30 @@ def create_l63_forecast_datasets(param_dataset):
         genSuffixObs    = param_dataset.genSuffixObs#'JamesExp1'
                       
         
-        if False:
-            ncfile = Dataset(path_l63_dataset,"r")
-            dataTrainingNoNaN = ncfile.variables['x_train'][:]
-            dataTestNoNaN = ncfile.variables['x_test'][:]
+        ds_ncfile = xr.open_dataset(path_l63_dataset)
+        dataTrainingNoNaN = ds_ncfile['x_train'].data
+        dataTestNoNaN = ds_ncfile['x_test'].data
         
-        else:
-            ds_ncfile = xr.open_dataset(path_l63_dataset)
-            dataTrainingNoNaN = ds_ncfile['x_train'][:]
-            dataTestNoNaN = ds_ncfile['x_test'][:]
-            
-            
-            if hasattr(ds_ncfile,'meanTr') == True :
-                meanTr = ds_ncfile['meanTr'][:]
-                stdTr = ds_ncfile['stdTr'][:]
+        meanTr = ds_ncfile['meanTr']
+        stdTr = ds_ncfile['stdTr']
 
-                meanTr = float(meanTr.data)    
-                stdTr = float(stdTr.data)
+        meanTr = float(meanTr.data)    
+        stdTr = float(stdTr.data)
 
-                dataTrainingNoNaN = stdTr * dataTrainingNoNaN + meanTr
-                dataTestNoNaN     = stdTr * dataTestNoNaN + meanTr
-            else:
-                meanTr = ncfile.variables['meanTr'][:]
-                stdTr = ncfile.variables['stdTr'][:]
-                   
+        dataTrainingNoNaN = stdTr * dataTrainingNoNaN + meanTr
+        dataTestNoNaN     = stdTr * dataTestNoNaN + meanTr
+                  
         dataTrainingNoNaN = np.moveaxis(dataTrainingNoNaN,-1,1)
         dataTestNoNaN = np.moveaxis(dataTestNoNaN,-1,1)
+    
+        dataTrainingNoNaN = dataTrainingNoNaN[:,:,:param_dataset.dT]
+        dataTestNoNaN = dataTestNoNaN[:,:,:param_dataset.dT]
     
     if param_dataset.NbTraining < dataTrainingNoNaN.shape[0] :
         dataTrainingNoNaN = dataTrainingNoNaN[:param_dataset.NbTraining,:,:]
 
     if param_dataset.NbTest < dataTrainingNoNaN.shape[0] :
         dataTestNoNaN = dataTestNoNaN[:param_dataset.NbTest,:,:]
-    
-
 
     # create missing data 
     if param_dataset.flagTypeMissData == 0:
@@ -497,21 +487,7 @@ def create_l63_forecast_datasets(param_dataset):
     X_test         = dataTestNoNaN
     X_test_missing = dataTest
     mask_test      = maskTest
-    
-    ############################################
-    ## normalized data
-    meanTr          = np.mean(X_train_missing[:]) / np.mean(mask_train) 
-    stdTr           = np.sqrt( np.mean( (X_train_missing-meanTr)**2 ) / np.mean(mask_train) )
-    
-    if param_dataset.flagTypeMissData == 2:
-        meanTr          = np.mean(X_train[:]) 
-        stdTr           = np.sqrt( np.mean( (X_train-meanTr)**2 ) )
-    
-    #x_train_missing = ( X_train_missing - meanTr ) / stdTr
-    #x_test_missing  = ( X_test_missing - meanTr ) / stdTr
-    
-    # scale wrt std
-    
+        
     x_train = (X_train - meanTr) / stdTr
     x_test  = (X_test - meanTr) / stdTr
     
