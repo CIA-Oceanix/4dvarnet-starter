@@ -30,7 +30,7 @@ model:
     n_grad: 10
     lr: 1e-3 
     batch_size: 128
-    DimAE:10 # ?? #
+    DimAE: 10 # ?? #
 #    phi_param: 'unet'
     solver: '4dvarnet-with-rnd' #?? #''4dvarnet-with-state-and-rnd' # #'4dvarnet-with-subgradients' #'4dvarnet-with-rnd-grad' #''4dvarnet-with-state-and-rnd' #
     dim_grad_solver: 100 #25
