@@ -129,7 +129,7 @@ entrypoints:
     lit_mod: ${model}
     dm: ${datamodule}
     num_members: 1
-    ckpt: 'outputs/2023-07-18/base_l63/checkpoints/model-l63-new-l63data-forecast-4dvarnet-with-rnd-JamesData-Obs01-Noise00-igrad10_04-dgrad100-val_loss=0.0282-epoch=009.ckpt'
+    ckpt: 'outputs/2023-07-18/00-08-31//base_l63/checkpoints/model-l63-new-l63data-forecast-4dvarnet-with-rnd-JamesData-Obs01-Noise00-igrad10_04-dgrad100-val_loss=0.0204-epoch=014.ckpt'
 #    ckpt: 'outputs/2023-07-17/23-34-12/base_l63_forecast/checkpoints/model-l63-new-l63data-forecast-4dvarnet-with-rnd-JamesData-Obs01-Noise00-igrad10_04-dgrad100-val_loss=0.0036-epoch=043.ckpt'
 #    test_fn:
 #      _target_: src.utils.diagnostics
