@@ -87,6 +87,9 @@ def create_l63_datasets(param_dataset):
             
             meanTr = np.mean(dataTrainingNoNaN) 
             stdTr  = np.std( dataTrainingNoNaN )
+            
+            print(meanTr)
+            print(stdTr)
     
             if 1*0 :        
                 meanTr = ncfile.variables['meanTr'][:]
