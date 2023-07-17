@@ -10,7 +10,7 @@ datamodule:
   input_data:
     _target_: src.data_l63.create_l63_datasets
     param_dataset:
-      path_l63_dataset: '../../Dataset4DVarNet/dataset_L63_with_noise.nc'# '../../Dataset4DVarNet/dataset_L63_20230713.nc' #'#'../../Dataset4DVarNet/dataset_L63_with_noise.nc'
+      path_l63_dataset: '../../Dataset4DVarNet/dataset_L63_20230713.nc' #'../../Dataset4DVarNet/dataset_L63_with_noise.nc'# '#'../../Dataset4DVarNet/dataset_L63_with_noise.nc'
       genSuffixObs: 'JamesData'
       flag_load_all_data: False
       flag_generate_L63_data: False #True #
@@ -129,7 +129,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    num_members: 5
+    num_members: 1
 #    'model-l63-lstmonly+gobs+grad-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=8.6350-epoch=343.ckpt'
 #    ckpt: 'outputs/2023-05-23/14-35-56/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-degrad-JamesData-Obs08-Noise02-unet-igrad10_02-dgrad100-val_loss=3.4006-epoch=382.ckpt'
 #    ckpt: 'outputs/2023-05-23/22-14-34/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.0530-epoch=337.ckpt'
