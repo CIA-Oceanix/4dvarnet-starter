@@ -73,7 +73,7 @@ def get_forecastingonly_mask(patch_dims, dt_forecast):
     patch_weight = np.tile(patch_weight,(patch_dims[0],1,patch_dims[2]))
     patch_weight = patch_weight / np.sum(patch_weight)
 
-    print(patch_weight.shape)
+    print(patch_weight[0,:,0])
     return  patch_weight   
     
 if 1*0:
