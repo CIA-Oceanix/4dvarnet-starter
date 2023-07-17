@@ -5,7 +5,7 @@ import pytorch_lightning as pl
 import numpy as np
 import scipy
 import torch.utils.data
-#import xarray as xr
+import xarray as xr
 #import itertools
 #import functools as ft
 #import tqdm
@@ -88,14 +88,10 @@ def create_l63_datasets(param_dataset):
             meanTr = np.mean(dataTrainingNoNaN) 
             stdTr  = np.std( dataTrainingNoNaN )
             
-            print(meanTr)
-            print(stdTr)
-    
-            if 1*0 :        
-                meanTr = ncfile.variables['meanTr'][:]
-                stdTr = ncfile.variables['stdTr'][:]
-                meanTr = float(meanTr.data)    
-                stdTr = float(stdTr.data)
+            meanTr = ncfile.variables['meanTr'][:]
+            stdTr = ncfile.variables['stdTr'][:]
+            meanTr = float(meanTr.data)    
+            stdTr = float(stdTr.data)
             
             dataTrainingNoNaN = stdTr * dataTrainingNoNaN + meanTr
             dataTestNoNaN     = stdTr * dataTestNoNaN + meanTr
@@ -380,20 +376,32 @@ def create_l63_forecast_datasets(param_dataset):
     else:
         path_l63_dataset = param_dataset.path_l63_dataset#'../../Dataset4DVarNet/dataset_L63_with_noise.nc'
         genSuffixObs    = param_dataset.genSuffixObs#'JamesExp1'
-                            
-        ncfile = Dataset(path_l63_dataset,"r")
-        dataTrainingNoNaN = ncfile.variables['x_train'][:]
-        dataTestNoNaN = ncfile.variables['x_test'][:]
+                      
         
+        if False:
+            ncfile = Dataset(path_l63_dataset,"r")
+            dataTrainingNoNaN = ncfile.variables['x_train'][:]
+            dataTestNoNaN = ncfile.variables['x_test'][:]
         
-        meanTr = ncfile.variables['meanTr'][:]
-        stdTr = ncfile.variables['stdTr'][:]
-        meanTr = float(meanTr.data)    
-        stdTr = float(stdTr.data)
-    
-        dataTrainingNoNaN = stdTr * dataTrainingNoNaN + meanTr
-        dataTestNoNaN     = stdTr * dataTestNoNaN + meanTr
+        else:
+            ds_ncfile = xr.open_dataset(path_l63_dataset)
+            dataTrainingNoNaN = ds_ncfile['x_train'][:]
+            dataTestNoNaN = ds_ncfile['x_test'][:]
+            
+            
+            if hasattr(ds_ncfile,'meanTr') == True :
+                meanTr = ds_ncfile['meanTr'][:]
+                stdTr = ds_ncfile['stdTr'][:]
 
+                meanTr = float(meanTr.data)    
+                stdTr = float(stdTr.data)
+
+                dataTrainingNoNaN = stdTr * dataTrainingNoNaN + meanTr
+                dataTestNoNaN     = stdTr * dataTestNoNaN + meanTr
+            else:
+                meanTr = ncfile.variables['meanTr'][:]
+                stdTr = ncfile.variables['stdTr'][:]
+                   
         dataTrainingNoNaN = np.moveaxis(dataTrainingNoNaN,-1,1)
         dataTestNoNaN = np.moveaxis(dataTestNoNaN,-1,1)
     
