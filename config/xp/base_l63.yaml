@@ -71,7 +71,7 @@ model:
       - 0
       - 0
   Phi:
-    _target_: src.models_l63.Phi_unet_1_layer_bis #src.models_l63.Phi_unet_like_bilin #src.models_l63.UNet_3_layers #
+    _target_: src.models_l63.Phi_unet_like_bilin #src.models_l63.Phi_unet_1_layer_bis #src.models_l63.UNet_3_layers #
     shapeData: ${model.params.shapeData}
     DimAE: ${model.params.DimAE}
     rateDropout: 0.2
