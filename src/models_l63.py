@@ -53,7 +53,18 @@ def get_constant_crop_l63(patch_dims, crop):
     patch_weight = patch_weight / np.sum(patch_weight)
     return patch_weight
 
+def get_forecasting_mask(patch_dims, dt_forecast, **kwargs):
+    patch_weight = np.zeros(patch_dims, dtype="float32")
+    
+    patch_weight = np.zeros((patch_dims[0],1,1), dtype="float32")
+    w1 = np.arange(patch_dims[0]-dt_forecast).reshape((patch_dims[0]-dt_forecast,1,1))
+    patch_weight = np.concatenate((w1,w1[-1]+np.ones((dt_forecast,1,1)))) 
+    
+    patch_weight = np.tile(patch_weight,(1,patch_dims[1],patch_dims[2]))
+    patch_weight = patch_weight / np.sum(patch_weight)
 
+    return  patch_weight   
+    
 if 1*0:
     print('........ Data generation')
     flagRandomSeed = 0
@@ -921,16 +932,13 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.save_hyperparameters(params)
         #self.save_hyperparameters({**hparams, **kwargs})
 
-        #print(self.hparams,flush=True)
-        
-        print(m_NormObs)
-        
-        #self.hparams.w_loss          = torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
+                        
+        self.hparams.w_loss          = torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
         self.hparams.automatic_optimization = True# False#
 
         # prior
         if Phi == None :
-            Phi = Phi_unet_like(self.hparams.shapeData,self.hparams.DimAE)
+            Phi = Phi_unet_like_bilin(self.hparams.shapeData,self.hparams.DimAE)
             
             
         if mod_H == None :
@@ -986,7 +994,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
                                                                     #solver_4DVarNet.Model_Var_Cost2(m_NormObs, m_NormPhi, self.hparams.ShapeData,1,np.array([self.hparams.shapeData[0]])),
                                                                     self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd)#, self.hparams.eps_norm_grad)
         if 1*0: # self.hparams.phi_param == 'unet':
-            self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi_unet(self.hparams.shapeData,self.hparams.DimAE), 
+            self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi_unet_like_bilin(self.hparams.shapeData,self.hparams.DimAE), 
                                                                     mod_H,#Model_H(self.hparams.shapeData), 
                                                                     solver_4DVarNet.model_Grad(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
                                                                     m_NormObs, m_NormPhi, 
@@ -1012,6 +1020,10 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.hparams.median_filter_width = self.hparams.median_filter_width if hasattr(self.hparams, 'median_filter_width') else 3
         self.hparams.sig_obs_noise = self.hparams.sig_obs_noise if hasattr(self.hparams, 'sig_obs_noise') else 0.
         
+        self.model.keep_obs = self.hparams.keep_obs if hasattr(self.hparams, 'keep_obs') else False
+
+    
+
     def update_params(self,n_grad = None , k_n_grad = None,lr_grad=None,lr_rnd=None,sig_rnd_init=None,sig_lstm_init=None,
                       sig_obs_noise = None, param_lstm_step=None,
                       post_projection = False,post_median_filter = False,median_filter_width = False):
@@ -1261,7 +1273,10 @@ class Lit4dVarNet_L63(pl.LightningModule):
         rec = outputs[:,:,self.hparams.dt_mse:outputs.size(2)-self.hparams.dt_mse]
         gt = targets_GT[:,:,self.hparams.dt_mse:outputs.size(2)-self.hparams.dt_mse]
         
-        loss_mse = torch.mean((rec - gt) ** 2)        
+        err = (rec - gt) * self.patch_weight[None,...]        
+        loss_mse = torch.sum( err ** 2) / outputs.size(0)     
+
+        #loss_mse = torch.mean((rec - gt) ** 2)        
         loss_gmse = torch.mean(( (rec[:,:,1:] - rec[:,:,:-1]) - (gt[:,:,1:] - gt[:,:,:-1])) ** 2)
 
         return loss_mse,loss_gmse
@@ -1286,7 +1301,6 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
             # losses
             loss_mse,loss_gmse = self.compute_mse_loss(outputs,targets_GT)
-            loss_mse = torch.mean((outputs - targets_GT) ** 2)
             loss_prior = torch.mean((self.model.phi_r(outputs) - outputs) ** 2)
             loss_prior_gt = torch.mean((self.model.phi_r(targets_GT) - targets_GT) ** 2)
 

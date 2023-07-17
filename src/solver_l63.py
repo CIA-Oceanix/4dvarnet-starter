@@ -568,7 +568,7 @@ class Solver_with_nograd(nn.Module):
 
 class GradSolver_with_rnd(nn.Module):
     def __init__(self ,phi_r,mod_H, m_Grad, m_NormObs, m_NormPhi, 
-                 ShapeData,n_iter_grad,eps=0.,k_step_grad=0.,lr_grad=0.,lr_rnd=0.,type_step_lstm='linear',param_lstm_step=None):
+                 ShapeData,n_iter_grad,eps=0.,k_step_grad=0.,lr_grad=0.,lr_rnd=0.,type_step_lstm='linear',param_lstm_step=None,keep_obs=False):
         super(GradSolver_with_rnd, self).__init__()
         self.phi_r         = phi_r
                             
@@ -589,6 +589,7 @@ class GradSolver_with_rnd(nn.Module):
             self.param_lstm_step = self.n_step
         
         self.eps = eps
+        self.keep_obs = keep_obs
                 
         with torch.no_grad():
             self.n_grad = int(n_iter_grad)
@@ -615,12 +616,14 @@ class GradSolver_with_rnd(nn.Module):
         hidden_ = hidden
         cell_ = cell 
         normgrad_ = normgrad
-        
-        
+                
         for _ii in range(self.n_grad):
             x_k_plus_1, hidden_, cell_, normgrad_ = self.solver_step(x_k, obs, mask,hidden_, cell_, normgrad_,_ii+prev_iter)
 
-            x_k = 1. * x_k_plus_1
+            if self.keep_obs == True:
+                x_k = x_k * mask + (1.-mask) * x_k_plus_1
+            else:
+                x_k = 1. * x_k_plus_1
 
         return x_k_plus_1, hidden_, cell_, normgrad_
 
