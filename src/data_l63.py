@@ -81,20 +81,29 @@ def create_l63_datasets(param_dataset):
             path_l63_dataset = param_dataset.path_l63_dataset#'../../Dataset4DVarNet/dataset_L63_with_noise.nc'
             genSuffixObs    = param_dataset.genSuffixObs#'JamesExp1'
                                 
+        if False:
             ncfile = Dataset(path_l63_dataset,"r")
             dataTrainingNoNaN = ncfile.variables['x_train'][:]
             dataTestNoNaN = ncfile.variables['x_test'][:]
+        
+        else:
+            ds_ncfile = xr.open_dataset(path_l63_dataset)
+            dataTrainingNoNaN = ds_ncfile['x_train'][:]
+            dataTestNoNaN = ds_ncfile['x_test'][:]
+                        
+            if hasattr(ds_ncfile,'meanTr') == True :
+                meanTr = ds_ncfile['meanTr'][:]
+                stdTr = ds_ncfile['stdTr'][:]
+
+                meanTr = float(meanTr.data)    
+                stdTr = float(stdTr.data)
+
+                dataTrainingNoNaN = stdTr * dataTrainingNoNaN + meanTr
+                dataTestNoNaN     = stdTr * dataTestNoNaN + meanTr
+            else:
+                meanTr = ncfile.variables['meanTr'][:]
+                stdTr = ncfile.variables['stdTr'][:]
             
-            meanTr = np.mean(dataTrainingNoNaN) 
-            stdTr  = np.std( dataTrainingNoNaN )
-            
-            meanTr = ncfile.variables['meanTr'][:]
-            stdTr = ncfile.variables['stdTr'][:]
-            meanTr = float(meanTr.data)    
-            stdTr = float(stdTr.data)
-            
-            dataTrainingNoNaN = stdTr * dataTrainingNoNaN + meanTr
-            dataTestNoNaN     = stdTr * dataTestNoNaN + meanTr
     
             dataTrainingNoNaN = np.moveaxis(dataTrainingNoNaN,-1,1)
             dataTestNoNaN = np.moveaxis(dataTestNoNaN,-1,1)
