@@ -1371,11 +1371,14 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         self.ode_solver.IntScheme = 'euler'
         self.init_state == 'ode_solver'
         
+        print(self.init_state)
+        
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
         with torch.set_grad_enabled(True):
             inputs_init_,inputs_obs,masks,targets_GT = batch
      
             #inputs_init = inputs_init_
+            print('xxxxxx')
             if batch_init is None :
                 if self.init_state == 'ode_solver':
                     x_pred = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
