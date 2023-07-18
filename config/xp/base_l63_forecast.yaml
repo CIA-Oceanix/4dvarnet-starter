@@ -33,8 +33,8 @@ model:
     DimAE: 10 # ?? #
 #    phi_param: 'unet'
     solver: ?? #'4dvarnet-with-rnd' #?? #''4dvarnet-with-state-and-rnd' # #'4dvarnet-with-subgradients' #'4dvarnet-with-rnd-grad' #''4dvarnet-with-state-and-rnd' #
-    dim_grad_solver: 100 #25
-    dropout: 0.2
+    dim_grad_solver: 10 #100 #25
+    dropout: 0.
     alpha_prior: 0.1e2
     alpha_mse: 1.e2
     alpha_gmse: 0. #50.
@@ -113,10 +113,10 @@ trainer:
 entrypoints:
   - _target_: pytorch_lightning.seed_everything
     seed: 333
-#  - _target_: src.train.base_training  # src.train.fine_tuning # 
-#    trainer: ${trainer}
-#    lit_mod: ${model}
-#    dm: ${datamodule}
+  - _target_: src.train.base_training  # src.train.fine_tuning # 
+    trainer: ${trainer}
+    lit_mod: ${model}
+    dm: ${datamodule}
 #    update_params: False
 #    ckpt: 'outputs/2023-06-08/23-38-13/base_l63/checkpoints/model-l63-lstmonly+gobs+grad-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=15.7092-epoch=014.ckpt'
 #    ckpt: 'outputs/2023-06-08/23-23-08/base_l63/checkpoints/model-l63-lstmonly+gobs-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=9.7803-epoch=092.ckpt'
@@ -124,12 +124,12 @@ entrypoints:
 #    ckpt: 'outputs/2023-05-24/16-55-55/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.2830-epoch=179.ckpt'
 #    ckpt: 'outputs/2023-05-23/22-14-34/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.0530-epoch=337.ckpt'
 #    ckpt: 'outputs/2023-06-10/23-30-37/base_l63/checkpoints/model-l63-lstmonly+gobs+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_08-dgrad100-val_loss=8.5268-epoch=216.ckpt'
-  - _target_: src.test.base_testing_forecast #
-    trainer: ${trainer}
-    lit_mod: ${model}
-    dm: ${datamodule}
-    num_members: 1
-    ckpt: 'outputs/2023-07-18/08-30-51/base_l63_forecast/checkpoints/model-l63-l63-forecast01-ode-dT04-4dvarnet-with-rnd-JamesData-Obs01-Noise00-igrad10_04-dgrad100-val_loss=40.1054-epoch=398.ckpt'
+#  - _target_: src.test.base_testing_forecast #
+#    trainer: ${trainer}
+#    lit_mod: ${model}
+#    dm: ${datamodule}
+#    num_members: 1
+#    ckpt: 'outputs/2023-07-18/08-30-51/base_l63_forecast/checkpoints/model-l63-l63-forecast01-ode-dT04-4dvarnet-with-rnd-JamesData-Obs01-Noise00-igrad10_04-dgrad100-val_loss=40.1054-epoch=398.ckpt'
 #    ckpt: 'outputs/2023-07-18/00-28-36/base_l63_forecast/checkpoints/model-l63-forecast-lstm-4dvarnet-with-rnd-JamesData-Obs01-Noise00-igrad10_08-dgrad100-val_loss=0.0464-epoch=258.ckpt'
 #    ckpt: 'outputs/2023-07-18/00-08-31//base_l63_forecast/checkpoints/model-l63-new-l63data-forecast-4dvarnet-with-rnd-JamesData-Obs01-Noise00-igrad10_04-dgrad100-val_loss=0.0190-epoch=019.ckpt'
 #    ckpt: 'outputs/2023-07-17/23-34-12/base_l63_forecast/checkpoints/model-l63-new-l63data-forecast-4dvarnet-with-rnd-JamesData-Obs01-Noise00-igrad10_04-dgrad100-val_loss=0.0036-epoch=043.ckpt'
