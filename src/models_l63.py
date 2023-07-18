@@ -1015,7 +1015,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.set_norm_stats = stats_training_data if stats_training_data is not None else (0.0,1.)
         self._set_norm_stats()
         
-        if self.model.model_name == 'ode':
+        if self.model.Phi.model_name == 'ode':
             self.model.Phi.meanTr = self.meanTr
             self.model.Phi.stdTr = self.stdTr
         
