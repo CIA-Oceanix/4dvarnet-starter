@@ -1384,6 +1384,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                     
                     print(x_pred.size())
                     print(x_pred[0,0,:])
+                    print(inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast].size())
                     inputs_init = torch.cat((inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast],x_pred),dim=2)
                     
                     
