@@ -24,7 +24,7 @@ datamodule:
       flagTypeMissData: -1
       
 model:
-  _target_: src.models_l63.Lit4dVarNet_L63
+  _target_: src.models_l63.Lit4dVarNet_L63_OdeSolver #src.models_l63.Lit4dVarNet_L63
   params:
     k_n_grad: ??
     n_grad: 10

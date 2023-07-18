@@ -950,7 +950,6 @@ class Lit4dVarNet_L63(pl.LightningModule):
             
         if mod_H == None :
             mod_H = Model_H(self.hparams.shapeData)
-        print(mod_H)
             
         if self.hparams.solver =='4dvarnet-with-rnd' :
             self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi, 
@@ -1031,7 +1030,6 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.hparams.sig_obs_noise = self.hparams.sig_obs_noise if hasattr(self.hparams, 'sig_obs_noise') else 0.
         
         self.model.keep_obs = self.hparams.keep_obs if hasattr(self.hparams, 'keep_obs') else False
-
     
 
     def update_params(self,n_grad = None , k_n_grad = None,lr_grad=None,lr_rnd=None,sig_rnd_init=None,sig_lstm_init=None,
@@ -1287,7 +1285,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         loss_mse = torch.sum( err ** 2) / outputs.size(0)     
 
         #loss_mse = torch.mean((rec - gt) ** 2)        
-        loss_gmse = torch.mean(( (rec[:,:,1:] - rec[:,:,:-1]) - (gt[:,:,1:] - gt[:,:,:-1])) ** 2)
+        loss_gmse = torch.mean(( (rec[:,:,1:] - rec[:,:,:-1]) - (gt[:,:,1:] - gt[:,:,:-1]) ) ** 2)
 
         return loss_mse,loss_gmse
     
@@ -1341,6 +1339,81 @@ class Lit4dVarNet_L63(pl.LightningModule):
         
         return loss,out, metrics
 
+class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
+    def __init__(self,ckpt_path=None,params=None,patch_weight=None,
+                 Phi=None,m_NormObs=None, m_NormPhi=None,mod_H=None,
+                 stats_training_data=None,*args, **kwargs):
+        super(Lit4dVarNet_L63_OdeSolver,self).__init__(ckpt_path=ckpt_path,params=params,patch_weight=patch_weight,
+                                                       Phi=Phi,m_NormObs=m_NormObs, m_NormPhi=m_NormPhi,mod_H=mod_H,
+                                                       stats_training_data=None,*args, **kwargs)
+
+    
+        self.ode_solver = Phi_ode(self.meanTr,self.stdTr)
+        self.ode_solver.IntScheme = 'euler'
+        self.init_state == 'euler_solver'
+        
+    def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
+        with torch.set_grad_enabled(True):
+            inputs_init_,inputs_obs,masks,targets_GT = batch
+     
+            #inputs_init = inputs_init_
+            if batch_init is None :
+                if self.init_state == 'euler_solver':
+                    inputs_init_obs = inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast]
+                    
+                    x_ = inputs_init_obs[:,:,-1].view(-1,inputs_init_.size(1),1) 
+                    for kk in range(self.hparams.dt_forecast):
+                        x_ = self.ode_solver(torch.cat((x_,x_),dim=2))
+                        x_ = x_[:,:,-1].view(-1,inputs_init_.size(1),1)
+                        
+                        if kk == 0:
+                            x_f = 1. *x_
+                        else:
+                            x_f = torch.cat((x_f,x_),dim=2)
+                                                
+                    inputs_init = torch.cat((inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast],x_f),dim=2)   
+                    
+                else:
+                    inputs_init = inputs_init_ + self.hparams.sig_rnd_init *  torch.randn( inputs_init_.size() ).to(device)
+            else:
+                inputs_init = batch_init 
+                
+            if phase == 'train' :                
+                inputs_init = inputs_init.detach()
+            
+            outputs, hidden_new, cell_new, normgrad_ = self.model(inputs_init, inputs_obs, masks, hidden = hidden , cell = cell , normgrad = normgrad, prev_iter = prev_iter )
+
+            # losses
+            loss_mse,loss_gmse = self.compute_mse_loss(outputs,targets_GT)
+            loss_prior = torch.mean((self.model.phi_r(outputs) - outputs) ** 2)
+            loss_prior_gt = torch.mean((self.model.phi_r(targets_GT) - targets_GT) ** 2)
+
+            if prev_iter == self.model.n_grad * (self.hparams.k_n_grad -1) :
+                loss_var_cost_grad = self.loss_var_cost_grad(targets_GT,inputs_obs,masks,phase)
+                
+                #print()
+                #print( self.hparams.alpha_mse * loss_mse )
+                #print( self.hparams.alpha_var_cost_grad * loss_var_cost_grad )
+            else:
+                loss_var_cost_grad = 0.
+
+            #print( loss_var_cost_grad )            
+            #print(' %.3e -- %.3e'%( loss_mse.detach().cpu().numpy() , loss_gmse.detach().cpu().numpy()) )
+
+            loss = self.hparams.alpha_mse * loss_mse + self.hparams.alpha_gmse * loss_gmse
+            loss += 0.5 * self.hparams.alpha_prior * (loss_prior + loss_prior_gt)
+            loss += self.hparams.alpha_var_cost_grad * loss_var_cost_grad
+            # metrics
+            mse       = loss_mse.detach()
+            mse_grad  = loss_gmse.detach()
+            metrics   = dict([('mse',mse),('mse_grad',mse_grad),('var_grad',loss_var_cost_grad)])
+
+            if (phase == 'val') or (phase == 'test'):                
+                outputs = outputs.detach()
+        
+        out = [outputs,hidden_new, cell_new, normgrad_]
+        
+        return loss,out, metrics
 class HParam_FixedPoint:
     def __init__(self):
         self.n_iter_fp       = 1
