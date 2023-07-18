@@ -264,13 +264,13 @@ def base_testing_forecast(trainer, dm, lit_mod,ckpt=None,num_members=1):
     
     print("..... Forecasting performance (validation data)")
     print('.... dt_forecast = %d'%lit_mod.hparams.dt_forecast)
-    mse = np.sqrt( np.mean( (X_val[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast:]-x_rec[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast:])**2 ) )
-    print(".. mse all: %.3f "%mse,flush=True)
+    rmse = np.sqrt( np.mean( (X_val[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast:]-x_rec[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast:])**2 ) )
+    print(".. rmse all: %.3f "%mse,flush=True)
     
     for tt in range(X_val.shape[2]):
         dt = tt - (X_val.shape[2]-lit_mod.hparams.dt_forecast)
-        mse = np.sqrt( np.mean( (X_val[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast+dt]-x_rec[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast+dt] )**2 ) )
-        print(".. dt = %d -- mse = %.3f"%(dt,mse))
+        rmse = np.sqrt( np.mean( (X_val[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast+dt]-x_rec[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast+dt] )**2 ) )
+        print(".. dt = %d -- rmse = %.3f"%(dt,rmse))
     
     print()
     print()
@@ -289,12 +289,12 @@ def base_testing_forecast(trainer, dm, lit_mod,ckpt=None,num_members=1):
     nmse_r = mse_r / var_test
     
     print("..... Assimilation performance (test data)")
-    mse = np.sqrt( np.mean( (X_test[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast:]-x_rec[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast:])**2 ) )
-    print(".. mse all: %.3f "%mse)
+    rmse = np.sqrt( np.mean( (X_test[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast:]-x_rec[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast:])**2 ) )
+    print(".. rmse all: %.3f "%rmse)
     for tt in range(X_test.shape[2]):
         dt = tt - (X_test.shape[2]-lit_mod.hparams.dt_forecast)
-        mse = np.sqrt( np.mean( (X_test[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast+dt]-x_rec[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast+dt] )**2 ) )
-        print(".. dt = %d -- mse = %.3f"%(dt,mse))
+        rmse = np.sqrt( np.mean( (X_test[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast+dt]-x_rec[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast+dt] )**2 ) )
+        print(".. dt = %d -- rmse = %.3f"%(dt,rmse))
 
     print(".. MSE ALL.   : %.3f / %.3f"%(mse,nmse))
     print(".. MSE ObsData: %.3f / %.3f"%(mse_r,nmse_r))

@@ -411,7 +411,7 @@ def create_dataloaders(data_module):
 # freeze all ode parameters
 
 class Phi_ode(torch.nn.Module):
-    def __init__(self,meanTr,stdTr):
+    def __init__(self,meanTr=0.,stdTr=1.):
         super(Phi_ode, self).__init__()
         self.sigma = torch.nn.Parameter(torch.Tensor([np.random.randn()]))
         self.rho    = torch.nn.Parameter(torch.Tensor([np.random.randn()]))
@@ -1014,6 +1014,10 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         self.set_norm_stats = stats_training_data if stats_training_data is not None else (0.0,1.)
         self._set_norm_stats()
+        
+        if self.model.model_name == 'ode':
+            self.model.Phi.meanTr = self.meanTr
+            self.model.Phi.stdTr = self.stdTr
         
         self.automatic_optimization = True
         self.epsilon = 1e-6
