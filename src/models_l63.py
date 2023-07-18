@@ -472,6 +472,25 @@ class Phi_ode(torch.nn.Module):
         
         return xnew
 
+    def solve_from_initial_condition(self,x0,n_step):
+        X0 = self.stdTr * x0
+        X0 = X0 + self.meanTr
+        
+        for kk in range(n_step):
+            if self.IntScheme == 'euler':
+                Xpred = self._EulerSolver( X0 )
+            else:
+                Xpred = self._RK4Solver( X0 )
+            
+            xpred = ( Xpred - self.meanTr ) / self.stdTr
+            X0 = Xpred
+            if kk == 0:
+                x_f = 1. * xpred
+            else:
+                x_f = torch.cat((x_f,xpred),dim=2)
+
+        return x_f
+
 class Phi_unet_like_bilin(torch.nn.Module):
     def __init__(self,shapeData,DimAE,dW=5):
         super(Phi_unet_like_bilin, self).__init__()
@@ -1350,7 +1369,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
     
         self.ode_solver = Phi_ode(self.meanTr,self.stdTr)
         self.ode_solver.IntScheme = 'euler'
-        self.init_state == 'euler_solver'
+        self.init_state == 'ode_solver'
         
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
         with torch.set_grad_enabled(True):
@@ -1358,21 +1377,12 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
      
             #inputs_init = inputs_init_
             if batch_init is None :
-                if self.init_state == 'euler_solver':
-                    inputs_init_obs = inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast]
+                if self.init_state == 'ode_solver':
+                    x_pred = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
+                    inputs_init = torch.cat((inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast],x_pred),dim=2)
                     
-                    x_ = inputs_init_obs[:,:,-1].view(-1,inputs_init_.size(1),1) 
-                    for kk in range(self.hparams.dt_forecast):
-                        x_ = self.ode_solver(torch.cat((x_,x_),dim=2))
-                        x_ = x_[:,:,-1].view(-1,inputs_init_.size(1),1)
-                        
-                        if kk == 0:
-                            x_f = 1. *x_
-                        else:
-                            x_f = torch.cat((x_f,x_),dim=2)
-                                                
-                    inputs_init = torch.cat((inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast],x_f),dim=2)   
                     
+                    print(inputs_init[0,0,:])
                 else:
                     inputs_init = inputs_init_ + self.hparams.sig_rnd_init *  torch.randn( inputs_init_.size() ).to(device)
             else:
