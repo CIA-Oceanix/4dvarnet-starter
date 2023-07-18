@@ -16,7 +16,7 @@ datamodule:
       flag_generate_L63_data: False #True #
       NbTraining: 10000
       NbTest: 1000
-      time_step: 1
+      time_step: 2
       dT: 4
       dt_forecast: ??
       varNoise: 0.
