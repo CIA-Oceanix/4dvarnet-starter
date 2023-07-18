@@ -1381,10 +1381,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             if batch_init is None :
                 if self.init_state == 'ode_solver':
                     x_pred = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
-                    
-                    print(x_pred.size())
-                    print(x_pred[0,0,:])
-                    print(inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast].size())
+                    x_pred = x_pred.view(-1,x_pred.size(1),x_pred.size(2),1)
                     inputs_init = torch.cat((inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast],x_pred),dim=2)
                     
                     
