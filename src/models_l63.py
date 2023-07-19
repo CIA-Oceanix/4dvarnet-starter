@@ -473,7 +473,6 @@ class Phi_ode(torch.nn.Module):
         return xnew
 
     def solve_from_initial_condition(self,x0,n_step):
-        print(x0.size())
         X0 = self.stdTr * x0
         X0 = X0 + self.meanTr
         
@@ -1422,7 +1421,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         with torch.set_grad_enabled(True):
             inputs_init_,inputs_obs,masks,targets_GT = batch
  
-            self.ode_solver.IntScheme = 'eurler'
+            self.ode_solver.IntScheme = 'euler'
             x_pred = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
             x_pred = self.ode_solver.solve_from_initial_condition(targets_GT[:,:,targets_GT.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
             
