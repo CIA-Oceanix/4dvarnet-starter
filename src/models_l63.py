@@ -1430,7 +1430,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             
             print()
             print(inputs_init_.size(2)-self.hparams.dt_forecast-1)
-            print(self.meanTr + self.stdTr * targets_GT[0,0,:].detach().cpu().numpy().transpose())
+            print(self.meanTr + self.stdTr * targets_GT[0,0,0].detach().cpu().numpy())
+            print(self.meanTr + self.stdTr * inputs_init_[0,0,0].detach().cpu().numpy())
+            print(self.meanTr + self.stdTr * targets_GT[0,0,1:].detach().cpu().numpy().transpose())
             print(self.meanTr + self.stdTr * x_pred_1[0,0,:].detach().cpu().numpy().transpose())
             print(self.meanTr + self.stdTr * x_pred[0,0,:].detach().cpu().numpy().transpose())
             
