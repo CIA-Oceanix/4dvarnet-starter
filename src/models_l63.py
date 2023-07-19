@@ -425,7 +425,7 @@ class Phi_ode(torch.nn.Module):
         self.IntScheme = 'rk4'
         self.stdTr     = stdTr
         self.meanTr    = meanTr                      
-        self.model_name='ode'
+        self.model_name= 'ode'
     def _odeL63(self, xin):
         x1  = xin[:,0,:]
         x2  = xin[:,1,:]
@@ -459,6 +459,7 @@ class Phi_ode(torch.nn.Module):
         X = X + self.meanTr
         
         if self.IntScheme == 'euler':
+            print('xxxx')
             xpred = self._EulerSolver( X[:,:,0:x.size(2)-1] )
         else:
             xpred = self._RK4Solver( X[:,:,0:x.size(2)-1] )
