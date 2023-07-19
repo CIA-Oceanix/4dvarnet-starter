@@ -1457,12 +1457,14 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
             print('%.3f -- %.3f'%(1e5*loss_mse.detach().cpu().numpy(),1e5*loss_mse_ode.detach().cpu().numpy()))
 
-            if False: #batch_init is None:
+            if batch_init is None:
                 print('....')
-                print(outputs[0,0,:])
                 print(inputs_init[0,0,:])
                 print(inputs_init_[0,0,:])
+                print(inputs_obs[0,0,:])
                 print(targets_GT[0,0,:])
+                print(targets_GT[0,0,:]-outputs[0,0,:])
+                print(targets_GT[0,0,:]-inputs_init_ode[0,0,:])
 
             loss = self.hparams.alpha_mse * loss_mse + self.hparams.alpha_gmse * loss_gmse
             loss += 0.5 * self.hparams.alpha_prior * (loss_prior + loss_prior_gt)
