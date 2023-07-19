@@ -18,6 +18,8 @@ OmegaConf.register_new_resolver(
 )
 
 
+OmegaConf.register_new_resolver("mul", lambda x,y: int(x)*y, replace=True)
+
 class SingletonStore:
     STORE = dict()
 
