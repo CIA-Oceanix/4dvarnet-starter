@@ -1455,6 +1455,8 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             #print( loss_var_cost_grad )            
             #print(' %.3e -- %.3e'%( loss_mse.detach().cpu().numpy() , loss_gmse.detach().cpu().numpy()) )
 
+            print('%.3f -- %.3f'%(loss_mse.detach().cpu().numpy(),loss_mse_ode.detach().cpu().numpy()))
+
             if False: #batch_init is None:
                 print('....')
                 print(outputs[0,0,:])
