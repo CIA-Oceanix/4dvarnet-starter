@@ -1410,7 +1410,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             #print( loss_var_cost_grad )            
             #print(' %.3e -- %.3e'%( loss_mse.detach().cpu().numpy() , loss_gmse.detach().cpu().numpy()) )
 
-            if batch_init is None:
+            if False: #batch_init is None:
                 print('....')
                 print(outputs[0,0,:])
                 print(inputs_init[0,0,:])
@@ -1511,8 +1511,8 @@ class LitModel_FixedPoint(pl.LightningModule):
 
         inputs_init_,inputs_obs,masks,targets_GT = batch
         
-        print(inputs_init_,flush=True)
-        print(targets_GT,flush=True)
+        #print(inputs_init_,flush=True)
+        #print(targets_GT,flush=True)
  
         if batch_init is None :
             inputs_init = inputs_init_
