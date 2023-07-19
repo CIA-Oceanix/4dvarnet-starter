@@ -473,7 +473,7 @@ class Phi_ode(torch.nn.Module):
         return xnew
 
     def solve_from_initial_condition(self,x0,n_step):
-        X0 = self.stdTr * x0
+        X0 = self.stdTr * x0.squeeze()
         X0 = X0 + self.meanTr
         
         for kk in range(n_step):
@@ -489,7 +489,7 @@ class Phi_ode(torch.nn.Module):
             else:
                 x_f = torch.cat((x_f,xpred),dim=2)
 
-        return x_f
+        return x_f.view(-1,x_f.size(1),x_f.size(2),1)
 
 class Phi_unet_like_bilin(torch.nn.Module):
     def __init__(self,shapeData,DimAE,dW=5):
