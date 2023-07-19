@@ -1376,11 +1376,6 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
         with torch.set_grad_enabled(True):
             inputs_init_,inputs_obs,masks,targets_GT = batch
-     
-            print('....')
-            print(inputs_init_[0,0,:])
-            print(targets_GT[0,0,:])
-
 
             #inputs_init = inputs_init_
             if batch_init is None :
@@ -1414,12 +1409,6 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
             #print( loss_var_cost_grad )            
             #print(' %.3e -- %.3e'%( loss_mse.detach().cpu().numpy() , loss_gmse.detach().cpu().numpy()) )
-
-            print('....')
-            print(outputs[0,0,:])
-            print(inputs_init[0,0,:])
-            print(inputs_init_[0,0,:])
-            print(targets_GT[0,0,:])
 
             loss = self.hparams.alpha_mse * loss_mse + self.hparams.alpha_gmse * loss_gmse
             loss += 0.5 * self.hparams.alpha_prior * (loss_prior + loss_prior_gt)
