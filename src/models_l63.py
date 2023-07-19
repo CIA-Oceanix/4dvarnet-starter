@@ -482,6 +482,7 @@ class Phi_ode(torch.nn.Module):
                 print('xxxxx')
                 Xpred = self._EulerSolver( X0 )
             else:
+                print('yyyy')
                 Xpred = self._RK4Solver( X0 )
             
             X0 = Xpred
