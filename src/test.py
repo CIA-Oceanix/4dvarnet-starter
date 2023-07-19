@@ -445,7 +445,7 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
         print(".. dt = %d -- rmse = %.3f -- %.3f"%(dt,rmse_ode,rmse))
 
     
-    print('............... Model evaluation on test dataset')
+    print('............... Model evaluation on test dataset: ode vs. 4dvarnet')
     trainer.test(lit_mod, dataloaders=dm.test_dataloader())
     X_test, x_test, mask_test, x_test_Init, x_test_obs = dm.input_data[1]
     x_rec = lit_mod.x_rec
@@ -462,7 +462,7 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     
     print()
     print()
-    print("..... Performance (test data)")
+    print("..... Performance (test data): ode vs. 4dvarnet")
     rmse = np.sqrt( np.mean( (X_test[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast:]-x_rec[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast:])**2 ) )
     print(".. rmse all: %.3f "%rmse)
     for tt in range(X_test.shape[2]):
