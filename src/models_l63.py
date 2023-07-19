@@ -459,7 +459,6 @@ class Phi_ode(torch.nn.Module):
         X = X + self.meanTr
         
         if self.IntScheme == 'euler':
-            print('xxxx')
             xpred = self._EulerSolver( X[:,:,0:x.size(2)-1] )
         else:
             xpred = self._RK4Solver( X[:,:,0:x.size(2)-1] )
@@ -480,6 +479,7 @@ class Phi_ode(torch.nn.Module):
         
         for kk in range(n_step):
             if self.IntScheme == 'euler':
+                print('xxxxx')
                 Xpred = self._EulerSolver( X0 )
             else:
                 Xpred = self._RK4Solver( X0 )
