@@ -355,7 +355,7 @@ def base_testing_forecast(trainer, dm, lit_mod,ckpt=None,num_members=1):
     
     save_netcdf(result_path, X_test, x_rec, x_test_obs.squeeze(), mask_test.squeeze() )
 
-def base_testing_odesolver(trainer, dm, lit_mod,ckpt=None,num_members=1):
+def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     if trainer.logger is not None:
         print()
         print("Logdir:", trainer.logger.log_dir)
