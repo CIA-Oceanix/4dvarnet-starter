@@ -1433,7 +1433,8 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 self.ode_solver.IntScheme = self.hparams.base_ode_solver
                 
                 targets_GT = torch.cat((inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast],x_pred),dim=2)
-                targets_GT = targets_GT.detach()        
+                targets_GT = targets_GT.detach()
+                print('yyy')
             print(self.meanTr + self.stdTr * targets_GT[0,0,:].detach().cpu().numpy().transpose())
             print(self.meanTr + self.stdTr * inputs_init_ode[0,0,:].detach().cpu().numpy().transpose())
             
