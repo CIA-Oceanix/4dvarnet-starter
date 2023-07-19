@@ -1441,9 +1441,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 if self.init_state == 'ode_solver':
                     inputs_init = inputs_init_ode
 
-                    print()
-                    print(self.meanTr + self.stdTr * targets_GT[0,0,:].detach().cpu().numpy().transpose())
-                    print(self.meanTr + self.stdTr * inputs_init_ode[0,0,:].detach().cpu().numpy().transpose())
+                    #print()
+                    #print(self.meanTr + self.stdTr * targets_GT[0,0,:].detach().cpu().numpy().transpose())
+                    #print(self.meanTr + self.stdTr * inputs_init_ode[0,0,:].detach().cpu().numpy().transpose())
                 else:
                     inputs_init = inputs_init_ + self.hparams.sig_rnd_init *  torch.randn( inputs_init_.size() ).to(device)
             else:
