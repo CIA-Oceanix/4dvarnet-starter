@@ -1424,7 +1424,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             inputs_init_ode = torch.cat((inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast],x_pred),dim=2)
             inputs_init_ode = inputs_init_ode.detach()        
             
-            if self.userk4_gpu_as_target :
+            if self.use_rk4_gpu_as_target :
                 self.ode_solver.IntScheme = 'rk4'
                 x_pred = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
                 self.ode_solver.IntScheme = self.hparams.base_ode_solver
@@ -1439,9 +1439,6 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             
             
             x_pred = x_pred.view(-1,x_pred.size(1),x_pred.size(2),1)
-            
-            
-            
           
             #inputs_init = inputs_init_
             if batch_init is None :
