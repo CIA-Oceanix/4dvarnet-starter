@@ -129,7 +129,7 @@ entrypoints:
     lit_mod: ${model}
     dm: ${datamodule}
     num_members: 1
-    ckpt: 'outputs/2023-07-19/11-43-27/base_l63_forecast/checkpoints/model-l63-l63data-forecast-unet-dt3-dT04-4dvarnet-with-rnd-JamesData-Obs01-Noise00-igrad10_04-dgrad10-val_loss=0.1625-epoch=298.ckpt'
+    ckpt: 'outputs/2023-07-19/11-43-27/base_l63_forecast/checkpoints/model-l63-l63data-forecast-unet-dt3-dT04-4dvarnet-with-rnd-JamesData-Obs01-Noise00-igrad10_04-dgrad10-val_loss=0.1283-epoch=334.ckpt'
 #    ckpt: 'outputs/2023-07-18/23-06-57/base_l63_forecast/checkpoints/model-l63-l63-step2-forecast-dt3-dT04-4dvarnet-with-rnd-JamesData-Obs01-Noise00-igrad10_04-dgrad10-val_loss=0.2576-epoch=376.ckpt'
 #    ckpt: 'outputs/2023-07-18/08-30-51/base_l63_forecast/checkpoints/model-l63-l63-forecast01-ode-dT04-4dvarnet-with-rnd-JamesData-Obs01-Noise00-igrad10_04-dgrad100-val_loss=40.1054-epoch=398.ckpt'
 #    ckpt: 'outputs/2023-07-18/00-28-36/base_l63_forecast/checkpoints/model-l63-forecast-lstm-4dvarnet-with-rnd-JamesData-Obs01-Noise00-igrad10_08-dgrad100-val_loss=0.0464-epoch=258.ckpt'
