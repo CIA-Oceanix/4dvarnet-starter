@@ -474,7 +474,7 @@ class Phi_ode(torch.nn.Module):
 
     def solve_from_initial_condition(self,x0,n_step):
         print(x0.size())
-        X0 = self.stdTr * x0.view(-1,x0.size(1),1)
+        X0 = self.stdTr * x0
         X0 = X0 + self.meanTr
         
         for kk in range(n_step):
@@ -483,10 +483,11 @@ class Phi_ode(torch.nn.Module):
             else:
                 Xpred = self._RK4Solver( X0 )
             
-            xpred = ( Xpred - self.meanTr ) / self.stdTr
             X0 = Xpred
+            
+            xpred = ( Xpred - self.meanTr ) / self.stdTr
             if kk == 0:
-                x_f = 1. * xpred
+                x_f = xpred
             else:
                 x_f = torch.cat((x_f,xpred),dim=2)
 
@@ -1419,8 +1420,22 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         with torch.set_grad_enabled(True):
             inputs_init_,inputs_obs,masks,targets_GT = batch
  
+            self.ode_solver.IntScheme = 'eurler'
             x_pred = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
+            
+            self.ode_solver.IntScheme = 'rk4'
+            x_pred_1 = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
+            
+            print()
+            print(x_pred_1[0,0,:].detach().cpu().numpy())
+            print(x_pred[0,0,:].detach().cpu().numpy())
+            print(targets_GT[0,0,:].detach().cpu().numpy())
+            
+            
             x_pred = x_pred.view(-1,x_pred.size(1),x_pred.size(2),1)
+            
+            
+            
             inputs_init_ode = torch.cat((inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast],x_pred),dim=2)
           
             #inputs_init = inputs_init_
