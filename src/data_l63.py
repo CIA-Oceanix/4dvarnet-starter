@@ -548,6 +548,10 @@ def create_l63_forecast_datasets(param_dataset):
     
         X_test_Init[ii,:,:] = XInit
     
+      print('........')
+      print(X_train_Init[0:10,0,idx_last_obs]  )
+      print(X_train[0:10,0,idx_last_obs]  )
+    
       X_train_Init[:,:,idx_last_obs+1:] =  np.tile( X_train_Init[:,:,idx_last_obs].reshape((X_train_Init.shape[0],X_train_Init.shape[1],1)) , (1,1,param_dataset.dt_forecast) )
       X_test_Init[:,:,idx_last_obs+1:]  =  np.tile( X_test_Init[:,:,idx_last_obs].reshape((X_test_Init.shape[0],X_test_Init.shape[1],1)) , (1,1,param_dataset.dt_forecast) )
         
