@@ -1308,6 +1308,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         return loss_mse,loss_gmse
     
+
+
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
         with torch.set_grad_enabled(True):
             inputs_init_,inputs_obs,masks,targets_GT = batch
@@ -1373,10 +1375,46 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         
         print(self.init_state)
         
+        self.x_ode = None
+        
+    def test_step(self, test_batch, batch_idx):
+        
+        inputs_init,inputs_obs,masks,targets_GT = test_batch
+        
+        if self.hparams.sig_obs_noise > 0. :
+            inputs_init = inputs_init + self.hparams.sig_obs_noise * masks *  torch.randn( masks.size() ).to(device)
+            inputs_obs = inputs_init
+            
+            test_batch = inputs_init,inputs_obs,masks,targets_GT
+        
+        self.hparams.sig_obs_noise
+        
+        loss, out, metrics = self.compute_loss(test_batch, phase='test')
+    
+        for kk in range(0,self.hparams.k_n_grad-1):
+            loss1, out, metrics = self.compute_loss(test_batch, phase='test',batch_init=out[0].detach(),hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
+
+        mse,gmse = self.compute_mse_loss(out[0],targets_GT)
+
+        var_cost_grad = self.loss_var_cost_grad(targets_GT,inputs_obs,masks,phase='test')
+                
+        self.log("test_mse", self.stdTr**2 * mse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("test_gmse", self.stdTr**2 * gmse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("test_gvar", var_cost_grad , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+
+        if self.x_rec is None :
+            self.x_rec = out[0].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
+            self.x_gt  = targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
+            self.x_ode = out[-1].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
+        else:
+            self.x_rec = np.concatenate((self.x_rec,out[0].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
+            self.x_gt  = np.concatenate((self.x_gt,targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
+            self.x_ode  = np.concatenate((self.x_ode,out[-1].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
+            
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
         with torch.set_grad_enabled(True):
             inputs_init_,inputs_obs,masks,targets_GT = batch
-     
+        
             #inputs_init = inputs_init_
             if batch_init is None :
                 if self.init_state == 'ode_solver':
@@ -1428,7 +1466,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             if (phase == 'val') or (phase == 'test'):                
                 outputs = outputs.detach()
         
-        out = [outputs,hidden_new, cell_new, normgrad_]
+        out = [outputs,hidden_new, cell_new, normgrad_,inputs_init]
         
         return loss,out, metrics
 class HParam_FixedPoint:
