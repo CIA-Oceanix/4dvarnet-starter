@@ -1375,6 +1375,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
     
         self.ode_solver = Phi_ode(self.meanTr,self.stdTr)
         self.ode_solver.IntScheme = 'rk4' #'euler'
+        self.ode_solver.dt = 0.01 * self.hparams.time_step_ode
         self.init_state = 'ode_solver'
                 
         self.x_ode = None

@@ -647,8 +647,8 @@ def create_l63_ode_solver_datasets(param_dataset):
         dataTrainingNoNaN = stdTr * dataTrainingNoNaN + meanTr
         dataTestNoNaN     = stdTr * dataTestNoNaN + meanTr
                   
-        dataTrainingNoNaN = dataTrainingNoNaN[:,:,:param_dataset.dT]
-        dataTestNoNaN = dataTestNoNaN[:,:,:param_dataset.dT]
+        dataTrainingNoNaN = dataTrainingNoNaN[:,:,:param_dataset.time_step*param_dataset.dT:param_dataset.time_step]
+        dataTestNoNaN = dataTestNoNaN[:,:,:param_dataset.time_step*param_dataset.dT:param_dataset.time_step]
 
         dataTrainingNoNaN = np.moveaxis(dataTrainingNoNaN,-1,1)
         dataTestNoNaN = np.moveaxis(dataTestNoNaN,-1,1)
