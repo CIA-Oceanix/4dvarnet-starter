@@ -1424,6 +1424,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             inputs_init_ode = torch.cat((inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast],x_pred),dim=2)
             inputs_init_ode = inputs_init_ode.detach()        
             
+            print()
+            print(inputs_init_.size(2)-self.hparams.dt_forecast-1)
+            print(self.meanTr + self.stdTr * targets_GT[0,0,:].detach().cpu().numpy().transpose())
             if self.hparams.use_rk4_gpu_as_target :
                 self.ode_solver.IntScheme = 'rk4'
                 x_pred = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
@@ -1431,11 +1434,8 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 
                 targets_GT = torch.cat((inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast],x_pred),dim=2)
                 targets_GT = targets_GT.detach()        
-            print()
-            print(inputs_init_.size(2)-self.hparams.dt_forecast-1)
             print(self.meanTr + self.stdTr * targets_GT[0,0,:].detach().cpu().numpy().transpose())
             print(self.meanTr + self.stdTr * inputs_init_ode[0,0,:].detach().cpu().numpy().transpose())
-            print(self.meanTr + self.stdTr * x_pred[0,0,:].detach().cpu().numpy().transpose())
             
             
             x_pred = x_pred.view(-1,x_pred.size(1),x_pred.size(2),1)
