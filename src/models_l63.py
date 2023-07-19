@@ -1422,11 +1422,11 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
  
             self.ode_solver.IntScheme = 'eurler'
             x_pred = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
-            x_pred = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,targets_GT.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
+            x_pred = self.ode_solver.solve_from_initial_condition(targets_GT[:,:,targets_GT.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
             
             self.ode_solver.IntScheme = 'rk4'
             x_pred_1 = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
-            x_pred_1 = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,targets_GT.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
+            x_pred_1 = self.ode_solver.solve_from_initial_condition(targets_GT[:,:,targets_GT.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
             
             print()
             print(inputs_init_.size(2)-self.hparams.dt_forecast-1)
