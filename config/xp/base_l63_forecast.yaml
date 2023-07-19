@@ -94,6 +94,7 @@ trainer:
   #gradient_clip_val: 0.5
   accelerator: gpu
   devices: 1
+  precision: 64
   logger: 
     _target_: pytorch_lightning.loggers.CSVLogger
     save_dir: ${hydra:runtime.output_dir}
