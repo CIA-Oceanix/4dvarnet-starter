@@ -8,7 +8,7 @@ datamodule:
   param_datamodule:
     dl_kw: {batch_size: 128, num_workers: 1}
   input_data:
-    _target_: src.data_l63.create_l63_forecast_datasets
+    _target_: src.data_l63.create_l63_ode_solver_datasets #src.data_l63.create_l63_forecast_datasets
     param_dataset:
       path_l63_dataset: '../../Dataset4DVarNet/dataset_l63_normalized_20230717.nc' #'../../Dataset4DVarNet/dataset_L63_with_noise.nc'# '../../Dataset4DVarNet/dataset_L63_with_noise.nc'
       genSuffixObs: 'JamesData'
