@@ -586,7 +586,6 @@ def create_l63_forecast_datasets(param_dataset):
 
 
 def create_l63_ode_solver_datasets(param_dataset): 
-    rateMissingData = (1-1./param_dataset.sampling_step)
     sigNoise = np.sqrt( param_dataset.varNoise )
     genSuffixObs = param_dataset.genSuffixObs
     
@@ -720,11 +719,11 @@ def create_l63_ode_solver_datasets(param_dataset):
     X_test_Init = 1. * X_test_missing
     
     print('........')
-    print(X_train_Init[0:5,0,idx_last_obs]  )
     print(X_train[0:5,0,idx_last_obs]  )
   
     X_train_Init[:,:,idx_last_obs+1:] =  np.tile( X_train_Init[:,:,idx_last_obs].reshape((X_train_Init.shape[0],X_train_Init.shape[1],1)) , (1,1,param_dataset.dt_forecast) )
     X_test_Init[:,:,idx_last_obs+1:]  =  np.tile( X_test_Init[:,:,idx_last_obs].reshape((X_test_Init.shape[0],X_test_Init.shape[1],1)) , (1,1,param_dataset.dt_forecast) )
+    print(X_train_Init[0:5,0,idx_last_obs]  )
         
         
     x_train_Init = ( X_train_Init - meanTr ) / stdTr
