@@ -473,7 +473,8 @@ class Phi_ode(torch.nn.Module):
         return xnew
 
     def solve_from_initial_condition(self,x0,n_step):
-        X0 = self.stdTr * x0.squeeze()
+        print(x0.size())
+        X0 = self.stdTr * x0.view(-1,x0.size(1),1)
         X0 = X0 + self.meanTr
         
         for kk in range(n_step):
@@ -1451,8 +1452,8 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             else:
                 loss_var_cost_grad = 0.
 
-            if False : #batch_init is None:
-                print('%.3f -- %.3f'%(1e5*loss_mse.detach().cpu().numpy(),1e5*loss_mse_ode.detach().cpu().numpy()))
+            if True : #batch_init is None:
+                print('%.3f -- %.3f'%(self.stdTr**2 * loss_mse.detach().cpu().numpy(),self.stdTr**2 *loss_mse_ode.detach().cpu().numpy()))
                 print('....')
                 print(inputs_init[0,0,:])
                 print(inputs_init_[0,0,:])
