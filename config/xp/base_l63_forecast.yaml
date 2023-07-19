@@ -90,7 +90,7 @@ model:
     #dim: 5
   model_Grad:
     _target_: src.solver_l63.model_Grad_with_lstm
-    ShapeData: ${model.params.shapeData}
+    ShapeData: ${mul:${datamodule.input_data.param_dataset.dT},3} #${model.params.shapeData}
     DimLSTM: ${model.params.dim_grad_solver} 
     rateDropout: ${model.params.dropout} 
     sig_lstm_init: ${model.params.sig_lstm_init}
