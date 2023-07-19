@@ -300,6 +300,8 @@ class model_Grad_with_lstm(torch.nn.Module):
         grad  = grad / gradnorm
         grad  = self.dropout( grad )
         
+        print( grad.size() )
+        
 #        if self.PeriodicBnd == True :
 #            dB     = 7
 #            #
