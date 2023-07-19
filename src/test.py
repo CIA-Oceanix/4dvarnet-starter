@@ -523,7 +523,6 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     
     # saving dataset
     result_path = ckpt.replace('.ckpt','_res.nc')
-    x_test_obs = lit_mod.x_obs
     print('..... save .c file with results: '+result_path)
     
-    save_netcdf(result_path, X_test, x_rec, x_test_obs.squeeze(), mask_test.squeeze() )
+    save_netcdf(result_path, X_test, x_rec, x_ode.squeeze(), mask_test.squeeze() )
