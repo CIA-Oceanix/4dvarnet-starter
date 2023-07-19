@@ -1410,6 +1410,10 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             #print( loss_var_cost_grad )            
             #print(' %.3e -- %.3e'%( loss_mse.detach().cpu().numpy() , loss_gmse.detach().cpu().numpy()) )
 
+            print(outputs[0,0,:])
+            print(targets_GT[0,0,:])
+            print(inputs_init[0,0,:])
+
             loss = self.hparams.alpha_mse * loss_mse + self.hparams.alpha_gmse * loss_gmse
             loss += 0.5 * self.hparams.alpha_prior * (loss_prior + loss_prior_gt)
             loss += self.hparams.alpha_var_cost_grad * loss_var_cost_grad
