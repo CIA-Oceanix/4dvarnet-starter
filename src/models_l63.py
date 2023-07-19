@@ -1374,11 +1374,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
     
         self.ode_solver = Phi_ode(self.meanTr,self.stdTr)
-        self.ode_solver.IntScheme = 'euler'
-        self.init_state == 'ode_solver'
-        
-        print(self.init_state)
-        
+        self.ode_solver.IntScheme = 'rk4' #'euler'
+        self.init_state = 'ode_solver'
+                
         self.x_ode = None
         
     def test_step(self, test_batch, batch_idx):
