@@ -478,10 +478,8 @@ class Phi_ode(torch.nn.Module):
         
         for kk in range(n_step):
             if self.IntScheme == 'euler':
-                print('xxxxx')
                 Xpred = self._EulerSolver( X0 )
             else:
-                print('yyyy')
                 Xpred = self._RK4Solver( X0 )
             
             X0 = Xpred
