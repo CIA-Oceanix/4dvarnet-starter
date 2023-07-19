@@ -1377,6 +1377,11 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         with torch.set_grad_enabled(True):
             inputs_init_,inputs_obs,masks,targets_GT = batch
      
+            print('....')
+            print(inputs_init_[0,0,:])
+            print(targets_GT[0,0,:])
+
+
             #inputs_init = inputs_init_
             if batch_init is None :
                 if self.init_state == 'ode_solver':
@@ -1412,8 +1417,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
             print('....')
             print(outputs[0,0,:])
-            print(targets_GT[0,0,:])
             print(inputs_init[0,0,:])
+            print(inputs_init_[0,0,:])
+            print(targets_GT[0,0,:])
 
             loss = self.hparams.alpha_mse * loss_mse + self.hparams.alpha_gmse * loss_gmse
             loss += 0.5 * self.hparams.alpha_prior * (loss_prior + loss_prior_gt)
