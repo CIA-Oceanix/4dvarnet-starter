@@ -300,7 +300,8 @@ class model_Grad_with_lstm(torch.nn.Module):
         grad  = grad / gradnorm
         grad  = self.dropout( grad )
         
-        print( grad.size() )
+        if len(self.shape) == 1:
+            grad = grad.view(-1,grad.size(1)*grad.size(2))
         
 #        if self.PeriodicBnd == True :
 #            dB     = 7
@@ -335,6 +336,9 @@ class model_Grad_with_lstm(torch.nn.Module):
 
         grad_lstm = self.dropout( hidden_ )
         grad =  self.convLayer( grad_lstm )
+
+        if len(self.shape) == 1:
+            grad = grad.view(-1,grad.size(1),grad.size(2),grad.size(3))
 
         return grad,hidden_,cell_
 
