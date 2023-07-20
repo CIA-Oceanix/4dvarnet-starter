@@ -1390,6 +1390,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
         if inputs_init_.size(2) > self.hparams.shapeData[1] :
             dT = self.hparams.shapeData[1]
+            
             inputs_init_ = inputs_init_[:,:,:dT]
             inputs_obs = inputs_obs[:,:,:dT]
             masks = masks[:,:,:dT]
