@@ -121,7 +121,7 @@ def create_filename_ckpt_odesolver(suffix,params_data,params_model,name_solver='
     print(params_data)
     print(params_model)
     
-    filename_chkpt = 'model-odesolver-l63-'+params_model.suffix_exp +'-dT%02d'%(params_data.dT,params_data.sampling_step,params_data.dt_forecast)+'-'
+    filename_chkpt = 'model-odesolver-l63-'+params_model.suffix_exp +'-dT%02d_%02d_%02d'%(params_data.dT,params_data.sampling_step,params_data.dt_forecast)+'-'
     if params_model.degradation_operator == 'no-degradation' :
         filename_chkpt = filename_chkpt +  params_model.solver +'-' 
     else:
