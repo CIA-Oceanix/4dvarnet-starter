@@ -63,8 +63,8 @@ model:
       - 3
       - ${datamodule.input_data.param_dataset.dT}
       - 1
-    shapeData_modGrad: #${model.params.shapeData}
-      - ${mul:${datamodule.input_data.param_dataset.dT},3} 
+    shapeData_modGrad: ${model.params.shapeData}
+    #  - ${mul:${datamodule.input_data.param_dataset.dT},3} 
     dt_forecast: ${datamodule.input_data.param_dataset.dt_forecast}
     dT_test: ${datamodule.input_data.param_dataset.dT_test}
     time_step_ode: ${datamodule.input_data.param_dataset.time_step}
