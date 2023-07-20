@@ -64,6 +64,7 @@ model:
       - 3
       - ${datamodule.input_data.param_dataset.dT}
       - 1
+    shapeData_modGrad: ${mul:${datamodule.input_data.param_dataset.dT},3} #${model.params.shapeData}
     dt_forecast: ${datamodule.input_data.param_dataset.dt_forecast}
     dT_test: ${datamodule.input_data.param_dataset.dT_test}
     time_step_ode: ${datamodule.input_data.param_dataset.time_step}
@@ -89,12 +90,11 @@ model:
     shape_data: ${model.params.shapeData}
   mod_Grad:
     _target_: src.solver_l63.model_Grad_with_lstm
-    ShapeData: #${model.params.shapeData}
-      - ${mul:${datamodule.input_data.param_dataset.dT},3} 
+    ShapeData: ${model.params.shapeData_modGrad}
     DimLSTM: ${model.params.dim_grad_solver} 
     rateDropout: ${model.params.dropout} 
     sig_lstm_init: ${model.params.sig_lstm_init}
-    name: 'lstm-fc'
+    name: 'lstm-grad'
   patch_weight:
     _target_: src.models_l63.get_forecasting_mask #get_forecastingonly_mask
     patch_dims: ${model.params.shapeData}

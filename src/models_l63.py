@@ -130,7 +130,13 @@ def create_filename_ckpt_odesolver(suffix,params_data,params_model,name_solver='
     filename_chkpt = filename_chkpt + params_data.genSuffixObs 
     #filename_chkpt = filename_chkpt + '-Obs%02d'%params_data.sampling_step + '-Noise%02d'%(params_data.varNoise)        
     #filename_chkpt = filename_chkpt + '-' + params_model.phi_param
-    filename_chkpt = filename_chkpt +  '-' + name_phi + '-' + name_solver + '%02d_%02d_%d'%(params_model.n_grad,params_model.k_n_grad,params_model.dim_grad_solver)          
+    filename_chkpt = filename_chkpt + '-' + name_phi +'_%02d'%params_model.DimAE 
+    if len(params_model.shapeData_modGrad) == 1 :
+        name_solver = 'fc'+name_solver
+    else:
+        name_solver = 'conv'+name_solver
+    
+    filename_chkpt = filename_chkpt + '-' + name_solver + '%02d_%02d_%d'%(params_model.n_grad,params_model.k_n_grad,params_model.dim_grad_solver)          
     #filename_chkpt = filename_chkpt + '-drop%02d'%(100*params_model.dropout)
     #filename_chkpt = filename_chkpt + '-rnd-init%02d'%(100*params_model.sig_rnd_init)
     #filename_chkpt = filename_chkpt + '-lstm-init%02d'%(100*params_model.sig_lstm_init)
