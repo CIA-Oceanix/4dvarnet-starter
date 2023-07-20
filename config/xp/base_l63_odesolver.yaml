@@ -34,7 +34,7 @@ model:
     DimAE: 10 # ?? #
 #    phi_param: 'unet'
 #    solver: ?? #'4dvarnet-with-rnd' #?? #''4dvarnet-with-state-and-rnd' # #'4dvarnet-with-subgradients' #'4dvarnet-with-rnd-grad' #''4dvarnet-with-state-and-rnd' #
-    dim_grad_solver: 10 #100 #25
+    dim_grad_solver: ?? #10 #100 #25
     dropout: 0.
     alpha_prior: 0. #1e2
     alpha_mse: 1.e2
