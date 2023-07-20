@@ -331,22 +331,25 @@ class model_Grad_with_lstm(torch.nn.Module):
 
         if len(self.shape) == 1: ## 1D Data
             print(hidden.size())
+            print(cell.size())
             print(grad.size())
             print('xxxxx',flush=True)
             hidden_,cell_ = self.lstm(grad,(hidden,cell))
+            print('yyyyy',flush=True)
         else:
             hidden_,cell_ = self.lstm(grad,[hidden,cell])
             
         grad_lstm = self.dropout( hidden_ )
         grad =  self.convLayer( grad_lstm )
 
+        print(grad.size())
+        print(x.size())
+        print(hidden_.size())
+
         if len(self.shape) == 1:
             grad = grad.view(-1,x.size(1),x.size(2),x.size(3))
 
 
-        print(grad.size())
-        print(x.size())
-        print(hidden_.size())
         
         return grad,hidden_,cell_
 
