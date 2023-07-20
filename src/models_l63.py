@@ -1495,6 +1495,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 targets_GT = torch.cat((inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast],x_pred),dim=2)
                 #print(targets_GT[0,0,:].detach().cpu().numpy().transpose())
                 targets_GT = targets_GT.detach()
+                self.ode_solver.IntScheme = 'euler'
                       
             # init solution with ode solver
             x_pred = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
