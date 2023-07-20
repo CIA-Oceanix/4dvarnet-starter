@@ -990,10 +990,10 @@ class Lit4dVarNet_L63(pl.LightningModule):
         if self.hparams.solver =='4dvarnet-with-rnd' :
             self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi, 
                                                                     mod_H, 
-                                                                    mod_Grad,
-                                                                    #solver_4DVarNet.model_Grad_with_lstm(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, 
-                                                                    #                                     self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
-                                                                    #                                     sig_lstm_init = self.hparams.sig_lstm_init), 
+                                                                    #mod_Grad,
+                                                                    solver_4DVarNet.model_Grad_with_lstm(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, 
+                                                                                                         self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
+                                                                                                         sig_lstm_init = self.hparams.sig_lstm_init), 
                                                                     m_NormObs, m_NormPhi, 
                                                                     self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.k_n_grad,self.hparams.lr_grad,self.hparams.lr_rnd,
                                                                     self.hparams.type_step_lstm,self.hparams.param_lstm_step)#, self.hparams.eps_norm_grad)            
