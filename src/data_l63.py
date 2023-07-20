@@ -589,8 +589,8 @@ def create_l63_ode_solver_datasets(param_dataset):
     sigNoise = np.sqrt( param_dataset.varNoise )
     genSuffixObs = param_dataset.genSuffixObs
     
-    #f param_dataset.dT < param_dataset.dT_test:
-    #   param_dataset.dT = param_dataset.dT_test
+    if param_dataset.dT < param_dataset.dT_test:
+        dT = param_dataset.dT_test
 
     ## Load or create L63 dataset
     if param_dataset.flag_generate_L63_data :
@@ -630,8 +630,8 @@ def create_l63_ode_solver_datasets(param_dataset):
         xt.values = S
         xt.time   = tt
         # extract subsequences
-        dataTrainingNoNaN = image.extract_patches_2d(xt.values[0:12000:param_dataset.time_step,:],(param_dataset.dT,3),max_patches=param_dataset.NbTraining)
-        dataTestNoNaN     = image.extract_patches_2d(xt.values[15000::param_dataset.time_step,:],(param_dataset.dT,3),max_patches=param_dataset.NbTest)
+        dataTrainingNoNaN = image.extract_patches_2d(xt.values[0:12000:param_dataset.time_step,:],(dT,3),max_patches=param_dataset.NbTraining)
+        dataTestNoNaN     = image.extract_patches_2d(xt.values[15000::param_dataset.time_step,:],(dT,3),max_patches=param_dataset.NbTest)
     else:
         path_l63_dataset = param_dataset.path_l63_dataset#'../../Dataset4DVarNet/dataset_L63_with_noise.nc'
         genSuffixObs    = param_dataset.genSuffixObs#'JamesExp1'
@@ -650,8 +650,8 @@ def create_l63_ode_solver_datasets(param_dataset):
         dataTrainingNoNaN = stdTr * dataTrainingNoNaN + meanTr
         dataTestNoNaN     = stdTr * dataTestNoNaN + meanTr
                   
-        dataTrainingNoNaN = dataTrainingNoNaN[:,:,:param_dataset.time_step*param_dataset.dT:param_dataset.time_step]
-        dataTestNoNaN = dataTestNoNaN[:,:,:param_dataset.time_step*param_dataset.dT:param_dataset.time_step]
+        dataTrainingNoNaN = dataTrainingNoNaN[:,:,:param_dataset.time_step*dT:param_dataset.time_step]
+        dataTestNoNaN = dataTestNoNaN[:,:,:param_dataset.time_step*dT:param_dataset.time_step]
 
         dataTrainingNoNaN = np.moveaxis(dataTrainingNoNaN,-1,1)
         dataTestNoNaN = np.moveaxis(dataTestNoNaN,-1,1)
@@ -664,7 +664,7 @@ def create_l63_ode_solver_datasets(param_dataset):
 
     # create missing data 
     print('..... Observation pattern: All  L63 components osberved')
-    time_step_obs   = int(param_dataset.sampling_step)#int(1./(1.-rateMissingData))
+    time_step_obs   = 1#int(1./(1.-rateMissingData))
     dataTraining    = np.zeros((dataTrainingNoNaN.shape))
     dataTraining[:] = float('nan')
     dataTraining[:,::time_step_obs,:] = dataTrainingNoNaN[:,::time_step_obs,:]
@@ -711,8 +711,8 @@ def create_l63_ode_solver_datasets(param_dataset):
     print('.... MeanTr = %.3f --- StdTr = %.3f '%(meanTr,stdTr))
     
     # Generate noisy observsation
-    X_train_obs = X_train_missing + sigNoise * maskTraining * np.random.randn(X_train_missing.shape[0],X_train_missing.shape[1],X_train_missing.shape[2])
-    X_test_obs  = X_test_missing  + sigNoise * maskTest * np.random.randn(X_test_missing.shape[0],X_test_missing.shape[1],X_test_missing.shape[2])
+    X_train_obs = X_train_missing 
+    X_test_obs  = X_test_missing
     
     x_train_obs = (X_train_obs - meanTr) / stdTr
     x_test_obs  = (X_test_obs - meanTr) / stdTr
@@ -720,11 +720,7 @@ def create_l63_ode_solver_datasets(param_dataset):
     # Initialization
     X_train_Init = 1. * X_train_missing
     X_test_Init = 1. * X_test_missing
-    
-    X_train_Init[:,:,idx_last_obs+1:] =  np.tile( X_train_Init[:,:,idx_last_obs].reshape((X_train_Init.shape[0],X_train_Init.shape[1],1)) , (1,1,param_dataset.dt_forecast) )
-    X_test_Init[:,:,idx_last_obs+1:]  =  np.tile( X_test_Init[:,:,idx_last_obs].reshape((X_test_Init.shape[0],X_test_Init.shape[1],1)) , (1,1,param_dataset.dt_forecast) )
-        
-        
+                    
     x_train_Init = ( X_train_Init - meanTr ) / stdTr
     x_test_Init = ( X_test_Init - meanTr ) / stdTr
     
