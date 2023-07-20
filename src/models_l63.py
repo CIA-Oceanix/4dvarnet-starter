@@ -1210,7 +1210,6 @@ class Lit4dVarNet_L63(pl.LightningModule):
         return loss
     
     def validation_step(self, val_batch, batch_idx):
-        print('yyyyyy')
         inputs_init,inputs_obs,masks,targets_GT = val_batch
 
         loss, out, metrics = self.compute_loss(val_batch, phase='val')
@@ -1402,13 +1401,12 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 
         self.x_ode = None
         
-    def training_step(self, val_batch, batch_idx):
-        val_batch = self.extract_data_patch(val_batch)
+    def training_step(self, train_batch, batch_idx):
+        train_batch = self.extract_data_patch(train_batch)
         
-        super(Lit4dVarNet_L63_OdeSolver,self).training_step(val_batch, batch_idx)  
+        super(Lit4dVarNet_L63_OdeSolver,self).training_step(train_batch, batch_idx)  
 
     def validation_step(self, val_batch, batch_idx):
-        print('xxxxxxx')
         val_batch = self.extract_data_patch(val_batch)
         
         super(Lit4dVarNet_L63_OdeSolver,self).validation_step(val_batch, batch_idx)  

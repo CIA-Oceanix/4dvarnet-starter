@@ -338,7 +338,7 @@ class model_Grad_with_lstm(torch.nn.Module):
         grad =  self.convLayer( grad_lstm )
 
         if len(self.shape) == 1:
-            grad = grad.view(-1,grad.size(1),grad.size(2),grad.size(3))
+            grad = grad.view(-1,x.size(1),x.size(2),x.size(3))
 
         return grad,hidden_,cell_
 
