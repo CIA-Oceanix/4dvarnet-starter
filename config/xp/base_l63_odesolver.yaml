@@ -85,6 +85,10 @@ model:
   mod_H:
     _target_: src.models_l63.Model_H # src.models_l63.Model_H_with_relu # src.models_l63.Model_HwithSSTBN_nolin_tanh #src.models_l63.Model_HwithTrainableLocalisation #src.models_l63.Model_HwithLocalisation
     shape_data: ${model.params.shapeData}
+  patch_weight:
+    _target_: src.models_l63.get_forecasting_mask #get_forecastingonly_mask
+    patch_dims: ${model.params.shapeData}
+    dt_forecast: ${datamodule.input_data.param_dataset.dt_forecast}
   mod_Grad:
     _target_: src.solver_l63.model_Grad_with_lstm
     ShapeData: 
@@ -92,10 +96,6 @@ model:
     DimLSTM: ${model.params.dim_grad_solver} 
     rateDropout: ${model.params.dropout} 
     sig_lstm_init: ${model.params.sig_lstm_init}
-  patch_weight:
-    _target_: src.models_l63.get_forecasting_mask #get_forecastingonly_mask
-    patch_dims: ${model.params.shapeData}
-    dt_forecast: ${datamodule.input_data.param_dataset.dt_forecast}
     #dim: 5
 
 trainer:
