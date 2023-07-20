@@ -267,8 +267,8 @@ class model_Grad_with_lstm(torch.nn.Module):
                 self.dim_state_out = dim_state_out
 
         self.linear_layer     = self._make_ConvGrad()
-        #K = torch.Tensor([0.1]).view(1,1,1,1)
-        #self.convLayer.weight = torch.nn.Parameter(K)
+        K = torch.Tensor([0.1]).view(1,1,1,1)
+        self.linear_layer.weight = torch.nn.Parameter(K)
 
         self.dropout = torch.nn.Dropout(rateDropout)
         self.sig_lstm_init = sig_lstm_init
