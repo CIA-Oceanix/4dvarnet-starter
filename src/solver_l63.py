@@ -335,7 +335,6 @@ class model_Grad_with_lstm(torch.nn.Module):
 
             grad_lstm = self.dropout( torch.squeeze(output) )
         else:
-            print('xxxxxxxxxx')
             hidden_,cell_ = self.lstm(grad,[hidden,cell])
             grad_lstm = self.dropout( hidden_ )
             
@@ -343,8 +342,6 @@ class model_Grad_with_lstm(torch.nn.Module):
 
         if len(self.shape) == 1:
             grad = grad.view(-1,x.size(1),x.size(2),x.size(3))
-
-
         
         return grad,hidden_,cell_
 
