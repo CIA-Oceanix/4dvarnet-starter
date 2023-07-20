@@ -280,8 +280,8 @@ class model_Grad_with_lstm(torch.nn.Module):
         elif len(self.shape) == 3: ## 2D Data
             self.lstm = ConvLSTM2d(self.shape[0],self.DimState,3,padding_mode=padding_mode)
             self.convLayer     = self._make_ConvGrad()
-            K = torch.Tensor([0.1]).view(1,1,1,1)
-            self.convLayer.weight = torch.nn.Parameter(K)
+            #K = torch.Tensor([0.1]).view(1,1,1,1)
+            #self.convLayer.weight = torch.nn.Parameter(K)
 
     def _make_ConvGrad(self):
         layers = []
