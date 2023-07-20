@@ -328,7 +328,8 @@ class model_Grad_with_lstm(torch.nn.Module):
             elif len(self.shape) == 3 :
                 hidden = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
                 cell   = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
-
+                
+        hidden_,cell_ = self.lstm(grad,None)   
         if len(self.shape) == 1: ## 1D Data
             output,(hidden_,cell_) = self.lstm(grad,(hidden,cell))
 
