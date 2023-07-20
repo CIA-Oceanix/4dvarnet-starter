@@ -977,7 +977,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         #print(hparams,flush=True)
         
-        
+       
         self.save_hyperparameters(params)
         #self.save_hyperparameters({**hparams, **kwargs})
 
@@ -988,50 +988,57 @@ class Lit4dVarNet_L63(pl.LightningModule):
         # prior
         if Phi == None :
             Phi = Phi_unet_like_bilin(self.hparams.shapeData,self.hparams.DimAE)
-            
-            
+                        
         if mod_H == None :
             mod_H = Model_H(self.hparams.shapeData)
             
-        if self.hparams.solver =='4dvarnet-with-rnd' :
-            self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi, 
-                                                                    mod_H, 
-                                                                    mod_Grad,
-                                                                    #solver_4DVarNet.model_Grad_with_lstm(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, 
-                                                                    #                                     self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
-                                                                    #                                     sig_lstm_init = self.hparams.sig_lstm_init), 
-                                                                    m_NormObs, m_NormPhi, 
-                                                                    self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.k_n_grad,self.hparams.lr_grad,self.hparams.lr_rnd,
-                                                                    self.hparams.type_step_lstm,self.hparams.param_lstm_step)#, self.hparams.eps_norm_grad)            
-        elif self.hparams.solver =='4dvarnet-with-state-and-rnd':
-            self.model        = solver_4DVarNet.GradSolver_with_state_rnd(Phi, 
-                                                                    mod_H,#Model_H(self.hparams.shapeData), 
-                                                                    solver_4DVarNet.model_Grad_with_lstm_and_state(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, 
-                                                                                                                   self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
-                                                                                                                   sig_lstm_init = self.hparams.sig_lstm_init), 
-                                                                    m_NormObs, m_NormPhi, 
-                                                                    self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD, self.hparams.k_n_grad, self.hparams.lr_grad,self.hparams.lr_rnd,
-                                                                    self.hparams.type_step_lstm,self.hparams.param_lstm_step)#, self.hparams.eps_norm_grad)
-        elif self.hparams.solver =='4dvarnet-with-rnd-grad':
-            shapeData_grad = np.array([self.hparams.shapeData[0],self.hparams.shapeData[1],1])
-            self.model        = solver_4DVarNet.Solver_with_nograd(Phi, 
-                                                                    mod_H,#Model_H(self.hparams.shapeData), 
-                                                                    solver_4DVarNet.model_Grad_with_lstm(shapeData_grad, self.hparams.UsePeriodicBoundary, 
-                                                                                                         self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
-                                                                                                         sig_lstm_init = self.hparams.sig_lstm_init), 
-                                                                    m_NormObs, m_NormPhi, 
-                                                                    self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd,
-                                                                    no_grad_type='sampling-randn',sig_perturbation_grad=self.hparams.sig_perturbation_grad )#, self.hparams.eps_norm_grad)
-        elif self.hparams.solver =='4dvarnet-with-subgradients':
-            shapeData_grad = np.array([2*self.hparams.shapeData[0],self.hparams.shapeData[1],1])
-            self.model        = solver_4DVarNet.Solver_with_nograd(Phi, 
-                                                                    mod_H,#Model_H(self.hparams.shapeData), 
-                                                                    solver_4DVarNet.model_Grad_with_lstm(shapeData_grad, self.hparams.UsePeriodicBoundary, 
-                                                                                                         self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
-                                                                                                         sig_lstm_init = self.hparams.sig_lstm_init, dim_state_out=self.hparams.shapeData[0]), 
-                                                                    m_NormObs, m_NormPhi, 
-                                                                    self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd,
-                                                                    no_grad_type='sub-gradients')#, self.hparams.eps_norm_grad)
+        self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi, 
+                                                                mod_H, 
+                                                                mod_Grad,
+                                                                m_NormObs, m_NormPhi, 
+                                                                self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.k_n_grad,self.hparams.lr_grad,self.hparams.lr_rnd,
+                                                                self.hparams.type_step_lstm,self.hparams.param_lstm_step)            
+
+        if 1*0 :
+            if self.hparams.solver =='4dvarnet-with-rnd' :
+                self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi, 
+                                                                        mod_H, 
+                                                                        mod_Grad,
+                                                                        #solver_4DVarNet.model_Grad_with_lstm(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, 
+                                                                        #                                     self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
+                                                                        #                                     sig_lstm_init = self.hparams.sig_lstm_init), 
+                                                                        m_NormObs, m_NormPhi, 
+                                                                        self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.k_n_grad,self.hparams.lr_grad,self.hparams.lr_rnd,
+                                                                        self.hparams.type_step_lstm,self.hparams.param_lstm_step)#, self.hparams.eps_norm_grad)            
+            elif self.hparams.solver =='4dvarnet-with-state-and-rnd':
+                self.model        = solver_4DVarNet.GradSolver_with_state_rnd(Phi, 
+                                                                        mod_H,#Model_H(self.hparams.shapeData), 
+                                                                        solver_4DVarNet.model_Grad_with_lstm_and_state(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, 
+                                                                                                                       self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
+                                                                                                                       sig_lstm_init = self.hparams.sig_lstm_init), 
+                                                                        m_NormObs, m_NormPhi, 
+                                                                        self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD, self.hparams.k_n_grad, self.hparams.lr_grad,self.hparams.lr_rnd,
+                                                                        self.hparams.type_step_lstm,self.hparams.param_lstm_step)#, self.hparams.eps_norm_grad)
+            elif self.hparams.solver =='4dvarnet-with-rnd-grad':
+                shapeData_grad = np.array([self.hparams.shapeData[0],self.hparams.shapeData[1],1])
+                self.model        = solver_4DVarNet.Solver_with_nograd(Phi, 
+                                                                        mod_H,#Model_H(self.hparams.shapeData), 
+                                                                        solver_4DVarNet.model_Grad_with_lstm(shapeData_grad, self.hparams.UsePeriodicBoundary, 
+                                                                                                             self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
+                                                                                                             sig_lstm_init = self.hparams.sig_lstm_init), 
+                                                                        m_NormObs, m_NormPhi, 
+                                                                        self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd,
+                                                                        no_grad_type='sampling-randn',sig_perturbation_grad=self.hparams.sig_perturbation_grad )#, self.hparams.eps_norm_grad)
+            elif self.hparams.solver =='4dvarnet-with-subgradients':
+                shapeData_grad = np.array([2*self.hparams.shapeData[0],self.hparams.shapeData[1],1])
+                self.model        = solver_4DVarNet.Solver_with_nograd(Phi, 
+                                                                        mod_H,#Model_H(self.hparams.shapeData), 
+                                                                        solver_4DVarNet.model_Grad_with_lstm(shapeData_grad, self.hparams.UsePeriodicBoundary, 
+                                                                                                             self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
+                                                                                                             sig_lstm_init = self.hparams.sig_lstm_init, dim_state_out=self.hparams.shapeData[0]), 
+                                                                        m_NormObs, m_NormPhi, 
+                                                                        self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd,
+                                                                        no_grad_type='sub-gradients')#, self.hparams.eps_norm_grad)
 
                 
                 
