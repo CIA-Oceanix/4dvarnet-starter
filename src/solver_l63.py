@@ -308,10 +308,8 @@ class model_Grad_with_lstm(torch.nn.Module):
                 #hidden_,cell_ = self.lstm(grad,None)
                 hidden = self.sig_lstm_init * torch.randn( (1,grad.size(0),self.DimState) ).to(device)
                 cell   = self.sig_lstm_init * torch.randn( (1,grad.size(0),self.DimState) ).to(device)
-                hidden_,cell_ = self.lstm(grad,None)
-
-            else:
-                output,(hidden_,cell_) = self.lstm(grad,(hidden,cell))
+                
+            output,(hidden_,cell_) = self.lstm(grad,(hidden,cell))
                 
             grad_lstm = self.dropout( torch.squeeze(output) )            
             grad =  self.linear_layer( grad_lstm )
