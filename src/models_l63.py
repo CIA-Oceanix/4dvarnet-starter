@@ -1156,8 +1156,13 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.model.lr_grad = self.hparams.lr_grad
 
         self._set_norm_stats()
-        
+    def extract_data_patch(self,batch):
+        return batch
+    
     def training_step(self, train_batch, batch_idx, optimizer_idx=0):
+        
+        train_batch = self.extract_data_patch( train_batch )
+        
         opt = self.optimizers()
         inputs_init,inputs_obs,masks,targets_GT = train_batch
                     
@@ -1194,6 +1199,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
         return loss
     
     def validation_step(self, val_batch, batch_idx):
+        val_batch = self.extract_data_patch( val_batch )
+
         inputs_init,inputs_obs,masks,targets_GT = val_batch
 
         loss, out, metrics = self.compute_loss(val_batch, phase='val')
