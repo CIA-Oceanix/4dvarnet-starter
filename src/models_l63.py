@@ -973,8 +973,10 @@ class Lit4dVarNet_L63(pl.LightningModule):
         #hparams = hparam
 
         #print(hparams,flush=True)
+        print('yyyyyyyyyyyyyy')
         print(mod_H)
         print(mod_Grad)
+        print('yyyyyyyyyyyyyy')
         
         self.save_hyperparameters(params)
         #self.save_hyperparameters({**hparams, **kwargs})
