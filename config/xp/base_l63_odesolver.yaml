@@ -28,7 +28,7 @@ model:
   _target_: src.models_l63.Lit4dVarNet_L63_OdeSolver #src.models_l63.Lit4dVarNet_L63
   params:
     k_n_grad: ??
-    n_grad: 10
+    n_grad: 5
     lr: 1e-3 
     batch_size: 128
     DimAE: 10 # ?? #
@@ -53,7 +53,7 @@ model:
     alpha_perturbation_grad: 0.9
     gamma_degradation: 1e-1
     type_step_lstm: 'linear-relu' #'constant'  #'linear'#
-    param_lstm_step: 50 #20 #-1 #
+    param_lstm_step: 10 #20 #-1 #
     dt_mse_test: 10
     dt_mse: 0
     post_projection: False #True #  ?? # 
