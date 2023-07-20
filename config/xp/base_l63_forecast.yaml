@@ -88,7 +88,7 @@ model:
     patch_dims: ${model.params.shapeData}
     dt_forecast: ${datamodule.input_data.param_dataset.dt_forecast}
     #dim: 5
-  model_Grad:
+  mod_Grad:
     _target_: src.solver_l63.model_Grad_with_lstm
     ShapeData: #${model.params.shapeData}
       - ${mul:${datamodule.input_data.param_dataset.dT},3} 
