@@ -727,7 +727,6 @@ def create_l63_ode_solver_datasets(param_dataset):
     x_test_Init = ( X_test_Init - meanTr ) / stdTr
     
     # reshape to 2D tensors
-    dT = param_dataset.dT
     x_train = x_train.reshape((-1,3,dT,1))
     mask_train = mask_train.reshape((-1,3,dT,1))
     x_train_Init = x_train_Init.reshape((-1,3,dT,1))
