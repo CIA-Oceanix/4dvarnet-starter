@@ -302,7 +302,34 @@ class model_Grad_with_lstm(torch.nn.Module):
         
         if len(self.shape) == 1:
             grad = grad.view(-1,grad.size(1)*grad.size(2))
-        
+
+            if hidden is None:
+                #hidden_,cell_ = self.lstm(grad,None)
+                if len(self.shape) == 1: ## 1D Data
+                    hidden_ = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState) ).to(device)
+                    cell_   = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState) ).to(device)
+                    hidden_,cell_ = self.lstm(grad,None)
+                elif len(self.shape) == 3 :
+                    hidden_ = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
+                    cell_   = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
+                    hidden_,cell_ = self.lstm(grad,None)
+    
+            if len(self.shape) == 1:
+                grad = grad.view(-1,grad.size(1),grad.size(2),grad.size(3))
+
+
+        else:
+            if hidden is None:
+                hidden_ = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
+                cell_   = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
+                hidden_,cell_ = self.lstm(grad,None)
+            else:
+                #hidden_,cell_ = self.lstm(grad,[hidden,cell])
+                hidden_,cell_ = self.lstm(grad,[hidden,cell])
+                
+            grad_lstm = self.dropout( hidden_ )
+            grad =  self.convLayer( grad_lstm )
+       
 #        if self.PeriodicBnd == True :
 #            dB     = 7
 #            #
@@ -320,25 +347,6 @@ class model_Grad_with_lstm(torch.nn.Module):
 #            hidden_ = hidden_[:,:,dB:grad.size(2)+dB,:]
 #            cell_   = cell_[:,:,dB:x.size(2)+dB,:]
 #        else:
-        if hidden is None:
-            #hidden_,cell_ = self.lstm(grad,None)
-            if len(self.shape) == 1: ## 1D Data
-                hidden_ = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState) ).to(device)
-                cell_   = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState) ).to(device)
-                hidden_,cell_ = self.lstm(grad,None)
-            elif len(self.shape) == 3 :
-                hidden_ = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
-                cell_   = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
-                hidden_,cell_ = self.lstm(grad,None)
-        else:
-            #hidden_,cell_ = self.lstm(grad,[hidden,cell])
-            hidden_,cell_ = self.lstm(grad,[hidden,cell])
-
-        grad_lstm = self.dropout( hidden_ )
-        grad =  self.convLayer( grad_lstm )
-
-        if len(self.shape) == 1:
-            grad = grad.view(-1,grad.size(1),grad.size(2),grad.size(3))
 
         return grad,hidden_,cell_
 
