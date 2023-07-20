@@ -335,6 +335,7 @@ class model_Grad_with_lstm(torch.nn.Module):
 
             grad_lstm = self.dropout( torch.squeeze(output) )
         else:
+            print('xxxxxxxxxx')
             hidden_,cell_ = self.lstm(grad,[hidden,cell])
             grad_lstm = self.dropout( hidden_ )
             
