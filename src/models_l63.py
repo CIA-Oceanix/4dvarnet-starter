@@ -971,12 +971,6 @@ class Lit4dVarNet_L63(pl.LightningModule):
         #hparam = {} if params is None else params
         #hparams = hparam if isinstance(hparam, dict) else OmegaConf.to_container(hparam, resolve=True)
         #hparams = hparam
-
-        #print(hparams,flush=True)
-        print('yyyyyyyyyyyyyy')
-        print(mod_H)
-        print(mod_Grad)
-        print('yyyyyyyyyyyyyy')
         
         self.save_hyperparameters(params)
         #self.save_hyperparameters({**hparams, **kwargs})
@@ -1216,6 +1210,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         return loss
     
     def validation_step(self, val_batch, batch_idx):
+        print('yyyyyy')
         inputs_init,inputs_obs,masks,targets_GT = val_batch
 
         loss, out, metrics = self.compute_loss(val_batch, phase='val')
@@ -1394,10 +1389,6 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                  Phi=None,m_NormObs=None, m_NormPhi=None,mod_H=None,mod_Grad=None,
                  stats_training_data=None,*args, **kwargs):
 
-        print('xxxxxxxxxxxxx')
-        print(mod_H)
-        print(mod_Grad)
-
         super(Lit4dVarNet_L63_OdeSolver,self).__init__(ckpt_path=ckpt_path,params=params,patch_weight=patch_weight,
                                                        Phi=Phi,m_NormObs=m_NormObs, m_NormPhi=m_NormPhi,mod_H=mod_H,mod_Grad=mod_Grad,
                                                        stats_training_data=None,*args, **kwargs)
@@ -1410,6 +1401,17 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         self.init_state = 'ode_solver'
                 
         self.x_ode = None
+        
+    def training_step(self, val_batch, batch_idx):
+        val_batch = self.extract_data_patch(val_batch)
+        
+        super(Lit4dVarNet_L63_OdeSolver,self).training_step(val_batch, batch_idx)  
+
+    def validation_step(self, val_batch, batch_idx):
+        print('xxxxxxx')
+        val_batch = self.extract_data_patch(val_batch)
+        
+        super(Lit4dVarNet_L63_OdeSolver,self).validation_step(val_batch, batch_idx)  
         
     def test_step(self, test_batch, batch_idx):
         
