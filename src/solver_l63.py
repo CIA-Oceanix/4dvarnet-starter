@@ -275,6 +275,7 @@ class model_Grad_with_lstm(torch.nn.Module):
             self.lstm = torch.nn.LSTM(self.shape[0], self.DimState, bias=False,batch_first=True)
 
             self.linear_layer     = torch.nn.Linear(self.DimState, self.dim_state_out,bias=False) #self._make_ConvGrad()
+            
             K = torch.Tensor([0.1]).view(1,1,1,1)
             self.linear_layer.weight = torch.nn.Parameter(K)
         elif len(self.shape) == 3: ## 2D Data
@@ -312,9 +313,12 @@ class model_Grad_with_lstm(torch.nn.Module):
             print('xxxxxxxx')
             print( hidden.size() )
             print( cell.size() )
+            print( grad.size() )
             output,(hidden_,cell_) = self.lstm(grad,(hidden,cell))
                 
             grad_lstm = self.dropout( torch.squeeze(output) )            
+            print( grad_lstm.size() )
+            print('xxxxxxxxyyyyyyyyyyy')
             grad =  self.linear_layer( grad_lstm )
             grad = grad.view(-1,x.size(1),x.size(2),x.size(3))
         else:
