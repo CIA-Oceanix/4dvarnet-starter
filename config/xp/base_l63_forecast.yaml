@@ -98,7 +98,7 @@ model:
 
 trainer:
   _target_: pytorch_lightning.Trainer
-  inference_mode: True
+  inference_mode: False
   #gradient_clip_val: 0.5
   accelerator: gpu
   devices: 1
