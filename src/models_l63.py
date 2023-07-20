@@ -1394,10 +1394,10 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         
         return inputs_init_,inputs_obs,masks,targets_GT
 
-    #def training_step(self, train_batch, batch_idx):
+    def training_step(self, train_batch, batch_idx):
         #train_batch = self.extract_data_patch(train_batch)
         
-        #super(Lit4dVarNet_L63_OdeSolver,self).training_step(train_batch, batch_idx)  
+        super(Lit4dVarNet_L63_OdeSolver,self).training_step(train_batch, batch_idx)  
 
     #def validation_step(self, val_batch, batch_idx):
        # val_batch = self.extract_data_patch(val_batch)
