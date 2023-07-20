@@ -245,10 +245,93 @@ def compute_WeightedL2Norm1D(x2,w):
     
     return loss_
 
-# Gradient-based minimization using a LSTM using a (sub)gradient as inputs    
+# Gradient-based minimization using a LSTM using a (sub)gradient as inputs   
 class model_Grad_with_lstm(torch.nn.Module):
     def __init__(self,ShapeData,periodicBnd=False,DimLSTM=0,rateDropout=0.,padding_mode='zeros',sig_lstm_init=0.,dim_state_out=None):
         super(model_Grad_with_lstm, self).__init__()
+
+        with torch.no_grad():
+            self.shape     = ShapeData
+            if DimLSTM == 0 :
+                self.DimState  = 5*self.shape[0]
+            else :
+                self.DimState  = DimLSTM
+            self.PeriodicBnd = periodicBnd
+            if( (self.PeriodicBnd == True) & (len(self.shape) == 2) ):
+                print('No periodic boundary available for FxTime (eg, L63) tensors. Forced to False')
+                self.PeriodicBnd = False
+
+            if dim_state_out == None :
+                self.dim_state_out = self.shape[0]
+            else:
+                self.dim_state_out = dim_state_out
+
+        self.convLayer     = self._make_ConvGrad()
+        K = torch.Tensor([0.1]).view(1,1,1,1)
+        self.convLayer.weight = torch.nn.Parameter(K)
+
+        self.dropout = torch.nn.Dropout(rateDropout)
+        self.sig_lstm_init = sig_lstm_init
+
+        if len(self.shape) == 2: ## 1D Data
+            self.lstm = ConvLSTM1d(self.shape[0],self.DimState,3,padding_mode=padding_mode)
+        elif len(self.shape) == 3: ## 2D Data
+            self.lstm = ConvLSTM2d(self.shape[0],self.DimState,3,padding_mode=padding_mode)
+
+    def _make_ConvGrad(self):
+        layers = []
+
+        if len(self.shape) == 2: ## 1D Data
+            layers.append(torch.nn.Conv1d(self.DimState, self.dim_state_out, 1, padding=0,bias=False))
+            #layers.append(torch.nn.Conv1d(self.DimState, self.shape[0], 1, padding=0,bias=False))
+        elif len(self.shape) == 3: ## 2D Data
+            layers.append(torch.nn.Conv2d(self.DimState, self.dim_state_out, (1,1), padding=0,bias=False))
+            #layers.append(torch.nn.Conv2d(self.shape[0]+self.DimState, self.shape[0], (1,1), padding=0,bias=False))
+
+        return torch.nn.Sequential(*layers)
+
+    def forward(self,hidden,cell,x,grad,gradnorm=1.0,iter=0):
+
+        # compute gradient
+        grad  = grad / gradnorm
+        grad  = self.dropout( grad )
+        
+        if self.PeriodicBnd == True :
+            dB     = 7
+            #
+            grad_  = torch.cat((grad[:,:,grad.size(2)-dB:,:],grad,grad[:,:,0:dB,:]),dim=2)
+            if hidden is None:
+                #hidden_,cell_ = self.lstm(grad_,None)
+                hidden_ = self.sig_lstm_init * torch.randn( (grad_.size(0),self.DimState,grad_.size(2),grad_.size(3)) ).to(device)
+                cell_   = self.sig_lstm_init * torch.randn( (grad_.size(0),self.DimState,grad_.size(2),grad_.size(3)) ).to(device)
+                hidden_,cell_ = self.lstm(grad_,((hidden_,cell_)))
+            else:
+                hidden_  = torch.cat((hidden[:,:,grad.size(2)-dB:,:],hidden,hidden[:,:,0:dB,:]),dim=2)
+                cell_    = torch.cat((cell[:,:,grad.size(2)-dB:,:],cell,cell[:,:,0:dB,:]),dim=2)
+                hidden_,cell_ = self.lstm(grad_,[hidden_,cell_])
+
+            hidden_ = hidden_[:,:,dB:grad.size(2)+dB,:]
+            cell_   = cell_[:,:,dB:x.size(2)+dB,:]
+        else:
+            if hidden is None:
+                #hidden_,cell_ = self.lstm(grad,None)
+                hidden_ = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
+                cell_   = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
+                hidden_,cell_ = self.lstm(grad,None)
+            else:
+                #hidden_,cell_ = self.lstm(grad,[hidden,cell])
+                hidden_,cell_ = self.lstm(grad,[hidden,cell])
+
+        grad_lstm = self.dropout( hidden_ )
+        grad =  self.convLayer( grad_lstm )
+
+        return grad,hidden_,cell_
+
+
+ 
+class model_Grad_with_lstm2(torch.nn.Module):
+    def __init__(self,ShapeData,periodicBnd=False,DimLSTM=0,rateDropout=0.,padding_mode='zeros',sig_lstm_init=0.,dim_state_out=None):
+        super(model_Grad_with_lstm2, self).__init__()
 
         with torch.no_grad():
             self.shape     = ShapeData
