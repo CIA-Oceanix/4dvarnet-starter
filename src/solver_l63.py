@@ -310,24 +310,17 @@ class model_Grad_with_lstm(torch.nn.Module):
                 hidden = self.sig_lstm_init * torch.randn( (1,grad.size(0),self.DimState) ).to(device)
                 cell   = self.sig_lstm_init * torch.randn( (1,grad.size(0),self.DimState) ).to(device)
             
-            print('xxxxxxxx')
-            print( hidden.size() )
-            print( cell.size() )
-            print( grad.size() )
             output,(hidden_,cell_) = self.lstm(grad,(hidden,cell))
                 
             grad_lstm = self.dropout( torch.squeeze(output) )            
-            print( grad_lstm.size() )
-            print('xxxxxxxxyyyyyyyyyyy')
             grad =  self.linear_layer( grad_lstm )
             grad = grad.view(-1,x.size(1),x.size(2),x.size(3))
         else:
             if hidden is None:
                 hidden = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
                 cell   = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
-                #hidden_,cell_ = self.lstm(grad,[hidden,cell])
-            #else:
-                #hidden_,cell_ = self.lstm(grad,[hidden,cell])
+                #hidden_,cell_ = self.lstm(grad,None)
+
             hidden_,cell_ = self.lstm(grad,[hidden,cell])
                 
             grad_lstm = self.dropout( hidden_ )
