@@ -1392,6 +1392,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                  Phi=None,m_NormObs=None, m_NormPhi=None,mod_H=None,mod_Grad=None,
                  stats_training_data=None,*args, **kwargs):
 
+        print('xxxxxxxxxxxxx')
         print(mod_H)
         print(mod_Grad)
 
