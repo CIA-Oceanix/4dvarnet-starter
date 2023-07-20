@@ -274,7 +274,7 @@ class model_Grad_with_lstm(torch.nn.Module):
         if len(self.shape) == 1: ## 1D Data
             self.lstm = torch.nn.LSTM(self.shape[0], self.DimState, bias=False,batch_first=True)
 
-            self.linear_layer     = self._make_ConvGrad()
+            self.linear_layer     = torch.nn.Linear(self.DimState, self.dim_state_out,bias=False) #self._make_ConvGrad()
             K = torch.Tensor([0.1]).view(1,1,1,1)
             self.linear_layer.weight = torch.nn.Parameter(K)
         elif len(self.shape) == 3: ## 2D Data
@@ -286,9 +286,7 @@ class model_Grad_with_lstm(torch.nn.Module):
     def _make_ConvGrad(self):
         layers = []
 
-        if len(self.shape) == 1: ## 1D Data
-            layers.append(torch.nn.Linear(self.DimState, self.dim_state_out,bias=False))
-        elif len(self.shape) == 2: ## 1D Data
+        if len(self.shape) == 2: ## 1D Data
             layers.append(torch.nn.Conv1d(self.DimState, self.dim_state_out, 1, padding=0,bias=False))
             #layers.append(torch.nn.Conv1d(self.DimState, self.shape[0], 1, padding=0,bias=False))
         elif len(self.shape) == 3: ## 2D Data
@@ -320,9 +318,9 @@ class model_Grad_with_lstm(torch.nn.Module):
             grad = grad.view(-1,x.size(1),x.size(2),x.size(3))
         else:
             if hidden is None:
-                hidden_ = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
-                cell_   = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
-                hidden_,cell_ = self.lstm(grad,None)
+                hidden = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
+                cell   = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
+                hidden_,cell_ = self.lstm(grad,[hidden,cell])
             else:
                 #hidden_,cell_ = self.lstm(grad,[hidden,cell])
                 hidden_,cell_ = self.lstm(grad,[hidden,cell])
