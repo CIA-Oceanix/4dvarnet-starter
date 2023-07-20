@@ -945,7 +945,7 @@ class HParam:
 
 class Lit4dVarNet_L63(pl.LightningModule):
     def __init__(self,ckpt_path=None,params=None,patch_weight=None,
-                 Phi=None,m_NormObs=None, m_NormPhi=None,mod_H=None,
+                 Phi=None,m_NormObs=None, m_NormPhi=None,mod_H=None,mod_Grad=None,
                  stats_training_data=None,*args, **kwargs):
         super().__init__()
         #self.hparams = HParam() if params is None else params
@@ -974,7 +974,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         if self.hparams.solver =='4dvarnet-with-rnd' :
             self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi, 
                                                                     mod_H, 
-                                                                    model_Grad,
+                                                                    mod_Grad,
                                                                     #solver_4DVarNet.model_Grad_with_lstm(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, 
                                                                     #                                     self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
                                                                     #                                     sig_lstm_init = self.hparams.sig_lstm_init), 
@@ -1369,10 +1369,10 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
 class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
     def __init__(self,ckpt_path=None,params=None,patch_weight=None,
-                 Phi=None,m_NormObs=None, m_NormPhi=None,mod_H=None,
+                 Phi=None,m_NormObs=None, m_NormPhi=None,mod_H=None,mod_Grad=None,
                  stats_training_data=None,*args, **kwargs):
         super(Lit4dVarNet_L63_OdeSolver,self).__init__(ckpt_path=ckpt_path,params=params,patch_weight=patch_weight,
-                                                       Phi=Phi,m_NormObs=m_NormObs, m_NormPhi=m_NormPhi,mod_H=mod_H,
+                                                       Phi=Phi,m_NormObs=m_NormObs, m_NormPhi=m_NormPhi,mod_H=mod_H,mod_Grad=mod_Grad,
                                                        stats_training_data=None,*args, **kwargs)
 
     
