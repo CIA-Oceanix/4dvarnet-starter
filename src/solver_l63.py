@@ -301,7 +301,7 @@ class model_Grad_with_lstm(torch.nn.Module):
         grad  = self.dropout( grad )
         
         if len(self.shape) == 1:
-            grad = grad.view(-1,grad.size(1)*grad.size(2))
+            grad = grad.view(-1,grad.size(1)*grad.size(2),1)
         
 #        if self.PeriodicBnd == True :
 #            dB     = 7
