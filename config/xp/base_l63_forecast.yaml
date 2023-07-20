@@ -126,7 +126,7 @@ entrypoints:
     seed: 333
   - _target_: src.train.base_training  # src.train.fine_tuning # 
     trainer: ${trainer}
-   lit_mod: ${model}
+    lit_mod: ${model}
     dm: ${datamodule}
 #    update_params: False
 #    ckpt: 'outputs/2023-06-08/23-38-13/base_l63/checkpoints/model-l63-lstmonly+gobs+grad-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=15.7092-epoch=014.ckpt'
