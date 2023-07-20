@@ -589,8 +589,8 @@ def create_l63_ode_solver_datasets(param_dataset):
     sigNoise = np.sqrt( param_dataset.varNoise )
     genSuffixObs = param_dataset.genSuffixObs
     
-    #if param_dataset.dT < param_dataset.dT_test:
-    #    param_dataset.dT = param_dataset.dT_test
+    if param_dataset.dT < param_dataset.dT_test:
+        param_dataset.dT = param_dataset.dT_test
 
     ## Load or create L63 dataset
     if param_dataset.flag_generate_L63_data :
