@@ -433,7 +433,7 @@ def create_dataloaders(data_module):
 # freeze all ode parameters
 
 class Phi_ode(torch.nn.Module):
-    def __init__(self,meanTr=0.,stdTr=1.):
+    def __init__(self,meanTr=0.,stdTr=1.,name='ode'):
         super(Phi_ode, self).__init__()
         self.sigma = torch.nn.Parameter(torch.Tensor([np.random.randn()]))
         self.rho    = torch.nn.Parameter(torch.Tensor([np.random.randn()]))
@@ -447,7 +447,7 @@ class Phi_ode(torch.nn.Module):
         self.IntScheme = 'rk4'
         self.stdTr     = stdTr
         self.meanTr    = meanTr                      
-        self.model_name= 'ode'
+        self.model_name= name
     def _odeL63(self, xin):
         x1  = xin[:,0,:]
         x2  = xin[:,1,:]
@@ -515,7 +515,7 @@ class Phi_ode(torch.nn.Module):
         return x_f.view(-1,x_f.size(1),x_f.size(2),1)
 
 class Phi_unet_like_bilin(torch.nn.Module):
-    def __init__(self,shapeData,DimAE,dW=5):
+    def __init__(self,shapeData,DimAE,dW=5,name='unet-bilin'):
         super(Phi_unet_like_bilin, self).__init__()
         self.pool1  = torch.nn.AvgPool2d((4,1))
         #self.conv1  = ConstrainedConv2d(shapeData[0],2*shapeData[0]*DimAE,(2*dW+1,1),padding=(dW,0),bias=False)
@@ -545,7 +545,7 @@ class Phi_unet_like_bilin(torch.nn.Module):
 
         self.shapeData = shapeData
 
-        self.model_name='unet-like-bilin'
+        self.model_name= name
     def forward(self, xinp):
         #x = self.fc1( torch.nn.Flatten(x) )
         #x = self.pool1( xinp )

@@ -247,7 +247,7 @@ def compute_WeightedL2Norm1D(x2,w):
 
 # Gradient-based minimization using a LSTM using a (sub)gradient as inputs    
 class model_Grad_with_lstm(torch.nn.Module):
-    def __init__(self,ShapeData,periodicBnd=False,DimLSTM=0,rateDropout=0.,padding_mode='zeros',sig_lstm_init=0.,dim_state_out=None):
+    def __init__(self,ShapeData,periodicBnd=False,DimLSTM=0,rateDropout=0.,padding_mode='zeros',sig_lstm_init=0.,dim_state_out=None,name='lstm'):
         super(model_Grad_with_lstm, self).__init__()
 
         with torch.no_grad():
@@ -267,6 +267,7 @@ class model_Grad_with_lstm(torch.nn.Module):
                 self.dim_state_out = dim_state_out
 
 
+        self.name_model = name
 
         self.dropout = torch.nn.Dropout(rateDropout)
         self.sig_lstm_init = sig_lstm_init
@@ -347,7 +348,7 @@ class model_Grad_with_lstm(torch.nn.Module):
         return grad,hidden_,cell_
 
 class model_Grad_with_lstm_and_state(torch.nn.Module):
-    def __init__(self,ShapeDataIn,periodicBnd=False,DimLSTM=0,rateDropout=0.,padding_mode='zeros',sig_lstm_init=0.):
+    def __init__(self,ShapeDataIn,periodicBnd=False,DimLSTM=0,rateDropout=0.,padding_mode='zeros',sig_lstm_init=0.,name='lstm-w-state'):
         super(model_Grad_with_lstm_and_state, self).__init__()
 
         with torch.no_grad():
@@ -368,6 +369,7 @@ class model_Grad_with_lstm_and_state(torch.nn.Module):
 
         self.dropout = torch.nn.Dropout(rateDropout)
         self.sig_lstm_init = sig_lstm_init
+        self.name_model = name
 
         if len(self.shape) == 2: ## 1D Data
             self.lstm = ConvLSTM1d(2*self.shape[0]+1,self.DimState,3,padding_mode=padding_mode)
