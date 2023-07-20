@@ -276,8 +276,8 @@ class model_Grad_with_lstm(torch.nn.Module):
 
             self.linear_layer     = torch.nn.Linear(self.DimState, self.dim_state_out,bias=False) #self._make_ConvGrad()
             
-            K = torch.Tensor([0.1]).view(1,1,1,1)
-            self.linear_layer.weight = torch.nn.Parameter(K)
+            #K = torch.Tensor([0.1]).view(1,1,1,1)
+            #self.linear_layer.weight = torch.nn.Parameter(K)
         elif len(self.shape) == 3: ## 2D Data
             self.lstm = ConvLSTM2d(self.shape[0],self.DimState,3,padding_mode=padding_mode)
             self.convLayer     = self._make_ConvGrad()
