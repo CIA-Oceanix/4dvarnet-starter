@@ -591,7 +591,9 @@ def create_l63_ode_solver_datasets(param_dataset):
     
     if param_dataset.dT < param_dataset.dT_test:
         dT = param_dataset.dT_test
-
+    else:
+        dT = param_dataset.dT
+        
     ## Load or create L63 dataset
     if param_dataset.flag_generate_L63_data :
         ## data generation: L63 series
