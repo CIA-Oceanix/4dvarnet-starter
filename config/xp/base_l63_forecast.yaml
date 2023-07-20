@@ -88,17 +88,17 @@ model:
     patch_dims: ${model.params.shapeData}
     dt_forecast: ${datamodule.input_data.param_dataset.dt_forecast}
     #dim: 5
-  mod_Grad:
+  model_Grad:
     _target_: src.solver_l63.model_Grad_with_lstm
-    ShapeData: #${model.params.shapeData}
-      - ${mul:${datamodule.input_data.param_dataset.dT},3} 
+    ShapeData: 
+      - ${mul:${datamodule.input_data.param_dataset.dT},3} #${model.params.shapeData}
     DimLSTM: ${model.params.dim_grad_solver} 
     rateDropout: ${model.params.dropout} 
     sig_lstm_init: ${model.params.sig_lstm_init}
 
 trainer:
   _target_: pytorch_lightning.Trainer
-  inference_mode: False
+  inference_mode: True
   #gradient_clip_val: 0.5
   accelerator: gpu
   devices: 1

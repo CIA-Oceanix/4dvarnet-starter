@@ -117,25 +117,6 @@ def create_filename_ckpt(suffix,params_data,params_model):
     print('.... filename: ' + filename_chkpt,flush=True)
     return filename_chkpt
     
-def create_filename_ode_solver_ckpt(suffix,params_data,params_model):
-    print(params_data)
-    print(params_model)
-    
-    filename_chkpt = 'model-l63-ode-solver'+params_model.suffix_exp +'-dT%02d_%02d_%02d'%(params_data.sampling_step,params_data.dT,params_data.dt_forecast)+'-'
-        
-    filename_chkpt = filename_chkpt + params_data.genSuffixObs 
-    #filename_chkpt = filename_chkpt + '-%02d'%params_data.sampling_step #+ '-Noise%02d'%(params_data.varNoise)        
-    #filename_chkpt = filename_chkpt + '-' + params_model.phi_param
-    filename_chkpt = filename_chkpt + '-igrad%02d_%02d'%(params_model.n_grad,params_model.k_n_grad)+'-dgrad%d'%params_model.dim_grad_solver          
-    #filename_chkpt = filename_chkpt + '-drop%02d'%(100*params_model.dropout)
-    #filename_chkpt = filename_chkpt + '-rnd-init%02d'%(100*params_model.sig_rnd_init)
-    #filename_chkpt = filename_chkpt + '-lstm-init%02d'%(100*params_model.sig_lstm_init)
-    filename_chkpt = filename_chkpt + suffix
-    
-    
-    print('.... filename: ' + filename_chkpt,flush=True)
-    return filename_chkpt
-
 def create_dataloaders(data_module): 
     rateMissingData = (1-1./data_module.sampling_step)
     sigNoise = np.sqrt( data_module.varNoise )
@@ -971,6 +952,9 @@ class Lit4dVarNet_L63(pl.LightningModule):
         #hparam = {} if params is None else params
         #hparams = hparam if isinstance(hparam, dict) else OmegaConf.to_container(hparam, resolve=True)
         #hparams = hparam
+
+        #print(hparams,flush=True)
+        
         
         self.save_hyperparameters(params)
         #self.save_hyperparameters({**hparams, **kwargs})
@@ -990,10 +974,10 @@ class Lit4dVarNet_L63(pl.LightningModule):
         if self.hparams.solver =='4dvarnet-with-rnd' :
             self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi, 
                                                                     mod_H, 
-                                                                    #mod_Grad,
-                                                                    solver_4DVarNet.model_Grad_with_lstm(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, 
-                                                                                                         self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
-                                                                                                         sig_lstm_init = self.hparams.sig_lstm_init), 
+                                                                    mod_Grad,
+                                                                    #solver_4DVarNet.model_Grad_with_lstm(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, 
+                                                                    #                                     self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
+                                                                    #                                     sig_lstm_init = self.hparams.sig_lstm_init), 
                                                                     m_NormObs, m_NormPhi, 
                                                                     self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.k_n_grad,self.hparams.lr_grad,self.hparams.lr_rnd,
                                                                     self.hparams.type_step_lstm,self.hparams.param_lstm_step)#, self.hparams.eps_norm_grad)            
@@ -1174,6 +1158,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self._set_norm_stats()
         
     def training_step(self, train_batch, batch_idx, optimizer_idx=0):
+        
         opt = self.optimizers()
         inputs_init,inputs_obs,masks,targets_GT = train_batch
                     
@@ -1210,6 +1195,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
         return loss
     
     def validation_step(self, val_batch, batch_idx):
+        val_batch = self.extract_data_patch( val_batch )
+
         inputs_init,inputs_obs,masks,targets_GT = val_batch
 
         loss, out, metrics = self.compute_loss(val_batch, phase='val')
@@ -1327,10 +1314,9 @@ class Lit4dVarNet_L63(pl.LightningModule):
         return loss_mse,loss_gmse
     
 
-    
+
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
         with torch.set_grad_enabled(True):
-            
             inputs_init_,inputs_obs,masks,targets_GT = batch
      
             #inputs_init = inputs_init_
@@ -1387,13 +1373,11 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
     def __init__(self,ckpt_path=None,params=None,patch_weight=None,
                  Phi=None,m_NormObs=None, m_NormPhi=None,mod_H=None,mod_Grad=None,
                  stats_training_data=None,*args, **kwargs):
-
         super(Lit4dVarNet_L63_OdeSolver,self).__init__(ckpt_path=ckpt_path,params=params,patch_weight=patch_weight,
                                                        Phi=Phi,m_NormObs=m_NormObs, m_NormPhi=m_NormPhi,mod_H=mod_H,mod_Grad=mod_Grad,
                                                        stats_training_data=None,*args, **kwargs)
 
     
-
         self.ode_solver = Phi_ode(self.meanTr,self.stdTr)
         self.ode_solver.IntScheme = self.hparams.base_ode_solver #'rk4' #'euler'
         self.ode_solver.dt = 0.01 * self.hparams.time_step_ode
@@ -1401,19 +1385,33 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 
         self.x_ode = None
         
+    def extract_data_patch(self,batch):
+        inputs_init_,inputs_obs,masks,targets_GT = batch
+
+        if inputs_init_.size(2) > self.hparams.shapeData[1] :
+            dT = self.hparams.shapeData[1]
+            
+            inputs_init_ = inputs_init_[:,:,:dT]
+            inputs_obs = inputs_obs[:,:,:dT]
+            masks = masks[:,:,:dT]
+            targets_GT = targets_GT[:,:,:dT]
+        
+        return inputs_init_,inputs_obs,masks,targets_GT
+
     def training_step(self, train_batch, batch_idx):
         train_batch = self.extract_data_patch(train_batch)
         
-        super(Lit4dVarNet_L63_OdeSolver,self).training_step(train_batch, batch_idx)  
+        return super(Lit4dVarNet_L63_OdeSolver,self).training_step(train_batch, batch_idx)  
 
     def validation_step(self, val_batch, batch_idx):
         val_batch = self.extract_data_patch(val_batch)
         
-        super(Lit4dVarNet_L63_OdeSolver,self).validation_step(val_batch, batch_idx)  
-        
+        return super(Lit4dVarNet_L63_OdeSolver,self).validation_step(val_batch, batch_idx)  
+
     def test_step(self, test_batch, batch_idx):
         
         test_batch = self.extract_data_patch(test_batch)
+
         inputs_init,inputs_obs,masks,targets_GT = test_batch
         
         if self.hparams.sig_obs_noise > 0. :
@@ -1446,21 +1444,6 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             self.x_rec = np.concatenate((self.x_rec,out[0].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
             self.x_gt  = np.concatenate((self.x_gt,targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
             self.x_ode  = np.concatenate((self.x_ode,out[-1].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
-
-
-    def extract_data_patch(self,batch):
-        inputs_init_,inputs_obs,masks,targets_GT = batch
-
-        if inputs_init_.size(2) > self.hparams.shapeData[1] :
-            dT = self.hparams.shapeData[1]
-            inputs_init_ = inputs_init_[:,:,:dT]
-            inputs_obs = inputs_obs[:,:,:dT]
-            masks = masks[:,:,:dT]
-            targets_GT = targets_GT[:,:,:dT]
-        
-        return inputs_init_,inputs_obs,masks,targets_GT
-
-
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
         with torch.set_grad_enabled(True):
             inputs_init_,inputs_obs,masks,targets_GT = batch

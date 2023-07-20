@@ -589,8 +589,8 @@ def create_l63_ode_solver_datasets(param_dataset):
     sigNoise = np.sqrt( param_dataset.varNoise )
     genSuffixObs = param_dataset.genSuffixObs
     
-    if param_dataset.dT < param_dataset.dT_test:
-        param_dataset.dT = param_dataset.dT_test
+    #if param_dataset.dT < param_dataset.dT_test:
+    #    param_dataset.dT = param_dataset.dT_test
 
     ## Load or create L63 dataset
     if param_dataset.flag_generate_L63_data :
@@ -635,7 +635,8 @@ def create_l63_ode_solver_datasets(param_dataset):
     else:
         path_l63_dataset = param_dataset.path_l63_dataset#'../../Dataset4DVarNet/dataset_L63_with_noise.nc'
         genSuffixObs    = param_dataset.genSuffixObs#'JamesExp1'
-                              
+                      
+        
         ds_ncfile = xr.open_dataset(path_l63_dataset)
         dataTrainingNoNaN = ds_ncfile['x_train'].data
         dataTestNoNaN = ds_ncfile['x_test'].data
@@ -800,4 +801,3 @@ class BaseDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         return torch.utils.data.DataLoader(self.test_ds, shuffle=False, **self.dl_kw)
-
