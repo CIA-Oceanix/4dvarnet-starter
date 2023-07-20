@@ -340,6 +340,11 @@ class model_Grad_with_lstm(torch.nn.Module):
         if len(self.shape) == 1:
             grad = grad.view(-1,x.size(1),x.size(2),x.size(3))
 
+
+        print(grad.size())
+        print(x.size())
+        print(hidden_.size())
+        
         return grad,hidden_,cell_
 
 class model_Grad_with_lstm_and_state(torch.nn.Module):
