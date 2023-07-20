@@ -301,7 +301,7 @@ class model_Grad_with_lstm(torch.nn.Module):
         grad  = self.dropout( grad )
         
         if len(self.shape) == 1:
-            grad = grad.view(-1,grad.size(1)*grad.size(2),1)
+            grad = grad.view(-1,1,grad.size(1)*grad.size(2))
         
 #        if self.PeriodicBnd == True :
 #            dB     = 7
@@ -329,6 +329,8 @@ class model_Grad_with_lstm(torch.nn.Module):
                 hidden = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
                 cell   = self.sig_lstm_init * torch.randn( (grad.size(0),self.DimState,grad.size(2),grad.size(3)) ).to(device)
 
+        print(hidden.size())
+        print(grad.size())
         if len(self.shape) == 1: ## 1D Data
             hidden_,cell_ = self.lstm(grad,(hidden,cell))
         else:
