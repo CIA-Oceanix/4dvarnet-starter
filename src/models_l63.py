@@ -974,9 +974,10 @@ class Lit4dVarNet_L63(pl.LightningModule):
         if self.hparams.solver =='4dvarnet-with-rnd' :
             self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi, 
                                                                     mod_H, 
-                                                                    solver_4DVarNet.model_Grad_with_lstm(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, 
-                                                                                                         self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
-                                                                                                         sig_lstm_init = self.hparams.sig_lstm_init), 
+                                                                    model_Grad,
+                                                                    #solver_4DVarNet.model_Grad_with_lstm(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, 
+                                                                    #                                     self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
+                                                                    #                                     sig_lstm_init = self.hparams.sig_lstm_init), 
                                                                     m_NormObs, m_NormPhi, 
                                                                     self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.k_n_grad,self.hparams.lr_grad,self.hparams.lr_rnd,
                                                                     self.hparams.type_step_lstm,self.hparams.param_lstm_step)#, self.hparams.eps_norm_grad)            
@@ -1310,9 +1311,10 @@ class Lit4dVarNet_L63(pl.LightningModule):
         return loss_mse,loss_gmse
     
 
-
+    
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
         with torch.set_grad_enabled(True):
+            
             inputs_init_,inputs_obs,masks,targets_GT = batch
      
             #inputs_init = inputs_init_
@@ -1383,6 +1385,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         
     def test_step(self, test_batch, batch_idx):
         
+        test_batch = self.extract_data_patch(test_batch)
         inputs_init,inputs_obs,masks,targets_GT = test_batch
         
         if self.hparams.sig_obs_noise > 0. :
@@ -1415,6 +1418,21 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             self.x_rec = np.concatenate((self.x_rec,out[0].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
             self.x_gt  = np.concatenate((self.x_gt,targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
             self.x_ode  = np.concatenate((self.x_ode,out[-1].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
+
+
+    def extract_data_patch(self,batch):
+        inputs_init_,inputs_obs,masks,targets_GT = batch
+
+        if inputs_init_.size(2) > self.hparams.shapeData[1] :
+            dT = self.hparams.shapeData[1]
+            inputs_init_ = inputs_init_[:,:,:dT]
+            inputs_obs = inputs_obs[:,:,:dT]
+            masks = masks[:,:,:dT]
+            targets_GT = targets_GT[:,:,:dT]
+        
+        return inputs_init_,inputs_obs,masks,targets_GT
+
+
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
         with torch.set_grad_enabled(True):
             inputs_init_,inputs_obs,masks,targets_GT = batch

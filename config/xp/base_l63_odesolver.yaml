@@ -64,6 +64,7 @@ model:
       - ${datamodule.input_data.param_dataset.dT}
       - 1
     dt_forecast: ${datamodule.input_data.param_dataset.dt_forecast}
+    dT_test: ${datamodule.input_data.param_dataset.dT_test}
     time_step_ode: ${datamodule.input_data.param_dataset.time_step}
     base_ode_solver: 'euler'
     keep_obs: True
