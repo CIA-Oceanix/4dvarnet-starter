@@ -335,6 +335,9 @@ class model_Grad_with_lstm(torch.nn.Module):
             print(grad.size())
             print('xxxxx',flush=True)
             hidden_,cell_ = self.lstm(grad,(hidden,cell))
+            
+            hidden_ = torch.moveaxis(hidden_,1,0)
+            cell_ = torch.moveaxis(cell_,1,0)
             print('yyyyy',flush=True)
         else:
             hidden_,cell_ = self.lstm(grad,[hidden,cell])
