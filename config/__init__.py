@@ -17,7 +17,7 @@ OmegaConf.register_new_resolver(
 
 
 OmegaConf.register_new_resolver("mul", lambda x,y: int(x)*y, replace=True)
-OmegaConf.register_new_resolver("div", lambda x,y: int(x)/int(y), replace=True)
+OmegaConf.register_new_resolver("div", lambda x,y: int(int(x)/int(y)+0.5), replace=True)
 
 class SingletonStore:
     STORE = dict()
