@@ -1344,7 +1344,6 @@ class Lit4dVarNet_L63(pl.LightningModule):
         
         err = (rec - gt) * self.w_loss[None,...]        
         
-        print(self.w_loss[0,:,0])
         loss_mse = torch.sum( err ** 2) / rec.size(0)     
 
         #loss_mse = torch.mean((rec - gt) ** 2)        
@@ -1376,9 +1375,6 @@ class Lit4dVarNet_L63(pl.LightningModule):
             loss_mse,loss_gmse = self.compute_mse_loss(outputs,targets_GT)
             loss_prior = torch.mean((self.model.phi_r(outputs) - outputs) ** 2)
             loss_prior_gt = torch.mean((self.model.phi_r(targets_GT) - targets_GT) ** 2)
-
-
-            print(' %.3f -- %.3f'%loss_mse)
             
 
             if prev_iter == self.model.n_grad * (self.hparams.k_n_grad -1) :
