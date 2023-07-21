@@ -1427,9 +1427,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             dT   = self.hparams.shapeData[1]
             step = self.hparams.integration_step
             
-            inputs_init_ = inputs_init_[:,:,:dT:step]
-            inputs_obs = inputs_obs[:,:,:dT:step]
-            masks = masks[:,:,:dT:step]
+            inputs_init_ = inputs_init_[:,:,:step*dT:step]
+            inputs_obs = inputs_obs[:,:,:step*dT:step]
+            masks = masks[:,:,:step*dT:step]
             targets_GT = targets_GT[:,:,:dT]
         
         return inputs_init_,inputs_obs,masks,targets_GT
@@ -1498,11 +1498,11 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 targets_GT = targets_GT.detach()
                 self.ode_solver.IntScheme = 'euler'
                     
-            print(inputs_init_.size())
-            print(inputs_obs.size())
-            print(targets_GT.size())
+            #print(inputs_init_.size())
+            #print(inputs_obs.size())
+            #print(targets_GT.size())
             
-            print(self.hparams.dt_forecast)
+            #print(self.hparams.dt_forecast)
             # init solution with ode solver
             x_pred = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
             inputs_init_ode = torch.cat((inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast],x_pred),dim=2)
