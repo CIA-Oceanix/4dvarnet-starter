@@ -1490,7 +1490,10 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
     def compute_mse_loss(self,rec,targets_GT):
         
         if self.hparams.integration_step > 1 :
+            print(rec[0,0,:].detach().cpu().numpy())
             rec = torch.nn.functional.interpolate(rec, scale_factor=(self.hparams.integration_step,1), mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
+            print(rec[0,0,:].detach().cpu().numpy())
+
 
         
         rec = rec[:,:,self.hparams.dt_mse:rec.size(2)-self.hparams.dt_mse]
@@ -1509,8 +1512,6 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             inputs_init_,inputs_obs,masks,targets_GT = batch
              
             if self.hparams.use_rk4_gpu_as_target :
-                
-                print(targets_GT[0,0,:].detach().cpu().numpy().transpose())                
                 self.ode_solver.IntScheme = 'rk4'
                 self.ode_solver.dt = 0.01 * self.hparams.time_step_ode / self.hparams.integration_step
                 
@@ -1519,10 +1520,6 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 self.ode_solver.dt = 0.01 * self.hparams.time_step_ode
                 
                 targets_GT = torch.cat((targets_GT[:,:,:inputs_init_.size(2)*self.hparams.integration_step-self.hparams.dt_forecast*self.hparams.integration_step-1],x_pred),dim=2)
-                
-                
-                print(targets_GT[0,0,:].detach().cpu().numpy().transpose())
-                print()
                 
                 targets_GT = targets_GT.detach()
                     
@@ -1549,9 +1546,6 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             
 
             outputs, hidden_new, cell_new, normgrad_ = self.model(inputs_init, inputs_obs, masks, hidden = hidden , cell = cell , normgrad = normgrad, prev_iter = prev_iter )
-
-            rec = torch.nn.functional.interpolate(inputs_init_ode, scale_factor=(self.hparams.integration_step,1), mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
-            #print( np.mean( (rec[:,:,1:]-targets_GT[:,:,1:]).detach().cpu().numpy()**2 ) )
 
             if self.hparams.integration_step > 1 :
                 targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()
