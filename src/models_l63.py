@@ -1498,17 +1498,18 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 targets_GT = targets_GT.detach()
                 self.ode_solver.IntScheme = 'euler'
                     
-            #print(inputs_init_.size())
-            #print(inputs_obs.size())
-            #print(targets_GT.size())
+            print(inputs_init_.size())
+            print(inputs_obs.size())
+            print(targets_GT.size())
             
-            #print(self.hparams.dt_forecast)
+            print(self.hparams.dt_forecast)
             # init solution with ode solver
             x_pred = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
             inputs_init_ode = torch.cat((inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast],x_pred),dim=2)
             inputs_init_ode = inputs_init_ode.detach()        
             #print(inputs_init_ode[0,0,:].detach().cpu().numpy().transpose())
             #print()
+
 
             #inputs_init = inputs_init_
             if batch_init is None :
@@ -1522,6 +1523,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             if phase == 'train' :                
                 inputs_init = inputs_init.detach()
             
+            print(inputs_init_ode.size())
+            print(inputs_init.size())
+
             outputs, hidden_new, cell_new, normgrad_ = self.model(inputs_init, inputs_obs, masks, hidden = hidden , cell = cell , normgrad = normgrad, prev_iter = prev_iter )
 
             if self.hparams.integration_step > 1 :
