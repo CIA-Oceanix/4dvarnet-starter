@@ -1430,7 +1430,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             inputs_init_ = inputs_init_[:,:,:step*dT:step]
             inputs_obs = inputs_obs[:,:,:step*dT:step]
             masks = masks[:,:,:step*dT:step]
-            targets_GT = targets_GT[:,:,:dT]
+            targets_GT = targets_GT[:,:,:step*dT]
         
 
         return inputs_init_,inputs_obs,masks,targets_GT
