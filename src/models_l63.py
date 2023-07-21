@@ -1340,9 +1340,6 @@ class Lit4dVarNet_L63(pl.LightningModule):
         rec = outputs[:,:,self.hparams.dt_mse:outputs.size(2)-self.hparams.dt_mse]
         gt = targets_GT[:,:,self.hparams.dt_mse:outputs.size(2)-self.hparams.dt_mse]
         
-        print(rec.size())
-        print(gt.size)
-        
         err = (rec - gt) * self.w_loss[None,...]        
         loss_mse = torch.sum( err ** 2) / outputs.size(0)     
 
@@ -1467,23 +1464,43 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         for kk in range(0,self.hparams.k_n_grad-1):
             loss1, out, metrics = self.compute_loss(test_batch, phase='test',batch_init=out[0].detach(),hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
 
-        mse,gmse = self.compute_mse_loss(out[0],targets_GT)
-        mse,gmse = self.compute_mse_loss(out[0],targets_GT)
+        if self.hparams.integration_step > 1 :
+            out_hr = torch.nn.functional.interpolate(out[0], scale_factor=(self.hparams.integration_step,1), mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
+            out_ode_hr = torch.nn.functional.interpolate(out[-1], scale_factor=(self.hparams.integration_step,1), mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
+            targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()
 
-        var_cost_grad = self.loss_var_cost_grad(targets_GT,inputs_obs,masks,phase='test')
+        mse,gmse = self.compute_mse_loss(out_hr,targets_GT)
+        mse,gmse = self.compute_mse_loss(out_hr,targets_GT)
+
+        var_cost_grad = self.loss_var_cost_grad(targets_GT_lr,inputs_obs,masks,phase='test')
                 
         self.log("test_mse", self.stdTr**2 * mse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log("test_gmse", self.stdTr**2 * gmse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log("test_gvar", var_cost_grad , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
 
         if self.x_rec is None :
-            self.x_rec = out[0].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
+            self.x_rec = out_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
             self.x_gt  = targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
-            self.x_ode = out[-1].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
+            self.x_ode = out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
         else:
-            self.x_rec = np.concatenate((self.x_rec,out[0].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
+            self.x_rec = np.concatenate((self.x_rec,out_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
             self.x_gt  = np.concatenate((self.x_gt,targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
-            self.x_ode  = np.concatenate((self.x_ode,out[-1].squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
+            self.x_ode  = np.concatenate((self.x_ode,out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
+
+    def compute_mse_loss(self,outputs,targets_GT):
+        
+        if self.hparams.integration_step > 1 :
+            rec = torch.nn.functional.interpolate(outputs, scale_factor=(self.hparams.integration_step,1), mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
+        rec = rec[:,:,self.hparams.dt_mse:outputs.size(2)-self.hparams.dt_mse]
+        gt = targets_GT[:,:,self.hparams.dt_mse:outputs.size(2)-self.hparams.dt_mse]
+        
+        err = (rec - gt) * self.w_loss[None,...]        
+        loss_mse = torch.sum( err ** 2) / outputs.size(0)     
+
+        #loss_mse = torch.mean((rec - gt) ** 2)        
+        loss_gmse = torch.mean(( (rec[:,:,1:] - rec[:,:,:-1]) - (gt[:,:,1:] - gt[:,:,:-1]) ) ** 2)
+
+        return loss_mse,loss_gmse
 
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
         with torch.set_grad_enabled(True):
@@ -1527,12 +1544,10 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
             print(outputs.size())
             if self.hparams.integration_step > 1 :
-                inputs_init_ode_hr = torch.nn.functional.interpolate(inputs_init_ode, scale_factor=(self.hparams.integration_step,1), mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
-                outputs_hr = torch.nn.functional.interpolate(outputs, scale_factor=(self.hparams.integration_step,1), mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
                 targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()
             # losses
-            loss_mse,loss_gmse = self.compute_mse_loss(outputs_hr,targets_GT)
-            loss_mse_ode,_ = self.compute_mse_loss(inputs_init_ode_hr,targets_GT)
+            loss_mse,loss_gmse = self.compute_mse_loss(outputs,targets_GT)
+            loss_mse_ode,_ = self.compute_mse_loss(inputs_init_ode,targets_GT)
             loss_prior = torch.mean((self.model.phi_r(outputs) - outputs) ** 2)
             loss_prior_gt = torch.mean((self.model.phi_r(targets_GT_lr) - targets_GT_lr) ** 2)
 
