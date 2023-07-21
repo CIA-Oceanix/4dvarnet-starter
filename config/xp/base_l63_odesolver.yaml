@@ -61,7 +61,7 @@ model:
     median_filter_width: 3
     shapeData:
       - 3
-      - ${div:${datamodule.input_data.param_dataset.dT},${model.params.integration_step}
+      - ${div:${datamodule.input_data.param_dataset.dT},${model.params.integration_step}}
       - 1
     shapeData_modGrad: #${model.params.shapeData}
       - ${mul:${datamodule.input_data.param_dataset.dT},3} 
