@@ -1529,6 +1529,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
             print(outputs.size())
             print(targets_GT.size())
+            print(self.w_loss.size())
             # losses
             loss_mse,loss_gmse = self.compute_mse_loss(outputs,targets_GT)
             loss_mse_ode,_ = self.compute_mse_loss(inputs_init_ode,targets_GT)
