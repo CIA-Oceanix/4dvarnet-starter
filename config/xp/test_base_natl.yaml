@@ -7,7 +7,9 @@ xp_overrides:
   datamodule:
     input_da:
       _target_: src.utils.load_full_natl_data
-      obs_var: four_nadirs
+      path_obs: ../sla-data-registry/NATL60/NATL/data_new/dataset_nadir_0d.nc
+      obs_var: ssh_mod
+      # obs_var: four_nadirs
     xrds_kw: 
       # strides: {lat: 100, lon: 100}
       domain_limits: ${domain.train}
@@ -55,6 +57,8 @@ rec_weight:
 entrypoints:
   - _target_: pytorch_lightning.seed_everything
     seed: 333
+  - _target_: builtins.print
+    _args_: ['${hydra:runtime.output_dir}']
   - _target_: contrib.multi_domain_diag.multi_domain_osse_diag
     trainer: ${trainer}
     lit_mod: ${lit_mod}
