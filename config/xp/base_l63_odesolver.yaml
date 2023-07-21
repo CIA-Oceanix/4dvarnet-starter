@@ -61,12 +61,13 @@ model:
     median_filter_width: 3
     shapeData:
       - 3
-      - ${datamodule.input_data.param_dataset.dT}
+      - ${div:${datamodule.input_data.param_dataset.dT},${model.params.integration_step}
       - 1
     shapeData_modGrad: #${model.params.shapeData}
       - ${mul:${datamodule.input_data.param_dataset.dT},3} 
     dt_forecast: ${datamodule.input_data.param_dataset.dt_forecast}
     dT_test: ${datamodule.input_data.param_dataset.dT_test}
+    integration_step: 2
     time_step_ode: ${datamodule.input_data.param_dataset.time_step}
     base_ode_solver: 'euler'
     keep_obs: True

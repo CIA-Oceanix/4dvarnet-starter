@@ -121,7 +121,7 @@ def create_filename_ckpt_odesolver(suffix,params_data,params_model,name_solver='
     print(params_data)
     print(params_model)
     
-    filename_chkpt = 'model-odesolver-l63-'+params_model.suffix_exp +'-dT%02d_%02d_%02d'%(params_data.dT,params_data.time_step,params_data.dt_forecast)+'-'
+    filename_chkpt = 'model-odesolver-l63-'+params_model.suffix_exp +'-dT%02d_%02d_%02d_%02d'%(params_data.dT,params_data.time_step,params_data.dt_forecast,params_model.integration_step)+'-'
     if params_model.degradation_operator == 'no-degradation' :
         filename_chkpt = filename_chkpt 
     else:
@@ -1424,11 +1424,12 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         inputs_init_,inputs_obs,masks,targets_GT = batch
 
         if inputs_init_.size(2) > self.hparams.shapeData[1] :
-            dT = self.hparams.shapeData[1]
+            dT   = self.hparams.shapeData[1]
+            step = self.hparams.integration_step
             
-            inputs_init_ = inputs_init_[:,:,:dT]
-            inputs_obs = inputs_obs[:,:,:dT]
-            masks = masks[:,:,:dT]
+            inputs_init_ = inputs_init_[:,:,:dT:step]
+            inputs_obs = inputs_obs[:,:,:dT:step]
+            masks = masks[:,:,:dT:step]
             targets_GT = targets_GT[:,:,:dT]
         
         return inputs_init_,inputs_obs,masks,targets_GT
@@ -1517,6 +1518,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 inputs_init = inputs_init.detach()
             
             outputs, hidden_new, cell_new, normgrad_ = self.model(inputs_init, inputs_obs, masks, hidden = hidden , cell = cell , normgrad = normgrad, prev_iter = prev_iter )
+
+            if self.hparams.integration_step > 1 :
+                outputs = torch.nn.functional.interpolate(outputs, scale_factor=self.hparams.integration_step, mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
 
             # losses
             loss_mse,loss_gmse = self.compute_mse_loss(outputs,targets_GT)
