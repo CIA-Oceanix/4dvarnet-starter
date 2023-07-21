@@ -1525,14 +1525,11 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
             outputs, hidden_new, cell_new, normgrad_ = self.model(inputs_init, inputs_obs, masks, hidden = hidden , cell = cell , normgrad = normgrad, prev_iter = prev_iter )
 
-            print('xxxxxx')
             print(outputs.size())
             if self.hparams.integration_step > 1 :
+                inputs_init_ode = torch.nn.functional.interpolate(inputs_init_ode, scale_factor=(self.hparams.integration_step,1), mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
                 outputs = torch.nn.functional.interpolate(outputs, scale_factor=(self.hparams.integration_step,1), mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
 
-            print(outputs.size())
-            print(targets_GT.size())
-            print(self.w_loss.size())
             # losses
             loss_mse,loss_gmse = self.compute_mse_loss(outputs,targets_GT)
             loss_mse_ode,_ = self.compute_mse_loss(inputs_init_ode,targets_GT)
