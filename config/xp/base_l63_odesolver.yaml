@@ -23,6 +23,7 @@ datamodule:
       varNoise: 0.
       sampling_step: 1
       flagTypeMissData: -1
+      integration_step: 1
       
 model:
   _target_: src.models_l63.Lit4dVarNet_L63_OdeSolver #src.models_l63.Lit4dVarNet_L63
@@ -61,13 +62,13 @@ model:
     median_filter_width: 3
     shapeData:
       - 3
-      - ${div:${datamodule.input_data.param_dataset.dT},${model.params.integration_step}}
+      - ${div:${datamodule.input_data.param_dataset.dT},${datamodule.input_data.param_dataset.integration_step}}
       - 1
     shapeData_modGrad: #${model.params.shapeData}
       - ${mul:${datamodule.input_data.param_dataset.dT},3} 
     dt_forecast: ${datamodule.input_data.param_dataset.dt_forecast}
     dT_test: ${datamodule.input_data.param_dataset.dT_test}
-    integration_step: 2
+    integration_step: ${datamodule.input_data.param_dataset.integration_step}
     time_step_ode: ${datamodule.input_data.param_dataset.time_step}
     base_ode_solver: 'euler'
     keep_obs: True

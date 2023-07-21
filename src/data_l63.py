@@ -590,9 +590,9 @@ def create_l63_ode_solver_datasets(param_dataset):
     genSuffixObs = param_dataset.genSuffixObs
     
     if param_dataset.dT < param_dataset.dT_test:
-        dT = param_dataset.dT_test
+        dT = param_dataset.dT_test * param_dataset.integration_step
     else:
-        dT = param_dataset.dT
+        dT = param_dataset.dT * param_dataset.integration_step
         
     ## Load or create L63 dataset
     if param_dataset.flag_generate_L63_data :
