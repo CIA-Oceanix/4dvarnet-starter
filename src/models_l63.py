@@ -1424,7 +1424,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         inputs_init_,inputs_obs,masks,targets_GT = batch
 
         print(inputs_init_.size())
-        print(self.hparams.shapeData[1])
+        print(self.hparams.shapeData)
 
         if inputs_init_.size(2) > self.hparams.shapeData[1] :
             dT   = self.hparams.shapeData[1]
