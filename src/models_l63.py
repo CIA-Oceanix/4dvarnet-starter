@@ -1550,6 +1550,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
             if self.hparams.integration_step > 1 :
                 targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()
+            else:
+                targets_GT_lr = targets_GT
+                
             # losses
             loss_mse,loss_gmse = self.compute_mse_loss(outputs,targets_GT)
             loss_mse_ode,_ = self.compute_mse_loss(inputs_init_ode,targets_GT)
