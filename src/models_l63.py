@@ -1344,7 +1344,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         
         err = (rec - gt) * self.w_loss[None,...]        
         
-        print(self.w_loss)
+        print(self.w_loss[0,:,0])
         loss_mse = torch.sum( err ** 2) / rec.size(0)     
 
         #loss_mse = torch.mean((rec - gt) ** 2)        
