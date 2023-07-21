@@ -69,7 +69,7 @@ model:
     dt_forecast: ${datamodule.input_data.param_dataset.dt_forecast}
     dT_test: ${datamodule.input_data.param_dataset.dT_test}
     integration_step: ${datamodule.input_data.param_dataset.integration_step}
-    time_step_ode: ${datamodule.input_data.param_dataset.time_step}
+    time_step_ode: ${mul:${datamodule.input_data.param_dataset.time_step},${datamodule.input_data.param_dataset.integration_step}}
     base_ode_solver: 'euler'
     keep_obs: True
     use_rk4_gpu_as_target: False # True # 
