@@ -34,10 +34,10 @@ model:
     solver: ?? #'4dvarnet-with-rnd' #?? #''4dvarnet-with-state-and-rnd' # #'4dvarnet-with-subgradients' #'4dvarnet-with-rnd-grad' #''4dvarnet-with-state-and-rnd' #
     dim_grad_solver: 100 #25
     dropout: 0.2
-    alpha_prior: 0.1
-    alpha_mse: 1.
+    alpha_prior: 0.1e3
+    alpha_mse: 1.e3
     alpha_gmse: 0. #50.
-    alpha_var_cost_grad: 0.001
+    alpha_var_cost_grad: 0.00e3
     lr_grad: ?? #1e-2 #1.e3
     lr_rnd: 0.e-3
     sig_rnd_init: 0.e-2
