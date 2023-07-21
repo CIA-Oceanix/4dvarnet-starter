@@ -99,7 +99,10 @@ model:
     name: 'lstm-grad'
   patch_weight:
     _target_: src.models_l63.get_forecasting_mask #get_forecastingonly_mask
-    patch_dims: ${model.params.shapeData}
+    patch_dims: 
+      - 3
+      - ${mul:${datamodule.input_data.param_dataset.dT},${datamodule.input_data.param_dataset.integration_step}}
+      - 1
     dt_forecast: ${datamodule.input_data.param_dataset.dt_forecast}
     #dim: 5
 
