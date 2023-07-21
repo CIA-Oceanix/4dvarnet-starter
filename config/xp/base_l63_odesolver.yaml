@@ -70,7 +70,7 @@ model:
     dT_test: ${datamodule.input_data.param_dataset.dT_test}
     integration_step: ${datamodule.input_data.param_dataset.integration_step}
     time_step_ode: ${mul:${datamodule.input_data.param_dataset.time_step},${datamodule.input_data.param_dataset.integration_step}}
-    base_ode_solver: 'rk4' #'euler'
+    base_ode_solver: 'euler' #'rk4' #
     keep_obs: True
     use_rk4_gpu_as_target: False # True # 
 #  ckpt: 'outputs/2023-06-10/23-30-37/base_l63/checkpoints/model-l63-lstmonly+gobs+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_08-dgrad100-val_loss=8.5268-epoch=216.ckpt'
