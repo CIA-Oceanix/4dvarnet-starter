@@ -1340,6 +1340,9 @@ class Lit4dVarNet_L63(pl.LightningModule):
         rec = outputs[:,:,self.hparams.dt_mse:outputs.size(2)-self.hparams.dt_mse]
         gt = targets_GT[:,:,self.hparams.dt_mse:outputs.size(2)-self.hparams.dt_mse]
         
+        print(rec.size())
+        print(gt.size)
+        
         err = (rec - gt) * self.w_loss[None,...]        
         loss_mse = torch.sum( err ** 2) / outputs.size(0)     
 
