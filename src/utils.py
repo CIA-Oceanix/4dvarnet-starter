@@ -124,19 +124,22 @@ def get_triang_time_wei(patch_dims, offset=0, **crop_kw):
         patch_dims.values(),
     )
 
-def load_enatl(*args, obs_from_tgt=False, **kwargs):
+def load_enatl(*args, obs_from_tgt=True, **kwargs):
+    # ds = xr.open_dataset('../sla-data-registry/qdata/enatl_wo_tide.nc')
+    # print(ds)
+    # return ds.rename(nadir_obs='input', ssh='tgt').to_array().transpose('variable', 'time', 'lat', 'lon').sortby('variable')
     ssh = xr.open_zarr('../sla-data-registry/enatl_preproc/truth_SLA_SSH_NATL60.zarr/').ssh
     nadirs = xr.open_zarr('../sla-data-registry/enatl_preproc/SLA_SSH_5nadirs.zarr/').ssh
     ssh = ssh.interp(
         lon=np.arange(ssh.lon.min(), ssh.lon.max(), 1/20),
         lat=np.arange(ssh.lat.min(), ssh.lat.max(), 1/20)
     )
-    nadirs = nadirs.interp(time=ssh.time, method='nearest').interp(lat=ssh.lat, lon=ssh.lon, method='nearest')
+    nadirs = nadirs.interp(time=ssh.time, method='nearest')\
+        .interp(lat=ssh.lat, lon=ssh.lon, method='zero')
     ds =  xr.Dataset(dict(input=nadirs, tgt=(ssh.dims, ssh.values)), nadirs.coords)
-
     if obs_from_tgt:
         ds = ds.assign(input=ds.tgt.transpose(*ds.input.dims).where(np.isfinite(ds.input), np.nan))
-    return ds.transpose('time', 'lat', 'lon').to_array().load()
+    return ds.transpose('time', 'lat', 'lon').to_array().load().sortby('variable')
 
 
 def load_altimetry_data(path, obs_from_tgt=False):
@@ -159,6 +162,10 @@ def load_altimetry_data(path, obs_from_tgt=False):
         .to_array()
     )
 
+def load_dc_data(**kwargs):
+    path_gt="../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_ssh_y2013.1y.nc",
+    path_obs ="NATL60/NATL/data_new/dataset_nadir_0d.nc"
+
 
 def load_full_natl_data(
         path_obs="../sla-data-registry/CalData/cal_data_new_errs.nc",
@@ -170,7 +177,7 @@ def load_full_natl_data(
     inp = xr.open_dataset(path_obs)[obs_var]
     gt = (
         xr.open_dataset(path_gt)[gt_var]
-        .isel(time=slice(0, -1))
+        # .isel(time=slice(0, -1))
         .sel(lat=inp.lat, lon=inp.lon, method="nearest")
     )
 
@@ -350,6 +357,8 @@ def geo_energy(da):
 
 def best_ckpt(xp_dir):
     _, xpn = load_cfg(xp_dir)
+    if xpn is None:
+        return None
     print(Path(xp_dir) / xpn / 'checkpoints')
     ckpt_last = max(
         (Path(xp_dir) / xpn / 'checkpoints').glob("*.ckpt"), key=lambda p: p.stat().st_mtime
