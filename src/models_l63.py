@@ -1487,17 +1487,17 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             self.x_gt  = np.concatenate((self.x_gt,targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
             self.x_ode  = np.concatenate((self.x_ode,out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
 
-    def compute_mse_loss(self,outputs,targets_GT):
+    def compute_mse_loss(self,rec,targets_GT):
         
         if self.hparams.integration_step > 1 :
-            rec = torch.nn.functional.interpolate(outputs, scale_factor=(self.hparams.integration_step,1), mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
+            rec = torch.nn.functional.interpolate(rec, scale_factor=(self.hparams.integration_step,1), mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
 
         
         rec = rec[:,:,self.hparams.dt_mse:rec.size(2)-self.hparams.dt_mse]
         gt = targets_GT[:,:,self.hparams.dt_mse:rec.size(2)-self.hparams.dt_mse]
                 
         err = (rec - gt) * self.w_loss[None,...]        
-        loss_mse = torch.sum( err ** 2) / outputs.size(0)     
+        loss_mse = torch.sum( err ** 2) / rec.size(0)     
 
         #loss_mse = torch.mean((rec - gt) ** 2)        
         loss_gmse = torch.mean(( (rec[:,:,1:] - rec[:,:,:-1]) - (gt[:,:,1:] - gt[:,:,:-1]) ) ** 2)
