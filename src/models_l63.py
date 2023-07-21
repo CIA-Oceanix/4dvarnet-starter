@@ -1546,7 +1546,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             outputs, hidden_new, cell_new, normgrad_ = self.model(inputs_init, inputs_obs, masks, hidden = hidden , cell = cell , normgrad = normgrad, prev_iter = prev_iter )
 
             rec = torch.nn.functional.interpolate(inputs_init_ode, scale_factor=(self.hparams.integration_step,1), mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
-            print( np.mean( (rec[:,:,1:]-targets_GT[:,:,1:]).detach().cpu().numpy()**2 ) )
+            #print( np.mean( (rec[:,:,1:]-targets_GT[:,:,1:]).detach().cpu().numpy()**2 ) )
 
             if self.hparams.integration_step > 1 :
                 targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()
