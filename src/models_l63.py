@@ -54,6 +54,10 @@ def get_constant_crop_l63(patch_dims, crop):
     return patch_weight
 
 def get_forecasting_mask(patch_dims, dt_forecast):
+    
+    print(patch_dims[1])
+    print(dt_forecast)
+    
     w1 = np.arange(patch_dims[1]-dt_forecast).reshape((1,patch_dims[1]-dt_forecast,1))
     patch_weight = np.concatenate((w1,patch_dims[1]-dt_forecast + np.ones((1,dt_forecast,1))),axis=1) 
     
