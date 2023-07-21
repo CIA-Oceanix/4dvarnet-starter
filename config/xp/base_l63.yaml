@@ -69,7 +69,7 @@ model:
     patch_dims: ${model.params.shapeData}
     crop: 
       - 0
-      - 0
+      - 10
       - 0
   Phi:
     _target_: src.models_l63.Phi_unet_like_bilin #src.models_l63.Phi_unet_1_layer_bis #src.models_l63.UNet_3_layers #
