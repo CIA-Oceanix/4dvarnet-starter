@@ -53,7 +53,6 @@ model:
     type_step_lstm: 'linear-relu' #'constant'  #'linear'#
     param_lstm_step: 50 #20 #-1 #
     dt_mse_test: 10
-    dt_mse: 10
     post_projection: False #True #  ?? # 
     post_median_filter: False # True # 
     median_filter_width: 3
