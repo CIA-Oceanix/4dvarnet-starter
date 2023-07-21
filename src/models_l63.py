@@ -1233,7 +1233,6 @@ class Lit4dVarNet_L63(pl.LightningModule):
         return loss
     
     def validation_step(self, val_batch, batch_idx):
-        val_batch = self.extract_data_patch( val_batch )
 
         inputs_init,inputs_obs,masks,targets_GT = val_batch
 
