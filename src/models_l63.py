@@ -1525,7 +1525,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             print('xxxxxx')
             print(outputs.size())
             if self.hparams.integration_step > 1 :
-                outputs = torch.nn.functional.interpolate(outputs, scale_factor=self.hparams.integration_step, mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
+                outputs = torch.nn.functional.interpolate(outputs, scale_factor=(self.hparams.integration_step,1), mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
 
             print(outputs.size())
             print(targets_GT.size())
