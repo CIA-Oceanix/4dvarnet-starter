@@ -115,7 +115,7 @@ trainer:
   precision: 32
   logger: 
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: ${hydra:runtime.output_dir}
+    save_dir: './outputs_odesolver_l63/' #${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 400
