@@ -1527,17 +1527,17 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
             print(outputs.size())
             if self.hparams.integration_step > 1 :
-                inputs_init_ode = torch.nn.functional.interpolate(inputs_init_ode, scale_factor=(self.hparams.integration_step,1), mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
-                outputs = torch.nn.functional.interpolate(outputs, scale_factor=(self.hparams.integration_step,1), mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
-
+                inputs_init_ode_hr = torch.nn.functional.interpolate(inputs_init_ode, scale_factor=(self.hparams.integration_step,1), mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
+                outputs_hr = torch.nn.functional.interpolate(outputs, scale_factor=(self.hparams.integration_step,1), mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
+                targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()
             # losses
-            loss_mse,loss_gmse = self.compute_mse_loss(outputs,targets_GT)
-            loss_mse_ode,_ = self.compute_mse_loss(inputs_init_ode,targets_GT)
+            loss_mse,loss_gmse = self.compute_mse_loss(outputs_hr,targets_GT)
+            loss_mse_ode,_ = self.compute_mse_loss(inputs_init_ode_hr,targets_GT)
             loss_prior = torch.mean((self.model.phi_r(outputs) - outputs) ** 2)
-            loss_prior_gt = torch.mean((self.model.phi_r(targets_GT) - targets_GT) ** 2)
+            loss_prior_gt = torch.mean((self.model.phi_r(targets_GT_lr) - targets_GT_lr) ** 2)
 
             if prev_iter == self.model.n_grad * (self.hparams.k_n_grad -1) :
-                loss_var_cost_grad = self.loss_var_cost_grad(targets_GT,inputs_obs,masks,phase)
+                loss_var_cost_grad = self.loss_var_cost_grad(targets_GT_lr,inputs_obs,masks,phase)
                 
                 #print()
                 #print( self.hparams.alpha_mse * loss_mse )
