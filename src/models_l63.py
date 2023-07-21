@@ -1492,9 +1492,10 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         if self.hparams.integration_step > 1 :
             rec = torch.nn.functional.interpolate(outputs, scale_factor=(self.hparams.integration_step,1), mode='bicubic')#, align_corners=None, recompute_scale_factor=None, antialias=False)                
 
-        rec = rec[:,:,self.hparams.dt_mse:rec.size(2)-self.hparams.dt_mse]
-        gt = targets_GT[:,:,self.hparams.dt_mse:outputs.size(2)-self.hparams.dt_mse]
         
+        rec = rec[:,:,self.hparams.dt_mse:rec.size(2)-self.hparams.dt_mse]
+        gt = targets_GT[:,:,self.hparams.dt_mse:rec.size(2)-self.hparams.dt_mse]
+                
         err = (rec - gt) * self.w_loss[None,...]        
         loss_mse = torch.sum( err ** 2) / outputs.size(0)     
 
