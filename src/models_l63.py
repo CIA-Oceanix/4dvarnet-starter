@@ -1423,6 +1423,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
     def extract_data_patch(self,batch):
         inputs_init_,inputs_obs,masks,targets_GT = batch
 
+        print(inputs_init_.size())
+        print(self.hparams.shapeData[1])
+
         if inputs_init_.size(2) > self.hparams.shapeData[1] :
             dT   = self.hparams.shapeData[1]
             step = self.hparams.integration_step
@@ -1432,6 +1435,10 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             masks = masks[:,:,:step*dT:step]
             targets_GT = targets_GT[:,:,:dT]
         
+
+        print(inputs_init_.size())
+
+
         return inputs_init_,inputs_obs,masks,targets_GT
 
     def training_step(self, train_batch, batch_idx):
