@@ -1543,7 +1543,6 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
             outputs, hidden_new, cell_new, normgrad_ = self.model(inputs_init, inputs_obs, masks, hidden = hidden , cell = cell , normgrad = normgrad, prev_iter = prev_iter )
 
-            print(outputs.size())
             if self.hparams.integration_step > 1 :
                 targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()
             # losses
