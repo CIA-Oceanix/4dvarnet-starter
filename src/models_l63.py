@@ -1490,12 +1490,11 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
     def compute_mse_loss(self,rec,targets_GT):
         
         if self.hparams.integration_step > 1 :
-            print(rec[0,0,:].detach().cpu().numpy().transpose())
-            rec_ = torch.nn.functional.interpolate(rec, scale_factor=(self.hparams.integration_step,1), mode='bicubic')#,align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
-            print(rec_[0,0,:].detach().cpu().numpy().transpose())
+            #print(rec[0,0,:].detach().cpu().numpy().transpose())
+            #print(rec_[0,0,:].detach().cpu().numpy().transpose())
             rec = torch.nn.functional.interpolate(rec, scale_factor=(self.hparams.integration_step,1), mode='bicubic',align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
-            print(rec[0,0,:].detach().cpu().numpy().transpose())
-            print()
+            #print(rec[0,0,:].detach().cpu().numpy().transpose())
+            #print()
             #rec = torch.nn.functional.interpolate(torch.squeeze(rec), scale_factor=self.hparams.integration_step, mode='linear',align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
             #rec = rec.view(-1,rec.size(1),rec.size(2),1)
         
