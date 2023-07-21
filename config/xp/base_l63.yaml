@@ -75,6 +75,7 @@ model:
     shapeData: ${model.params.shapeData}
     DimAE: ${model.params.DimAE}
 #    rateDropout: 0.2
+    name: 'odenet' # 'unet-bilin' #
   m_NormObs:
     _target_: src.solver_l63.Model_WeightedL2Norm #src.solver_l63.Model_WeightedTrainableL2Norm #src.solver_l63.Model_WeightedGL2Norm # src.solver_l63.Model_WeightedL2Norm #
     #kernel_x: 5
@@ -117,6 +118,8 @@ trainer:
         suffix: '-{val_loss:.4f}-{epoch:03d}'#'{val_mse:.4f}-{epoch:03d}'
         params_data: ${datamodule.input_data.param_dataset}
         params_model: ${model.params}
+        name_solver: ${model.mod_Grad.name}
+        name_phi: ${model.Phi.name}
         
 entrypoints:
   - _target_: pytorch_lightning.seed_everything

@@ -97,11 +97,17 @@ class time_series:
   values = 0.
   time   = 0.
 
-def create_filename_ckpt(suffix,params_data,params_model):
+def create_filename_ckpt(suffix,params_data,params_model,name_solver='',name_phi=''):
     print(params_data)
     print(params_model)
     
     filename_chkpt = 'model-l63-'+params_model.suffix_exp +'-dT%02d'%params_data.dT+'-'
+    if len(params_model.shapeData_modGrad) == 1 :
+        name_solver = 'fc'+name_solver
+    else:
+        name_solver = 'conv'+name_solver
+    filename_chkpt = filename_chkpt + '-' + name_solver
+    
     if params_model.degradation_operator == 'no-degradation' :
         filename_chkpt = filename_chkpt +  params_model.solver +'-' 
     else:
@@ -109,7 +115,7 @@ def create_filename_ckpt(suffix,params_data,params_model):
         
     filename_chkpt = filename_chkpt + params_data.genSuffixObs 
     filename_chkpt = filename_chkpt + '-Obs%02d'%params_data.sampling_step + '-Noise%02d'%(params_data.varNoise)        
-    #filename_chkpt = filename_chkpt + '-' + params_model.phi_param
+    filename_chkpt = filename_chkpt + '-' + name_phi +'_%02d'%params_model.DimAE
     filename_chkpt = filename_chkpt + '-igrad%02d_%02d'%(params_model.n_grad,params_model.k_n_grad)+'-dgrad%d'%params_model.dim_grad_solver          
     #filename_chkpt = filename_chkpt + '-drop%02d'%(100*params_model.dropout)
     #filename_chkpt = filename_chkpt + '-rnd-init%02d'%(100*params_model.sig_rnd_init)
