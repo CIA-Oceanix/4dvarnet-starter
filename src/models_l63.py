@@ -918,12 +918,13 @@ class Model_HwithTrainableLocalisation(torch.nn.Module):
         return dyout
 
 class Model_H2(torch.nn.Module):
-    def __init__(self,shape_data,dim=5,sampling=3,dT=200,padding_mode='reflect'):
+    def __init__(self,shape_data,dim=5,sampling=3,padding_mode='reflect'):
         super(Model_H2, self).__init__()
 
         self.DimObs = 2
         self.sampling = sampling
         self.dimObsChannel = np.array([shape_data[0], dim])
+        dT = shape_data[1]
 
         self.bn_feat = torch.nn.BatchNorm2d(self.dimObsChannel[1],track_running_stats=False)
 
@@ -935,7 +936,6 @@ class Model_H2(torch.nn.Module):
         #self.convx21 = torch.nn.Conv2d(self.dimObsChannel[0], 2*self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
         #self.convx22 = torch.nn.Conv2d(2*self.dimObsChannel[0], self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
 
-        dT = shape_data[1]
         self.fcy1     = torch.nnLinear(int(dT/self.sampling),2*self.dimObsChannel[1])
         self.fcy2     = torch.nnLinear(2*self.dimObsChannel[1],self.dimObsChannel[1])
          
