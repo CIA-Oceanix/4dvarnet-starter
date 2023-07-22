@@ -932,13 +932,13 @@ class Model_H2(torch.nn.Module):
         self.poolx   = torch.nn.AvgPool2d((self.sampling,1))
         self.convx11 = torch.nn.Conv2d(shape_data[0], 2*self.dimObsChannel[1], (self.sampling, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
         self.convx12 = torch.nn.Conv2d(2*self.dimObsChannel[1], self.dimObsChannel[1], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
-        self.fcx     = torch.nnLinear(int(dT/self.sampling),self.dimObsChannel[1])
+        self.fcx     = torch.nn.Linear(int(dT/self.sampling),self.dimObsChannel[1])
         
         #self.convx21 = torch.nn.Conv2d(self.dimObsChannel[0], 2*self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
         #self.convx22 = torch.nn.Conv2d(2*self.dimObsChannel[0], self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
 
-        self.fcy1     = torch.nnLinear(int(dT/self.sampling),2*self.dimObsChannel[1])
-        self.fcy2     = torch.nnLinear(2*self.dimObsChannel[1],self.dimObsChannel[1])
+        self.fcy1     = torch.nn.Linear(int(dT/self.sampling),2*self.dimObsChannel[1])
+        self.fcy2     = torch.nn.Linear(2*self.dimObsChannel[1],self.dimObsChannel[1])
          
     def extract_state_feature(self,x):
         x1     = self.convx12( torch.tanh( self.convx11(x) ) )
