@@ -942,6 +942,7 @@ class Model_H2(torch.nn.Module):
          
     def extract_state_feature(self,x):
         x1     = self.convx12( torch.tanh( self.convx11(x) ) )
+        print(x1.size())
         x1     = self.poolx( x1 ).view(x1.size(0),-1)
                 
         print(x1.size())
