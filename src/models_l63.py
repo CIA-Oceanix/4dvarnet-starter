@@ -1593,6 +1593,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         if self.hparams.integration_step > 1 :
             #print(rec[0,0,:].detach().cpu().numpy().transpose())
             #print(rec_[0,0,:].detach().cpu().numpy().transpose())
+            print(rec.size())
             rec = torch.nn.functional.interpolate(rec, scale_factor=(self.hparams.integration_step,1), mode='bicubic',align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
             #print(rec[0,0,:].detach().cpu().numpy().transpose())
             #print()
