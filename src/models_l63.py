@@ -930,8 +930,8 @@ class Model_H2(torch.nn.Module):
         self.bn_feat = torch.nn.BatchNorm2d(self.dimObsChannel[1],track_running_stats=False)
 
         self.poolx   = torch.nn.AvgPool2d((self.sampling,1))
-        self.convx11 = torch.nn.Conv2d(shape_data[0], 2*self.dimObsChannel[1], (self.sampling, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
-        self.convx12 = torch.nn.Conv2d(2*self.dimObsChannel[1], self.dimObsChannel[1], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+        self.convx11 = torch.nn.Conv2d(shape_data[0], 2*self.dimObsChannel[1], (self.sampling, 1), padding=(int(self.sampling/2),0), bias=False,padding_mode=padding_mode)
+        self.convx12 = torch.nn.Conv2d(2*self.dimObsChannel[1], self.dimObsChannel[1], (1, 1), padding=(0,0), bias=False,padding_mode=padding_mode)
         self.fcx     = torch.nn.Linear(int(self.dimObsChannel[1]*dT/self.sampling),self.dimObsChannel[1])
         
         #self.convx21 = torch.nn.Conv2d(self.dimObsChannel[0], 2*self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
