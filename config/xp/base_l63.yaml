@@ -86,7 +86,7 @@ model:
   mod_H:
     _target_: src.models_l63.Model_H2 #src.models_l63.Model_H # src.models_l63.Model_H_with_relu # src.models_l63.Model_HwithSSTBN_nolin_tanh #src.models_l63.Model_HwithTrainableLocalisation #src.models_l63.Model_HwithLocalisation
     shape_data: ${model.params.shapeData}
-    dim: 5
+    dim: 20
     sampling: ${datamodule.input_data.param_dataset.sampling_step}
   mod_Grad:
     _target_: src.solver_l63.model_Grad_with_lstm
@@ -99,7 +99,7 @@ model:
 
 hydra:
   runtime:
-    output_dir: ./out/${hydra.job.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    output_dir: ./outputs/${hydra.job.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
 
 trainer:
   _target_: pytorch_lightning.Trainer
