@@ -961,7 +961,7 @@ class Model_H2(torch.nn.Module):
                 
         x_feat = self.extract_state_feature(x)
         y_feat = self.extract_obs_feature(y)
-        dyout1 = (x_feat - y_feat)
+        dyout1 = (x_feat - y_feat).view(-1,x_feat.size(1),1,1)
 
         return [dyout, dyout1]
 
