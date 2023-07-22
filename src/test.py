@@ -419,7 +419,7 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     X_train, x_train, mask_train, x_train_Init, x_train_obs = dm.input_data[0]    
     idx_val = X_train.shape[0]-500
     
-    X_val = X_train[idx_val::,:8,:]
+    X_val = X_train[idx_val::,:,:8]
     mask_val = mask_train[idx_val::,:,:,:].squeeze()
     x_rec = lit_mod.x_rec#[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
     x_ode = lit_mod.x_ode
@@ -451,7 +451,7 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     x_rec = lit_mod.x_rec
     x_ode = lit_mod.x_ode
 
-    X_test = X_test[:,:8,:]
+    X_test = X_test[:,:,:8]
     
 
     var_test  = np.mean( (X_test - np.mean(X_test,axis=0))**2 )
