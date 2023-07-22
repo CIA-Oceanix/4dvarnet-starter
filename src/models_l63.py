@@ -917,6 +917,47 @@ class Model_HwithTrainableLocalisation(torch.nn.Module):
         
         return dyout
 
+class Model_H2(torch.nn.Module):
+    def __init__(self,shape_data,dim=5,dw=3,padding_mode='reflect'):
+        super(Model_H2, self).__init__()
+
+        self.DimObs = 1
+        self.dimObsChannel = np.array([dim])
+
+        self.bn_feat = torch.nn.BatchNorm2d(self.dimObsChannel[0],track_running_stats=False)
+
+        self.convx11 = torch.nn.Conv2d(shape_data, 2*self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+        self.poolx   = torch.nn.AvgPool2d((dw,1))
+        self.convx12 = torch.nn.Conv2d(2*self.dimObsChannel[0], self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+        self.convx21 = torch.nn.Conv2d(self.dimObsChannel[0], 2*self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+        self.convx22 = torch.nn.Conv2d(2*self.dimObsChannel[0], self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+
+        self.convy11 = torch.nn.Conv2d(shape_data, self.dimObsChannel[1], (dw, 1), padding=(1,0), stride=(dw,1), dilation=(dw,1), bias=False,padding_mode=padding_mode)
+ 
+        self.convy11 = torch.nn.Conv2d(shape_data, 2*self.dimObsChannel[0], (dw, 1), padding=(dw,0), stride=(dw,1), dilation=(dw,1), bias=False,padding_mode=padding_mode)
+        self.convy12 = torch.nn.Conv2d(2*self.dimObsChannel[0], self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+        self.convy21 = torch.nn.Conv2d(self.dimObsChannel[0], 2*self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+        self.convy22 = torch.nn.Conv2d(2*self.dimObsChannel[0], self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+        
+        self.convy23 = torch.nn.Conv2d(2*self.dimObsChannel[0], self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+ 
+    def extract_state_feature(self,x):
+        x1     = self.convx12( torch.tanh( self.convx11(x) ) )
+        x_feat = self.bn_feat( self.convx22( torch.tanh( self.convx21( torch.tanh(x1) ) ) ) )
+        
+        return x_feat
+
+
+    def forward(self, x, y, mask):
+        dyout = (x - y) * mask
+                
+        x_feat = self.extract_state_feature(torch.cat((x,mask),dim=1))
+        y_feat = self.convy11( y * mask )
+        dyout1 = (x_feat - y_feat)
+
+        return [dyout, dyout1]
+
+
 class Model_H(torch.nn.Module):
     def __init__(self,shape_data):
         super(Model_H, self).__init__()
