@@ -937,7 +937,7 @@ class Model_H2(torch.nn.Module):
         #self.convx21 = torch.nn.Conv2d(self.dimObsChannel[0], 2*self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
         #self.convx22 = torch.nn.Conv2d(2*self.dimObsChannel[0], self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
 
-        self.fcy1     = torch.nn.Linear(int(dT/self.sampling),2*self.dimObsChannel[1])
+        self.fcy1     = torch.nn.Linear(int(dT/self.sampling),4*self.dimObsChannel[1])
         self.fcy2     = torch.nn.Linear(2*self.dimObsChannel[1],self.dimObsChannel[1])
          
     def extract_state_feature(self,x):
