@@ -918,41 +918,47 @@ class Model_HwithTrainableLocalisation(torch.nn.Module):
         return dyout
 
 class Model_H2(torch.nn.Module):
-    def __init__(self,shape_data,dim=5,dw=3,padding_mode='reflect'):
+    def __init__(self,shape_data,dim=5,sampling=3,dT=200,padding_mode='reflect'):
         super(Model_H2, self).__init__()
 
-        self.DimObs = 1
-        self.dimObsChannel = np.array([dim])
+        self.DimObs = 2
+        self.sampling = sampling
+        self.dimObsChannel = np.array([shape_data[0], dim])
 
-        self.bn_feat = torch.nn.BatchNorm2d(self.dimObsChannel[0],track_running_stats=False)
+        self.bn_feat = torch.nn.BatchNorm2d(self.dimObsChannel[1],track_running_stats=False)
 
-        self.convx11 = torch.nn.Conv2d(shape_data, 2*self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
-        self.poolx   = torch.nn.AvgPool2d((dw,1))
-        self.convx12 = torch.nn.Conv2d(2*self.dimObsChannel[0], self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
-        self.convx21 = torch.nn.Conv2d(self.dimObsChannel[0], 2*self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
-        self.convx22 = torch.nn.Conv2d(2*self.dimObsChannel[0], self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
-
-        self.convy11 = torch.nn.Conv2d(shape_data, self.dimObsChannel[1], (dw, 1), padding=(1,0), stride=(dw,1), dilation=(dw,1), bias=False,padding_mode=padding_mode)
- 
-        self.convy11 = torch.nn.Conv2d(shape_data, 2*self.dimObsChannel[0], (dw, 1), padding=(dw,0), stride=(dw,1), dilation=(dw,1), bias=False,padding_mode=padding_mode)
-        self.convy12 = torch.nn.Conv2d(2*self.dimObsChannel[0], self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
-        self.convy21 = torch.nn.Conv2d(self.dimObsChannel[0], 2*self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
-        self.convy22 = torch.nn.Conv2d(2*self.dimObsChannel[0], self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+        self.poolx   = torch.nn.AvgPool2d((self.sampling,1))
+        self.convx11 = torch.nn.Conv2d(shape_data, 2*self.dimObsChannel[1], (self.sampling, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+        self.convx12 = torch.nn.Conv2d(2*self.dimObsChannel[1], self.dimObsChannel[1], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+        self.fcx     = torch.nnLinear(int(dT/self.sampling),self.dimObsChannel[1])
         
-        self.convy23 = torch.nn.Conv2d(2*self.dimObsChannel[0], self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
- 
+        #self.convx21 = torch.nn.Conv2d(self.dimObsChannel[0], 2*self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+        #self.convx22 = torch.nn.Conv2d(2*self.dimObsChannel[0], self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+
+        dT = shape_data[1]
+        self.fcy1     = torch.nnLinear(int(dT/self.sampling),2*self.dimObsChannel[1])
+        self.fcy2     = torch.nnLinear(2*self.dimObsChannel[1],self.dimObsChannel[1])
+         
     def extract_state_feature(self,x):
         x1     = self.convx12( torch.tanh( self.convx11(x) ) )
-        x_feat = self.bn_feat( self.convx22( torch.tanh( self.convx21( torch.tanh(x1) ) ) ) )
+        x1     = self.poolx( x1 ).view(x1.size(0),-1)
+                
+        x_feat = self.bn_feat( self.fcx( torch.tanh( x1 ) ) )
         
         return x_feat
 
+    def extract_obs_feature(self,y):
+        y = y[:,:,::self.sampling]
+        
+        y_feat = self.bn_feat( self.fcy1( torch.tanh( self.fcy1(y) ) ) )
+        
+        return y_feat
 
     def forward(self, x, y, mask):
         dyout = (x - y) * mask
                 
-        x_feat = self.extract_state_feature(torch.cat((x,mask),dim=1))
-        y_feat = self.convy11( y * mask )
+        x_feat = self.extract_state_feature(x)
+        y_feat = self.extract_obs_feature(y)
         dyout1 = (x_feat - y_feat)
 
         return [dyout, dyout1]
