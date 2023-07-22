@@ -922,9 +922,10 @@ class Model_H2(torch.nn.Module):
         super(Model_H2, self).__init__()
 
         self.DimObs = 2
-        self.sampling = sampling
+        self.sampling = int(sampling)
         self.dimObsChannel = np.array([shape_data[0], dim])
         dT = shape_data[1]
+        print(dT)
 
         self.bn_feat = torch.nn.BatchNorm2d(self.dimObsChannel[1],track_running_stats=False)
 
