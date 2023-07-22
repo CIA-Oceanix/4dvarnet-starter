@@ -925,9 +925,8 @@ class Model_H2(torch.nn.Module):
         self.sampling = int(sampling)
         self.dimObsChannel = np.array([shape_data[0], dim])
         dT = shape_data[1]
-        print(dT)
 
-        self.bn_feat = torch.nn.BatchNorm2d(self.dimObsChannel[1],track_running_stats=False)
+        self.bn_feat = torch.nn.BatchNorm1d(self.dimObsChannel[1],track_running_stats=False)
 
         self.poolx   = torch.nn.AvgPool2d((self.sampling,1))
         self.convx11 = torch.nn.Conv2d(shape_data[0], 2*self.dimObsChannel[1], (2*int(self.sampling/2)+1, 1), padding=(int(self.sampling/2),0), bias=False,padding_mode=padding_mode)
@@ -942,7 +941,6 @@ class Model_H2(torch.nn.Module):
          
     def extract_state_feature(self,x):
         x1     = self.convx12( torch.tanh( self.convx11(x) ) )
-        print(x1.size())
         x1     = self.poolx( x1 ).view(x1.size(0),-1)
                 
         print(x1.size())
