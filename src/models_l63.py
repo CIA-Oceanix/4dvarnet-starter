@@ -948,7 +948,7 @@ class Model_H2(torch.nn.Module):
         return x_feat
 
     def extract_obs_feature(self,y):
-        y = y[:,:,::self.sampling].Flatten()
+        y = y[:,:,::self.sampling,:]
         y = y.view(y.size(0),-1)
         
         y_feat = self.bn_feat( self.fcy2( torch.tanh( self.fcy1(y) ) ) )
