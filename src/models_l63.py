@@ -944,6 +944,8 @@ class Model_H2(torch.nn.Module):
         x1     = self.convx12( torch.tanh( self.convx11(x) ) )
         x1     = self.poolx( x1 ).view(x1.size(0),-1)
                 
+        print(x1.size())
+        print(int(self.dimObsChannel[1]*x.size(2)/self.sampling))
         x_feat = self.bn_feat( self.fcx( torch.tanh( x1 ) ) )
         
         return x_feat
