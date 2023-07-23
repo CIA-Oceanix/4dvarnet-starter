@@ -84,10 +84,10 @@ model:
   m_NormPhi:
     _target_: src.solver_l63.Model_WeightedL2Norm
   mod_H:
-    _target_: src.models_l63.Model_H #src.models_l63.Model_H # src.models_l63.Model_H_with_relu # src.models_l63.Model_HwithSSTBN_nolin_tanh #src.models_l63.Model_HwithTrainableLocalisation #src.models_l63.Model_HwithLocalisation
+    _target_: src.models_l63.Model_H6 #src.models_l63.Model_H # src.models_l63.Model_H_with_relu # src.models_l63.Model_HwithSSTBN_nolin_tanh #src.models_l63.Model_HwithTrainableLocalisation #src.models_l63.Model_HwithLocalisation
     shape_data: ${model.params.shapeData}
-    #dim: 20
-    #sampling: ${datamodule.input_data.param_dataset.sampling_step}
+    dim: 50
+    sampling: ${datamodule.input_data.param_dataset.sampling_step}
   mod_Grad:
     _target_: src.solver_l63.model_Grad_with_lstm
     ShapeData: ${model.params.shapeData_modGrad}
@@ -130,10 +130,10 @@ trainer:
 entrypoints:
   - _target_: pytorch_lightning.seed_everything
     seed: 333
-#  - _target_: src.train.base_training  # src.train.fine_tuning # 
-#    trainer: ${trainer}
-#    lit_mod: ${model}
-#    dm: ${datamodule}
+  - _target_: src.train.base_training  # src.train.fine_tuning # 
+    trainer: ${trainer}
+    lit_mod: ${model}
+    dm: ${datamodule}
 #    update_params: False
 #    ckpt: 'outputs/2023-07-21/18-36-53/base_l63/checkpoints/model-l63-interp-x1only-dT200--convlstm-grad-JamesData-Obs20-Noise02-odenet_10-igrad10_08-dgrad100-val_loss=32.4257-epoch=101.ckpt'
 #    ckpt: 'outputs/2023-06-08/23-38-13/base_l63/checkpoints/model-l63-lstmonly+gobs+grad-4dvarnet-with-rnd-JamesData-Obs20-Noise02-unet-igrad10_04-dgrad100-val_loss=15.7092-epoch=014.ckpt'
@@ -142,13 +142,13 @@ entrypoints:
 #    ckpt: 'outputs/2023-05-24/16-55-55/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.2830-epoch=179.ckpt'
 #    ckpt: 'outputs/2023-05-23/22-14-34/base_l63/checkpoints/model-l63-4dvarnet-with-state-and-rnd-JamesData-Obs08-Noise02-unet-igrad10_04-dgrad100-val_loss=3.0530-epoch=337.ckpt'
 #    ckpt: 'outputs/2023-06-10/23-30-37/base_l63/checkpoints/model-l63-lstmonly+gobs+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_08-dgrad100-val_loss=8.5268-epoch=216.ckpt'
-  - _target_: src.test.base_testing #
-    trainer: ${trainer}
-    lit_mod: ${model}
-    dm: ${datamodule}
-    num_members: 1
+#  - _target_: src.test.base_testing #
+#    trainer: ${trainer}
+#    lit_mod: ${model}
+#    dm: ${datamodule}
+#    num_members: 1
 #    ckpt: 'outputs/2023-07-23/10-37-19/base_l63/checkpoints/model-l63-interp-x1onlylstm+grad-modH2bis-20-dT200--convlstm-grad-JamesData-Obs20-Noise02-odenet_10-igrad10_04-dgrad100-val_loss=13.5894-epoch=412.ckpt'
-    ckpt: 'outputs/2023-07-21/18-11-32/base_l63/checkpoints/model-l63-interp-x1only-dT200--convlstm-grad-JamesData-Obs20-Noise02-odenet_10-igrad10_04-dgrad100-val_loss=13.8485-epoch=380.ckpt'
+#    ckpt: 'outputs/2023-07-21/18-11-32/base_l63/checkpoints/model-l63-interp-x1only-dT200--convlstm-grad-JamesData-Obs20-Noise02-odenet_10-igrad10_04-dgrad100-val_loss=13.8485-epoch=380.ckpt'
 #    ckpt: 'outputs/2023-07-21/17-55-45/base_l63/checkpoints/model-l63-interp-x1only-dT200--convlstm-grad-JamesData-Obs20-Noise02-odenet_10-igrad10_04-dgrad100-val_loss=14.8211-epoch=218.ckpt'
 #    ckpt: 'outputs/2023-07-22/23-20-51/base_l63/checkpoints/model-l63-interp-x1onlylstm+grad-modH2-50-dT200--convlstm-grad-JamesData-Obs20-Noise02-odenet_10-igrad10_04-dgrad100-val_loss=16.6168-epoch=375.ckpt'
 #    test_fn:
