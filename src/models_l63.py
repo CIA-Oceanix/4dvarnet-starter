@@ -1013,6 +1013,55 @@ class Model_H3(torch.nn.Module):
 
         return dyout1 #[dyout, dyout1]
 
+class Model_H4(torch.nn.Module):
+    def __init__(self,shape_data,dim=5,sampling=3,padding_mode='reflect'):
+        super(Model_H4, self).__init__()
+
+        self.DimObs = 1
+        self.sampling = int(sampling)
+        self.dimObsChannel = np.array([dim])
+        dT = shape_data[1]
+
+        self.bn_x_feat = torch.nn.BatchNorm1d(self.dimObsChannel[0],track_running_stats=False)
+        self.bn_y_feat = torch.nn.BatchNorm1d(self.dimObsChannel[0],track_running_stats=False)
+
+        #self.poolx   = torch.nn.AvgPool2d((self.sampling,1))
+        #self.convx11 = torch.nn.Conv2d(shape_data[0], 2*self.dimObsChannel[0], (2*int(self.sampling/2)+1, 1), padding=(int(self.sampling/2),0), bias=False,padding_mode=padding_mode)
+        #self.convx12 = torch.nn.Conv2d(2*self.dimObsChannel[0], self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+        self.fcx     = torch.nn.Linear(shape_data[0],self.dimObsChannel[0])
+        
+        #self.convx21 = torch.nn.Conv2d(self.dimObsChannel[0], 2*self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+        #self.convx22 = torch.nn.Conv2d(2*self.dimObsChannel[0], self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
+
+        self.fcy1     = torch.nn.Linear(int(3*dT/self.sampling),self.dimObsChannel[0])
+        #self.fcy2     = torch.nn.Linear(4*self.dimObsChannel[0],self.dimObsChannel[0])
+         
+    def extract_state_feature(self,x):
+        x1     = x.view(x.size(0),-1)
+                
+        x_feat = self.fcx( x1 )
+        #x_feat = self.bn_x_feat( self.fcx( x1 ) )
+        
+        return x_feat
+
+    def extract_obs_feature(self,y):
+        y = y[:,:,::self.sampling,:]
+        y = y.view(y.size(0),-1)
+        
+        #y_feat = self.bn_y_feat( self.fcy1(y))
+        y_feat = self.fcy1(y)
+        
+        return y_feat
+
+    def forward(self, x, y, mask):
+        #dyout = (x - y) * mask
+                
+        x_feat = self.extract_state_feature(x)
+        y_feat = self.extract_obs_feature(y)
+        dyout1 = (x_feat - y_feat).view(-1,x_feat.size(1),1,1)
+
+        return dyout1 #[dyout, dyout1]
+
 class Model_H(torch.nn.Module):
     def __init__(self,shape_data):
         super(Model_H, self).__init__()
