@@ -1720,9 +1720,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             out_ode_hr = torch.nn.functional.interpolate(out[-1], scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
             targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()
 
-        print(out[0].squeeze(dim=-1).detach().cpu().numpy()[0,0,:].transpose() )
-        print(out_hr.squeeze(dim=-1).detach().cpu().numpy()[0,0,:].transpose() )
-        print(targets_GT.squeeze(dim=-1).detach().cpu().numpy()[0,0,:].transpose() )
+        #print(out[0].squeeze(dim=-1).detach().cpu().numpy()[0,0,:].transpose() )
+        #print(out_hr.squeeze(dim=-1).detach().cpu().numpy()[0,0,:].transpose() )
+        #print(targets_GT.squeeze(dim=-1).detach().cpu().numpy()[0,0,:].transpose() )
 
         mse,gmse = self.compute_mse_loss(out[0],targets_GT)
 
