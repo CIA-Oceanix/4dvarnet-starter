@@ -1113,7 +1113,7 @@ class Model_H5(torch.nn.Module):
 
 class Model_H6(torch.nn.Module):
     def __init__(self,shape_data,dim=5,sampling=3,padding_mode='reflect'):
-        super(Model_H5, self).__init__()
+        super(Model_H6, self).__init__()
 
         self.DimObs = 1
         self.sampling = int(sampling)
