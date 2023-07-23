@@ -944,7 +944,8 @@ class Model_H2(torch.nn.Module):
         x1     = self.convx12( torch.tanh( self.convx11(x) ) )
         x1     = self.poolx( x1 ).view(x1.size(0),-1)
                 
-        x_feat = self.bn_x_feat( self.fcx( torch.tanh( x1 ) ) )
+        #x_feat = self.bn_x_feat( self.fcx( torch.tanh( x1 ) ) )
+        x_feat =  self.fcx( torch.tanh( x1 ) ) 
         
         return x_feat
 
@@ -952,7 +953,8 @@ class Model_H2(torch.nn.Module):
         y = y[:,:,::self.sampling,:]
         y = y.view(y.size(0),-1)
         
-        y_feat = self.bn_y_feat( self.fcy2( torch.tanh( self.fcy1(y) ) ) )
+        y_feat = self.fcy2( torch.tanh( self.fcy1(y) ) )
+        #y_feat = self.bn_y_feat( self.fcy2( torch.tanh( self.fcy1(y) ) ) )
         
         return y_feat
 
