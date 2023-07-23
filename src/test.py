@@ -440,9 +440,9 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     print(".. rmse all: %.3f "%mse,flush=True)
     
     for tt in range(X_val.shape[2]):
-        dt = tt - (X_val.shape[2]-lit_mod.hparams.dt_forecast)
-        rmse = np.sqrt( np.mean( (X_val[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast+dt]-x_rec[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast+dt] )**2 ) )
-        rmse_ode = np.sqrt( np.mean( (X_val[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast+dt]-x_ode[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast+dt] )**2 ) )
+        dt = tt - (X_val.shape[2]-(lit_mod.hparams.dt_forecast+1)*lit_mod.hparams.integration_step)
+        rmse = np.sqrt( np.mean( (X_val[:,:,tt]-x_rec[:,:,tt] )**2 ) )
+        rmse_ode = np.sqrt( np.mean( (X_val[:,:,tt]-x_ode[:,:,tt] )**2 ) )
         print(".. dt = %d -- rmse = %.3f -- %.3f"%(dt,rmse_ode,rmse))
 
     
