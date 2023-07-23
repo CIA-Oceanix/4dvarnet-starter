@@ -86,7 +86,7 @@ model:
   mod_H:
     _target_: src.models_l63.Model_H3 #src.models_l63.Model_H # src.models_l63.Model_H_with_relu # src.models_l63.Model_HwithSSTBN_nolin_tanh #src.models_l63.Model_HwithTrainableLocalisation #src.models_l63.Model_HwithLocalisation
     shape_data: ${model.params.shapeData}
-    dim: 20
+    dim: 50
     sampling: ${datamodule.input_data.param_dataset.sampling_step}
   mod_Grad:
     _target_: src.solver_l63.model_Grad_with_lstm
@@ -112,7 +112,7 @@ trainer:
     save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 400
+  max_epochs: 800
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
