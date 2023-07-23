@@ -1028,7 +1028,7 @@ class Model_H4(torch.nn.Module):
         #self.poolx   = torch.nn.AvgPool2d((self.sampling,1))
         #self.convx11 = torch.nn.Conv2d(shape_data[0], 2*self.dimObsChannel[0], (2*int(self.sampling/2)+1, 1), padding=(int(self.sampling/2),0), bias=False,padding_mode=padding_mode)
         #self.convx12 = torch.nn.Conv2d(2*self.dimObsChannel[0], self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
-        self.fcx     = torch.nn.Linear(shape_data[0],self.dimObsChannel[0])
+        self.fcx     = torch.nn.Linear(shape_data[0]*shape_data[1],self.dimObsChannel[0])
         
         #self.convx21 = torch.nn.Conv2d(self.dimObsChannel[0], 2*self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
         #self.convx22 = torch.nn.Conv2d(2*self.dimObsChannel[0], self.dimObsChannel[0], (3, 1), padding=(1,0), bias=False,padding_mode=padding_mode)
