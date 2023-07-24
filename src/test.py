@@ -474,8 +474,28 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     if lit_mod.hparams.dT_test > lit_mod.hparams.dT :
         print('............... Simulation for the test time window: %d'%lit_mod.hparams.dT_test)
         
-        # update the test dm
-
+        lit_mod.hparams.simu_test_all_steps = True
+        
+        trainer.test(lit_mod, dataloaders=dm.test_dataloader())
+        
+        X_test, x_test, mask_test, x_test_Init, x_test_obs = dm.input_data[1]
+        x_rec = lit_mod.x_rec
+        x_ode = lit_mod.x_ode
+    
+        X_test = X_test[:,:,:]
+        mask_test = mask_test[:,:,:]
+        
+        print()
+        print()
+        print("..... Performance (test data): ode vs. 4dvarnet (all test time window)")
+        rmse = np.sqrt( np.mean( (X_test[:,:,t_last_obs_hr+1:lit_mod.hparams.dT_test]-x_rec[:,:,t_last_obs_hr+1:lit_mod.hparams.dT_test])**2 ) )
+        print(".. rmse all: %.3f "%rmse)
+        for tt in range(lit_mod.hparams.dT_test):
+            dt = tt - t_last_obs_hr
+            rmse = np.sqrt( np.mean( (X_test[:,:,tt]-x_rec[:,:,tt] )**2 ) )
+            rmse_ode = np.sqrt( np.mean( (X_test[:,:,tt]-x_ode[:,:,tt] )**2 ) )
+            print(".. dt = %d -- rmse = %.3f -- %.3f"%(dt,rmse_ode,rmse))
+        
     
     
     # saving dataset
