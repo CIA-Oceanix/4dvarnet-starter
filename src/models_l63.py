@@ -1791,10 +1791,11 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                     print(out_all_seq_hr.shape)
                     print(t0)
 
-                    inputs_init[:,:,:t0,:] = torch.Tensor(out_all_seq_hr[:,:,:t0].reshape((-1,inputs_init.size(1),t0,1)))
+                    x_sim = out_all_seq_hr[:,:,:t0].reshape((-1,inputs_init.size(1),t0,1))
+                    inputs_init[:,:,:t0,:] = torch.Tensor(x_sim)
 
-                    inputs_obs[:,:,:t0] = torch.Tensor(self.x_rec[:,:,:t0])
-                    masks[:,:,:t0] = torch.Tensor(torch.ones(self.x_rec[:,:,:t0]))
+                    inputs_obs[:,:,:t0,:] = torch.Tensor(x_sim)
+                    masks[:,:,:t0] = torch.Tensor(torch.ones(x_sim))
                     
                     test_batch = inputs_init,inputs_obs,masks,targets_GT
                     test_batch = self.extract_data_patch(test_batch,t0)
