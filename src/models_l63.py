@@ -1694,18 +1694,26 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 
         self.x_ode = None
         
-    def extract_data_patch(self,batch):
+    def extract_data_patch(self,batch,t0=0):
         inputs_init_,inputs_obs,masks,targets_GT = batch
 
-        if inputs_init_.size(2) > self.hparams.shapeData[1] :
+        if t0 > 0 :
+            if inputs_init_.size(2) > self.hparams.shapeData[1] :
+                dT   = self.hparams.shapeData[1]
+                step = self.hparams.integration_step
+                
+                inputs_init_ = inputs_init_[:,:,:step*dT:step]
+                inputs_obs = inputs_obs[:,:,:step*dT:step]
+                masks = masks[:,:,:step*dT:step]
+                targets_GT = targets_GT[:,:,:step*dT]
+        else:
             dT   = self.hparams.shapeData[1]
             step = self.hparams.integration_step
             
-            inputs_init_ = inputs_init_[:,:,:step*dT:step]
-            inputs_obs = inputs_obs[:,:,:step*dT:step]
-            masks = masks[:,:,:step*dT:step]
-            targets_GT = targets_GT[:,:,:step*dT]
-        
+            inputs_init_ = inputs_init_[:,:,t0:t0+step*dT:step]
+            inputs_obs = inputs_obs[:,:,t0:t0+step*dT:step]
+            masks = masks[:,:,t0:t0+step*dT:step]
+            targets_GT = targets_GT[:,:,t0:t0+step*dT]
 
         return inputs_init_,inputs_obs,masks,targets_GT
 
@@ -1721,49 +1729,103 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
     def test_step(self, test_batch, batch_idx):
         
-        test_batch = self.extract_data_patch(test_batch)
-
-        inputs_init,inputs_obs,masks,targets_GT = test_batch
-        
-        if self.hparams.sig_obs_noise > 0. :
-            inputs_init = inputs_init + self.hparams.sig_obs_noise * masks *  torch.randn( masks.size() ).to(device)
-            inputs_obs = inputs_init
-            
-            test_batch = inputs_init,inputs_obs,masks,targets_GT
-        
-        self.hparams.sig_obs_noise
-        
-        loss, out, metrics = self.compute_loss(test_batch, phase='test')
+        if self.simu_test_all_steps == False :
+            test_batch = self.extract_data_patch(test_batch)
     
-        for kk in range(0,self.hparams.k_n_grad-1):
-            loss1, out, metrics = self.compute_loss(test_batch, phase='test',batch_init=out[0].detach(),hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
-
-        if self.hparams.integration_step > 1 :
-            out_hr = torch.nn.functional.interpolate(out[0], scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, recompute_scale_factor=None, antialias=False)                
-            out_ode_hr = torch.nn.functional.interpolate(out[-1], scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
-            targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()
-
-        #print(out[0].squeeze(dim=-1).detach().cpu().numpy()[0,0,:].transpose() )
-        #print(out_hr.squeeze(dim=-1).detach().cpu().numpy()[0,0,:].transpose() )
-        #print(targets_GT.squeeze(dim=-1).detach().cpu().numpy()[0,0,:].transpose() )
-
-        mse,gmse = self.compute_mse_loss(out[0],targets_GT)
-
-        var_cost_grad = self.loss_var_cost_grad(targets_GT_lr,inputs_obs,masks,phase='test')
+            inputs_init,inputs_obs,masks,targets_GT = test_batch
+            
+            if self.hparams.sig_obs_noise > 0. :
+                inputs_init = inputs_init + self.hparams.sig_obs_noise * masks *  torch.randn( masks.size() ).to(device)
+                inputs_obs = inputs_init
                 
-        self.log("test_mse", self.stdTr**2 * mse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("test_gmse", self.stdTr**2 * gmse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("test_gvar", var_cost_grad , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+                test_batch = inputs_init,inputs_obs,masks,targets_GT
+            
+            self.hparams.sig_obs_noise
+            
+            loss, out, metrics = self.compute_loss(test_batch, phase='test')
+        
+            for kk in range(0,self.hparams.k_n_grad-1):
+                loss1, out, metrics = self.compute_loss(test_batch, phase='test',batch_init=out[0].detach(),hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
+    
+            if self.hparams.integration_step > 1 :
+                out_hr = torch.nn.functional.interpolate(out[0], scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, recompute_scale_factor=None, antialias=False)                
+                out_ode_hr = torch.nn.functional.interpolate(out[-1], scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
+                targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()
+    
+            #print(out[0].squeeze(dim=-1).detach().cpu().numpy()[0,0,:].transpose() )
+            #print(out_hr.squeeze(dim=-1).detach().cpu().numpy()[0,0,:].transpose() )
+            #print(targets_GT.squeeze(dim=-1).detach().cpu().numpy()[0,0,:].transpose() )
+    
+            mse,gmse = self.compute_mse_loss(out[0],targets_GT)
+    
+            var_cost_grad = self.loss_var_cost_grad(targets_GT_lr,inputs_obs,masks,phase='test')
+                    
+            self.log("test_mse", self.stdTr**2 * mse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+            self.log("test_gmse", self.stdTr**2 * gmse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+            self.log("test_gvar", var_cost_grad , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
 
-        if self.x_rec is None :
-            self.x_rec = out_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
-            self.x_gt  = targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
-            self.x_ode = out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
+            if self.x_rec is None :
+                self.x_rec = out_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
+                self.x_gt  = targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
+                self.x_ode = out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
+            else:
+                self.x_rec = np.concatenate((self.x_rec,out_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
+                self.x_gt  = np.concatenate((self.x_gt,targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
+                self.x_ode  = np.concatenate((self.x_ode,out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
+
         else:
-            self.x_rec = np.concatenate((self.x_rec,out_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
-            self.x_gt  = np.concatenate((self.x_gt,targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
-            self.x_ode  = np.concatenate((self.x_ode,out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
+            delta_t0 = (self.hparams.dt_forecast+1)*self.hparams.integration_step-1
+            for t0 in range(0,self.hparams.dT_test,delta_t0):                                    
+                
+                if t0 > 0 :
+                    inputs_init,inputs_obs,masks,targets_GT = test_batch
 
+                    inputs_init[:,:,:t0] = torch.Tensor(self.x_rec[:,:,:t0])
+
+                    inputs_obs[:,:,:t0] = torch.Tensor(self.x_rec[:,:,:t0])
+                    masks[:,:,:t0] = torch.Tensor(torch.ones(self.x_rec[:,:,:t0]))
+                    
+                    test_batch = inputs_init,inputs_obs,masks,targets_GT
+                    test_batch = self.extract_data_patch(test_batch,t0)
+                    
+                else:
+                    test_batch = self.extract_data_patch(test_batch,t0)
+
+            
+                if self.hparams.sig_obs_noise > 0. :
+                    inputs_init = inputs_init + self.hparams.sig_obs_noise * masks *  torch.randn( masks.size() ).to(device)
+                    inputs_obs = inputs_init
+                    
+                    test_batch = inputs_init,inputs_obs,masks,targets_GT
+                
+                self.hparams.sig_obs_noise
+                
+                loss, out, metrics = self.compute_loss(test_batch, phase='test')
+        
+                for kk in range(0,self.hparams.k_n_grad-1):
+                    loss1, out, metrics = self.compute_loss(test_batch, phase='test',batch_init=out[0].detach(),hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
+        
+                if self.hparams.integration_step > 1 :
+                    out_hr = torch.nn.functional.interpolate(out[0], scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, recompute_scale_factor=None, antialias=False)                
+                    out_ode_hr = torch.nn.functional.interpolate(out[-1], scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
+                    targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()
+                
+                if t0 == 0:
+                    out_all_seq_hr  = out_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
+                    out_all_seq_ode = out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
+                else:
+                    out_all_seq_hr  = np.concatenate( (out_all_seq_hr,out_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr) , axis=2)
+                    out_all_seq_ode = np.concatenate( (out_all_seq_ode,out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr) , axis=2)
+
+            if self.x_rec is None :
+                self.x_rec = out_all_seq_hr
+                self.x_gt  = targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
+                self.x_ode = out_all_seq_ode
+            else:
+                self.x_rec = np.concatenate((self.x_rec,out_all_seq_hr),axis=0)
+                self.x_gt  = np.concatenate((self.x_gt,targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
+                self.x_ode  = np.concatenate((self.x_ode,out_all_seq_ode),axis=0)
+    
     def compute_mse_loss(self,rec,targets_GT):
         
         if self.hparams.integration_step > 1 :
@@ -1797,6 +1859,31 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 x_pred = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast*self.hparams.integration_step+1)                    
                 self.ode_solver.IntScheme = self.hparams.base_ode_solver
                 self.ode_solver.dt = 0.01 * self.hparams.time_step_ode
+                
+                def AnDA_Lorenz_63(S,t,sigma,rho,beta):
+                    """ Lorenz-63 dynamical model. """
+                    x_1 = sigma*(S[1]-S[0]);
+                    x_2 = S[0]*(rho-S[2])-S[1];
+                    x_3 = S[0]*S[1] - beta*S[2];
+                    dS  = np.array([x_1,x_2,x_3]);
+                    return dS
+                class GD:
+                    model = 'Lorenz_63'
+                    class parameters:
+                        sigma = 10.0
+                        rho = 28.0
+                        beta = 8.0/3
+                    dt_integration = 0.01 # integration time
+                    
+                tf = GD.time_integration * (self.hparams.dt_forecast*self.hparams.integration_step+1)
+                
+                y0 = inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1).detach().cpu().numpy()
+                tt = np.arange(GD.dt_integration,tf+0.000001,GD.dt_integration)
+                S = solve_ivp(fun=lambda t,y: AnDA_Lorenz_63(y,t,GD.parameters.sigma,GD.parameters.rho,GD.parameters.beta),t_span=[GD.dt_integration,tf+0.000001],y0=y0,first_step=GD.dt_integration,t_eval=tt,method='RK45')
+                
+                print(S.y.transpose())
+                print(x_pred.detach().cpu().numpy().transpose())
+                print('xxxx')
                 
                 targets_GT = torch.cat((targets_GT[:,:,:inputs_init_.size(2)*self.hparams.integration_step-self.hparams.dt_forecast*self.hparams.integration_step-1],x_pred),dim=2)
                 
