@@ -1737,7 +1737,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
     def test_step(self, test_batch, batch_idx):
         
-        if self.simu_test_all_steps == False :
+        if self.hparams.simu_test_all_steps == False :
             test_batch = self.extract_data_patch(test_batch)
     
             inputs_init,inputs_obs,masks,targets_GT = test_batch
