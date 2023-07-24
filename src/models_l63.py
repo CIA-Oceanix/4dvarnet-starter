@@ -1834,8 +1834,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                     #out_all_seq_ode = np.concatenate( (out_all_seq_ode,out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() ) , axis=2)
 
                 # reference ODE solution
-                y0 = torch.Tensor( out_all_seq_hr[:,:,0] ).view(-1,out_all_seq_hr.shape[1],1)
-                out_all_seq_ode = self.ode_solver.solve_from_initial_condition(y0.view(-1,y0.size(1),1),(self.hparams.dt_forecast+1)*self.hparams.integration_step-1)  
+                y0 = torch.Tensor( out_all_seq_hr[:,:,0] ).view(-1,out_all_seq_hr.shape[1],1).to(device)
                 out_all_seq_ode = self.ode_solver.solve_from_initial_condition(y0.view(-1,y0.size(1),1),out_all_seq_hr.shape[2]-1)                                      
                 out_all_seq_ode = out_all_seq_ode.detach().cpu().numpy()
 
