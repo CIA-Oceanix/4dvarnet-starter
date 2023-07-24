@@ -19,7 +19,7 @@ datamodule:
       time_step: ??
       dT: 32
       dT_test: 32
-      dt_forecast: ${add:${datamodule.input_data.param_dataset.dT},1}
+      dt_forecast: ${subtract:${datamodule.input_data.param_dataset.dT},1}
       varNoise: 0.
       sampling_step: 1
       flagTypeMissData: -1

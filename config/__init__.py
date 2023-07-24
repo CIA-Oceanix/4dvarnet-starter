@@ -17,6 +17,7 @@ OmegaConf.register_new_resolver(
 
 
 OmegaConf.register_new_resolver("add", lambda x,y: int(x+y), replace=True)
+OmegaConf.register_new_resolver("subtract", lambda x,y: int(x-y), replace=True)
 OmegaConf.register_new_resolver("mul", lambda x,y: int(x)*y, replace=True)
 OmegaConf.register_new_resolver("div", lambda x,y: int(x/y+0.5), replace=True)
 
