@@ -1878,6 +1878,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 tf = GD.time_integration * (self.hparams.dt_forecast*self.hparams.integration_step+1)
                 
                 y0 = inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1).detach().cpu().numpy()
+                y0 = self.stdTr * y0 + self.meanTr
                 tt = np.arange(GD.dt_integration,tf+0.000001,GD.dt_integration)
                 S = solve_ivp(fun=lambda t,y: AnDA_Lorenz_63(y,t,GD.parameters.sigma,GD.parameters.rho,GD.parameters.beta),t_span=[GD.dt_integration,tf+0.000001],y0=y0,first_step=GD.dt_integration,t_eval=tt,method='RK45')
                 
