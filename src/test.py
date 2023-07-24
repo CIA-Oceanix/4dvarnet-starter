@@ -500,8 +500,32 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
             rmse = np.sqrt( np.mean( (X_test[:,:,tt]-x_rec[:,:,tt] )**2 ) )
             rmse_ode = np.sqrt( np.mean( (X_test[:,:,tt]-x_ode[:,:,tt] )**2 ) )
             print(".. dt = %d -- rmse = %.3f -- %.3f"%(dt,rmse_ode,rmse))
+
+        def ode_Lorenz_63(S,sigma,rho,beta):
+            """ Lorenz-63 dynamical model. """
+            x_1 = sigma*(S[:,1,:]-S[:,0,:]);
+            x_2 = S[:,0,:]*(rho-S[:,2,:])-S[:,1,:];
+            x_3 = S[:,0,:]*S[:,1,:] - beta*S[:,2,:];
+            
+            dS  = np.concatenate((x_1,x_2,x_3),axis=1);
+            return dS
         
-    
+        
+        
+        def compute_mse_implicit_solver(x):
+            sigma = 10.0
+            rho = 28.0
+            beta = 8.0/3
+            dt = lit_mod.ode_solver.dt
+            
+            fode = ode_Lorenz_63( x ,sigma,rho,beta)
+            err = x[:,:,1:] - x[:,:,:-1]- dt * fode[:,:,1:]
+            
+            return np.mean( err**2 )
+
+        print('.... RMSE wrt implicit integration error :')
+        print('.... NN solver: %.3f'%np.sqrt( compute_mse_implicit_solver( x_rec ) ))
+        print('.... Ref solver: %.3f'%np.sqrt( compute_mse_implicit_solver( X_test[:,:,x_rec.shape[2]] ) ))
     
     # saving dataset
     if 1*0 :
