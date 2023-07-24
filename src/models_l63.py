@@ -1902,8 +1902,14 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                     #print(y0.detach().cpu().numpy().transpose() )
                     print(y_ode[kk,:4].squeeze() )
                 print('....')
+                
+                print( self.ode_solver._RK4Solver( y0.view(1,-1,1) ).detach().cpu().numpy().transpose()  )
+                
+                
                 print('.... mse = %f'%np.mean( (y_ode[:,1:4]-x_pred[0,:,:3].detach().cpu().numpy())**2))
                 print('xxxx')
+                
+                
                 
                 self.ode_solver.IntScheme = self.hparams.base_ode_solver
                 self.ode_solver.dt = 0.01 * self.hparams.time_step_ode
