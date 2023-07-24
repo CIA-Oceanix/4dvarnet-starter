@@ -1347,11 +1347,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         self.set_norm_stats = stats_training_data if stats_training_data is not None else (0.0,1.)
         self._set_norm_stats()
-        
-        if self.model.phi_r.model_name == 'ode':
-            self.model.phi_r.meanTr = self.meanTr
-            self.model.phi_r.stdTr = self.stdTr
-        
+                
         self.automatic_optimization = True
         self.epsilon = 1e-6
         
@@ -1430,9 +1426,9 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.meanTr = self.set_norm_stats[0]
         self.stdTr = self.set_norm_stats[1]   
         
-        if hasattr(self.phi_r, 'meanTr'):
-            self.phi_r.meanTr = self.meanTr
-            self.phi_r.stdTr = self.stdTr
+        if hasattr(self.model.phi_r, 'meanTr'):
+            self.model.phi_r.meanTr = self.meanTr
+            self.model.phi_r.stdTr = self.stdTr
         
     def on_train_epoch_start(self):
         self.model.n_grad = self.hparams.n_grad 
