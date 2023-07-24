@@ -1686,12 +1686,19 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                                                        stats_training_data=None,*args, **kwargs)
 
     
-        self.ode_solver = Phi_ode(self.meanTr,self.stdTr)
+        self.ode_solver = Phi_ode()
         self.ode_solver.IntScheme = self.hparams.base_ode_solver #'rk4' #'euler'
         self.ode_solver.dt = 0.01 * self.hparams.time_step_ode
         self.init_state = 'ode_solver'
                 
         self.x_ode = None
+        
+    def _set_norm_stats(self):
+        self.meanTr = self.set_norm_stats[0]
+        self.stdTr = self.set_norm_stats[1]        
+
+        self.ode_solver.meanTr = self.meanTr
+        self.ode_solver.stdTr = self.stdTr
         
     def extract_data_patch(self,batch,t0=0):
         inputs_init_,inputs_obs,masks,targets_GT = batch
