@@ -416,7 +416,7 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     
     # time windows
     dT_hr = lit_mod.hparams.shapeData[1]*lit_mod.hparams.integration_step
-    t_last_obs_hr = lit_mod.hparams.shapeData[1]-(lit_mod.hparams.dt_forecast+1)*lit_mod.hparams.integration_step
+    t_last_obs_hr = lit_mod.hparams.shapeData[1]*lit_mod.hparams.integration_step-(lit_mod.hparams.dt_forecast+1)*lit_mod.hparams.integration_step
     t_forecast_hr = (lit_mod.hparams.dt_forecast+1)*lit_mod.hparams.integration_step-1
     
     
