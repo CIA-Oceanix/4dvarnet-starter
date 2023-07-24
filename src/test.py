@@ -467,15 +467,6 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
 
     X_test = X_test[:,:,:dT_hr]
     mask_test = mask_test[:,:,:dT_hr]
-
-    var_test  = np.mean( (X_test - np.mean(X_test,axis=0))**2 )
-    mse = np.mean( (x_rec-X_test) **2 ) 
-    mse_i   = np.mean( (1.-mask_test.squeeze()) * (x_rec-X_test) **2 ) / np.mean( (1.-mask_test) )
-    mse_r   = np.mean( mask_test.squeeze() * (x_rec-X_test) **2 ) / np.mean( mask_test )
-    
-    nmse = mse / var_test
-    nmse_i = mse_i / var_test
-    nmse_r = mse_r / var_test
     
     print()
     print()
@@ -487,10 +478,6 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
         rmse = np.sqrt( np.mean( (X_test[:,:,tt]-x_rec[:,:,tt] )**2 ) )
         rmse_ode = np.sqrt( np.mean( (X_test[:,:,tt]-x_ode[:,:,tt] )**2 ) )
         print(".. dt = %d -- rmse = %.3f -- %.3f"%(dt,rmse_ode,rmse))
-
-    print(".. MSE ALL.   : %.3f / %.3f"%(mse,nmse))
-    print(".. MSE ObsData: %.3f / %.3f"%(mse_r,nmse_r))
-    print(".. MSE Interp : %.3f / %.3f"%(mse_i,nmse_i))     
     
     if lit_mod.hparams.dT_test > lit_mod.hparams.dT :
         print('............... Simulation for the test time window: %d'%lit_mod.hparams.dT_test)
@@ -500,7 +487,8 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     
     
     # saving dataset
-    result_path = ckpt.replace('.ckpt','_res.nc')
-    print('..... save .c file with results: '+result_path)
-    
-    save_netcdf(result_path, X_test, x_rec, x_ode.squeeze(), mask_test.squeeze() )
+    if 1*0 :
+        result_path = ckpt.replace('.ckpt','_res.nc')
+        print('..... save .c file with results: '+result_path)
+        
+        save_netcdf(result_path, X_test, x_rec, x_ode.squeeze(), mask_test.squeeze() )
