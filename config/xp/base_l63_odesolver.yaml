@@ -18,7 +18,7 @@ datamodule:
       NbTest: 1000
       time_step: ??
       dT: 4
-      dT_test: 8
+      dT_test: 12
       dt_forecast: ??
       varNoise: 0.
       sampling_step: 1
