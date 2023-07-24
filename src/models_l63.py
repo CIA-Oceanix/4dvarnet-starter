@@ -1489,10 +1489,10 @@ class Lit4dVarNet_L63(pl.LightningModule):
             if self.hparams.post_median_filter == True :
                 out[0] = kornia.filters.median_blur(out[0], (self.hparams.median_filter_width, 1))
         
-        mse,gmse = self.compute_mse_loss(out[0],targets_GT)
+        mse_score = self.compute_mse_loss(out[0],targets_GT)
 
-        self.log("tr_mse", self.stdTr**2 * mse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("tr_gmse", self.stdTr**2 * gmse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("tr_mse", self.stdTr**2 * mse_score[0] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("tr_gmse", self.stdTr**2 * mse_score[1] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         
         # initial grad value
         if self.hparams.automatic_optimization == False :
