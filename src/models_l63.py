@@ -1749,9 +1749,8 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             if self.hparams.post_median_filter == True :
                 out[0] = kornia.filters.median_blur(out[0], (self.hparams.median_filter_width, 1))
 
-        mse,gmse = self.compute_mse_loss(out[0],targets_GT)
+        mse,gmse,mse_implicit_integration = self.compute_mse_loss(out[0],targets_GT)
         var_cost_grad = self.loss_var_cost_grad(targets_GT,inputs_obs,masks,phase='test')
-        mse_implicit_integration = self.compute_implicit_euler_loss(out[0])
 
         self.log('val_loss', 1e3 * loss , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log("val_mse", self.stdTr**2 * mse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
