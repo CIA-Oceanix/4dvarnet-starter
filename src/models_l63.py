@@ -1761,9 +1761,6 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 out_ode_hr = torch.nn.functional.interpolate(out[-1], scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
                 targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()
     
-            #print(out[0].squeeze(dim=-1).detach().cpu().numpy()[0,0,:].transpose() )
-            #print(out_hr.squeeze(dim=-1).detach().cpu().numpy()[0,0,:].transpose() )
-            #print(targets_GT.squeeze(dim=-1).detach().cpu().numpy()[0,0,:].transpose() )
     
             mse,gmse = self.compute_mse_loss(out[0],targets_GT)
     
@@ -1865,16 +1862,22 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 self.ode_solver.IntScheme = 'rk4'
                 self.ode_solver.dt = 0.01 # * self.hparams.time_step_ode / self.hparams.integration_step
                 
-                print( self.ode_solver.meanTr )
-                print( self.ode_solver.stdTr )
+                #print( self.ode_solver.meanTr )
+                #print( self.ode_solver.stdTr )
                 
                 y0 = inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1)
                 y0 = targets_GT[:,:,0].view(-1,inputs_init_.size(1),1)
                 
-                print( inputs_init_[0,:,0].detach().cpu().numpy().transpose() * self.stdTr + self.meanTr )
-                print( targets_GT[0,:,0].detach().cpu().numpy().transpose() * self.stdTr  + self.meanTr )
+                #print( inputs_init_[0,:,0].detach().cpu().numpy().transpose() * self.stdTr + self.meanTr )
+                #print( targets_GT[0,:,0].detach().cpu().numpy().transpose() * self.stdTr  + self.meanTr )
                 
                 x_pred = self.ode_solver.solve_from_initial_condition(y0.view(-1,y0.size(1),1),self.hparams.dt_forecast*self.hparams.integration_step+1)                    
+
+
+                for kk in range(0,3):
+                    print('--')
+                    print(x_pred[0,kk,:4].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
+                    print(targets_GT[0,kk,:4].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
 
                 def AnDA_Lorenz_63(S,t,sigma,rho,beta):
                     """ Lorenz-63 dynamical model. """
@@ -1896,7 +1899,6 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 
                 y0 = self.stdTr * y0[0,:].squeeze() + self.meanTr
                 
-                
                 print( self.ode_solver._odeL63(y0.view(1,-1,1)).detach().cpu().numpy().transpose() )
                 print( AnDA_Lorenz_63(y0.detach().cpu().numpy(),0.,GD.parameters.sigma,GD.parameters.rho,GD.parameters.beta) )
                 print()
@@ -1904,29 +1906,27 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 S = solve_ivp(fun=lambda t,y: AnDA_Lorenz_63(y,t,GD.parameters.sigma,GD.parameters.rho,GD.parameters.beta),t_span=[GD.dt_integration,tf+0.000001],y0=y0.detach().cpu().numpy(),first_step=GD.dt_integration,t_eval=tt,method='RK45')
                 y_ode = S.y#.transpose() 
                 
-                print(y_ode.shape)
-                print(self.ode_solver.dt)
-                print(self.ode_solver.IntScheme)
-                print()
-                for kk in range(0,3):
-                    print('--')
-                    print(x_pred[0,kk,:4].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
-                    print(targets_GT[0,kk,:4].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
+                #print(y_ode.shape)
+                #print(self.ode_solver.dt)
+                #print(self.ode_solver.IntScheme)
+                #print()
+                #for kk in range(0,3):
+                #    print('--')
+                #    print(x_pred[0,kk,:4].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
+                #    print(targets_GT[0,kk,:4].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
                     #print(y0.detach().cpu().numpy().transpose() )
-                    print(y_ode[kk,:4].squeeze() )
-                print('....')                
-                print( self.ode_solver._RK4Solver( y0.view(1,-1,1) ).detach().cpu().numpy()  )
-                print( self.ode_solver._EulerSolver( y0.view(1,-1,1) ).detach().cpu().numpy()  )
+                #    print(y_ode[kk,:4].squeeze() )
+                #print('....')                
+                #print( self.ode_solver._RK4Solver( y0.view(1,-1,1) ).detach().cpu().numpy()  )
+                #print( self.ode_solver._EulerSolver( y0.view(1,-1,1) ).detach().cpu().numpy()  )
                                 
-                print('.... mse = %f'%np.mean( (y_ode[:,1:4]-x_pred[0,:,:3].detach().cpu().numpy())**2))
-                print('xxxx')
+                #print('.... mse = %f'%np.mean( (y_ode[:,1:4]-x_pred[0,:,:3].detach().cpu().numpy())**2))
+                #print('xxxx')
                 
-                
-                
-                self.ode_solver.IntScheme = self.hparams.base_ode_solver
-                self.ode_solver.dt = 0.01 * self.hparams.time_step_ode
+                #self.ode_solver.IntScheme = self.hparams.base_ode_solver
+                #self.ode_solver.dt = 0.01 * self.hparams.time_step_ode
 
-                targets_GT = torch.cat((targets_GT[:,:,:inputs_init_.size(2)*self.hparams.integration_step-self.hparams.dt_forecast*self.hparams.integration_step-1],x_pred),dim=2)
+                #targets_GT = torch.cat((targets_GT[:,:,:inputs_init_.size(2)*self.hparams.integration_step-self.hparams.dt_forecast*self.hparams.integration_step-1],x_pred),dim=2)
                 
                 targets_GT = targets_GT.detach()
                     
