@@ -1876,7 +1876,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                     dt_integration = 0.01 # integration time
                     
                 GD = GD()
-                tf = GD.time_integration * (self.hparams.dt_forecast*self.hparams.integration_step+1)
+                tf = GD.dt_integration * (self.hparams.dt_forecast*self.hparams.integration_step+1)
                 
                 y0 = inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1).detach().cpu().numpy()
                 y0 = self.stdTr * y0 + self.meanTr
