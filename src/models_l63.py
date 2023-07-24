@@ -1857,7 +1857,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 self.ode_solver.dt = 0.01 # * self.hparams.time_step_ode / self.hparams.integration_step
                 
                 y0 = inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1)
-                y0 = targets_GT[0,:,0].view(-1,inputs_init_.size(1),1)
+                y0 = targets_GT[:,:,0].view(-1,inputs_init_.size(1),1)
                 
                 print( inputs_init_[0,:,0].detach().cpu().numpy().transpose() )
                 print( targets_GT[0,:,0].detach().cpu().numpy().transpose() )
