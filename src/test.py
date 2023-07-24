@@ -437,20 +437,12 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     
     x_rec = lit_mod.x_rec#[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
     x_ode = lit_mod.x_ode
-    
-    var_val  = np.mean( (X_val - np.mean(X_val,axis=0))**2 )
-    mse = np.mean( (x_rec-X_val) **2 ) 
-    mse_i   = np.mean( (1.-mask_val.squeeze()) * (x_rec-X_val) **2 ) / np.mean( (1.-mask_val) )
-    mse_r   = np.mean( mask_val.squeeze() * (x_rec-X_val) **2 ) / np.mean( mask_val )
-    
-    nmse = mse / var_val
-    nmse_i = mse_i / var_val
-    nmse_r = mse_r / var_val
+        
     
     print("..... Performance (validation data)")
     print('.... dt_forecast = %d'%lit_mod.hparams.dt_forecast)
     rmse = np.sqrt( np.mean( (X_val[:,:,t_last_obs_hr+1:]-x_rec[:,:,t_last_obs_hr+1:])**2 ) )
-    print(".. rmse all: %.3f "%mse,flush=True)
+    print(".. rmse all: %.3f "%rmse,flush=True)
     
     for tt in range(X_val.shape[2]):
         dt = tt - t_last_obs_hr
