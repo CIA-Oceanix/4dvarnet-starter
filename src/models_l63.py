@@ -1828,13 +1828,16 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                     
                 if t0 == 0:
                     out_all_seq_hr  = out_hr.squeeze(dim=-1).detach().cpu().numpy() 
-                    out_all_seq_ode = out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() 
+                    #out_all_seq_ode = out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() 
                 else:
-                    
-                    print( )
-                    
                     out_all_seq_hr  = np.concatenate( (out_all_seq_hr[:,:,:t0],out_hr.squeeze(dim=-1).detach().cpu().numpy() ) , axis=2)
-                    out_all_seq_ode = np.concatenate( (out_all_seq_ode,out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() ) , axis=2)
+                    #out_all_seq_ode = np.concatenate( (out_all_seq_ode,out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() ) , axis=2)
+
+                # reference ODE solution
+                y0 = torch.Tensor( out_all_seq_hr[:,:,0] ).view(-1,out_all_seq_hr.shape[1],1)
+                out_all_seq_ode = self.ode_solver.solve_from_initial_condition(y0.view(-1,y0.size(1),1),(self.hparams.dt_forecast+1)*self.hparams.integration_step-1)  
+                out_all_seq_ode = self.ode_solver.solve_from_initial_condition(y0.view(-1,y0.size(1),1),out_all_seq_hr.shape[2]-1)                                      
+                out_all_seq_ode = out_all_seq_ode.detach().cpu().numpy()
 
             if self.x_rec is None :
                 self.x_rec = out_all_seq_hr * self.stdTr + self.meanTr
@@ -1870,7 +1873,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 self.ode_solver.dt = 0.01 # self.hparams.time_step_ode / self.hparams.integration_step
                 
                 y0 = inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1)
-                y0 = targets_GT[:,:,0].view(-1,inputs_init_.size(1),1)
+                #y0 = targets_GT[:,:,0].view(-1,inputs_init_.size(1),1)
                 
                 x_pred = self.ode_solver.solve_from_initial_condition(y0.view(-1,y0.size(1),1),(self.hparams.dt_forecast+1)*self.hparams.integration_step-1)                    
 
