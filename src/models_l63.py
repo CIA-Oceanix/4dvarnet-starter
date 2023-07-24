@@ -1861,7 +1861,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 print( inputs_init_[0,:,0].detach().cpu().numpy().transpose() * self.stdTr + self.meanTr )
                 print( targets_GT[0,:,0].detach().cpu().numpy().transpose() * self.stdTr  + self.meanTr )
                 
-                x_pred = self.ode_solver.solve_from_initial_condition(y0,self.hparams.dt_forecast*self.hparams.integration_step+1)                    
+                x_pred = self.ode_solver.solve_from_initial_condition(y0.view(-1,y0.size(1),1),self.hparams.dt_forecast*self.hparams.integration_step+1)                    
 
                 def AnDA_Lorenz_63(S,t,sigma,rho,beta):
                     """ Lorenz-63 dynamical model. """
