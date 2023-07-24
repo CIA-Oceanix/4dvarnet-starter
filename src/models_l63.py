@@ -521,14 +521,6 @@ class Phi_ode(torch.nn.Module):
             else:
                 Xpred = self._RK4Solver( X0 )
             
-
-            if kk == 0 :
-                print('__________')
-                print( X0[0,:,0].detach().cpu().numpy())
-                print( Xpred[0,:,0].detach().cpu().numpy())
-
-                print( self.stdTr )
-
             X0 = 1. * Xpred
             
             xpred = ( Xpred - self.meanTr ) / self.stdTr            
@@ -1862,6 +1854,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             if self.hparams.use_rk4_gpu_as_target :
                 self.ode_solver.IntScheme = 'rk4'
                 self.ode_solver.dt = 0.01 # * self.hparams.time_step_ode / self.hparams.integration_step
+                
+                print( self.ode_solver.meanTr )
+                print( self.ode_solver.stdTr )
                 
                 y0 = inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1)
                 y0 = targets_GT[:,:,0].view(-1,inputs_init_.size(1),1)
