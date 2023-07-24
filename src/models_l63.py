@@ -1785,15 +1785,6 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             for t0 in range(0,self.hparams.dT_test*self.hparams.integration_step-delta_t0,delta_t0):                                    
                 if t0 > 0 :
                     inputs_init,inputs_obs,masks,targets_GT = test_batch
-
-                    print(inputs_init.size())
-                    print(out_all_seq_hr.shape)
-                    print(t0)
-
-                    print(inputs_init[0,0,:,0])
-                    print(inputs_obs[0,0,:,0])
-                    print(masks[0,0,:,0])
-
                     x_sim = out_all_seq_hr[:,:,:t0+1].reshape((-1,inputs_init.size(1),t0+1,1))
                     inputs_init[:,:,:t0+1,:] = torch.Tensor(x_sim)
 
@@ -1803,19 +1794,10 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                     test_batch = inputs_init,inputs_obs,masks,targets_GT
                     
                     inputs_init,inputs_obs,masks,targets_GT = test_batch
-                    print(inputs_init[0,0,:,0])
-                    print(inputs_obs[0,0,:,0])
-                    print(masks[0,0,:,0])
 
                     _test_batch = self.extract_data_patch(test_batch,t0)
                     
                     inputs_init,inputs_obs,masks,targets_GT = _test_batch
-                    
-                    print('.....................')
-                    print(inputs_init[0,0,:,0])
-                    print(inputs_obs[0,0,:,0])
-                    print(masks[0,0,:,0])
-                    
                 else:
                     _test_batch = self.extract_data_patch(test_batch,t0)
 
