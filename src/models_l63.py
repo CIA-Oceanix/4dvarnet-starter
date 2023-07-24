@@ -1892,6 +1892,8 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 y_ode = S.y#.transpose() 
                 
                 print(y_ode.shape)
+                print(self.ode_solver.dt)
+                print(self.ode_solver.IntScheme)
                 print()
                 for kk in range(0,3):
                     print('--')
