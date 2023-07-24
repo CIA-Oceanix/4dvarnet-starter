@@ -1860,71 +1860,20 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
              
             if self.hparams.use_rk4_gpu_as_target :
                 self.ode_solver.IntScheme = 'rk4'
-                self.ode_solver.dt = 0.01 # * self.hparams.time_step_ode / self.hparams.integration_step
-                
-                #print( self.ode_solver.meanTr )
-                #print( self.ode_solver.stdTr )
+                self.ode_solver.dt = 0.01 # self.hparams.time_step_ode / self.hparams.integration_step
                 
                 y0 = inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1)
                 y0 = targets_GT[:,:,0].view(-1,inputs_init_.size(1),1)
                 
-                #print( inputs_init_[0,:,0].detach().cpu().numpy().transpose() * self.stdTr + self.meanTr )
-                #print( targets_GT[0,:,0].detach().cpu().numpy().transpose() * self.stdTr  + self.meanTr )
-                
                 x_pred = self.ode_solver.solve_from_initial_condition(y0.view(-1,y0.size(1),1),self.hparams.dt_forecast*self.hparams.integration_step+1)                    
-
 
                 for kk in range(0,3):
                     print('--')
                     print(x_pred[0,kk,:4].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
                     print(targets_GT[0,kk,:4].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
 
-                def AnDA_Lorenz_63(S,t,sigma,rho,beta):
-                    """ Lorenz-63 dynamical model. """
-                    x_1 = sigma*(S[1]-S[0]);
-                    x_2 = S[0]*(rho-S[2])-S[1];
-                    x_3 = S[0]*S[1] - beta*S[2];
-                    dS  = np.array([x_1,x_2,x_3]);
-                    return dS
-                class GD:
-                    model = 'Lorenz_63'
-                    class parameters:
-                        sigma = 10.0
-                        rho = 28.0
-                        beta = 8.0/3.
-                    dt_integration = 0.01 # integration time
-                    
-                GD = GD()
-                tf = GD.dt_integration * 10#(self.hparams.dt_forecast*self.hparams.integration_step+1)
-                
-                y0 = self.stdTr * y0[0,:].squeeze() + self.meanTr
-                
-                print( self.ode_solver._odeL63(y0.view(1,-1,1)).detach().cpu().numpy().transpose() )
-                print( AnDA_Lorenz_63(y0.detach().cpu().numpy(),0.,GD.parameters.sigma,GD.parameters.rho,GD.parameters.beta) )
-                print()
-                tt = np.arange(GD.dt_integration,tf+0.000001,GD.dt_integration)
-                S = solve_ivp(fun=lambda t,y: AnDA_Lorenz_63(y,t,GD.parameters.sigma,GD.parameters.rho,GD.parameters.beta),t_span=[GD.dt_integration,tf+0.000001],y0=y0.detach().cpu().numpy(),first_step=GD.dt_integration,t_eval=tt,method='RK45')
-                y_ode = S.y#.transpose() 
-                
-                #print(y_ode.shape)
-                #print(self.ode_solver.dt)
-                #print(self.ode_solver.IntScheme)
-                #print()
-                #for kk in range(0,3):
-                #    print('--')
-                #    print(x_pred[0,kk,:4].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
-                #    print(targets_GT[0,kk,:4].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
-                    #print(y0.detach().cpu().numpy().transpose() )
-                #    print(y_ode[kk,:4].squeeze() )
-                #print('....')                
-                #print( self.ode_solver._RK4Solver( y0.view(1,-1,1) ).detach().cpu().numpy()  )
-                #print( self.ode_solver._EulerSolver( y0.view(1,-1,1) ).detach().cpu().numpy()  )
-                                
-                #print('.... mse = %f'%np.mean( (y_ode[:,1:4]-x_pred[0,:,:3].detach().cpu().numpy())**2))
-                #print('xxxx')
-                
-                #self.ode_solver.IntScheme = self.hparams.base_ode_solver
-                #self.ode_solver.dt = 0.01 * self.hparams.time_step_ode
+                self.ode_solver.IntScheme = self.hparams.base_ode_solver
+                self.ode_solver.dt = 0.01 * self.hparams.time_step_ode
 
                 #targets_GT = torch.cat((targets_GT[:,:,:inputs_init_.size(2)*self.hparams.integration_step-self.hparams.dt_forecast*self.hparams.integration_step-1],x_pred),dim=2)
                 
