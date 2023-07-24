@@ -1856,11 +1856,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 self.ode_solver.IntScheme = 'rk4'
                 self.ode_solver.dt = 0.01 # * self.hparams.time_step_ode / self.hparams.integration_step
                 
-                x_pred = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast*self.hparams.integration_step+1)                    
+                y0 = inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1)
+                x_pred = self.ode_solver.solve_from_initial_condition(y0,self.hparams.dt_forecast*self.hparams.integration_step+1)                    
 
-
-
-                
                 def AnDA_Lorenz_63(S,t,sigma,rho,beta):
                     """ Lorenz-63 dynamical model. """
                     x_1 = sigma*(S[1]-S[0]);
@@ -1879,7 +1877,6 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 GD = GD()
                 tf = GD.dt_integration * (self.hparams.dt_forecast*self.hparams.integration_step+1)
                 
-                y0 = inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1)
                 y0 = self.stdTr * y0[0,:].squeeze() + self.meanTr
                 
                 
@@ -1888,12 +1885,14 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 print()
                 tt = np.arange(GD.dt_integration,tf+0.000001,GD.dt_integration)
                 S = solve_ivp(fun=lambda t,y: AnDA_Lorenz_63(y,t,GD.parameters.sigma,GD.parameters.rho,GD.parameters.beta),t_span=[GD.dt_integration,tf+0.000001],y0=y0.detach().cpu().numpy(),first_step=GD.dt_integration,t_eval=tt,method='RK45')
-                y_ode = S.y.transpose() 
+                y_ode = S.y#.transpose() 
                 
                 print(y_ode.shape)
                 print(x_pred[0,0,:3].detach().cpu().numpy().transpose() * self.stdTr + self.meanTr)
                 print(y0.detach().cpu().numpy().transpose() )
-                print(y_ode[:3,0] )
+                print(y_ode[0,:3] )
+                
+                print('mse = %f'%np.mean( (y_ode[:,1:4]-x_pred[0,:,:3].detach().cpu().numpy())**2))
                 print('xxxx')
                 
                 self.ode_solver.IntScheme = self.hparams.base_ode_solver
