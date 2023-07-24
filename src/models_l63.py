@@ -1854,11 +1854,13 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
              
             if self.hparams.use_rk4_gpu_as_target :
                 self.ode_solver.IntScheme = 'rk4'
-                self.ode_solver.dt = 0.01 * self.hparams.time_step_ode / self.hparams.integration_step
+                self.ode_solver.dt = 0.01 # * self.hparams.time_step_ode / self.hparams.integration_step
                 
                 x_pred = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast*self.hparams.integration_step+1)                    
-                self.ode_solver.IntScheme = self.hparams.base_ode_solver
-                self.ode_solver.dt = 0.01 * self.hparams.time_step_ode
+
+                print(x_pred[0,:,:8].detach().cpu().numpy().transpose() * self.stdTr + self.meanTr)
+
+
                 
                 def AnDA_Lorenz_63(S,t,sigma,rho,beta):
                     """ Lorenz-63 dynamical model. """
@@ -1885,9 +1887,11 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 y_ode = S.y.transpose() 
                 
                 print(y_ode[:8])
-                print(x_pred[0,:,:8].detach().cpu().numpy().transpose() * self.stdTr + self.meanTr)
                 print('xxxx')
                 
+                self.ode_solver.IntScheme = self.hparams.base_ode_solver
+                self.ode_solver.dt = 0.01 * self.hparams.time_step_ode
+
                 targets_GT = torch.cat((targets_GT[:,:,:inputs_init_.size(2)*self.hparams.integration_step-self.hparams.dt_forecast*self.hparams.integration_step-1],x_pred),dim=2)
                 
                 targets_GT = targets_GT.detach()
