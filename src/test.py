@@ -487,7 +487,6 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     
         X_test = X_test[:,:,:]
         mask_test = mask_test[:,:,:]
-
         
         print()
         print()
@@ -518,6 +517,7 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
             beta = 8.0/3
             dt = lit_mod.ode_solver.dt
             
+            print( x.shape )
             fode = ode_Lorenz_63( x ,sigma,rho,beta)
             err = x[:,:,1:] - x[:,:,:-1]- dt * fode[:,:,1:]
             
