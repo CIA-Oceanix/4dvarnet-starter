@@ -1780,12 +1780,14 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
         else:
             delta_t0 = (self.hparams.dt_forecast+1)*self.hparams.integration_step-1
+            out_all_seq_hr = None
+            
             for t0 in range(0,self.hparams.dT_test,delta_t0):                                    
                 
                 if t0 > 0 :
                     inputs_init,inputs_obs,masks,targets_GT = test_batch
 
-                    inputs_init[:,:,:t0] = torch.Tensor(self.x_rec[:,:,:t0])
+                    inputs_init[:,:,:t0] = torch.Tensor(out_all_seq_hr[:,:,:t0])
 
                     inputs_obs[:,:,:t0] = torch.Tensor(self.x_rec[:,:,:t0])
                     masks[:,:,:t0] = torch.Tensor(torch.ones(self.x_rec[:,:,:t0]))
