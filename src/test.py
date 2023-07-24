@@ -519,15 +519,15 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
             beta = 8.0/3
             dt = lit_mod.ode_solver.dt
             
-            print( x.shape )
             fode = ode_Lorenz_63( x ,sigma,rho,beta)
             err = x[:,:,1:] - x[:,:,:-1]- dt * fode[:,:,1:]
             
             return np.mean( err**2 )
 
+        print(X_test.shape)
         print('.... RMSE wrt implicit integration error :')
         print('.... NN solver: %.3f'%np.sqrt( compute_mse_implicit_solver( x_rec ) ))
-        print('.... Ref solver: %.3f'%np.sqrt( compute_mse_implicit_solver( X_test[:,:,x_rec.shape[2]] ) ))
+        print('.... Ref solver: %.3f'%np.sqrt( compute_mse_implicit_solver( X_test[:,:,:x_rec.shape[2]] ) ))
     
     # saving dataset
     if 1*0 :
