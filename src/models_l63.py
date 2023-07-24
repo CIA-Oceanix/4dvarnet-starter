@@ -492,6 +492,8 @@ class Phi_ode(torch.nn.Module):
         return x + self.dt * (k1+2.*k2+2.*k3+k4)/6.
   
     def forward(self, x):
+        print( self.meanTr )
+        
         X = self.stdTr * x.view(-1,x.size(1),x.size(2))
         X = X + self.meanTr
         
@@ -1426,8 +1428,11 @@ class Lit4dVarNet_L63(pl.LightningModule):
     
     def _set_norm_stats(self):
         self.meanTr = self.set_norm_stats[0]
-        self.stdTr = self.set_norm_stats[1]        
-        #print(' mean/std: %f -- %f'%(self.meanTr,self.stdTr))
+        self.stdTr = self.set_norm_stats[1]   
+        
+        if hasattr(self.phi_r, 'meanTr'):
+            self.phi_r.meanTr = self.meanTr
+            self.phi_r.stdTr = self.stdTr
         
     def on_train_epoch_start(self):
         self.model.n_grad = self.hparams.n_grad 
@@ -1696,8 +1701,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
         
     def _set_norm_stats(self):
-        self.meanTr = self.set_norm_stats[0]
-        self.stdTr = self.set_norm_stats[1]        
+        super(Lit4dVarNet_L63_OdeSolver,self)._set_norm_stats() 
         
         if hasattr(self, 'ode_solver'):
             self.ode_solver.meanTr = self.meanTr
@@ -1835,13 +1839,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
     def compute_mse_loss(self,rec,targets_GT):
         
         if self.hparams.integration_step > 1 :
-            #print(rec[0,0,:].detach().cpu().numpy().transpose())
-            #print(rec_[0,0,:].detach().cpu().numpy().transpose())
             rec = torch.nn.functional.interpolate(rec, scale_factor=(self.hparams.integration_step,1), mode='bicubic',align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
-            #print(rec[0,0,:].detach().cpu().numpy().transpose())
-            #print()
-            #rec = torch.nn.functional.interpolate(torch.squeeze(rec), scale_factor=self.hparams.integration_step, mode='linear',align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
-            #rec = rec.view(-1,rec.size(1),rec.size(2),1)
         
         rec = rec[:,:,self.hparams.dt_mse:rec.size(2)-self.hparams.dt_mse]
         gt = targets_GT[:,:,self.hparams.dt_mse:rec.size(2)-self.hparams.dt_mse]
@@ -1867,19 +1865,10 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 
                 x_pred = self.ode_solver.solve_from_initial_condition(y0.view(-1,y0.size(1),1),(self.hparams.dt_forecast+1)*self.hparams.integration_step-1)                    
 
-                print( x_pred.size() )
-                print('... mse RH4 GPU vs. targets_GT = %.2e'%torch.mean( (x_pred-targets_GT)**2 ).detach().cpu().numpy())
-                
-                #for kk in range(0,3):
-                #    print('--')
-                #    print(x_pred[0,kk,:4].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
-                #    print(targets_GT[0,kk,:4].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
-
                 self.ode_solver.IntScheme = self.hparams.base_ode_solver
                 self.ode_solver.dt = 0.01 * self.hparams.time_step_ode
                 
                 targets_GT = x_pred.detach()
-                print(targets_GT.size())
                     
             # init solution with ode solver
             inputs_init_ode = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
