@@ -506,7 +506,9 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
             x_2 = S[:,0,:]*(rho-S[:,2,:])-S[:,1,:];
             x_3 = S[:,0,:]*S[:,1,:] - beta*S[:,2,:];
             
-            dS  = np.concatenate((x_1,x_2,x_3),axis=1);
+            dS  = np.concatenate((x_1.reshape((x_1.shape[0],1,x_1.shape[1])),
+                                  x_2.reshape((x_1.shape[0],1,x_1.shape[1])),
+                                  x_3.reshape((x_1.shape[0],1,x_1.shape[1]))),axis=1);
             return dS
         
         
