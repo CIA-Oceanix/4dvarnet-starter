@@ -1901,11 +1901,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                     print(targets_GT[0,kk,:4].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
                     #print(y0.detach().cpu().numpy().transpose() )
                     print(y_ode[kk,:4].squeeze() )
-                print('....')
-                
-                print( self.ode_solver._RK4Solver( y0.view(1,-1,1) ).detach().cpu().numpy().transpose()  )
-                
-                
+                print('....')                
+                print( self.ode_solver._RK4Solver( y0.view(1,-1,1) ).detach().cpu().numpy()  )
+                                
                 print('.... mse = %f'%np.mean( (y_ode[:,1:4]-x_pred[0,:,:3].detach().cpu().numpy())**2))
                 print('xxxx')
                 
