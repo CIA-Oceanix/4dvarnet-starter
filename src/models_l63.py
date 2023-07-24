@@ -1875,12 +1875,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
         with torch.set_grad_enabled(True):
             inputs_init_,inputs_obs,masks,targets_GT = batch
-            
-            print(inputs_init_.size())
-            print(inputs_obs.size())
-            print(masks.size())
-            print(targets_GT.size())
-             
+                         
             if self.hparams.use_rk4_gpu_as_target :
                 self.ode_solver.IntScheme = 'rk4'
                 self.ode_solver.dt = 0.01 # self.hparams.time_step_ode / self.hparams.integration_step
@@ -1913,11 +1908,6 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             if phase == 'train' :                
                 inputs_init = inputs_init.detach()
             
-            print(inputs_init.size())
-            print(inputs_obs.size())
-            print(masks.size())
-            print(targets_GT.size())
-
             outputs, hidden_new, cell_new, normgrad_ = self.model(inputs_init, inputs_obs, masks, hidden = hidden , cell = cell , normgrad = normgrad, prev_iter = prev_iter )
 
             if self.hparams.integration_step > 1 :
