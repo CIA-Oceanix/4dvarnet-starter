@@ -1872,11 +1872,14 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
     def compute_implicit_euler_loss(self,rec,solver='euler'):
         
+        rec = self.meanTr + self.stdTr * rec.squeeze(dim=-1)
+        
         if solver == 'euler' :
-            fode_rec = self.ode_solver._EulerSolver(self.meanTr + self.stdTr * rec)
+            fode_rec = self.ode_solver._odeL63( rec ) 
         else:        
-            fode_rec = self.ode_solver._RK4Solver(self.meanTr + self.stdTr * rec)
-        err = rec[:,:,1:] - rec[:,:,:-1]- self.ode_solver.dt * fode_rec[:,:,1:]
+            fode_rec = ( rec - self.ode_solver._RK4Solver(rec ) ) / self.ode_solver.dt
+            
+        err = rec[:,:,1:] - rec[:,:,:-1] - self.ode_solver.dt * fode_rec[:,:,1:]
         err = err  / self.stdTr
         
         return torch.mean( err **2 )
