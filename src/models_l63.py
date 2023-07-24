@@ -513,6 +513,8 @@ class Phi_ode(torch.nn.Module):
         X0 = self.stdTr * x0
         X0 = X0 + self.meanTr
         
+        x_f = 1. * x0
+        
         for kk in range(n_step):
             if self.IntScheme == 'euler':
                 Xpred = self._EulerSolver( X0 )
@@ -521,11 +523,8 @@ class Phi_ode(torch.nn.Module):
             
             X0 = Xpred
             
-            xpred = ( Xpred - self.meanTr ) / self.stdTr
-            if kk == 0:
-                x_f = xpred
-            else:
-                x_f = torch.cat((x_f,xpred),dim=2)
+            xpred = ( Xpred - self.meanTr ) / self.stdTr            
+            x_f = torch.cat((x_f,xpred),dim=2)
 
         return x_f.view(-1,x_f.size(1),x_f.size(2),1)
 
