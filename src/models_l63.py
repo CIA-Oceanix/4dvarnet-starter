@@ -1782,6 +1782,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             delta_t0 = (self.hparams.dt_forecast+1)*self.hparams.integration_step
             out_all_seq_hr = None
             
+            print( delta_t0 )
+            print( self.hparams.dT_test )
+            
             for t0 in range(0,self.hparams.dT_test,delta_t0):                                    
                 print(t0)
                 if t0 > 0 :

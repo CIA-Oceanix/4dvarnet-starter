@@ -472,6 +472,8 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
         print(".. dt = %d -- rmse = %.3f -- %.3f"%(dt,rmse_ode,rmse))
     
     if lit_mod.hparams.dT_test > lit_mod.hparams.dT :
+        print()
+        print()
         print('............... Simulation for the test time window: %d'%lit_mod.hparams.dT_test)
         
         lit_mod.hparams.simu_test_all_steps = True
