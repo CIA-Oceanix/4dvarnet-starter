@@ -477,8 +477,9 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
         print('............... Simulation for the test time window: %d'%lit_mod.hparams.dT_test)
         
         lit_mod.hparams.simu_test_all_steps = True
-        
         trainer.test(lit_mod, dataloaders=dm.test_dataloader())
+        
+        
         
         X_test, x_test, mask_test, x_test_Init, x_test_obs = dm.input_data[1]
         x_rec = lit_mod.x_rec
@@ -486,6 +487,7 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     
         X_test = X_test[:,:,:]
         mask_test = mask_test[:,:,:]
+
         
         print()
         print()
