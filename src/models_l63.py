@@ -1787,6 +1787,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 if t0 > 0 :
                     inputs_init,inputs_obs,masks,targets_GT = test_batch
 
+                    print(inputs_init.size())
+                    print(out_all_seq_hr.shape)
+
                     inputs_init[:,:,:t0] = torch.Tensor(out_all_seq_hr[:,:,:t0])
 
                     inputs_obs[:,:,:t0] = torch.Tensor(self.x_rec[:,:,:t0])
@@ -1824,6 +1827,8 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 
                 if t0 == 0:
                     out_all_seq_hr  = out_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
+                    print(out_all_seq_hr.shape)
+
                     out_all_seq_ode = out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
                 else:
                     out_all_seq_hr  = np.concatenate( (out_all_seq_hr,out_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr) , axis=2)
