@@ -1867,17 +1867,16 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 
                 x_pred = self.ode_solver.solve_from_initial_condition(y0.view(-1,y0.size(1),1),(self.hparams.dt_forecast+1)*self.hparams.integration_step-1)                    
 
-                for kk in range(0,3):
-                    print('--')
-                    print(x_pred[0,kk,:4].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
-                    print(targets_GT[0,kk,:4].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
+                print('... mse RH4 GPU vs. targets_GT = %.3f'%np.mean( (x_pred-targets_GT)**2 ))
+                #for kk in range(0,3):
+                #    print('--')
+                #    print(x_pred[0,kk,:4].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
+                #    print(targets_GT[0,kk,:4].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
 
                 self.ode_solver.IntScheme = self.hparams.base_ode_solver
                 self.ode_solver.dt = 0.01 * self.hparams.time_step_ode
-
-                #targets_GT = torch.cat((targets_GT[:,:,:inputs_init_.size(2)*self.hparams.integration_step-self.hparams.dt_forecast*self.hparams.integration_step-1],x_pred),dim=2)
                 
-                targets_GT = targets_GT.detach()
+                targets_GT = x_pred.detach()
                 print(targets_GT.size())
                     
             # init solution with ode solver
