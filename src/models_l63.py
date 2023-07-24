@@ -1162,6 +1162,29 @@ class Model_H6(torch.nn.Module):
         return dyout1 #[dyout, dyout1]
 
 
+class Model_H7(torch.nn.Module):
+    def __init__(self,shape_data):
+        super(Model_H7, self).__init__()
+        #self.DimObs = 1
+        #self.dimObsChannel = np.array([shapeData[0]])
+        self.dim_obs = 1
+        self.dim_obs_channel = np.array([shape_data[0]])
+
+        self.DimObs = 1
+        self.dimObsChannel = np.array([shape_data[0]])
+
+    def non_linear_obs(self, y, mask):
+        y1 = y * mask
+        y1 = 0.5 * y1 **3 - 2.0 * y1**2 + y1 + 0.5
+
+        return y1
+        
+    def forward(self, x, y, mask):
+        
+        dyout = self.non_linear_obs(y,mask) - self.non_linear_obs(x,mask)
+        
+        return dyout
+
 class Model_H(torch.nn.Module):
     def __init__(self,shape_data):
         super(Model_H, self).__init__()
