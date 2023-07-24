@@ -1848,7 +1848,10 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                     out_all_seq_hr  = out_hr.squeeze(dim=-1).detach().cpu().numpy() 
                     out_all_seq_ode = out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() 
                 else:
-                    out_all_seq_hr  = np.concatenate( (out_all_seq_hr[:,:,:t0,:],out_hr[:,:,:,:].squeeze(dim=-1).detach().cpu().numpy() ) , axis=2)
+                    
+                    print( )
+                    
+                    out_all_seq_hr  = np.concatenate( (out_all_seq_hr[:,:,:t0],out_hr.squeeze(dim=-1).detach().cpu().numpy() ) , axis=2)
                     out_all_seq_ode = np.concatenate( (out_all_seq_ode,out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() ) , axis=2)
 
             if self.x_rec is None :
