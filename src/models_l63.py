@@ -1911,7 +1911,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             if phase == 'train' :                
                 inputs_init = inputs_init.detach()
             
-            print(inputs_init_.size())
+            print(inputs_init.size())
             print(inputs_obs.size())
             print(masks.size())
             print(targets_GT.size())
