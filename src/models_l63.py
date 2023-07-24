@@ -524,6 +524,7 @@ class Phi_ode(torch.nn.Module):
             X0 = 1. * Xpred
 
             if kk == 0 :
+                print('__________')
                 print( Xpred[0,:,0].detach().cpu().numpy())
             
             xpred = ( Xpred - self.meanTr ) / self.stdTr            
