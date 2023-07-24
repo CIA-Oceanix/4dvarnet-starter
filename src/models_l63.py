@@ -1735,6 +1735,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
     def validation_step(self, val_batch, batch_idx):
 
+        val_batch = self.extract_data_patch(val_batch)
         inputs_init,inputs_obs,masks,targets_GT = val_batch
 
         loss, out, metrics = self.compute_loss(val_batch, phase='val')
