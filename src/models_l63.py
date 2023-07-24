@@ -1787,11 +1787,10 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()
     
     
-            mse,gmse = self.compute_mse_loss(out[0],targets_GT)
+            mse,gmse,mse_implicit_integration = self.compute_mse_loss(out[0],targets_GT)
     
             var_cost_grad = self.loss_var_cost_grad(targets_GT_lr,inputs_obs,masks,phase='test')
                   
-            mse_implicit_integration = self.compute_implicit_euler_loss(out[0])
             
             self.log("test_mse", self.stdTr**2 * mse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
             self.log("test_mse_implicit", self.stdTr**2 * mse_implicit_integration , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
@@ -1956,7 +1955,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 
             # losses
             loss_mse,loss_gmse,loss_mse_implicit_integration = self.compute_mse_loss(outputs,targets_GT)
-            loss_mse_ode,_ = self.compute_mse_loss(inputs_init_ode,targets_GT)
+            loss_mse_ode,_,_ = self.compute_mse_loss(inputs_init_ode,targets_GT)
             loss_prior = torch.mean((self.model.phi_r(outputs) - outputs) ** 2)
             loss_prior_gt = torch.mean((self.model.phi_r(targets_GT_lr) - targets_GT_lr) ** 2)
 
