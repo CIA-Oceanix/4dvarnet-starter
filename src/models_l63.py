@@ -1893,7 +1893,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 print(y_ode.shape)
                 print(x_pred[0,0,:3].detach().cpu().numpy().transpose() * self.stdTr + self.meanTr)
                 print(y0.detach().cpu().numpy().transpose() )
-                print(y_ode[0,:3] )
+                print(y_ode[:3,0] )
                 print('xxxx')
                 
                 self.ode_solver.IntScheme = self.hparams.base_ode_solver
