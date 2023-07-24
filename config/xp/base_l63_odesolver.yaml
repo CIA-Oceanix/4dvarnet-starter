@@ -75,10 +75,10 @@ model:
     use_rk4_gpu_as_target: True # False # 
 #  ckpt: 'outputs/2023-06-10/23-30-37/base_l63/checkpoints/model-l63-lstmonly+gobs+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_08-dgrad100-val_loss=8.5268-epoch=216.ckpt'
   Phi:
-    _target_: src.models_l63.Phi_unet_like_bilin #src.models_l63.Phi_ode #   src.models_l63.Phi_unet_like_bilin # ssrc.models_l63.Phi_unet_1_layer_bis #src.models_l63.UNet_3_layers #
-    shapeData: ${model.params.shapeData}
-    DimAE: ${model.params.DimAE}
-    name: 'unet-bilin' # 'odenet' # 
+    _target_: src.models_l63.Phi_ode # src.models_l63.Phi_unet_like_bilin #  src.models_l63.Phi_unet_like_bilin # ssrc.models_l63.Phi_unet_1_layer_bis #src.models_l63.UNet_3_layers #
+    #shapeData: ${model.params.shapeData}
+    #DimAE: ${model.params.DimAE}
+    name: 'odenet' # 'unet-bilin' # 
 #    rateDropout: 0.2
   m_NormObs:
     _target_: src.solver_l63.Model_WeightedL2Norm #src.solver_l63.Model_WeightedTrainableL2Norm #src.solver_l63.Model_WeightedGL2Norm # src.solver_l63.Model_WeightedL2Norm #
@@ -152,7 +152,7 @@ entrypoints:
     lit_mod: ${model}
     dm: ${datamodule}
     num_members: 0
-    ckpt: 'model-odesolver-l63-new-dT04_01_03_02-JamesData-odenet_10-fclstm-grad05_01_20-val_loss=0.1047-epoch=344.ckpt'
+    ckpt: 'outputs/2023-07-24/15-05-35/base_l63_odesolver/checkpoints/model-odesolver-l63-new-dT04_01_03_02-JamesData-odenet_10-fclstm-grad05_01_20-val_loss=0.1047-epoch=344.ckpt'
 #    ckpt: 'outputs/2023-07-21/17-10-09/base_l63_odesolver/checkpoints/model-odesolver-l63-new-dT04_01_03_02-JamesData-unet-bilin_10-fclstm-grad05_02_20-val_loss=0.1530-epoch=380.ckpt'
 #    ckpt: 'outputs/2023-07-19/23-56-13/base_l63_forecast/checkpoints/model-l63-l63data-forecast-dt3-dense-dT04-4dvarnet-with-rnd-JamesData-Obs01-Noise00-igrad10_04-dgrad10-val_loss=0.1779-epoch=382.ckpt'
 #    ckpt: 'outputs/2023-07-19/11-43-27/base_l63_forecast/checkpoints/model-l63-l63data-forecast-unet-dt3-dT04-4dvarnet-with-rnd-JamesData-Obs01-Noise00-igrad10_04-dgrad10-val_loss=0.1043-epoch=377.ckpt'
