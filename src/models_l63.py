@@ -1734,9 +1734,31 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         return super(Lit4dVarNet_L63_OdeSolver,self).training_step(train_batch, batch_idx)  
 
     def validation_step(self, val_batch, batch_idx):
-        val_batch = self.extract_data_patch(val_batch)
+
+        inputs_init,inputs_obs,masks,targets_GT = val_batch
+
+        loss, out, metrics = self.compute_loss(val_batch, phase='val')
+        for kk in range(0,self.hparams.k_n_grad-1):
+            loss1, out, metrics = self.compute_loss(val_batch, phase='val',batch_init=out[0],hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
+            loss = loss1
+
+            if self.hparams.post_projection == True :
+                out[0] = self.model.phi_r(out[0]) 
+                
+            if self.hparams.post_median_filter == True :
+                out[0] = kornia.filters.median_blur(out[0], (self.hparams.median_filter_width, 1))
+
+        mse,gmse = self.compute_mse_loss(out[0],targets_GT)
+        var_cost_grad = self.loss_var_cost_grad(targets_GT,inputs_obs,masks,phase='test')
+        mse_implicit_integration = self.compute_implicit_euler_loss(out[0])
+
+        self.log('val_loss', 1e3 * loss , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("val_mse", self.stdTr**2 * mse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("val_mse_implicit", self.stdTr**2 * mse_implicit_integration , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("val_gmse", self.stdTr**2 * gmse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("val_gvar", var_cost_grad , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         
-        return super(Lit4dVarNet_L63_OdeSolver,self).validation_step(val_batch, batch_idx)  
+        return loss
 
     def test_step(self, test_batch, batch_idx):
         
@@ -1864,11 +1886,14 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 
         err = (rec - gt) * self.w_loss[None,...]        
         loss_mse = torch.sum( err ** 2) / rec.size(0)     
+        
+        loss_mse_implicit_integration = self.compute_implicit_euler_loss(rec)
 
         #loss_mse = torch.mean((rec - gt) ** 2)        
         loss_gmse = torch.mean(( (rec[:,:,1:] - rec[:,:,:-1]) - (gt[:,:,1:] - gt[:,:,:-1]) ) ** 2)
 
-        return loss_mse,loss_gmse
+        return loss_mse,loss_gmse,loss_mse_implicit_integration        
+
 
     def compute_implicit_euler_loss(self,rec,solver='euler'):
         
@@ -1929,7 +1954,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 targets_GT_lr = targets_GT
                 
             # losses
-            loss_mse,loss_gmse = self.compute_mse_loss(outputs,targets_GT)
+            loss_mse,loss_gmse,loss_mse_implicit_integration = self.compute_mse_loss(outputs,targets_GT)
             loss_mse_ode,_ = self.compute_mse_loss(inputs_init_ode,targets_GT)
             loss_prior = torch.mean((self.model.phi_r(outputs) - outputs) ** 2)
             loss_prior_gt = torch.mean((self.model.phi_r(targets_GT_lr) - targets_GT_lr) ** 2)
@@ -1953,7 +1978,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 print(targets_GT[0,0,:]-outputs[0,0,:])
                 print(targets_GT[0,0,:]-inputs_init_ode[0,0,:])
 
-            loss = self.hparams.alpha_mse * loss_mse + self.hparams.alpha_gmse * loss_gmse
+            loss = self.hparams.alpha_mse * loss_mse + self.hparams.alpha_gmse * loss_gmse + self.hparams.alpha_mse_implicit * loss_mse_implicit_integration
             loss += 0.5 * self.hparams.alpha_prior * (loss_prior + loss_prior_gt)
             loss += self.hparams.alpha_var_cost_grad * loss_var_cost_grad
             # metrics

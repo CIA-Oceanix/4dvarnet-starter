@@ -511,8 +511,6 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
                                   x_3.reshape((x_1.shape[0],1,x_1.shape[1]))),axis=1);
             return dS
         
-        
-        
         def compute_mse_implicit_solver(x):
             sigma = 10.0
             rho = 28.0
@@ -524,7 +522,6 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
             
             return np.mean( err**2 )
 
-        print(X_test.shape)
         print('.... RMSE wrt implicit integration error :')
         print('.... NN solver: %.3f'%np.sqrt( compute_mse_implicit_solver( x_rec ) ))
         print('.... Ref solver: %.3f'%np.sqrt( compute_mse_implicit_solver( X_test[:,:,:x_rec.shape[2]] ) ))
