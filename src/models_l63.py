@@ -1197,6 +1197,12 @@ class Model_H(torch.nn.Module):
         self.dimObsChannel = np.array([shape_data[0]])
 
     def forward(self, x, y, mask):
+
+        print('..............')
+        print(x.size())
+        print(y.size())
+        print(mask.size())
+
         dyout = (x - y) * mask
         return dyout
 
@@ -1216,10 +1222,6 @@ class Model_H_with_relu(torch.nn.Module):
 
     def forward(self, x, y, mask):
 
-        print('..............')
-        print(x.size())
-        print(y.size())
-        print(mask.size())
 
         dyout = (x - y) * mask
         
