@@ -1779,7 +1779,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 self.x_ode  = np.concatenate((self.x_ode,out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
 
         else:
-            delta_t0 = 7 #(self.hparams.dt_forecast+1)*self.hparams.integration_step-1
+            delta_t0 = (self.hparams.dt_forecast+1)*self.hparams.integration_step-1 #
             out_all_seq_hr = None
             
             for t0 in range(0,self.hparams.dT_test*self.hparams.integration_step-delta_t0,delta_t0):                                    

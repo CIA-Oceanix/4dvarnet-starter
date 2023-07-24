@@ -492,7 +492,8 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
         print("..... Performance (test data): ode vs. 4dvarnet (all test time window)")
         rmse = np.sqrt( np.mean( (X_test[:,:,t_last_obs_hr+1:lit_mod.hparams.dT_test]-x_rec[:,:,t_last_obs_hr+1:lit_mod.hparams.dT_test])**2 ) )
         print(".. rmse all: %.3f "%rmse)
-        for tt in range(lit_mod.hparams.dT_test*lit_mod.hparams.integration_step):
+        
+        for tt in range(x_rec.shape[2]):
             dt = tt - t_last_obs_hr
             rmse = np.sqrt( np.mean( (X_test[:,:,tt]-x_rec[:,:,tt] )**2 ) )
             rmse_ode = np.sqrt( np.mean( (X_test[:,:,tt]-x_ode[:,:,tt] )**2 ) )
