@@ -521,7 +521,7 @@ class Phi_ode(torch.nn.Module):
             else:
                 Xpred = self._RK4Solver( X0 )
             
-            X0 = Xpred
+            X0 = 1. * Xpred
             
             xpred = ( Xpred - self.meanTr ) / self.stdTr            
             x_f = torch.cat((x_f,xpred),dim=2)
