@@ -1867,7 +1867,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 
                 x_pred = self.ode_solver.solve_from_initial_condition(y0.view(-1,y0.size(1),1),(self.hparams.dt_forecast+1)*self.hparams.integration_step-1)                    
 
+                print( x_pred.size() )
                 print('... mse RH4 GPU vs. targets_GT = %.3f'%np.mean( (x_pred-targets_GT)**2 ))
+                
                 #for kk in range(0,3):
                 #    print('--')
                 #    print(x_pred[0,kk,:4].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
