@@ -1705,7 +1705,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
     def extract_data_patch(self,batch,t0=0):
         inputs_init_,inputs_obs,masks,targets_GT = batch
 
-        if t0 > 0 :
+        if t0 == 0 :
             if inputs_init_.size(2) > self.hparams.shapeData[1] :
                 dT   = self.hparams.shapeData[1]
                 step = self.hparams.integration_step
@@ -1804,38 +1804,37 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                     print(inputs_obs[0,0,:,0])
                     print(masks[0,0,:,0])
 
-                    test_batch = self.extract_data_patch(test_batch,t0)
+                    _test_batch = self.extract_data_patch(test_batch,t0)
                     
-                    inputs_init,inputs_obs,masks,targets_GT = test_batch
+                    inputs_init,inputs_obs,masks,targets_GT = _test_batch
                     print(inputs_init[0,0,:,0])
                     print(inputs_obs[0,0,:,0])
                     print(masks[0,0,:,0])
                     
                 else:
-                    test_batch = self.extract_data_patch(test_batch,t0)
+                    _test_batch = self.extract_data_patch(test_batch,t0)
 
-            
+                inputs_init,inputs_obs,masks,targets_GT = _test_batch
+                
                 if self.hparams.sig_obs_noise > 0. :
                     inputs_init = inputs_init + self.hparams.sig_obs_noise * masks *  torch.randn( masks.size() ).to(device)
                     inputs_obs = inputs_init
                     
-                    test_batch = inputs_init,inputs_obs,masks,targets_GT
+                    _test_batch = inputs_init,inputs_obs,masks,targets_GT
                 
                 self.hparams.sig_obs_noise
                 
-                loss, out, metrics = self.compute_loss(test_batch, phase='test')
+                loss, out, metrics = self.compute_loss(_test_batch, phase='test')
         
-                inputs_init,inputs_obs,masks,targets_GT = test_batch
-
+                #inputs_init,inputs_obs,masks,targets_GT = _test_batch
                 for kk in range(0,self.hparams.k_n_grad-1):
-                    loss1, out, metrics = self.compute_loss(test_batch, phase='test',batch_init=out[0].detach(),hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
+                    loss1, out, metrics = self.compute_loss(_test_batch, phase='test',batch_init=out[0].detach(),hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
         
                 if self.hparams.integration_step > 1 :
                     
                     out_hr = torch.nn.functional.interpolate(out[0], scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, recompute_scale_factor=None, antialias=False)                
                     out_ode_hr = torch.nn.functional.interpolate(out[-1], scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
-                    #targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()
-                
+                    #targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()                
                 else:
                     out_hr = out[0]
                     out_ode_hr = out[-1]
