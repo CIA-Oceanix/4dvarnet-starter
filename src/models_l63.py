@@ -1811,6 +1811,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                     loss1, out, metrics = self.compute_loss(test_batch, phase='test',batch_init=out[0].detach(),hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
         
                 if self.hparams.integration_step > 1 :
+                    
+                    print(out[0].size() )
+                    print(out[-1].size() )
                     out_hr = torch.nn.functional.interpolate(out[0], scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, recompute_scale_factor=None, antialias=False)                
                     out_ode_hr = torch.nn.functional.interpolate(out[-1], scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
                     targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()
