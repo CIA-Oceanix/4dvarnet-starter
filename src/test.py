@@ -414,13 +414,24 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     print('............... Model evaluation on validation dataset')
     trainer.test(lit_mod, dataloaders=dm.val_dataloader())
     
+    # time windows
+    dT_hr = lit_mod.hparams.dT*lit_mod.hparams.integration_step
+    t_last_obs_hr = dm.input_data[0][0].shape[2]-(lit_mod.hparams.dt_forecast+1)*lit_mod.hparams.integration_step
+    t_forecast_hr = (lit_mod.hparams.dt_forecast+1)*lit_mod.hparams.integration_step-1
+    
+    print('')
+    print('')
+    print('.... HR time window: %d'%dT_hr)
+    print('.... Index last HR initial condition: %d'%t_last_obs_hr)
+    print('.... Number of simulation steps: %d'%t_forecast_hr)
+    print('')
     #trainer.test(lit_mod, dataloaders=dm.val_dataloader(),ckpt_path=ckpt)
 
     X_train, x_train, mask_train, x_train_Init, x_train_obs = dm.input_data[0]    
     idx_val = X_train.shape[0]-500
     
-    X_val = X_train[idx_val::,:,:8]
-    mask_val = mask_train[idx_val::,:,:8].squeeze()
+    X_val = X_train[idx_val::,:,:dT_hr]
+    mask_val = mask_train[idx_val::,:,:dT_hr].squeeze()
     
     x_rec = lit_mod.x_rec#[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
     x_ode = lit_mod.x_ode
@@ -436,11 +447,11 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     
     print("..... Performance (validation data)")
     print('.... dt_forecast = %d'%lit_mod.hparams.dt_forecast)
-    rmse = np.sqrt( np.mean( (X_val[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast:]-x_rec[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast:])**2 ) )
+    rmse = np.sqrt( np.mean( (X_val[:,:,t_last_obs_hr+1:]-x_rec[:,:,t_last_obs_hr+1:])**2 ) )
     print(".. rmse all: %.3f "%mse,flush=True)
     
     for tt in range(X_val.shape[2]):
-        dt = tt - (X_val.shape[2]-(lit_mod.hparams.dt_forecast+1)*lit_mod.hparams.integration_step)
+        dt = tt - t_last_obs_hr
         rmse = np.sqrt( np.mean( (X_val[:,:,tt]-x_rec[:,:,tt] )**2 ) )
         rmse_ode = np.sqrt( np.mean( (X_val[:,:,tt]-x_ode[:,:,tt] )**2 ) )
         print(".. dt = %d -- rmse = %.3f -- %.3f"%(dt,rmse_ode,rmse))
@@ -452,8 +463,8 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     x_rec = lit_mod.x_rec
     x_ode = lit_mod.x_ode
 
-    X_test = X_test[:,:,:8]
-    mask_test = mask_test[:,:,:8]
+    X_test = X_test[:,:,:dT_hr]
+    mask_test = mask_test[:,:,:dT_hr]
 
     var_test  = np.mean( (X_test - np.mean(X_test,axis=0))**2 )
     mse = np.mean( (x_rec-X_test) **2 ) 
@@ -467,10 +478,10 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     print()
     print()
     print("..... Performance (test data): ode vs. 4dvarnet")
-    rmse = np.sqrt( np.mean( (X_test[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast:]-x_rec[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast:])**2 ) )
+    rmse = np.sqrt( np.mean( (X_test[:,:,t_last_obs_hr+1:]-x_rec[:,:,t_last_obs_hr+1:])**2 ) )
     print(".. rmse all: %.3f "%rmse)
     for tt in range(X_test.shape[2]):
-        dt = tt - (X_test.shape[2]-(lit_mod.hparams.dt_forecast+1)*(lit_mod.hparams.integration_step))
+        dt = tt - t_last_obs_hr
         rmse = np.sqrt( np.mean( (X_test[:,:,tt]-x_rec[:,:,tt] )**2 ) )
         rmse_ode = np.sqrt( np.mean( (X_test[:,:,tt]-x_ode[:,:,tt] )**2 ) )
         print(".. dt = %d -- rmse = %.3f -- %.3f"%(dt,rmse_ode,rmse))
@@ -479,50 +490,11 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     print(".. MSE ObsData: %.3f / %.3f"%(mse_r,nmse_r))
     print(".. MSE Interp : %.3f / %.3f"%(mse_i,nmse_i))     
     
-    print()
-    print()
-    x_rec = np.reshape(x_rec,(x_rec.shape[0],x_rec.shape[1],x_rec.shape[2],1))
-    if num_members > 1 :
-        for _ii in range(1,num_members):
+    if lit_mod.hparams.dT_test > lit_mod.hparams.dT :
+        print('............... Simulation for the test time window: %d'%lit_mod.hparams.dT_test)
         
-            print('............... run %d on test dataset to generate members'%_ii)
-            trainer.test(lit_mod, dataloaders=dm.test_dataloader())#, ckpt_path=ckpt)
-            x_rec_ii = lit_mod.x_rec#[:,:,cfg_params.dt_mse_test:x_train.shape[2]-cfg_params.dt_mse_test]
-            x_rec_ii = np.reshape(x_rec_ii,(x_rec_ii.shape[0],x_rec_ii.shape[1],x_rec_ii.shape[2],1))
+        # update the test dm
 
-            x_rec = np.concatenate((x_rec,x_rec_ii),axis=3)
-     
-    mean_x_rec = np.mean( x_rec , axis = 3)
-    mean_x_rec = np.reshape(mean_x_rec,(mean_x_rec.shape[0],mean_x_rec.shape[1],mean_x_rec.shape[2],1))
-    
-    var_rec = np.mean( (x_rec-mean_x_rec)**2 )
-    max_diff = np.max( np.abs(x_rec-mean_x_rec) )
-    
-    
-    # metrics for the mean among members
-    mean_x_rec = mean_x_rec.squeeze()
-    mse = np.mean( (mean_x_rec-X_test) **2 ) 
-    
-    nmse = mse / var_test
-    
-    print()
-    print('.. Metrics for mean member')
-    print(".. MSE mean member (test data): %.3f / %.3f"%(mse,nmse))
-    print('.. Variance among members runs             : %.3f'%var_rec)
-    print('.. Maximum absolute difference between 2 runs : %.3f'%max_diff)
-
-    median_x_rec = np.median(x_rec , axis = 3)
-    mse = np.mean( (median_x_rec-X_test) **2 )     
-    nmse = mse / var_test
-    median_x_rec = np.reshape(median_x_rec,(median_x_rec.shape[0],median_x_rec.shape[1],median_x_rec.shape[2],1))
-    var_rec = np.mean( (x_rec-median_x_rec)**2 )
-    max_diff = np.max( np.abs(x_rec-median_x_rec) )
-    
-    print()
-    print('.. Metrics for median member')
-    print(".. MSE median member (test data): %.3f / %.3f"%(mse,nmse))
-    print('.. Variance among members runs             : %.3f'%var_rec)
-    print('.. Maximum absolute difference between 2 runs : %.3f'%max_diff)
     
     
     # saving dataset
