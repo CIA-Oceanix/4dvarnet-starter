@@ -1215,6 +1215,12 @@ class Model_H_with_relu(torch.nn.Module):
         self.epsilon = 1e-10
 
     def forward(self, x, y, mask):
+
+        print('..............')
+        print(x.size())
+        print(y.size())
+        print(mask.size())
+
         dyout = (x - y) * mask
         
         dyout = torch.relu( torch.sqrt( dyout**2 + self.epsilon) - self.beta**2 )
@@ -1903,6 +1909,10 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             if phase == 'train' :                
                 inputs_init = inputs_init.detach()
             
+            print(inputs_init_.size())
+            print(inputs_obs.size())
+            print(masks.size())
+            print(targets_GT.size())
 
             outputs, hidden_new, cell_new, normgrad_ = self.model(inputs_init, inputs_obs, masks, hidden = hidden , cell = cell , normgrad = normgrad, prev_iter = prev_iter )
 
