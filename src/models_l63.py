@@ -1681,17 +1681,17 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
     def __init__(self,ckpt_path=None,params=None,patch_weight=None,
                  Phi=None,m_NormObs=None, m_NormPhi=None,mod_H=None,mod_Grad=None,
                  stats_training_data=None,*args, **kwargs):
-        super(Lit4dVarNet_L63_OdeSolver,self).__init__(ckpt_path=ckpt_path,params=params,patch_weight=patch_weight,
-                                                       Phi=Phi,m_NormObs=m_NormObs, m_NormPhi=m_NormPhi,mod_H=mod_H,mod_Grad=mod_Grad,
-                                                       stats_training_data=None,*args, **kwargs)
 
-    
         self.ode_solver = Phi_ode()
         self.ode_solver.IntScheme = self.hparams.base_ode_solver #'rk4' #'euler'
         self.ode_solver.dt = 0.01 * self.hparams.time_step_ode
         self.init_state = 'ode_solver'
                 
         self.x_ode = None
+
+        super(Lit4dVarNet_L63_OdeSolver,self).__init__(ckpt_path=ckpt_path,params=params,patch_weight=patch_weight,
+                                                       Phi=Phi,m_NormObs=m_NormObs, m_NormPhi=m_NormPhi,mod_H=mod_H,mod_Grad=mod_Grad,
+                                                       stats_training_data=None,*args, **kwargs)
         
     def _set_norm_stats(self):
         self.meanTr = self.set_norm_stats[0]
