@@ -1836,9 +1836,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             # reference ODE solution
             y0 = torch.Tensor( out_all_seq_hr[:,:,0] ).view(-1,out_all_seq_hr.shape[1],1).to(device)
             out_all_seq_ode = self.ode_solver.solve_from_initial_condition(y0.view(-1,y0.size(1),1),int(out_all_seq_hr.shape[2]/self.hparams.integration_step))                                      
-            print(out_all_seq_ode.size())
             out_all_seq_ode = torch.nn.functional.interpolate(out_all_seq_ode, scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
-            print(out_all_seq_ode.size())
             out_all_seq_ode = out_all_seq_ode.squeeze(dim=-1).detach().cpu().numpy()
 
             if self.x_rec is None :
@@ -1869,6 +1867,11 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
         with torch.set_grad_enabled(True):
             inputs_init_,inputs_obs,masks,targets_GT = batch
+            
+            print(inputs_init_.size())
+            print(inputs_obs.size())
+            print(masks.size())
+            print(targets_GT.size())
              
             if self.hparams.use_rk4_gpu_as_target :
                 self.ode_solver.IntScheme = 'rk4'

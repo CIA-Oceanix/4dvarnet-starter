@@ -72,7 +72,7 @@ model:
     integration_step: ${datamodule.input_data.param_dataset.integration_step}
     time_step_ode: ${mul:${datamodule.input_data.param_dataset.time_step},${datamodule.input_data.param_dataset.integration_step}}
     base_ode_solver: 'euler' #'rk4' #
-    use_rk4_gpu_as_target: True # False # 
+    use_rk4_gpu_as_target: False # True # 
     simu_test_all_steps: False
 #  ckpt: 'outputs/2023-06-10/23-30-37/base_l63/checkpoints/model-l63-lstmonly+gobs+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_08-dgrad100-val_loss=8.5268-epoch=216.ckpt'
   Phi:
