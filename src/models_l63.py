@@ -1198,11 +1198,6 @@ class Model_H(torch.nn.Module):
 
     def forward(self, x, y, mask):
 
-        print('..............')
-        print(x.size())
-        print(y.size())
-        print(mask.size())
-
         dyout = (x - y) * mask
         return dyout
 
