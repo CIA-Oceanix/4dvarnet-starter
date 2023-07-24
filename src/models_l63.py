@@ -492,7 +492,6 @@ class Phi_ode(torch.nn.Module):
         return x + self.dt * (k1+2.*k2+2.*k3+k4)/6.
   
     def forward(self, x):
-        print( self.meanTr )
         
         X = self.stdTr * x.view(-1,x.size(1),x.size(2))
         X = X + self.meanTr
