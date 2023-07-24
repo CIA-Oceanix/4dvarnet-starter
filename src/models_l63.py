@@ -1895,9 +1895,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 print()
                 for kk in range(0,3):
                     print('--')
-                    print(x_pred[0,kk,:3].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
+                    print(x_pred[0,kk,:4].detach().cpu().numpy().transpose().squeeze() * self.stdTr + self.meanTr)
                     #print(y0.detach().cpu().numpy().transpose() )
-                    print(y_ode[kk,1:4].squeeze() )
+                    print(y_ode[kk,:4].squeeze() )
                 print('....')
                 print('.... mse = %f'%np.mean( (y_ode[:,1:4]-x_pred[0,:,:3].detach().cpu().numpy())**2))
                 print('xxxx')
