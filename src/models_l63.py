@@ -1876,16 +1876,16 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                     class parameters:
                         sigma = 10.0
                         rho = 28.0
-                        beta = 8.0/3
+                        beta = 8.0/3.
                     dt_integration = 0.01 # integration time
                     
                 GD = GD()
-                tf = GD.dt_integration * (self.hparams.dt_forecast*self.hparams.integration_step+1)
+                tf = GD.dt_integration * 10#(self.hparams.dt_forecast*self.hparams.integration_step+1)
                 
                 y0 = self.stdTr * y0[0,:].squeeze() + self.meanTr
                 
                 
-                print( self.ode_solver._odeL63(y0.view(1,-1,1)).detach().cpu().numpy().transpose() )
+                print( self.ode_solver._odeL63(y0.view(1,-1,1)).detach().cpu().numpy() )
                 print( AnDA_Lorenz_63(y0.detach().cpu().numpy(),0.,GD.parameters.sigma,GD.parameters.rho,GD.parameters.beta) )
                 print()
                 tt = np.arange(GD.dt_integration,tf+0.000001,GD.dt_integration)
