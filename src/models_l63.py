@@ -1883,15 +1883,16 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 y0 = self.stdTr * y0[0,:].squeeze() + self.meanTr
                 
                 
-                print( self.ode_solver._odeL63(y0.view(1,-1,1)).detach().cpu().numpy())
+                print( self.ode_solver._odeL63(y0.view(1,-1,1)).detach().cpu().numpy().transpose() )
                 print( AnDA_Lorenz_63(y0.detach().cpu().numpy(),0.,GD.parameters.sigma,GD.parameters.rho,GD.parameters.beta) )
                 print()
                 tt = np.arange(GD.dt_integration,tf+0.000001,GD.dt_integration)
                 S = solve_ivp(fun=lambda t,y: AnDA_Lorenz_63(y,t,GD.parameters.sigma,GD.parameters.rho,GD.parameters.beta),t_span=[GD.dt_integration,tf+0.000001],y0=y0.detach().cpu().numpy(),first_step=GD.dt_integration,t_eval=tt,method='RK45')
                 y_ode = S.y.transpose() 
                 
+                print(y_ode.shape)
                 print(x_pred[0,0,:3].detach().cpu().numpy().transpose() * self.stdTr + self.meanTr)
-                print(y0.detach().cpu().numpy() )
+                print(y0.detach().cpu().numpy().transpose() )
                 print(y_ode[0,:3] )
                 print('xxxx')
                 
