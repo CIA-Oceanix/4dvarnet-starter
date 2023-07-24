@@ -1833,22 +1833,22 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                     out_all_seq_hr  = np.concatenate( (out_all_seq_hr[:,:,:t0],out_hr.squeeze(dim=-1).detach().cpu().numpy() ) , axis=2)
                     #out_all_seq_ode = np.concatenate( (out_all_seq_ode,out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() ) , axis=2)
 
-                # reference ODE solution
-                y0 = torch.Tensor( out_all_seq_hr[:,:,0] ).view(-1,out_all_seq_hr.shape[1],1).to(device)
-                out_all_seq_ode = self.ode_solver.solve_from_initial_condition(y0.view(-1,y0.size(1),1),int(out_all_seq_hr.shape[2]/self.hparams.integration_step))                                      
-                print(out_all_seq_ode.size())
-                out_all_seq_ode = torch.nn.functional.interpolate(out_all_seq_ode, scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
-                print(out_all_seq_ode.size())
-                out_all_seq_ode = out_all_seq_ode.squeeze(dim=-1).detach().cpu().numpy()
+            # reference ODE solution
+            y0 = torch.Tensor( out_all_seq_hr[:,:,0] ).view(-1,out_all_seq_hr.shape[1],1).to(device)
+            out_all_seq_ode = self.ode_solver.solve_from_initial_condition(y0.view(-1,y0.size(1),1),int(out_all_seq_hr.shape[2]/self.hparams.integration_step))                                      
+            print(out_all_seq_ode.size())
+            out_all_seq_ode = torch.nn.functional.interpolate(out_all_seq_ode, scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
+            print(out_all_seq_ode.size())
+            out_all_seq_ode = out_all_seq_ode.squeeze(dim=-1).detach().cpu().numpy()
 
             if self.x_rec is None :
                 self.x_rec = out_all_seq_hr * self.stdTr + self.meanTr
                 self.x_gt  = targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
-                self.x_ode = None#out_all_seq_ode * self.stdTr + self.meanTr
+                self.x_ode = out_all_seq_ode * self.stdTr + self.meanTr
             else:
                 self.x_rec = np.concatenate((self.x_rec,out_all_seq_hr * self.stdTr + self.meanTr),axis=0)
                 self.x_gt  = np.concatenate((self.x_gt,targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
-                self.x_ode  = None#np.concatenate((self.x_ode,out_all_seq_ode * self.stdTr + self.meanTr),axis=0)
+                self.x_ode  = np.concatenate((self.x_ode,out_all_seq_ode * self.stdTr + self.meanTr),axis=0)
     
     def compute_mse_loss(self,rec,targets_GT):
         
