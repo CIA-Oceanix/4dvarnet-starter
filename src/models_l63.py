@@ -1798,6 +1798,12 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                     masks[:,:,:t0] = torch.ones_like(inputs_obs[:,:,:t0,:])
                     
                     test_batch = inputs_init,inputs_obs,masks,targets_GT
+                    
+                    inputs_init,inputs_obs,masks,targets_GT = test_batch
+                    print(inputs_init[0,0,:,0])
+                    print(inputs_obs[0,0,:,0])
+                    print(masks[0,0,:,0])
+
                     test_batch = self.extract_data_patch(test_batch,t0)
                     
                     inputs_init,inputs_obs,masks,targets_GT = test_batch
@@ -1826,12 +1832,14 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         
                 if self.hparams.integration_step > 1 :
                     
-                    print(out[0].size() )
-                    print(out[-1].size() )
                     out_hr = torch.nn.functional.interpolate(out[0], scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, recompute_scale_factor=None, antialias=False)                
                     out_ode_hr = torch.nn.functional.interpolate(out[-1], scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
                     #targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()
                 
+                else:
+                    out_hr = out[0]
+                    out_ode_hr = out[-1]
+                    
                 if t0 == 0:
                     out_all_seq_hr  = out_hr.squeeze(dim=-1).detach().cpu().numpy() 
                     out_all_seq_ode = out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() 
