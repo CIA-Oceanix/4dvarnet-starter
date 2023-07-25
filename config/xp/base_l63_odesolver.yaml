@@ -16,10 +16,10 @@ datamodule:
       flag_generate_L63_data: False #True #
       NbTraining: 10000
       NbTest: 1000
-      time_step: ??
-      dT: 4
-      dT_test: 8
-      dt_forecast: ${subtract:${datamodule.input_data.param_dataset.dT},2}
+      time_step: 1
+      dT: 32
+      dT_test: 32
+      dt_forecast: ${subtract:${datamodule.input_data.param_dataset.dT},1}
       varNoise: 0.
       sampling_step: 1
       flagTypeMissData: -1
@@ -39,7 +39,7 @@ model:
     dropout: 0.
     alpha_prior: 0. #1e2
     alpha_mse: 1.e2
-    alpha_mse_implicit: 1e2
+    alpha_mse_implicit: 0. #1e2
     alpha_gmse: 0. #50.
     alpha_var_cost_grad: 0.0
     lr_grad: ?? #1e-2 #1.e3
@@ -47,7 +47,7 @@ model:
     sig_rnd_init: 0.e-2
     sig_lstm_init: 0.e-2
     sig_obs_noise: 0. #1e-1
-    init_state: 'zeros' #'last_state' #'ode_solver' # ?? #'zeros' #
+    init_state: ?? #'zeros' #'last_state' #'ode_solver' # ?? #'zeros' #
     suffix_exp: ?? #'-lstm+grad' #'
     UsePeriodicBoundary: False
     degradation_operator: 'no-degradation'  #'gaussian_smoothing' #??  # 
