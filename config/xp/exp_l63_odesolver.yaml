@@ -38,7 +38,6 @@ model:
     shapeData_modGrad: #${model.params.shapeData} # shape of the gradient tensor (similar as shapeData for convLSTM solver, one-dimensional for a dense LSTM solver)
       - ${mul:${datamodule.input_data.param_dataset.dT},3} 
     base_ode_solver: 'euler' # 'rk4' # # ode solver used as baseline (reference and possible initialization)
-    simu_test_all_steps: True # During the training step, run the simulation for dT (False) or dT_test time steps
   Phi: # selected parameterization for operator phi
     _target_: src.models_l63.Phi_ode # src.models_l63.Phi_unet_like_bilin #    src.models_l63.Phi_unet_like_bilin # ssrc.models_l63.Phi_unet_1_layer_bis #src.models_l63.UNet_3_layers #
     #shapeData: ${model.params.shapeData}
