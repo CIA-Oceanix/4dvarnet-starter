@@ -1941,6 +1941,8 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 elif self.init_state == 'last_state':
                     last_state = inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1)
                     
+                    
+                    print( inputs_init_.size() )
                     inputs_init = torch.cat( (inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast,:],last_state.repeat((1,1,self.hparams.dt_forecast,1)) ) , dim=2 )
                     print( inputs_init.size() )
                     print( inputs_init[0,0,:,0] )
