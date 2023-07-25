@@ -29,8 +29,8 @@ model:
     dim_grad_solver: ?? #10 #100 #25 # dimenbsion of the hidden states of the LSTM cell
     dropout: 0. # dropout value in the LSTM solver
     alpha_prior: 0. #1e2 # weighing factor of term ||x-phi(x)||**2 in the training loss
-    alpha_mse: 1.e2 # weighing factor of term ||x_true-x_pred||**2 in the training loss
-    alpha_mse_implicit: 0. #1e2 # weighing factor of term ||x_true-x_pred||**2 in the training loss
+    alpha_mse: 0. #1.e2 # weighing factor of term ||x_true-x_pred||**2 in the training loss
+    alpha_mse_implicit: 1.e2 #1e2 # weighing factor of term ||x_true-x_pred||**2 in the training loss
     alpha_gmse: 0. #50. # weighing factor of term (time derivative) ||D_t x_true-D_t x_pred||**2 in the training loss
     lr_grad: 0. #1e-2 #1.e3 # weighing factor of the firxed-step gradient descent term in 4dvarnet optimisation, \beta in equation (10)
     init_state: ?? #'zeros' #'last_state' #'ode_solver' # selected initialization for the simulation window
