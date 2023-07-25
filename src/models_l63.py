@@ -1691,7 +1691,10 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                                                        stats_training_data=None,*args, **kwargs)
 
         self.ode_solver = Phi_ode()
-        self.ode_solver.IntScheme = self.hparams.base_ode_solver #'rk4' #'euler'
+        if self.hparams.base_ode_solver == 'none' :
+            self.ode_solver.IntScheme = 'euler' #'rk4' #'euler'
+        else:
+            self.ode_solver.IntScheme = self.hparams.base_ode_solver #'rk4' #'euler'
         self.ode_solver.dt = 0.01 * self.hparams.time_step_ode
         self.init_state = 'ode_solver'
                 
@@ -1918,7 +1921,6 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 self.ode_solver.dt = 0.01 # self.hparams.time_step_ode / self.hparams.integration_step
                 
                 y0 = inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1)
-                #y0 = targets_GT[:,:,0].view(-1,inputs_init_.size(1),1)
                 
                 x_pred = self.ode_solver.solve_from_initial_condition(y0.view(-1,y0.size(1),1),(self.hparams.dt_forecast+1)*self.hparams.integration_step-1)                    
 
@@ -1928,15 +1930,25 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 targets_GT = x_pred.detach()
                     
             # init solution with ode solver
-            inputs_init_ode = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
-            if inputs_init_.size(2)-self.hparams.dt_forecast-1 > 0 :
-                inputs_init_ode = torch.cat( (inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast-1],inputs_init_ode),dim=2)         
-            inputs_init_ode = inputs_init_ode.detach()
+                inputs_init_ode = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
+                if inputs_init_.size(2)-self.hparams.dt_forecast-1 > 0 :
+                    inputs_init_ode = torch.cat( (inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast-1],inputs_init_ode),dim=2)         
+                inputs_init_ode = inputs_init_ode.detach()
                         
             #inputs_init = inputs_init_
             if batch_init is None :
                 if self.init_state == 'ode_solver':
                     inputs_init = inputs_init_ode
+                elif self.init_state == 'last_state':
+                    last_state = inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1)
+                    
+                    inputs_init = torch.cat( (inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast],last_state.repeat((1,1,self.hparams.dt_forecast,1)) ) , dim=2 )
+                    print( inputs_init.size() )
+                    print( inputs_init[0,0,:,0] )
+                elif self.init_state == 'zeros':
+                    last_state = inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1)
+                    
+                    inputs_init = torch.cat( (inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast], 0. * inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1:] ) , dim=2 )
                 else:
                     inputs_init = inputs_init_ + self.hparams.sig_rnd_init *  torch.randn( inputs_init_.size() ).to(device)
             else:
