@@ -453,7 +453,7 @@ def create_dataloaders(data_module):
 # freeze all ode parameters
 
 class Phi_ode(torch.nn.Module):
-    def __init__(self,meanTr=0.,stdTr=1.,name='ode'):
+    def __init__(self,meanTr=0.,stdTr=1.,name='ode',solver='rk4'):
         super(Phi_ode, self).__init__()
         self.sigma = torch.nn.Parameter(torch.Tensor([np.random.randn()]))
         self.rho    = torch.nn.Parameter(torch.Tensor([np.random.randn()]))
@@ -464,7 +464,7 @@ class Phi_ode(torch.nn.Module):
         self.beta   = torch.nn.Parameter(torch.Tensor([8./3.]))
 
         self.dt        = 0.01
-        self.IntScheme = 'rk4'
+        self.IntScheme = solver
         self.stdTr     = stdTr
         self.meanTr    = meanTr                      
         self.model_name= name
@@ -503,6 +503,8 @@ class Phi_ode(torch.nn.Module):
         
         if self.IntScheme == 'euler':
             xpred = self._EulerSolver( X[:,:,0:x.size(2)-1] )
+        elif self.IntScheme == 'euler-implicit':
+            xpred = X[:,:,1:x.size(2)] - X[:,:,0:x.size(2)-1] - self.dt * self._odeL63( X[:,:,1:x.size(2)] ) 
         else:
             xpred = self._RK4Solver( X[:,:,0:x.size(2)-1] )
 
@@ -1972,8 +1974,11 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 
             # losses
             loss_mse,loss_gmse,loss_mse_implicit_integration = self.compute_mse_loss(outputs,targets_GT)
+            
             loss_mse_ode,_,_ = self.compute_mse_loss(inputs_init_ode,targets_GT)
+            
             loss_prior = torch.mean((self.model.phi_r(outputs) - outputs) ** 2)
+            
             loss_prior_gt = torch.mean((self.model.phi_r(targets_GT_lr) - targets_GT_lr) ** 2)
 
             if prev_iter == self.model.n_grad * (self.hparams.k_n_grad -1) :

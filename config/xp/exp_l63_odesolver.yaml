@@ -29,7 +29,7 @@ model:
     dim_grad_solver: ?? #10 #100 #25 # dimenbsion of the hidden states of the LSTM cell
     dropout: 0. # dropout value in the LSTM solver
     alpha_prior: 0. #1e2 # weighing factor of term ||x-phi(x)||**2 in the training loss
-    alpha_mse: 0. #1.e2 # weighing factor of term ||x_true-x_pred||**2 in the training loss
+    alpha_mse: 0.e2 #1.e2 # weighing factor of term ||x_true-x_pred||**2 in the training loss
     alpha_mse_implicit: 1.e2 #1e2 # weighing factor of term ||x_true-x_pred||**2 in the training loss
     alpha_gmse: 0. #50. # weighing factor of term (time derivative) ||D_t x_true-D_t x_pred||**2 in the training loss
     lr_grad: 0. #1e-2 #1.e3 # weighing factor of the firxed-step gradient descent term in 4dvarnet optimisation, \beta in equation (10)
@@ -42,6 +42,7 @@ model:
     _target_: src.models_l63.Phi_ode # src.models_l63.Phi_unet_like_bilin #    src.models_l63.Phi_unet_like_bilin # ssrc.models_l63.Phi_unet_1_layer_bis #src.models_l63.UNet_3_layers #
     #shapeData: ${model.params.shapeData}
     #DimAE: ${model.params.DimAE}
+    solver: 'rk4' #'euler' #'euler-implicit'
     name: 'unet-bilin' # 'odenet' # 
 #    rateDropout: 0.2
   mod_Grad: # selected parameterization for the gradient-based solver
