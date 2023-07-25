@@ -15,7 +15,7 @@ datamodule:
       time_step: 1 # subsampling step for the time series
       integration_step: ?? # integration time step for the learnt solver
       dT: ?? # number of integration time steps for the training data 
-      dT_test: 16 # number of integration time steps for the test data 
+      dT_test: 64 # number of integration time steps for the test data 
       dt_forecast: ${subtract:${datamodule.input_data.param_dataset.dT},1} # number of simulation time steps, here dT-1, just using the initial condition
       
 model:
@@ -83,15 +83,16 @@ trainer:
 entrypoints:
   - _target_: pytorch_lightning.seed_everything
     seed: 333
-  - _target_: src.train.base_training  # src.train.fine_tuning # 
-    trainer: ${trainer}
-    lit_mod: ${model}
-    dm: ${datamodule}
-#  - _target_: src.test.base_testing_ode_solver #src.test.base_testing_forecast #
-#   trainer: ${trainer}
+#  - _target_: src.train.base_training  # src.train.fine_tuning # 
+#    trainer: ${trainer}
 #    lit_mod: ${model}
 #    dm: ${datamodule}
-#    num_members: 0
+  - _target_: src.test.base_testing_ode_solver #src.test.base_testing_forecast #
+   trainer: ${trainer}
+    lit_mod: ${model}
+    dm: ${datamodule}
+    num_members: 0
+     ckpt: 'outputs/2023-07-25/11-05-41/exp_l63_odesolver/checkpointsmodel-odesolver-l63-mse-only-new-dT32_01_31_02-JamesData-init_euler-unet-bilin_10-fclstm-grad05_01_100-val_loss=0.0148-epoch=376.ckpt'
 #    ckpt: 'outputs/2023-07-24/15-05-35/base_l63_odesolver/checkpoints/model-odesolver-l63-new-dT04_01_03_02-JamesData-odenet_10-fclstm-grad05_01_20-val_loss=0.1047-epoch=344.ckpt'
 #    ckpt: 'outputs/2023-07-21/17-10-09/base_l63_odesolver/checkpoints/model-odesolver-l63-new-dT04_01_03_02-JamesData-unet-bilin_10-fclstm-grad05_02_20-val_loss=0.1530-epoch=380.ckpt'
 #    ckpt: 'outputs/2023-07-19/23-56-13/base_l63_forecast/checkpoints/model-l63-l63data-forecast-dt3-dense-dT04-4dvarnet-with-rnd-JamesData-Obs01-Noise00-igrad10_04-dgrad10-val_loss=0.1779-epoch=382.ckpt'
