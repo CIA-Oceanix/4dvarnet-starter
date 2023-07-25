@@ -1530,13 +1530,15 @@ class Lit4dVarNet_L63(pl.LightningModule):
             if self.hparams.post_median_filter == True :
                 out[0] = kornia.filters.median_blur(out[0], (self.hparams.median_filter_width, 1))
 
-        mse,gmse = self.compute_mse_loss(out[0],targets_GT)
+        mse_score = self.compute_mse_loss(out[0],targets_GT)
         var_cost_grad = self.loss_var_cost_grad(targets_GT,inputs_obs,masks,phase='test')
 
         self.log('val_loss', 1e3 * loss , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("val_mse", self.stdTr**2 * mse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("val_gmse", self.stdTr**2 * gmse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("val_gvar", var_cost_grad , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("val_mse", self.stdTr**2 * mse_score[0] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log("val_gmse", self.stdTr**2 * mse_score[1] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        if mse_score.size(0) > 2 :
+            self.log("val_mse_implicit", self.stdTr**2 * mse_score[2] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        #self.log("val_gvar", var_cost_grad , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
 
     def test_step(self, test_batch, batch_idx):
@@ -1743,31 +1745,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         return super(Lit4dVarNet_L63_OdeSolver,self).training_step(train_batch, batch_idx)  
 
     def validation_step(self, val_batch, batch_idx):
-
         val_batch = self.extract_data_patch(val_batch)
-        inputs_init,inputs_obs,masks,targets_GT = val_batch
-
-        loss, out, metrics = self.compute_loss(val_batch, phase='val')
-        for kk in range(0,self.hparams.k_n_grad-1):
-            loss1, out, metrics = self.compute_loss(val_batch, phase='val',batch_init=out[0],hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
-            loss = loss1
-
-            if self.hparams.post_projection == True :
-                out[0] = self.model.phi_r(out[0]) 
-                
-            if self.hparams.post_median_filter == True :
-                out[0] = kornia.filters.median_blur(out[0], (self.hparams.median_filter_width, 1))
-
-        mse,gmse,mse_implicit_integration = self.compute_mse_loss(out[0],targets_GT)
-        var_cost_grad = self.loss_var_cost_grad(targets_GT,inputs_obs,masks,phase='test')
-
-        self.log('val_loss', 1e3 * loss , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("val_mse", self.stdTr**2 * mse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("val_mse_implicit", self.stdTr**2 * mse_implicit_integration , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("val_gmse", self.stdTr**2 * gmse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("val_gvar", var_cost_grad , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         
-        return loss
+        return super(Lit4dVarNet_L63_OdeSolver,self).validation_step(val_batch, batch_idx)  
 
     def test_step(self, test_batch, batch_idx):
         
@@ -1795,15 +1775,15 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()
     
     
-            mse,gmse,mse_implicit_integration = self.compute_mse_loss(out[0],targets_GT)
+            mse_score = self.compute_mse_loss(out[0],targets_GT)
     
             var_cost_grad = self.loss_var_cost_grad(targets_GT_lr,inputs_obs,masks,phase='test')
                   
             
-            self.log("test_mse", self.stdTr**2 * mse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-            self.log("test_mse_implicit", self.stdTr**2 * mse_implicit_integration , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-            self.log("test_gmse", self.stdTr**2 * gmse , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-            self.log("test_gvar", var_cost_grad , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+            self.log("test_mse", self.stdTr**2 * mse_score[0] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+            self.log("test_mse_implicit", self.stdTr**2 * mse_score[2] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+            self.log("test_gmse", self.stdTr**2 * mse_score[1] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+            #self.log("test_gvar", var_cost_grad , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
 
             if self.x_rec is None :
                 self.x_rec = out_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr
