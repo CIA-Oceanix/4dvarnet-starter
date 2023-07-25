@@ -1537,7 +1537,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.log("val_mse", self.stdTr**2 * mse_score[0] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log("val_gmse", self.stdTr**2 * mse_score[1] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         if len(mse_score) > 2 :
-            self.log("val_mse_implicit", self.stdTr**2 * mse_score[2] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+            self.log("val_mse_implicit", mse_score[2] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+            #self.log("val_mse_implicit", self.stdTr**2 * mse_score[2] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         #self.log("val_gvar", var_cost_grad , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
 
