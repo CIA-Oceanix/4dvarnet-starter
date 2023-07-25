@@ -1537,7 +1537,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.log("val_mse", self.stdTr**2 * mse_score[0] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log("val_gmse", self.stdTr**2 * mse_score[1] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         if len(mse_score) > 2 :
-            self.log("val_mse_implicit", mse_score[2] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+            self.log("val_mse_implicit", self.stdTr**2 * mse_score[2] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
             #self.log("val_mse_implicit", self.stdTr**2 * mse_score[2] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         #self.log("val_gvar", var_cost_grad , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
@@ -1886,6 +1886,8 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
     def compute_implicit_euler_loss(self,rec,solver='euler'):
         
+        dt = self.ode_solver.dt / self.hparams.integration_step
+        print(' %.3f %.3f'%(self.ode_solver.dt,dt))
         rec = self.meanTr + self.stdTr * rec.squeeze(dim=-1)
         
         if solver == 'euler' :
@@ -1893,11 +1895,10 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         else:        
             fode_rec = ( rec - self.ode_solver._RK4Solver(rec ) ) / self.ode_solver.dt
             
-        err = rec[:,:,1:] - rec[:,:,:-1] - self.ode_solver.dt * fode_rec[:,:,1:]
+        err = rec[:,:,1:] - rec[:,:,:-1] - dt * fode_rec[:,:,1:]
         err = err  / self.stdTr
         
         return torch.mean( err **2 )
-
 
     def compute_loss(self, batch, phase, batch_init = None , hidden = None , cell = None , normgrad = 0.0,prev_iter=0):
         with torch.set_grad_enabled(True):
