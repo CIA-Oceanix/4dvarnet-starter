@@ -12,55 +12,55 @@ datamodule:
     param_dataset:
       path_l63_dataset: '../../Dataset4DVarNet/dataset_l63_normalized_20230717.nc' #'../../Dataset4DVarNet/dataset_L63_with_noise.nc'# '../../Dataset4DVarNet/dataset_L63_with_noise.nc'
       genSuffixObs: 'JamesData'
-      flag_load_all_data: False
-      flag_generate_L63_data: False #True #
-      NbTraining: 10000
-      NbTest: 1000
-      time_step: 1
-      dT: 32
-      dT_test: 32
-      dt_forecast: ${subtract:${datamodule.input_data.param_dataset.dT},1}
-      varNoise: 0.
-      sampling_step: 1
+      flag_load_all_data: False # keep unchanged
+      flag_generate_L63_data: False #keep unchanged, False: load a pre-generated L63 dataset
+      NbTraining: 10000 # number of training sequences
+      NbTest: 1000 # number of test sequences
+      time_step: 1 # subsampling step for the time series
+      integration_step: ?? # integration time step for the learnt solver
+      dT: 32 # number of integration time steps for the training data 
+      dT_test: 32 # number of integration time steps for the test data 
+      dt_forecast: ${subtract:${datamodule.input_data.param_dataset.dT},1} # number of simulation time steps, here dT-1, just using the initial condition
+      varNoise: 0. # noise set to 0
+      sampling_step: 1 # not used here (sampling step for observation data in the assimilation/forecasting case-study)
       flagTypeMissData: -1
-      integration_step: ??
       
 model:
   _target_: src.models_l63.Lit4dVarNet_L63_OdeSolver #src.models_l63.Lit4dVarNet_L63
   params:
-    k_n_grad: ??
-    n_grad: 5
-    lr: 1e-3 
-    batch_size: 128
-    DimAE: 10 # ?? #
+    k_n_grad: ?? # number of 4dvarnet blocks of n_grad grdient-based iterations
+    n_grad: 5 # number of gradient-based iterations in each block
+    lr: 1e-3  # learning rate (initial value, cosine annealing learning rate)
+    batch_size: 128 # batch size
+    DimAE: 10 # ?? # parameter for prior Phi, parameterization of the number of channels
 #    phi_param: 'unet'
 #    solver: ?? #'4dvarnet-with-rnd' #?? #''4dvarnet-with-state-and-rnd' # #'4dvarnet-with-subgradients' #'4dvarnet-with-rnd-grad' #''4dvarnet-with-state-and-rnd' #
-    dim_grad_solver: ?? #10 #100 #25
-    dropout: 0.
-    alpha_prior: 0. #1e2
-    alpha_mse: 1.e2
-    alpha_mse_implicit: 0. #1e2
-    alpha_gmse: 0. #50.
-    alpha_var_cost_grad: 0.0
-    lr_grad: 0. #1e-2 #1.e3
-    lr_rnd: 0.e-3
-    sig_rnd_init: 0.e-2
-    sig_lstm_init: 0.e-2
-    sig_obs_noise: 0. #1e-1
-    init_state: ?? #'zeros' #'last_state' #'ode_solver' # ?? #'zeros' #
-    suffix_exp: ?? #'-lstm+grad' #'
-    UsePeriodicBoundary: False
-    degradation_operator: 'no-degradation'  #'gaussian_smoothing' #??  # 
-    sig_perturbation_grad: 1e-2
-    alpha_perturbation_grad: 0.9
-    gamma_degradation: 1e-1
+    dim_grad_solver: ?? #10 #100 #25 # dimenbsion of the hidden states of the LSTM cell
+    dropout: 0. # dropout value in the LSTM solver
+    alpha_prior: 0. #1e2 # weighing factor of term ||x-phi(x)||**2 in the training loss
+    alpha_mse: 1.e2 # weighing factor of term ||x_true-x_pred||**2 in the training loss
+    alpha_mse_implicit: 0. #1e2 # weighing factor of term ||x_true-x_pred||**2 in the training loss
+    alpha_gmse: 0. #50. # weighing factor of term (time derivative) ||D_t x_true-D_t x_pred||**2 in the training loss
+    alpha_var_cost_grad: 0.0 # not used
+    lr_grad: 0. #1e-2 #1.e3 # weighing factor of the firxed-step gradient descent term in 4dvarnet optimisation, \beta in equation (10)
+    lr_rnd: 0.e-3 # weighing factor of an additional Gaussian noise in (10)
+    sig_rnd_init: 0.e-2 # additive random noise in the initialization
+    sig_lstm_init: 0.e-2 # std of the random initialization of the lstm cell of the solver
+    sig_obs_noise: 0. #1e-1 # additive random noise in the observation term ||x-y||**2
+    init_state: ?? #'zeros' #'last_state' #'ode_solver' # selected initialization for the simulation window
+    suffix_exp: ?? #'-lstm+grad' #
+#    UsePeriodicBoundary: False # not used
+#    degradation_operator: 'no-degradation'  #'gaussian_smoothing' #??  # not used
+#    sig_perturbation_grad: 1e-2 # not used
+#    alpha_perturbation_grad: 0.9 # not used
+#    gamma_degradation: 1e-1
     type_step_lstm: 'linear-relu' #'constant'  #'linear'#
     param_lstm_step: 10 #20 #-1 #
-    dt_mse_test: 10
-    dt_mse: 0
-    post_projection: False #True #  ?? # 
-    post_median_filter: False # True # 
-    median_filter_width: 3
+#    dt_mse_test: 10
+#    dt_mse: 0
+#    post_projection: False #True #  ?? # 
+#    post_median_filter: False # True # 
+#    median_filter_width: 3
     keep_obs: True
     shapeData:
       - 3
@@ -170,4 +170,7 @@ entrypoints:
 #        time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
 #        lat: ${domain.test.lat}
 #        lon: ${domain.test.lat}
+
+defaults:
+  - /xp/base_l63
   
