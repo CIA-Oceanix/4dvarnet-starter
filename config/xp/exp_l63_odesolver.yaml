@@ -91,6 +91,7 @@ entrypoints:
 #    lit_mod: ${model}
 #    dm: ${datamodule}
 #    num_members: 0
+    ckpt: 'outputs/2023-07-25/11-28-30/exp_l63_odesolver/checkpoints/model-odesolver-l63-mse-only-dT08_01_07_04-JamesData-init_euler-unet-bilin_10-fclstm-grad05_02_100-val_loss=0.0703-epoch=380.ckpt'
 #    ckpt: 'outputs/2023-07-25/11-05-41/exp_l63_odesolver/checkpoints/model-odesolver-l63-mse-only-new-dT32_01_31_02-JamesData-init_euler-unet-bilin_10-fclstm-grad05_01_100-val_loss=0.0148-epoch=376.ckpt'
 #    ckpt: 'outputs/2023-07-24/15-05-35/base_l63_odesolver/checkpoints/model-odesolver-l63-new-dT04_01_03_02-JamesData-odenet_10-fclstm-grad05_01_20-val_loss=0.1047-epoch=344.ckpt'
 #    ckpt: 'outputs/2023-07-21/17-10-09/base_l63_odesolver/checkpoints/model-odesolver-l63-new-dT04_01_03_02-JamesData-unet-bilin_10-fclstm-grad05_02_20-val_loss=0.1530-epoch=380.ckpt'
