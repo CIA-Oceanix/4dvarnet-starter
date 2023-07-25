@@ -14,8 +14,8 @@ datamodule:
       NbTest: 1000 # number of test sequences
       time_step: 1 # subsampling step for the time series
       integration_step: ?? # integration time step for the learnt solver
-      dT: 32 # number of integration time steps for the training data 
-      dT_test: 32 # number of integration time steps for the test data 
+      dT: ?? # number of integration time steps for the training data 
+      dT_test: 16 # number of integration time steps for the test data 
       dt_forecast: ${subtract:${datamodule.input_data.param_dataset.dT},1} # number of simulation time steps, here dT-1, just using the initial condition
       
 model:
