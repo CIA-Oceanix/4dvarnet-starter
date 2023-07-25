@@ -1939,8 +1939,8 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 if self.init_state == 'ode_solver':
                     inputs_init = inputs_init_ode
                 elif self.init_state == 'last_state':
-                    last_states = inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast-1,:]
-                    last_states = last_states.view(-1,inputs_init_.size(1),inputs_init_.size(2)-self.hparams.dt_forecast-1,1)
+                    last_states = inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast,:]
+                    last_states = last_states.view(-1,inputs_init_.size(1),inputs_init_.size(2)-self.hparams.dt_forecast,1)
                     last_state = last_states[:,:,-1,:].view(-1,inputs_init_.size(1),1,1)
                     
                     print( inputs_init_.size() )
