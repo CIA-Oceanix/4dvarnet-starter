@@ -1943,14 +1943,16 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                     last_states = last_states.view(-1,inputs_init_.size(1),inputs_init_.size(2)-self.hparams.dt_forecast,1)
                     last_state = last_states[:,:,-1,:].view(-1,inputs_init_.size(1),1,1)
                     
-                    print( inputs_init_.size() )
                     inputs_init = torch.cat( (last_states,last_state.repeat((1,1,self.hparams.dt_forecast,1)) ) , dim=2 )
-                    print( inputs_init.size() )
-                    print( inputs_init[0,0,:,0] )
+
                 elif self.init_state == 'zeros':
-                    last_state = inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1)
+                    last_states = inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast,:]
+                    last_states = last_states.view(-1,inputs_init_.size(1),inputs_init_.size(2)-self.hparams.dt_forecast,1)
                     
-                    inputs_init = torch.cat( (inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast], 0. * inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1:] ) , dim=2 )
+                    inputs_init = torch.cat( (last_states, 0. * inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast:] ) , dim=2 )
+                    
+                    print(inputs_init.size())
+                    print(inputs_init[0,0,:,:])
                 else:
                     inputs_init = inputs_init_ + self.hparams.sig_rnd_init *  torch.randn( inputs_init_.size() ).to(device)
             else:
