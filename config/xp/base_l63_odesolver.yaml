@@ -42,7 +42,7 @@ model:
     alpha_mse_implicit: 0. #1e2
     alpha_gmse: 0. #50.
     alpha_var_cost_grad: 0.0
-    lr_grad: ?? #1e-2 #1.e3
+    lr_grad: 0. #1e-2 #1.e3
     lr_rnd: 0.e-3
     sig_rnd_init: 0.e-2
     sig_lstm_init: 0.e-2
