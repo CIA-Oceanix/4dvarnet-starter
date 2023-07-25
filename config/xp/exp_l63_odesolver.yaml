@@ -88,7 +88,7 @@ entrypoints:
 #    lit_mod: ${model}
 #    dm: ${datamodule}
   - _target_: src.test.base_testing_ode_solver #src.test.base_testing_forecast #
-   trainer: ${trainer}
+    trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
     num_members: 0
