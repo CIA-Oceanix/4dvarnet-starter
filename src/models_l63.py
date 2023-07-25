@@ -137,7 +137,11 @@ def create_filename_ckpt_odesolver(suffix,params_data,params_model,name_solver='
         filename_chkpt = filename_chkpt +  '-degrad-' 
         
     filename_chkpt = filename_chkpt + params_data.genSuffixObs 
-    filename_chkpt = filename_chkpt + '-init_' +  params_model.init_state
+    
+    if params_model.init_state == 'ode_solver':
+        filename_chkpt = filename_chkpt + '-init_' +  params_model.base_ode_solver
+    else:
+        filename_chkpt = filename_chkpt + '-init_' +  params_model.init_state
     #filename_chkpt = filename_chkpt + '-Obs%02d'%params_data.sampling_step + '-Noise%02d'%(params_data.varNoise)        
     #filename_chkpt = filename_chkpt + '-' + params_model.phi_param
     filename_chkpt = filename_chkpt + '-' + name_phi +'_%02d'%params_model.DimAE 
