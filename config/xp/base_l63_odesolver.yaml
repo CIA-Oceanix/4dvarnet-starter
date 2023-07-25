@@ -47,7 +47,7 @@ model:
     sig_rnd_init: 0.e-2
     sig_lstm_init: 0.e-2
     sig_obs_noise: 0. #1e-1
-    init_state: 'ode_solver' # ?? #'zeros' #
+    init_state: 'last_state' #'ode_solver' # ?? #'zeros' #
     suffix_exp: ?? #'-lstm+grad' #'
     UsePeriodicBoundary: False
     degradation_operator: 'no-degradation'  #'gaussian_smoothing' #??  # 
