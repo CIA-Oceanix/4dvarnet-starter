@@ -167,5 +167,5 @@ entrypoints:
 #        lon: ${domain.test.lat}
 
 defaults:
-  - /xp/base_l63
+  - /xp/base_l63_odesolver
   
