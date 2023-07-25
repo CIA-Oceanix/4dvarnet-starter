@@ -70,7 +70,7 @@ trainer:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
     - _target_: pytorch_lightning.callbacks.ModelCheckpoint
-      monitor: val_mse
+      monitor: val_loss
       save_top_k: 3
       filename: 
         _target_: src.models_l63.create_filename_ckpt_odesolver #create_filename_ckpt
