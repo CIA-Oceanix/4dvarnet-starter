@@ -1887,7 +1887,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
     def compute_implicit_euler_loss(self,rec,solver='euler'):
         
         dt = self.ode_solver.dt / self.hparams.integration_step
-        print(' %.3f %.3f'%(self.ode_solver.dt,dt))
+        #print(' %.3f %.3f'%(self.ode_solver.dt,dt))
         rec = self.meanTr + self.stdTr * rec.squeeze(dim=-1)
         
         if solver == 'euler' :
