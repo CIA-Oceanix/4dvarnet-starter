@@ -10,10 +10,10 @@ datamodule:
   input_data:
     _target_: src.data_l63.create_l63_ode_solver_datasets #src.data_l63.create_l63_forecast_datasets
     param_dataset:
-      path_l63_dataset: '../../Dataset4DVarNet/dataset_l63_normalized_20230717.nc' #'../../Dataset4DVarNet/dataset_L63_with_noise.nc'# '../../Dataset4DVarNet/dataset_L63_with_noise.nc'
-      genSuffixObs: 'JamesData'
-      flag_load_all_data: False # keep unchanged
-      flag_generate_L63_data: False #keep unchanged, False: load a pre-generated L63 dataset
+#      path_l63_dataset: '../../Dataset4DVarNet/dataset_l63_normalized_20230717.nc' #'../../Dataset4DVarNet/dataset_L63_with_noise.nc'# '../../Dataset4DVarNet/dataset_L63_with_noise.nc'
+#      genSuffixObs: 'JamesData'
+#      flag_load_all_data: False # keep unchanged
+#      flag_generate_L63_data: False #keep unchanged, False: load a pre-generated L63 dataset
       NbTraining: 10000 # number of training sequences
       NbTest: 1000 # number of test sequences
       time_step: 1 # subsampling step for the time series
@@ -21,9 +21,9 @@ datamodule:
       dT: 32 # number of integration time steps for the training data 
       dT_test: 32 # number of integration time steps for the test data 
       dt_forecast: ${subtract:${datamodule.input_data.param_dataset.dT},1} # number of simulation time steps, here dT-1, just using the initial condition
-      varNoise: 0. # noise set to 0
-      sampling_step: 1 # not used here (sampling step for observation data in the assimilation/forecasting case-study)
-      flagTypeMissData: -1
+#      varNoise: 0. # noise set to 0
+#      sampling_step: 1 # not used here (sampling step for observation data in the assimilation/forecasting case-study)
+#      flagTypeMissData: -1
       
 model:
   _target_: src.models_l63.Lit4dVarNet_L63_OdeSolver #src.models_l63.Lit4dVarNet_L63
@@ -41,39 +41,39 @@ model:
     alpha_mse: 1.e2 # weighing factor of term ||x_true-x_pred||**2 in the training loss
     alpha_mse_implicit: 0. #1e2 # weighing factor of term ||x_true-x_pred||**2 in the training loss
     alpha_gmse: 0. #50. # weighing factor of term (time derivative) ||D_t x_true-D_t x_pred||**2 in the training loss
-    alpha_var_cost_grad: 0.0 # not used
+#    alpha_var_cost_grad: 0.0 # not used
     lr_grad: 0. #1e-2 #1.e3 # weighing factor of the firxed-step gradient descent term in 4dvarnet optimisation, \beta in equation (10)
-    lr_rnd: 0.e-3 # weighing factor of an additional Gaussian noise in (10)
-    sig_rnd_init: 0.e-2 # additive random noise in the initialization
-    sig_lstm_init: 0.e-2 # std of the random initialization of the lstm cell of the solver
-    sig_obs_noise: 0. #1e-1 # additive random noise in the observation term ||x-y||**2
+#    lr_rnd: 0.e-3 # weighing factor of an additional Gaussian noise in (10)
+#    sig_rnd_init: 0.e-2 # additive random noise in the initialization
+#    sig_lstm_init: 0.e-2 # std of the random initialization of the lstm cell of the solver
+#    sig_obs_noise: 0. #1e-1 # additive random noise in the observation term ||x-y||**2
     init_state: ?? #'zeros' #'last_state' #'ode_solver' # selected initialization for the simulation window
     suffix_exp: ?? #'-lstm+grad' #
-    UsePeriodicBoundary: False # not used
-    degradation_operator: 'no-degradation'  #'gaussian_smoothing' #??  # not used
-    sig_perturbation_grad: 1e-2 # not used
-    alpha_perturbation_grad: 0.9 # not used
-    gamma_degradation: 1e-1 # not used
-    type_step_lstm: 'linear-relu' #'constant'  #'linear'# # parameterization of weight decay for the lstm terme in (10)
-    param_lstm_step: 10 #20 #-1 #  # parameterization of weight decay for the lstm terme in (10)
-    dt_mse_test: 0  # not used
-    dt_mse: 0 # not used
-    post_projection: False #True #  ?? # apply a projection phi(x) after the last iteration of the solver
-    post_median_filter: False # True #  # apply a median filtering after the last iteration of the solver
-    median_filter_width: 3 # width of the meadian filter
-    keep_obs: True # force the solver to keep the state as the observed value for available observations
-    shapeData: # tensor shape for the state
-      - 3
-      - ${datamodule.input_data.param_dataset.dT} #${div:${datamodule.input_data.param_dataset.dT},${datamodule.input_data.param_dataset.integration_step}}
-      - 1
+#    UsePeriodicBoundary: False # not used
+#    degradation_operator: 'no-degradation'  #'gaussian_smoothing' #??  # not used
+#    sig_perturbation_grad: 1e-2 # not used
+#    alpha_perturbation_grad: 0.9 # not used
+#    gamma_degradation: 1e-1 # not used
+#    type_step_lstm: 'linear-relu' #'constant'  #'linear'# # parameterization of weight decay for the lstm terme in (10)
+#    param_lstm_step: 10 #20 #-1 #  # parameterization of weight decay for the lstm terme in (10)
+#    dt_mse_test: 0  # not used
+#    dt_mse: 0 # not used
+#    post_projection: False #True #  ?? # apply a projection phi(x) after the last iteration of the solver
+#    post_median_filter: False # True #  # apply a median filtering after the last iteration of the solver
+#    median_filter_width: 3 # width of the meadian filter
+#    keep_obs: True # force the solver to keep the state as the observed value for available observations
+#    shapeData: # tensor shape for the state
+#      - 3
+#      - ${datamodule.input_data.param_dataset.dT} #${div:${datamodule.input_data.param_dataset.dT},${datamodule.input_data.param_dataset.integration_step}}
+#      - 1
     shapeData_modGrad: #${model.params.shapeData} # shape of the gradient tensor (similar as shapeData for convLSTM solver, one-dimensional for a dense LSTM solver)
       - ${mul:${datamodule.input_data.param_dataset.dT},3} 
-    dt_forecast: ${datamodule.input_data.param_dataset.dt_forecast} 
-    dT_test: ${datamodule.input_data.param_dataset.dT_test}
-    integration_step: ${datamodule.input_data.param_dataset.integration_step}
-    time_step_ode: ${mul:${datamodule.input_data.param_dataset.time_step},${datamodule.input_data.param_dataset.integration_step}}
+#    dt_forecast: ${datamodule.input_data.param_dataset.dt_forecast} 
+#    dT_test: ${datamodule.input_data.param_dataset.dT_test}
+#    integration_step: ${datamodule.input_data.param_dataset.integration_step}
+#    time_step_ode: ${mul:${datamodule.input_data.param_dataset.time_step},${datamodule.input_data.param_dataset.integration_step}}
     base_ode_solver: 'euler' # 'rk4' # # ode solver used as baseline (reference and possible initialization)
-    use_rk4_gpu_as_target: False # True # used the rk4 GPU solver as targets
+#    use_rk4_gpu_as_target: False # True # used the rk4 GPU solver as targets
     simu_test_all_steps: False # During the training step, run the simulation for dT (False) or dT_test time steps
   Phi: # selected parameterization for operator phi
     _target_: src.models_l63.Phi_ode # src.models_l63.Phi_unet_like_bilin #    src.models_l63.Phi_unet_like_bilin # ssrc.models_l63.Phi_unet_1_layer_bis #src.models_l63.UNet_3_layers #
@@ -81,13 +81,6 @@ model:
     #DimAE: ${model.params.DimAE}
     name: 'unet-bilin' # 'odenet' # 
 #    rateDropout: 0.2
-  m_NormObs: # selected parameterization for the observation norm
-    _target_: src.solver_l63.Model_WeightedL2Norm #src.solver_l63.Model_WeightedTrainableL2Norm #src.solver_l63.Model_WeightedGL2Norm # src.solver_l63.Model_WeightedL2Norm #
-  m_NormPhi: # selected parameterization for the prior norm
-    _target_: src.solver_l63.Model_WeightedL2Norm
-  mod_H: # selected parameterization for the observation operator
-    _target_: src.models_l63.Model_H # src.models_l63.Model_H_with_relu # src.models_l63.Model_HwithSSTBN_nolin_tanh #src.models_l63.Model_HwithTrainableLocalisation #src.models_l63.Model_HwithLocalisation
-    shape_data: ${model.params.shapeData}
   mod_Grad: # selected parameterization for the gradient-based solver
     _target_: src.solver_l63.model_Grad_with_lstm
     ShapeData: ${model.params.shapeData_modGrad}
@@ -95,13 +88,6 @@ model:
     rateDropout: ${model.params.dropout} 
     sig_lstm_init: ${model.params.sig_lstm_init}
     name: 'lstm-grad'
-  patch_weight: # wieghing factors in the computation of the mse losses for the different time steps of the considered window
-    _target_: src.models_l63.get_forecasting_mask #get_forecastingonly_mask
-    patch_dims: 
-      - 3
-      - ${mul:${datamodule.input_data.param_dataset.dT},${datamodule.input_data.param_dataset.integration_step}}
-      - 1
-    dt_forecast: ${datamodule.input_data.param_dataset.dt_forecast}
 
 trainer:
   _target_: pytorch_lightning.Trainer
