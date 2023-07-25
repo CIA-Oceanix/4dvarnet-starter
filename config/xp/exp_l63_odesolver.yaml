@@ -53,60 +53,55 @@ model:
     degradation_operator: 'no-degradation'  #'gaussian_smoothing' #??  # not used
     sig_perturbation_grad: 1e-2 # not used
     alpha_perturbation_grad: 0.9 # not used
-    gamma_degradation: 1e-1
-    type_step_lstm: 'linear-relu' #'constant'  #'linear'#
-    param_lstm_step: 10 #20 #-1 #
-    dt_mse_test: 10
-    dt_mse: 0
-    post_projection: False #True #  ?? # 
-    post_median_filter: False # True # 
-    median_filter_width: 3
-    keep_obs: True
-    shapeData:
+    gamma_degradation: 1e-1 # not used
+    type_step_lstm: 'linear-relu' #'constant'  #'linear'# # parameterization of weight decay for the lstm terme in (10)
+    param_lstm_step: 10 #20 #-1 #  # parameterization of weight decay for the lstm terme in (10)
+    dt_mse_test: 0  # not used
+    dt_mse: 0 # not used
+    post_projection: False #True #  ?? # apply a projection phi(x) after the last iteration of the solver
+    post_median_filter: False # True #  # apply a median filtering after the last iteration of the solver
+    median_filter_width: 3 # width of the meadian filter
+    keep_obs: True # force the solver to keep the state as the observed value for available observations
+    shapeData: # tensor shape for the state
       - 3
       - ${datamodule.input_data.param_dataset.dT} #${div:${datamodule.input_data.param_dataset.dT},${datamodule.input_data.param_dataset.integration_step}}
       - 1
-    shapeData_modGrad: #${model.params.shapeData}
+    shapeData_modGrad: #${model.params.shapeData} # shape of the gradient tensor (similar as shapeData for convLSTM solver, one-dimensional for a dense LSTM solver)
       - ${mul:${datamodule.input_data.param_dataset.dT},3} 
-    dt_forecast: ${datamodule.input_data.param_dataset.dt_forecast}
+    dt_forecast: ${datamodule.input_data.param_dataset.dt_forecast} 
     dT_test: ${datamodule.input_data.param_dataset.dT_test}
     integration_step: ${datamodule.input_data.param_dataset.integration_step}
     time_step_ode: ${mul:${datamodule.input_data.param_dataset.time_step},${datamodule.input_data.param_dataset.integration_step}}
-    base_ode_solver: 'euler' # 'rk4' # 
-    use_rk4_gpu_as_target: False # True # 
-    simu_test_all_steps: False
-#  ckpt: 'outputs/2023-06-10/23-30-37/base_l63/checkpoints/model-l63-lstmonly+gobs+grad-4dvarnet-with-state-and-rnd-JamesData-Obs20-Noise02-unet-igrad10_08-dgrad100-val_loss=8.5268-epoch=216.ckpt'
-  Phi:
+    base_ode_solver: 'euler' # 'rk4' # # ode solver used as baseline (reference and possible initialization)
+    use_rk4_gpu_as_target: False # True # used the rk4 GPU solver as targets
+    simu_test_all_steps: False # During the training step, run the simulation for dT (False) or dT_test time steps
+  Phi: # selected parameterization for operator phi
     _target_: src.models_l63.Phi_ode # src.models_l63.Phi_unet_like_bilin #    src.models_l63.Phi_unet_like_bilin # ssrc.models_l63.Phi_unet_1_layer_bis #src.models_l63.UNet_3_layers #
     #shapeData: ${model.params.shapeData}
     #DimAE: ${model.params.DimAE}
     name: 'unet-bilin' # 'odenet' # 
 #    rateDropout: 0.2
-  m_NormObs:
+  m_NormObs: # selected parameterization for the observation norm
     _target_: src.solver_l63.Model_WeightedL2Norm #src.solver_l63.Model_WeightedTrainableL2Norm #src.solver_l63.Model_WeightedGL2Norm # src.solver_l63.Model_WeightedL2Norm #
-    #kernel_x: 5
-    #kernel_y: 1
-    #sigma: 1.
-  m_NormPhi:
+  m_NormPhi: # selected parameterization for the prior norm
     _target_: src.solver_l63.Model_WeightedL2Norm
-  mod_H:
+  mod_H: # selected parameterization for the observation operator
     _target_: src.models_l63.Model_H # src.models_l63.Model_H_with_relu # src.models_l63.Model_HwithSSTBN_nolin_tanh #src.models_l63.Model_HwithTrainableLocalisation #src.models_l63.Model_HwithLocalisation
     shape_data: ${model.params.shapeData}
-  mod_Grad:
+  mod_Grad: # selected parameterization for the gradient-based solver
     _target_: src.solver_l63.model_Grad_with_lstm
     ShapeData: ${model.params.shapeData_modGrad}
     DimLSTM: ${model.params.dim_grad_solver} 
     rateDropout: ${model.params.dropout} 
     sig_lstm_init: ${model.params.sig_lstm_init}
     name: 'lstm-grad'
-  patch_weight:
+  patch_weight: # wieghing factors in the computation of the mse losses for the different time steps of the considered window
     _target_: src.models_l63.get_forecasting_mask #get_forecastingonly_mask
     patch_dims: 
       - 3
       - ${mul:${datamodule.input_data.param_dataset.dT},${datamodule.input_data.param_dataset.integration_step}}
       - 1
     dt_forecast: ${datamodule.input_data.param_dataset.dt_forecast}
-    #dim: 5
 
 trainer:
   _target_: pytorch_lightning.Trainer
