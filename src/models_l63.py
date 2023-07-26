@@ -1271,7 +1271,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
         #print(hparams,flush=True)
         
         
-        #self.save_hyperparameters(params)
+        self.save_hyperparameters(params)
 
         self.params = params
        
