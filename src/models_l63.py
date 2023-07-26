@@ -1271,12 +1271,12 @@ class Lit4dVarNet_L63(pl.LightningModule):
         #print(hparams,flush=True)
         
        
-        self.save_hyperparameters(params)
+        #self.save_hyperparameters(params)
         #self.save_hyperparameters({**hparams, **kwargs})
         #print('..................')
         #print(params)
         
-        #self.hparams = params
+        self.hparams = OmegaConf.to_container(params, resolve=True)
 
                         
         self.w_loss          = torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
