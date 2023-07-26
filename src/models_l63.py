@@ -1245,16 +1245,16 @@ class HParam:
         self.dropout         = 0.25
         self.w_loss          = []
         self.automatic_optimization = True
-        self.hparams.shapeData = [3,200,1]
+        self.params.shapeData = [3,200,1]
 
         self.alpha_proj    = 0.5
         self.alpha_mse = 10.
 
         self.k_batch = 1
-        #self.hparams.n_grad          = 5#self.hparams.n_grad#5#self.hparams.nb_grad_update[0]
-        #self.hparams.k_n_grad        = 1#self.hparams.k_n_grad#1
-        #self.hparams.dim_grad_solver = dimGradSolver
-        #self.hparams.dropout         = rateDropout
+        #self.params.n_grad          = 5#self.params.n_grad#5#self.params.nb_grad_update[0]
+        #self.params.k_n_grad        = 1#self.params.k_n_grad#1
+        #self.params.dim_grad_solver = dimGradSolver
+        #self.params.dropout         = rateDropout
 
 
 
@@ -1263,7 +1263,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
                  Phi=None,m_NormObs=None, m_NormPhi=None,mod_H=None,mod_Grad=None,
                  stats_training_data=None,*args, **kwargs):
         super().__init__()
-        #self.hparams = HParam() if params is None else params
+        #self.params = HParam() if params is None else params
         #hparam = {} if params is None else params
         #hparams = hparam if isinstance(hparam, dict) else OmegaConf.to_container(hparam, resolve=True)
         #hparams = hparam
@@ -1280,10 +1280,10 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         # prior
         if Phi == None :
-            Phi = Phi_unet_like_bilin(self.hparams.shapeData,self.hparams.DimAE)
+            Phi = Phi_unet_like_bilin(self.params.shapeData,self.params.DimAE)
                         
         if mod_H == None :
-            mod_H = Model_H(self.hparams.shapeData)
+            mod_H = Model_H(self.params.shapeData)
             
         self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi, 
                                                                 mod_H, 
@@ -1293,62 +1293,62 @@ class Lit4dVarNet_L63(pl.LightningModule):
                                                                 self.params.type_step_lstm,self.params.param_lstm_step)            
 
         if 1*0 :
-            if self.hparams.solver =='4dvarnet-with-rnd' :
+            if self.params.solver =='4dvarnet-with-rnd' :
                 self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi, 
                                                                         mod_H, 
                                                                         mod_Grad,
-                                                                        #solver_4DVarNet.model_Grad_with_lstm(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, 
-                                                                        #                                     self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
-                                                                        #                                     sig_lstm_init = self.hparams.sig_lstm_init), 
+                                                                        #solver_4DVarNet.model_Grad_with_lstm(self.params.shapeData, self.params.UsePeriodicBoundary, 
+                                                                        #                                     self.params.dim_grad_solver, self.params.dropout, padding_mode='zeros',
+                                                                        #                                     sig_lstm_init = self.params.sig_lstm_init), 
                                                                         m_NormObs, m_NormPhi, 
-                                                                        self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.k_n_grad,self.hparams.lr_grad,self.hparams.lr_rnd,
-                                                                        self.hparams.type_step_lstm,self.hparams.param_lstm_step)#, self.hparams.eps_norm_grad)            
-            elif self.hparams.solver =='4dvarnet-with-state-and-rnd':
+                                                                        self.params.shapeData, self.params.n_grad, EPS_NORM_GRAD,self.params.k_n_grad,self.params.lr_grad,self.params.lr_rnd,
+                                                                        self.params.type_step_lstm,self.params.param_lstm_step)#, self.params.eps_norm_grad)            
+            elif self.params.solver =='4dvarnet-with-state-and-rnd':
                 self.model        = solver_4DVarNet.GradSolver_with_state_rnd(Phi, 
-                                                                        mod_H,#Model_H(self.hparams.shapeData), 
-                                                                        solver_4DVarNet.model_Grad_with_lstm_and_state(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, 
-                                                                                                                       self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
-                                                                                                                       sig_lstm_init = self.hparams.sig_lstm_init), 
+                                                                        mod_H,#Model_H(self.params.shapeData), 
+                                                                        solver_4DVarNet.model_Grad_with_lstm_and_state(self.params.shapeData, self.params.UsePeriodicBoundary, 
+                                                                                                                       self.params.dim_grad_solver, self.params.dropout, padding_mode='zeros',
+                                                                                                                       sig_lstm_init = self.params.sig_lstm_init), 
                                                                         m_NormObs, m_NormPhi, 
-                                                                        self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD, self.hparams.k_n_grad, self.hparams.lr_grad,self.hparams.lr_rnd,
-                                                                        self.hparams.type_step_lstm,self.hparams.param_lstm_step)#, self.hparams.eps_norm_grad)
-            elif self.hparams.solver =='4dvarnet-with-rnd-grad':
-                shapeData_grad = np.array([self.hparams.shapeData[0],self.hparams.shapeData[1],1])
+                                                                        self.params.shapeData, self.params.n_grad, EPS_NORM_GRAD, self.params.k_n_grad, self.params.lr_grad,self.params.lr_rnd,
+                                                                        self.params.type_step_lstm,self.params.param_lstm_step)#, self.params.eps_norm_grad)
+            elif self.params.solver =='4dvarnet-with-rnd-grad':
+                shapeData_grad = np.array([self.params.shapeData[0],self.params.shapeData[1],1])
                 self.model        = solver_4DVarNet.Solver_with_nograd(Phi, 
-                                                                        mod_H,#Model_H(self.hparams.shapeData), 
-                                                                        solver_4DVarNet.model_Grad_with_lstm(shapeData_grad, self.hparams.UsePeriodicBoundary, 
-                                                                                                             self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
-                                                                                                             sig_lstm_init = self.hparams.sig_lstm_init), 
+                                                                        mod_H,#Model_H(self.params.shapeData), 
+                                                                        solver_4DVarNet.model_Grad_with_lstm(shapeData_grad, self.params.UsePeriodicBoundary, 
+                                                                                                             self.params.dim_grad_solver, self.params.dropout, padding_mode='zeros',
+                                                                                                             sig_lstm_init = self.params.sig_lstm_init), 
                                                                         m_NormObs, m_NormPhi, 
-                                                                        self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd,
-                                                                        no_grad_type='sampling-randn',sig_perturbation_grad=self.hparams.sig_perturbation_grad )#, self.hparams.eps_norm_grad)
-            elif self.hparams.solver =='4dvarnet-with-subgradients':
-                shapeData_grad = np.array([2*self.hparams.shapeData[0],self.hparams.shapeData[1],1])
+                                                                        self.params.shapeData, self.params.n_grad, EPS_NORM_GRAD,self.params.lr_grad,self.params.lr_rnd,
+                                                                        no_grad_type='sampling-randn',sig_perturbation_grad=self.params.sig_perturbation_grad )#, self.params.eps_norm_grad)
+            elif self.params.solver =='4dvarnet-with-subgradients':
+                shapeData_grad = np.array([2*self.params.shapeData[0],self.params.shapeData[1],1])
                 self.model        = solver_4DVarNet.Solver_with_nograd(Phi, 
-                                                                        mod_H,#Model_H(self.hparams.shapeData), 
-                                                                        solver_4DVarNet.model_Grad_with_lstm(shapeData_grad, self.hparams.UsePeriodicBoundary, 
-                                                                                                             self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros',
-                                                                                                             sig_lstm_init = self.hparams.sig_lstm_init, dim_state_out=self.hparams.shapeData[0]), 
+                                                                        mod_H,#Model_H(self.params.shapeData), 
+                                                                        solver_4DVarNet.model_Grad_with_lstm(shapeData_grad, self.params.UsePeriodicBoundary, 
+                                                                                                             self.params.dim_grad_solver, self.params.dropout, padding_mode='zeros',
+                                                                                                             sig_lstm_init = self.params.sig_lstm_init, dim_state_out=self.params.shapeData[0]), 
                                                                         m_NormObs, m_NormPhi, 
-                                                                        self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd,
-                                                                        no_grad_type='sub-gradients')#, self.hparams.eps_norm_grad)
+                                                                        self.params.shapeData, self.params.n_grad, EPS_NORM_GRAD,self.params.lr_grad,self.params.lr_rnd,
+                                                                        no_grad_type='sub-gradients')#, self.params.eps_norm_grad)
 
                 
                 
         if 1*0 :
             self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi_ode(), 
-                                                                    mod_H,#Model_H(self.hparams.shapeData), 
-                                                                    solver_4DVarNet.model_Grad(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
+                                                                    mod_H,#Model_H(self.params.shapeData), 
+                                                                    solver_4DVarNet.model_Grad(self.params.shapeData, self.params.UsePeriodicBoundary, self.params.dim_grad_solver, self.params.dropout, padding_mode='zeros'), 
                                                                     m_NormObs, m_NormPhi, 
-                                                                    #solver_4DVarNet.Model_Var_Cost2(m_NormObs, m_NormPhi, self.hparams.ShapeData,1,np.array([self.hparams.shapeData[0]])),
-                                                                    self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd)#, self.hparams.eps_norm_grad)
-        if 1*0: # self.hparams.phi_param == 'unet':
-            self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi_unet_like_bilin(self.hparams.shapeData,self.hparams.DimAE), 
-                                                                    mod_H,#Model_H(self.hparams.shapeData), 
-                                                                    solver_4DVarNet.model_Grad(self.hparams.shapeData, self.hparams.UsePeriodicBoundary, self.hparams.dim_grad_solver, self.hparams.dropout, padding_mode='zeros'), 
+                                                                    #solver_4DVarNet.Model_Var_Cost2(m_NormObs, m_NormPhi, self.params.ShapeData,1,np.array([self.params.shapeData[0]])),
+                                                                    self.params.shapeData, self.params.n_grad, EPS_NORM_GRAD,self.params.lr_grad,self.params.lr_rnd)#, self.params.eps_norm_grad)
+        if 1*0: # self.params.phi_param == 'unet':
+            self.model        = solver_4DVarNet.GradSolver_with_rnd(Phi_unet_like_bilin(self.params.shapeData,self.params.DimAE), 
+                                                                    mod_H,#Model_H(self.params.shapeData), 
+                                                                    solver_4DVarNet.model_Grad(self.params.shapeData, self.params.UsePeriodicBoundary, self.params.dim_grad_solver, self.params.dropout, padding_mode='zeros'), 
                                                                     m_NormObs, m_NormPhi, 
-                                                                    #solver_4DVarNet.Model_Var_Cost2(m_NormObs, m_NormPhi, self.hparams.ShapeData,1,np.array([self.hparams.shapeData[0]])),
-                                                                    self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.lr_grad,self.hparams.lr_rnd)#, self.hparams.eps_norm_grad)
+                                                                    #solver_4DVarNet.Model_Var_Cost2(m_NormObs, m_NormPhi, self.params.ShapeData,1,np.array([self.params.shapeData[0]])),
+                                                                    self.params.shapeData, self.params.n_grad, EPS_NORM_GRAD,self.params.lr_grad,self.params.lr_rnd)#, self.params.eps_norm_grad)
         
         self.x_rec   = None # variable to store output of test method
         self.x_obs = None
@@ -1360,15 +1360,15 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.automatic_optimization = True
         self.epsilon = 1e-6
         
-        self.init_state = self.hparams.init_state if hasattr(self.hparams, 'init_state') else 'obs_interp'
-        self.hparams.dt_mse = self.hparams.dt_mse if hasattr(self.hparams, 'dt_mse') else 10
-        self.hparams.alpha_gmse = self.hparams.alpha_gmse if hasattr(self.hparams, 'alpha_gmse') else 0.
-        self.hparams.post_projection = self.hparams.post_projection if hasattr(self.hparams, 'post_projection') else False
-        self.hparams.post_median_filter = self.hparams.post_median_filter if hasattr(self.hparams, 'post_median_filter') else False
-        self.hparams.median_filter_width = self.hparams.median_filter_width if hasattr(self.hparams, 'median_filter_width') else 3
-        self.hparams.sig_obs_noise = self.hparams.sig_obs_noise if hasattr(self.hparams, 'sig_obs_noise') else 0.
+        self.init_state = self.params.init_state if hasattr(self.params, 'init_state') else 'obs_interp'
+        self.params.dt_mse = self.params.dt_mse if hasattr(self.params, 'dt_mse') else 10
+        self.params.alpha_gmse = self.params.alpha_gmse if hasattr(self.params, 'alpha_gmse') else 0.
+        self.params.post_projection = self.params.post_projection if hasattr(self.params, 'post_projection') else False
+        self.params.post_median_filter = self.params.post_median_filter if hasattr(self.params, 'post_median_filter') else False
+        self.params.median_filter_width = self.params.median_filter_width if hasattr(self.params, 'median_filter_width') else 3
+        self.params.sig_obs_noise = self.params.sig_obs_noise if hasattr(self.params, 'sig_obs_noise') else 0.
         
-        self.model.keep_obs = self.hparams.keep_obs if hasattr(self.hparams, 'keep_obs') else False
+        self.model.keep_obs = self.params.keep_obs if hasattr(self.params, 'keep_obs') else False
     
 
     def update_params(self,n_grad = None , k_n_grad = None,lr_grad=None,lr_rnd=None,sig_rnd_init=None,sig_lstm_init=None,
@@ -1376,37 +1376,37 @@ class Lit4dVarNet_L63(pl.LightningModule):
                       post_projection = False,post_median_filter = False,median_filter_width = False):
 
         if n_grad is not None:
-            self.hparams.n_grad = n_grad
+            self.params.n_grad = n_grad
 
         if k_n_grad is not None:
-            self.hparams.k_n_grad = k_n_grad
+            self.params.k_n_grad = k_n_grad
 
         if lr_grad is not None:
-            self.hparams.lr_grad = lr_grad
+            self.params.lr_grad = lr_grad
             
         if lr_rnd is not None:
-            self.hparams.lr_rnd = lr_rnd
+            self.params.lr_rnd = lr_rnd
             
         if sig_rnd_init is not None:
-            self.hparams.sig_rnd_init = sig_rnd_init
+            self.params.sig_rnd_init = sig_rnd_init
 
         if sig_lstm_init is not None:
-            self.hparams.sig_lstm_init = sig_lstm_init
+            self.params.sig_lstm_init = sig_lstm_init
 
 
-        if self.hparams.sig_obs_noise is not None :
-            self.hparams.sig_obs_noise = sig_obs_noise
+        if self.params.sig_obs_noise is not None :
+            self.params.sig_obs_noise = sig_obs_noise
             
         if param_lstm_step is not None:
-            self.hparams.param_lstm_step = param_lstm_step
-            self.model.param_lstm_step = self.hparams.param_lstm_step            
+            self.params.param_lstm_step = param_lstm_step
+            self.model.param_lstm_step = self.params.param_lstm_step            
         
         if post_projection is not None:
-            self.hparams.post_projection = post_projection
+            self.params.post_projection = post_projection
 
         if post_median_filter is not None:
-            self.hparams.post_median_filter = post_median_filter
-            self.hparams.median_filter_width = median_filter_width
+            self.params.post_median_filter = post_median_filter
+            self.params.median_filter_width = median_filter_width
 
     def forward(self):
         return 1
@@ -1417,16 +1417,16 @@ class Lit4dVarNet_L63(pl.LightningModule):
         x_ = kornia.filters.gaussian_blur2d(x, (3, 1), (1.0, 1.))
         
 
-        dx = self.hparams.gamma_degradation * (x_ - x)
+        dx = self.params.gamma_degradation * (x_ - x)
         #x = kornia.filters.median_blur(x, (3, 1))
         return x + dx
 
     def configure_optimizers(self):
-        #optimizer   = optim.Adam([{'params': self.model.model_Grad.parameters(), 'lr': self.hparams.lr_update[0]},
-        #                              {'params': self.model.model_VarCost.parameters(), 'lr': self.hparams.lr_update[0]},
-        #                            {'params': self.model.phi_r.parameters(), 'lr': 0.5*self.hparams.lr_update[0]},
+        #optimizer   = optim.Adam([{'params': self.model.model_Grad.parameters(), 'lr': self.params.lr_update[0]},
+        #                              {'params': self.model.model_VarCost.parameters(), 'lr': self.params.lr_update[0]},
+        #                            {'params': self.model.phi_r.parameters(), 'lr': 0.5*self.params.lr_update[0]},
         #                            ], lr=0.)
-        optimizer    = torch.optim.Adam(self.model.parameters(), self.hparams.lr)
+        optimizer    = torch.optim.Adam(self.model.parameters(), self.params.lr)
         lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 20, eta_min=1e-5, last_epoch=- 1, verbose=False)
 
         return [optimizer],[lr_scheduler]
@@ -1440,12 +1440,12 @@ class Lit4dVarNet_L63(pl.LightningModule):
             self.model.phi_r.stdTr = self.stdTr
         
     def on_train_epoch_start(self):
-        self.model.n_grad = self.hparams.n_grad 
-        self.model.n_step = self.hparams.k_n_grad * self.model.n_grad
+        self.model.n_grad = self.params.n_grad 
+        self.model.n_step = self.params.k_n_grad * self.model.n_grad
         
-        self.model.model_Grad.sig_lstm_init = self.hparams.sig_lstm_init
-        self.model.lr_rnd = self.hparams.lr_rnd
-        self.model.lr_grad = self.hparams.lr_grad
+        self.model.model_Grad.sig_lstm_init = self.params.sig_lstm_init
+        self.model.lr_rnd = self.params.lr_rnd
+        self.model.lr_grad = self.params.lr_grad
         
         self._set_norm_stats()
     
@@ -1455,26 +1455,26 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.x_gt  = None
         self.x_obs = None
 
-        self.model.n_grad   = self.hparams.n_grad 
-        self.model.n_step = self.hparams.k_n_grad * self.model.n_grad
+        self.model.n_grad   = self.params.n_grad 
+        self.model.n_step = self.params.k_n_grad * self.model.n_grad
 
-        self.model.model_Grad.sig_lstm_init = self.hparams.sig_lstm_init
-        self.model.lr_rnd = self.hparams.lr_rnd
-        self.model.lr_grad = self.hparams.lr_grad
+        self.model.model_Grad.sig_lstm_init = self.params.sig_lstm_init
+        self.model.lr_rnd = self.params.lr_rnd
+        self.model.lr_grad = self.params.lr_grad
 
         self._set_norm_stats()
         
-        print('--- n_grad = %d -- k_n_grad = %d -- n_step = %d'%(self.model.n_grad,self.hparams.k_n_grad,self.model.n_step) )
+        print('--- n_grad = %d -- k_n_grad = %d -- n_step = %d'%(self.model.n_grad,self.params.k_n_grad,self.model.n_step) )
         print('--- ')
     def on_validation_epoch_start(self):
         self.x_rec = None
 
-        self.model.n_grad = self.hparams.n_grad 
-        self.model.n_step = self.hparams.k_n_grad * self.model.n_grad
+        self.model.n_grad = self.params.n_grad 
+        self.model.n_step = self.params.k_n_grad * self.model.n_grad
 
-        self.model.model_Grad.sig_lstm_init = self.hparams.sig_lstm_init
-        self.model.lr_rnd = self.hparams.lr_rnd
-        self.model.lr_grad = self.hparams.lr_grad
+        self.model.model_Grad.sig_lstm_init = self.params.sig_lstm_init
+        self.model.lr_rnd = self.params.lr_rnd
+        self.model.lr_grad = self.params.lr_grad
 
         self._set_norm_stats()
         
@@ -1486,15 +1486,15 @@ class Lit4dVarNet_L63(pl.LightningModule):
         # compute loss and metrics
         loss, out, metrics = self.compute_loss(train_batch, phase='train')
         
-        for kk in range(0,self.hparams.k_n_grad-1):
+        for kk in range(0,self.params.k_n_grad-1):
             loss1, out, metrics = self.compute_loss(train_batch, phase='train',batch_init=out[0],hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
             loss = loss + loss1
 
-            if self.hparams.post_projection == True :
+            if self.params.post_projection == True :
                 out[0] = self.model.phi_r(out[0]) 
                 
-            if self.hparams.post_median_filter == True :
-                out[0] = kornia.filters.median_blur(out[0], (self.hparams.median_filter_width, 1))
+            if self.params.post_median_filter == True :
+                out[0] = kornia.filters.median_blur(out[0], (self.params.median_filter_width, 1))
         
         mse_score = self.compute_mse_loss(out[0],targets_GT)
 
@@ -1502,11 +1502,11 @@ class Lit4dVarNet_L63(pl.LightningModule):
         self.log("tr_gmse", self.stdTr**2 * mse_score[1] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         
         # initial grad value
-        if self.hparams.automatic_optimization == False :
+        if self.params.automatic_optimization == False :
             # backward
             self.manual_backward(loss)
         
-            if (batch_idx + 1) % self.hparams.k_batch == 0:
+            if (batch_idx + 1) % self.params.k_batch == 0:
                 # optimisation step
                 opt.step()
                 
@@ -1520,15 +1520,15 @@ class Lit4dVarNet_L63(pl.LightningModule):
         inputs_init,inputs_obs,masks,targets_GT = val_batch
 
         loss, out, metrics = self.compute_loss(val_batch, phase='val')
-        for kk in range(0,self.hparams.k_n_grad-1):
+        for kk in range(0,self.params.k_n_grad-1):
             loss1, out, metrics = self.compute_loss(val_batch, phase='val',batch_init=out[0],hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
             loss = loss1
 
-            if self.hparams.post_projection == True :
+            if self.params.post_projection == True :
                 out[0] = self.model.phi_r(out[0]) 
                 
-            if self.hparams.post_median_filter == True :
-                out[0] = kornia.filters.median_blur(out[0], (self.hparams.median_filter_width, 1))
+            if self.params.post_median_filter == True :
+                out[0] = kornia.filters.median_blur(out[0], (self.params.median_filter_width, 1))
 
         mse_score = self.compute_mse_loss(out[0],targets_GT)
         var_cost_grad = self.loss_var_cost_grad(targets_GT,inputs_obs,masks,phase='test')
@@ -1545,23 +1545,23 @@ class Lit4dVarNet_L63(pl.LightningModule):
     def test_step(self, test_batch, batch_idx):
         
         inputs_init,inputs_obs,masks,targets_GT = test_batch
-        if self.hparams.sig_obs_noise > 0. :
-            inputs_obs = inputs_obs + self.hparams.sig_obs_noise * masks *  torch.randn( masks.size() ).to(device)
+        if self.params.sig_obs_noise > 0. :
+            inputs_obs = inputs_obs + self.params.sig_obs_noise * masks *  torch.randn( masks.size() ).to(device)
         
             test_batch = inputs_init,inputs_obs,masks,targets_GT
         
-        self.hparams.sig_obs_noise
+        self.params.sig_obs_noise
         
         loss, out, metrics = self.compute_loss(test_batch, phase='test')
     
-        for kk in range(0,self.hparams.k_n_grad-1):
+        for kk in range(0,self.params.k_n_grad-1):
             loss1, out, metrics = self.compute_loss(test_batch, phase='test',batch_init=out[0].detach(),hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
 
-        if self.hparams.post_projection == True :
+        if self.params.post_projection == True :
             out[0] = self.model.phi_r(out[0]) 
             
-        if self.hparams.post_median_filter == True :
-            out[0] = kornia.filters.median_blur(out[0], (self.hparams.median_filter_width, 1))
+        if self.params.post_median_filter == True :
+            out[0] = kornia.filters.median_blur(out[0], (self.params.median_filter_width, 1))
 
         mse,gmse = self.compute_mse_loss(out[0],targets_GT)
 
@@ -1583,8 +1583,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
 #    def on_test_epoch_end(self):
         #mse = np.mean( (self.x_rec - self.x_gt)**2 )
 
-#        rec = self.x_rec[:,:,self.hparams.dt_mse:self.x_gt.shape[2]-self.hparams.dt_mse]
-#        gt = self.x_gt[:,:,self.hparams.dt_mse:self.x_gt.shape[2]-self.hparams.dt_mse]
+#        rec = self.x_rec[:,:,self.params.dt_mse:self.x_gt.shape[2]-self.params.dt_mse]
+#        gt = self.x_gt[:,:,self.params.dt_mse:self.x_gt.shape[2]-self.params.dt_mse]
 
         #mse = np.mean( (rec - gt)**2 )
         #gmse = np.mean(( (rec[:,:,1:] - rec[:,:,:-1]) - (gt[:,:,1:] - gt[:,:,:-1])) ** 2)
@@ -1593,7 +1593,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
     def loss_var_cost_grad(self,x,y,mask,phase):
         
-        if self.hparams.degradation_operator == 'no-degradation' :
+        if self.params.degradation_operator == 'no-degradation' :
             loss = 0.
         else:
             if phase == 'test' :
@@ -1625,8 +1625,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
         return loss
     def compute_mse_loss(self,rec,gt):
         
-        #rec = rec[:,:,self.hparams.dt_mse:outputs.size(2)-self.hparams.dt_mse]
-        #gt = targets_GT[:,:,self.hparams.dt_mse:outputs.size(2)-self.hparams.dt_mse]
+        #rec = rec[:,:,self.params.dt_mse:outputs.size(2)-self.params.dt_mse]
+        #gt = targets_GT[:,:,self.params.dt_mse:outputs.size(2)-self.params.dt_mse]
         
         err = (rec - gt) * self.w_loss[None,...]        
         
@@ -1646,9 +1646,9 @@ class Lit4dVarNet_L63(pl.LightningModule):
             #inputs_init = inputs_init_
             if batch_init is None :
                 if self.init_state == 'zeros':
-                    inputs_init = self.hparams.sig_rnd_init *  torch.randn( inputs_init_.size() ).to(device)
+                    inputs_init = self.params.sig_rnd_init *  torch.randn( inputs_init_.size() ).to(device)
                 else:
-                    inputs_init = inputs_init_ + self.hparams.sig_rnd_init *  torch.randn( inputs_init_.size() ).to(device)
+                    inputs_init = inputs_init_ + self.params.sig_rnd_init *  torch.randn( inputs_init_.size() ).to(device)
             else:
                 inputs_init = batch_init 
                 
@@ -1663,21 +1663,21 @@ class Lit4dVarNet_L63(pl.LightningModule):
             loss_prior_gt = torch.mean((self.model.phi_r(targets_GT) - targets_GT) ** 2)
             
 
-            if prev_iter == self.model.n_grad * (self.hparams.k_n_grad -1) :
+            if prev_iter == self.model.n_grad * (self.params.k_n_grad -1) :
                 loss_var_cost_grad = self.loss_var_cost_grad(targets_GT,inputs_obs,masks,phase)
                 
                 #print()
-                #print( self.hparams.alpha_mse * loss_mse )
-                #print( self.hparams.alpha_var_cost_grad * loss_var_cost_grad )
+                #print( self.params.alpha_mse * loss_mse )
+                #print( self.params.alpha_var_cost_grad * loss_var_cost_grad )
             else:
                 loss_var_cost_grad = 0.
 
             #print( loss_var_cost_grad )            
             #print(' %.3e -- %.3e'%( loss_mse.detach().cpu().numpy() , loss_gmse.detach().cpu().numpy()) )
 
-            loss = self.hparams.alpha_mse * loss_mse + self.hparams.alpha_gmse * loss_gmse
-            loss += 0.5 * self.hparams.alpha_prior * (loss_prior + loss_prior_gt)
-            loss += self.hparams.alpha_var_cost_grad * loss_var_cost_grad
+            loss = self.params.alpha_mse * loss_mse + self.params.alpha_gmse * loss_gmse
+            loss += 0.5 * self.params.alpha_prior * (loss_prior + loss_prior_gt)
+            loss += self.params.alpha_var_cost_grad * loss_var_cost_grad
             # metrics
             mse       = loss_mse.detach()
             mse_grad  = loss_gmse.detach()
@@ -1701,11 +1701,11 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                                                        stats_training_data=None,*args, **kwargs)
 
         self.ode_solver = Phi_ode()
-        if self.hparams.base_ode_solver == 'none' :
+        if self.params.base_ode_solver == 'none' :
             self.ode_solver.IntScheme = 'euler' #'rk4' #'euler'
         else:
-            self.ode_solver.IntScheme = self.hparams.base_ode_solver #'rk4' #'euler'
-        self.ode_solver.dt = 0.01 * self.hparams.time_step_ode
+            self.ode_solver.IntScheme = self.params.base_ode_solver #'rk4' #'euler'
+        self.ode_solver.dt = 0.01 * self.params.time_step_ode
                 
         self.x_ode = None
 
@@ -1721,17 +1721,17 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         inputs_init_,inputs_obs,masks,targets_GT = batch
 
         if t0 == 0 :
-            if inputs_init_.size(2) > self.hparams.shapeData[1] :
-                dT   = self.hparams.shapeData[1]
-                step = self.hparams.integration_step
+            if inputs_init_.size(2) > self.params.shapeData[1] :
+                dT   = self.params.shapeData[1]
+                step = self.params.integration_step
                 
                 inputs_init_ = inputs_init_[:,:,:step*dT:step]
                 inputs_obs = inputs_obs[:,:,:step*dT:step]
                 masks = masks[:,:,:step*dT:step]
                 targets_GT = targets_GT[:,:,:step*dT]
         else:
-            dT   = self.hparams.shapeData[1]
-            step = self.hparams.integration_step
+            dT   = self.params.shapeData[1]
+            step = self.params.integration_step
             
             inputs_init_ = inputs_init_[:,:,t0:t0+step*dT:step]
             inputs_obs = inputs_obs[:,:,t0:t0+step*dT:step]
@@ -1752,28 +1752,28 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
     def test_step(self, test_batch, batch_idx):
         
-        if self.hparams.simu_test_all_steps == False :
+        if self.params.simu_test_all_steps == False :
             test_batch = self.extract_data_patch(test_batch)
     
             inputs_init,inputs_obs,masks,targets_GT = test_batch
             
-            if self.hparams.sig_obs_noise > 0. :
-                inputs_init = inputs_init + self.hparams.sig_obs_noise * masks *  torch.randn( masks.size() ).to(device)
+            if self.params.sig_obs_noise > 0. :
+                inputs_init = inputs_init + self.params.sig_obs_noise * masks *  torch.randn( masks.size() ).to(device)
                 inputs_obs = inputs_init
                 
                 test_batch = inputs_init,inputs_obs,masks,targets_GT
             
-            self.hparams.sig_obs_noise
+            self.params.sig_obs_noise
             
             loss, out, metrics = self.compute_loss(test_batch, phase='test')
         
-            for kk in range(0,self.hparams.k_n_grad-1):
+            for kk in range(0,self.params.k_n_grad-1):
                 loss1, out, metrics = self.compute_loss(test_batch, phase='test',batch_init=out[0].detach(),hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
     
-            if self.hparams.integration_step > 1 :
-                out_hr = torch.nn.functional.interpolate(out[0], scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, recompute_scale_factor=None, antialias=False)                
-                out_ode_hr = torch.nn.functional.interpolate(out[-1], scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
-                targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()
+            if self.params.integration_step > 1 :
+                out_hr = torch.nn.functional.interpolate(out[0], scale_factor=(self.params.integration_step,1), mode='bicubic', align_corners=True)#, recompute_scale_factor=None, antialias=False)                
+                out_ode_hr = torch.nn.functional.interpolate(out[-1], scale_factor=(self.params.integration_step,1), mode='bicubic', align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
+                targets_GT_lr = targets_GT[:,:,::self.params.integration_step].detach()
     
     
             mse_score = self.compute_mse_loss(out[0],targets_GT)
@@ -1796,10 +1796,10 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 self.x_ode  = np.concatenate((self.x_ode,out_ode_hr.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
 
         else:
-            delta_t0 = (self.hparams.dt_forecast+1)*self.hparams.integration_step-1 #
+            delta_t0 = (self.params.dt_forecast+1)*self.params.integration_step-1 #
             out_all_seq_hr = None
             
-            for t0 in range(0,self.hparams.dT_test*self.hparams.integration_step-delta_t0,delta_t0):                                    
+            for t0 in range(0,self.params.dT_test*self.params.integration_step-delta_t0,delta_t0):                                    
                 if t0 > 0 :
                     inputs_init,inputs_obs,masks,targets_GT = test_batch
                     x_sim = out_all_seq_hr[:,:,:t0+1].reshape((-1,inputs_init.size(1),t0+1,1))
@@ -1820,25 +1820,25 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
                 inputs_init,inputs_obs,masks,targets_GT = _test_batch
                 
-                if self.hparams.sig_obs_noise > 0. :
-                    inputs_init = inputs_init + self.hparams.sig_obs_noise * masks *  torch.randn( masks.size() ).to(device)
+                if self.params.sig_obs_noise > 0. :
+                    inputs_init = inputs_init + self.params.sig_obs_noise * masks *  torch.randn( masks.size() ).to(device)
                     inputs_obs = inputs_init
                     
                     _test_batch = inputs_init,inputs_obs,masks,targets_GT
                 
-                self.hparams.sig_obs_noise
+                self.params.sig_obs_noise
                 
                 loss, out, metrics = self.compute_loss(_test_batch, phase='test')
         
                 #inputs_init,inputs_obs,masks,targets_GT = _test_batch
-                for kk in range(0,self.hparams.k_n_grad-1):
+                for kk in range(0,self.params.k_n_grad-1):
                     loss1, out, metrics = self.compute_loss(_test_batch, phase='test',batch_init=out[0].detach(),hidden=out[1],cell=out[2],normgrad=out[3],prev_iter=(kk+1)*self.model.n_grad)
         
-                if self.hparams.integration_step > 1 :
+                if self.params.integration_step > 1 :
                     
-                    out_hr = torch.nn.functional.interpolate(out[0], scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, recompute_scale_factor=None, antialias=False)                
-                    out_ode_hr = torch.nn.functional.interpolate(out[-1], scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
-                    #targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()                
+                    out_hr = torch.nn.functional.interpolate(out[0], scale_factor=(self.params.integration_step,1), mode='bicubic', align_corners=True)#, recompute_scale_factor=None, antialias=False)                
+                    out_ode_hr = torch.nn.functional.interpolate(out[-1], scale_factor=(self.params.integration_step,1), mode='bicubic', align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
+                    #targets_GT_lr = targets_GT[:,:,::self.params.integration_step].detach()                
                 else:
                     out_hr = out[0]
                     out_ode_hr = out[-1]
@@ -1852,8 +1852,8 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
             # reference ODE solution
             y0 = torch.Tensor( out_all_seq_hr[:,:,0] ).view(-1,out_all_seq_hr.shape[1],1).to(device)
-            out_all_seq_ode = self.ode_solver.solve_from_initial_condition(y0.view(-1,y0.size(1),1),int(out_all_seq_hr.shape[2]/self.hparams.integration_step))                                      
-            out_all_seq_ode = torch.nn.functional.interpolate(out_all_seq_ode, scale_factor=(self.hparams.integration_step,1), mode='bicubic', align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
+            out_all_seq_ode = self.ode_solver.solve_from_initial_condition(y0.view(-1,y0.size(1),1),int(out_all_seq_hr.shape[2]/self.params.integration_step))                                      
+            out_all_seq_ode = torch.nn.functional.interpolate(out_all_seq_ode, scale_factor=(self.params.integration_step,1), mode='bicubic', align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
             out_all_seq_ode = out_all_seq_ode.squeeze(dim=-1).detach().cpu().numpy()
 
             if self.x_rec is None :
@@ -1867,11 +1867,11 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
     
     def compute_mse_loss(self,rec,targets_GT,thr_mse=0.):
         
-        if self.hparams.integration_step > 1 :
-            rec = torch.nn.functional.interpolate(rec, scale_factor=(self.hparams.integration_step,1), mode='bicubic',align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
+        if self.params.integration_step > 1 :
+            rec = torch.nn.functional.interpolate(rec, scale_factor=(self.params.integration_step,1), mode='bicubic',align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
         
-        rec = rec[:,:,self.hparams.dt_mse:rec.size(2)-self.hparams.dt_mse]
-        gt = targets_GT[:,:,self.hparams.dt_mse:rec.size(2)-self.hparams.dt_mse]
+        rec = rec[:,:,self.params.dt_mse:rec.size(2)-self.params.dt_mse]
+        gt = targets_GT[:,:,self.params.dt_mse:rec.size(2)-self.params.dt_mse]
                 
         err = (rec - gt) * self.w_loss[None,...]     
         
@@ -1891,7 +1891,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
 
     def compute_implicit_euler_loss(self,rec,solver='euler'):
         
-        dt = self.ode_solver.dt / self.hparams.integration_step
+        dt = self.ode_solver.dt / self.params.integration_step
         #print(' %.3f %.3f'%(self.ode_solver.dt,dt))
         rec = self.meanTr + self.stdTr * rec.squeeze(dim=-1)
         
@@ -1909,23 +1909,23 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         with torch.set_grad_enabled(True):
             inputs_init_,inputs_obs,masks,targets_GT = batch
                          
-            if self.hparams.use_rk4_gpu_as_target :
+            if self.params.use_rk4_gpu_as_target :
                 self.ode_solver.IntScheme = 'rk4'
-                self.ode_solver.dt = 0.01 # self.hparams.time_step_ode / self.hparams.integration_step
+                self.ode_solver.dt = 0.01 # self.params.time_step_ode / self.params.integration_step
                 
-                y0 = inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1)
+                y0 = inputs_init_[:,:,inputs_init_.size(2)-self.params.dt_forecast-1].view(-1,inputs_init_.size(1),1)
                 
-                x_pred = self.ode_solver.solve_from_initial_condition(y0.view(-1,y0.size(1),1),(self.hparams.dt_forecast+1)*self.hparams.integration_step-1)                    
+                x_pred = self.ode_solver.solve_from_initial_condition(y0.view(-1,y0.size(1),1),(self.params.dt_forecast+1)*self.params.integration_step-1)                    
 
-                self.ode_solver.IntScheme = self.hparams.base_ode_solver
-                self.ode_solver.dt = 0.01 * self.hparams.time_step_ode
+                self.ode_solver.IntScheme = self.params.base_ode_solver
+                self.ode_solver.dt = 0.01 * self.params.time_step_ode
                 
                 targets_GT = x_pred.detach()
                     
             # init solution with ode solver
-            inputs_init_ode = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.hparams.dt_forecast)                    
-            if inputs_init_.size(2)-self.hparams.dt_forecast-1 > 0 :
-                inputs_init_ode = torch.cat( (inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast-1],inputs_init_ode),dim=2)         
+            inputs_init_ode = self.ode_solver.solve_from_initial_condition(inputs_init_[:,:,inputs_init_.size(2)-self.params.dt_forecast-1].view(-1,inputs_init_.size(1),1),self.params.dt_forecast)                    
+            if inputs_init_.size(2)-self.params.dt_forecast-1 > 0 :
+                inputs_init_ode = torch.cat( (inputs_init_[:,:,:inputs_init_.size(2)-self.params.dt_forecast-1],inputs_init_ode),dim=2)         
             inputs_init_ode = inputs_init_ode.detach()
                         
             #inputs_init = inputs_init_
@@ -1933,19 +1933,19 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 if self.init_state == 'ode_solver':
                     inputs_init = inputs_init_ode
                 elif self.init_state == 'last_state':
-                    last_states = inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast,:]
-                    last_states = last_states.view(-1,inputs_init_.size(1),inputs_init_.size(2)-self.hparams.dt_forecast,1)
+                    last_states = inputs_init_[:,:,:inputs_init_.size(2)-self.params.dt_forecast,:]
+                    last_states = last_states.view(-1,inputs_init_.size(1),inputs_init_.size(2)-self.params.dt_forecast,1)
                     last_state = last_states[:,:,-1,:].view(-1,inputs_init_.size(1),1,1)
                     
-                    inputs_init = torch.cat( (last_states,last_state.repeat((1,1,self.hparams.dt_forecast,1)) ) , dim=2 )
+                    inputs_init = torch.cat( (last_states,last_state.repeat((1,1,self.params.dt_forecast,1)) ) , dim=2 )
 
                 elif self.init_state == 'zeros':
-                    last_states = inputs_init_[:,:,:inputs_init_.size(2)-self.hparams.dt_forecast,:]
-                    last_states = last_states.view(-1,inputs_init_.size(1),inputs_init_.size(2)-self.hparams.dt_forecast,1)
+                    last_states = inputs_init_[:,:,:inputs_init_.size(2)-self.params.dt_forecast,:]
+                    last_states = last_states.view(-1,inputs_init_.size(1),inputs_init_.size(2)-self.params.dt_forecast,1)
                     
-                    inputs_init = torch.cat( (last_states, 0. * inputs_init_[:,:,inputs_init_.size(2)-self.hparams.dt_forecast:] ) , dim=2 )
+                    inputs_init = torch.cat( (last_states, 0. * inputs_init_[:,:,inputs_init_.size(2)-self.params.dt_forecast:] ) , dim=2 )
                 else:
-                    inputs_init = inputs_init_ + self.hparams.sig_rnd_init *  torch.randn( inputs_init_.size() ).to(device)
+                    inputs_init = inputs_init_ + self.params.sig_rnd_init *  torch.randn( inputs_init_.size() ).to(device)
             else:
                 inputs_init = batch_init 
                 
@@ -1954,8 +1954,8 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             
             outputs, hidden_new, cell_new, normgrad_ = self.model(inputs_init, inputs_obs, masks, hidden = hidden , cell = cell , normgrad = normgrad, prev_iter = prev_iter )
 
-            if self.hparams.integration_step > 1 :
-                targets_GT_lr = targets_GT[:,:,::self.hparams.integration_step].detach()
+            if self.params.integration_step > 1 :
+                targets_GT_lr = targets_GT[:,:,::self.params.integration_step].detach()
             else:
                 targets_GT_lr = targets_GT
                 
@@ -1968,12 +1968,12 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
             
             loss_prior_gt = torch.mean((self.model.phi_r(targets_GT_lr) - targets_GT_lr) ** 2)
 
-            if prev_iter == self.model.n_grad * (self.hparams.k_n_grad -1) :
+            if prev_iter == self.model.n_grad * (self.params.k_n_grad -1) :
                 loss_var_cost_grad = self.loss_var_cost_grad(targets_GT_lr,inputs_obs,masks,phase)
                 
                 #print()
-                #print( self.hparams.alpha_mse * loss_mse )
-                #print( self.hparams.alpha_var_cost_grad * loss_var_cost_grad )
+                #print( self.params.alpha_mse * loss_mse )
+                #print( self.params.alpha_var_cost_grad * loss_var_cost_grad )
             else:
                 loss_var_cost_grad = 0.
 
@@ -1987,9 +1987,9 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 print(targets_GT[0,0,:]-outputs[0,0,:])
                 print(targets_GT[0,0,:]-inputs_init_ode[0,0,:])
 
-            loss = self.hparams.alpha_mse * loss_mse + self.hparams.alpha_gmse * loss_gmse + self.hparams.alpha_mse_implicit * loss_mse_implicit_integration
-            loss += 0.5 * self.hparams.alpha_prior * (loss_prior + loss_prior_gt)
-            loss += self.hparams.alpha_var_cost_grad * loss_var_cost_grad
+            loss = self.params.alpha_mse * loss_mse + self.params.alpha_gmse * loss_gmse + self.params.alpha_mse_implicit * loss_mse_implicit_integration
+            loss += 0.5 * self.params.alpha_prior * (loss_prior + loss_prior_gt)
+            loss += self.params.alpha_var_cost_grad * loss_var_cost_grad
             # metrics
             mse       = loss_mse.detach()
             mse_grad  = loss_gmse.detach()
@@ -2016,12 +2016,12 @@ class LitModel_FixedPoint(pl.LightningModule):
         self.save_hyperparameters()
 
         # hyperparameters
-        self.hparams.n_iter_fp    = 5
-        self.hparams.k_n_fp        = 1
+        self.params.n_iter_fp    = 5
+        self.params.k_n_fp        = 1
                 
-        self.hparams.alpha_prior    = 0.5
-        self.hparams.alpha_mse = 1.e1        
-        self.hparams.lr    = 1.e-3
+        self.params.alpha_prior    = 0.5
+        self.params.alpha_mse = 1.e1        
+        self.params.lr    = 1.e-3
 
         # main model
         self.model        = Phi_unet_like()
@@ -2034,7 +2034,7 @@ class LitModel_FixedPoint(pl.LightningModule):
         return 1
 
     def configure_optimizers(self):
-        optimizer   = optim.Adam([{'params': self.model.parameters(), 'lr': self.hparams.lr},
+        optimizer   = optim.Adam([{'params': self.model.parameters(), 'lr': self.params.lr},
                                     ], lr=0.)
         return optimizer
     
@@ -2043,7 +2043,7 @@ class LitModel_FixedPoint(pl.LightningModule):
         # compute loss and metrics
         loss, out, metrics = self.compute_loss(train_batch, phase='train')
         
-        for kk in range(0,self.hparams.k_n_fp-1):
+        for kk in range(0,self.params.k_n_fp-1):
             loss1, out, metrics = self.compute_loss(train_batch, phase='train',batch_init=out)
             loss = loss + loss1
         
@@ -2053,7 +2053,7 @@ class LitModel_FixedPoint(pl.LightningModule):
     
     def validation_step(self, val_batch, batch_idx):
         loss, out, metrics = self.compute_loss(val_batch, phase='val')
-        for kk in range(0,self.hparams.k_n_fp-1):
+        for kk in range(0,self.params.k_n_fp-1):
             loss1, out, metrics = self.compute_loss(val_batch, phase='val',batch_init=out)
             loss = loss1
 
@@ -2064,7 +2064,7 @@ class LitModel_FixedPoint(pl.LightningModule):
     def test_step(self, test_batch, batch_idx):
         loss, out, metrics = self.compute_loss(test_batch, phase='test')
         
-        for kk in range(0,self.hparams.k_n_fp-1):
+        for kk in range(0,self.params.k_n_fp-1):
             loss1, out, metrics = self.compute_loss(test_batch, phase='test',batch_init=out)
 
         self.log("test_mse", self.stdTr**2 * metrics['mse'] , on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
@@ -2095,7 +2095,7 @@ class LitModel_FixedPoint(pl.LightningModule):
         with torch.set_grad_enabled(True):
             outputs = inputs_init
             
-            for kk in range(0,self.hparams.n_iter_fp-1):
+            for kk in range(0,self.params.n_iter_fp-1):
                outputs = inputs_obs * masks + (1. - masks) * self.model( outputs ) 
             outputs = self.model( outputs ) 
 
@@ -2103,8 +2103,8 @@ class LitModel_FixedPoint(pl.LightningModule):
             loss_prior = torch.mean((self.model(outputs) - outputs) ** 2)
             loss_prior_gt = torch.mean((self.model(targets_GT) - targets_GT) ** 2)
 
-            loss = self.hparams.alpha_mse * loss_mse
-            loss += 0.5 * self.hparams.alpha_prior * (loss_prior + loss_prior_gt)
+            loss = self.params.alpha_mse * loss_mse
+            loss += 0.5 * self.params.alpha_prior * (loss_prior + loss_prior_gt)
             
             # metrics
             mse       = loss_mse.detach()
