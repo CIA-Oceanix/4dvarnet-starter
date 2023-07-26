@@ -38,7 +38,7 @@ def base_testing(trainer, dm, lit_mod,ckpt=None,num_members=1):
     
     
     # load checkpoints
-    cfg_params = lit_mod.hparams
+    cfg_params = lit_mod.params
     m_NormObs = lit_mod.model.model_VarCost.normObs
     m_NormPhi = lit_mod.model.model_VarCost.normPrior
     
@@ -53,7 +53,7 @@ def base_testing(trainer, dm, lit_mod,ckpt=None,num_members=1):
     #lit_mod = lit_mod.load_from_checkpoint(ckpt)
 
     print('...... cfg parameters from chekpoint',flush=True)
-    print(lit_mod.hparams)
+    print(lit_mod.params)
     #print(lit_mod.model.model_H.beta)
        
     lit_mod.set_norm_stats = dm.norm_stats()
@@ -73,7 +73,7 @@ def base_testing(trainer, dm, lit_mod,ckpt=None,num_members=1):
     
     
     print('...... Updated parameters from cfg files')
-    print(lit_mod.hparams)
+    print(lit_mod.params)
     print('.... param_lstm_step = %d'%lit_mod.model.param_lstm_step)
     print()
  
@@ -201,7 +201,7 @@ def base_testing_forecast(trainer, dm, lit_mod,ckpt=None,num_members=1):
     
     
     # load checkpoints
-    cfg_params = lit_mod.hparams
+    cfg_params = lit_mod.params
     m_NormObs = lit_mod.model.model_VarCost.normObs
     m_NormPhi = lit_mod.model.model_VarCost.normPrior
     
@@ -216,7 +216,7 @@ def base_testing_forecast(trainer, dm, lit_mod,ckpt=None,num_members=1):
     #lit_mod = lit_mod.load_from_checkpoint(ckpt)
 
     print('...... cfg parameters from chekpoint',flush=True)
-    print(lit_mod.hparams)
+    print(lit_mod.params)
     #print(lit_mod.model.model_H.beta)
        
     lit_mod.set_norm_stats = dm.norm_stats()
@@ -236,9 +236,9 @@ def base_testing_forecast(trainer, dm, lit_mod,ckpt=None,num_members=1):
     
     
     print('...... Updated parameters from cfg files')
-    print(lit_mod.hparams)
+    print(lit_mod.params)
     print('.... param_lstm_step = %d'%lit_mod.model.param_lstm_step)
-    print('.... dt_forecast = %d'%lit_mod.hparams.dt_forecast)
+    print('.... dt_forecast = %d'%lit_mod.params.dt_forecast)
     print()
  
     print('............... Model evaluation on validation dataset')
@@ -264,13 +264,13 @@ def base_testing_forecast(trainer, dm, lit_mod,ckpt=None,num_members=1):
     nmse_r = mse_r / var_val
     
     print("..... Forecasting performance (validation data)")
-    print('.... dt_forecast = %d'%lit_mod.hparams.dt_forecast)
-    rmse = np.sqrt( np.mean( (X_val[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast:]-x_rec[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast:])**2 ) )
+    print('.... dt_forecast = %d'%lit_mod.params.dt_forecast)
+    rmse = np.sqrt( np.mean( (X_val[:,:,X_val.shape[2]-lit_mod.params.dt_forecast:]-x_rec[:,:,X_val.shape[2]-lit_mod.params.dt_forecast:])**2 ) )
     print(".. rmse all: %.3f "%mse,flush=True)
     
     for tt in range(X_val.shape[2]):
-        dt = tt - (X_val.shape[2]-lit_mod.hparams.dt_forecast)
-        rmse = np.sqrt( np.mean( (X_val[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast+dt]-x_rec[:,:,X_val.shape[2]-lit_mod.hparams.dt_forecast+dt] )**2 ) )
+        dt = tt - (X_val.shape[2]-lit_mod.params.dt_forecast)
+        rmse = np.sqrt( np.mean( (X_val[:,:,X_val.shape[2]-lit_mod.params.dt_forecast+dt]-x_rec[:,:,X_val.shape[2]-lit_mod.params.dt_forecast+dt] )**2 ) )
         print(".. dt = %d -- rmse = %.3f"%(dt,rmse))
     
     print()
@@ -291,11 +291,11 @@ def base_testing_forecast(trainer, dm, lit_mod,ckpt=None,num_members=1):
     nmse_r = mse_r / var_test
     
     print("..... Assimilation performance (test data)")
-    rmse = np.sqrt( np.mean( (X_test[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast:]-x_rec[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast:])**2 ) )
+    rmse = np.sqrt( np.mean( (X_test[:,:,X_test.shape[2]-lit_mod.params.dt_forecast:]-x_rec[:,:,X_test.shape[2]-lit_mod.params.dt_forecast:])**2 ) )
     print(".. rmse all: %.3f "%rmse)
     for tt in range(X_test.shape[2]):
-        dt = tt - (X_test.shape[2]-lit_mod.hparams.dt_forecast)
-        rmse = np.sqrt( np.mean( (X_test[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast+dt]-x_rec[:,:,X_test.shape[2]-lit_mod.hparams.dt_forecast+dt] )**2 ) )
+        dt = tt - (X_test.shape[2]-lit_mod.params.dt_forecast)
+        rmse = np.sqrt( np.mean( (X_test[:,:,X_test.shape[2]-lit_mod.params.dt_forecast+dt]-x_rec[:,:,X_test.shape[2]-lit_mod.params.dt_forecast+dt] )**2 ) )
         print(".. dt = %d -- rmse = %.3f"%(dt,rmse))
 
     print(".. MSE ALL.   : %.3f / %.3f"%(mse,nmse))
@@ -371,7 +371,7 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     
     
     # load checkpoints
-    cfg_params = lit_mod.hparams
+    cfg_params = lit_mod.params
     m_NormObs = lit_mod.model.model_VarCost.normObs
     m_NormPhi = lit_mod.model.model_VarCost.normPrior
     
@@ -386,7 +386,7 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     #lit_mod = lit_mod.load_from_checkpoint(ckpt)
 
     print('...... cfg parameters from chekpoint',flush=True)
-    print(lit_mod.hparams)
+    print(lit_mod.params)
     #print(lit_mod.model.model_H.beta)
        
     lit_mod.set_norm_stats = dm.norm_stats()
@@ -406,19 +406,19 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
     
     
     print('...... Updated parameters from cfg files')
-    print(lit_mod.hparams)
+    print(lit_mod.params)
     print('.... param_lstm_step = %d'%lit_mod.model.param_lstm_step)
-    print('.... dt_forecast = %d'%lit_mod.hparams.dt_forecast)
+    print('.... dt_forecast = %d'%lit_mod.params.dt_forecast)
     print()
  
     print('............... Model evaluation on validation dataset')
     trainer.test(lit_mod, dataloaders=dm.val_dataloader())
     
     # time windows
-    lit_mod.hparams.dT = lit_mod.hparams.shapeData[1]
-    dT_hr = lit_mod.hparams.dT*lit_mod.hparams.integration_step
-    t_last_obs_hr = lit_mod.hparams.shapeData[1]*lit_mod.hparams.integration_step-(lit_mod.hparams.dt_forecast+1)*lit_mod.hparams.integration_step
-    t_forecast_hr = (lit_mod.hparams.dt_forecast+1)*lit_mod.hparams.integration_step-1
+    lit_mod.params.dT = lit_mod.params.shapeData[1]
+    dT_hr = lit_mod.params.dT*lit_mod.params.integration_step
+    t_last_obs_hr = lit_mod.params.shapeData[1]*lit_mod.params.integration_step-(lit_mod.params.dt_forecast+1)*lit_mod.params.integration_step
+    t_forecast_hr = (lit_mod.params.dt_forecast+1)*lit_mod.params.integration_step-1
     
     
     print('')
@@ -440,7 +440,7 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
         
     
     print("..... Performance (validation data)")
-    print('.... dt_forecast = %d'%lit_mod.hparams.dt_forecast)
+    print('.... dt_forecast = %d'%lit_mod.params.dt_forecast)
     rmse = np.sqrt( np.mean( (X_val[:,:,t_last_obs_hr+1:]-x_rec[:,:,t_last_obs_hr+1:])**2 ) )
     print(".. rmse all: %.3f "%rmse,flush=True)
     
@@ -471,12 +471,12 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
         rmse_ode = np.sqrt( np.mean( (X_test[:,:,tt]-x_ode[:,:,tt] )**2 ) )
         print(".. dt = %d -- rmse = %.3f -- %.3f"%(dt,rmse_ode,rmse))
     
-    if lit_mod.hparams.dT_test > lit_mod.hparams.dT :
+    if lit_mod.params.dT_test > lit_mod.params.dT :
         print()
         print()
-        print('............... Simulation for the test time window: %d'%lit_mod.hparams.dT_test)
+        print('............... Simulation for the test time window: %d'%lit_mod.params.dT_test)
         
-        lit_mod.hparams.simu_test_all_steps = True
+        lit_mod.params.simu_test_all_steps = True
         trainer.test(lit_mod, dataloaders=dm.test_dataloader())
         
         
@@ -491,7 +491,7 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
         print()
         print()
         print("..... Performance (test data): ode vs. 4dvarnet (all test time window)")
-        rmse = np.sqrt( np.mean( (X_test[:,:,t_last_obs_hr+1:lit_mod.hparams.dT_test]-x_rec[:,:,t_last_obs_hr+1:lit_mod.hparams.dT_test])**2 ) )
+        rmse = np.sqrt( np.mean( (X_test[:,:,t_last_obs_hr+1:lit_mod.params.dT_test]-x_rec[:,:,t_last_obs_hr+1:lit_mod.params.dT_test])**2 ) )
         print(".. rmse all: %.3f "%rmse)
         
         for tt in range(x_rec.shape[2]):
@@ -515,7 +515,7 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
             sigma = 10.0
             rho = 28.0
             beta = 8.0/3
-            dt = lit_mod.ode_solver.dt / lit_mod.hparams.integration_step
+            dt = lit_mod.ode_solver.dt / lit_mod.params.integration_step
             
             fode = ode_Lorenz_63( x ,sigma,rho,beta)
             err = x[:,:,1:] - x[:,:,:-1]- dt * fode[:,:,1:]
@@ -523,7 +523,7 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
             return np.mean( err**2 )
 
         print('.... RMSE wrt implicit integration error :')
-        print('.... integration_step: %f'%(lit_mod.ode_solver.dt / lit_mod.hparams.integration_step))
+        print('.... integration_step: %f'%(lit_mod.ode_solver.dt / lit_mod.params.integration_step))
         print('.... NN solver: %.3f'%np.sqrt( compute_mse_implicit_solver( x_rec ) ))
         print('.... Ref solver: %.3f'%np.sqrt( compute_mse_implicit_solver( X_test[:,:,:x_rec.shape[2]] ) ))
     
