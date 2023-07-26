@@ -1270,24 +1270,13 @@ class Lit4dVarNet_L63(pl.LightningModule):
 
         #print(hparams,flush=True)
         
-        print(params.shapeData)
         
-        self.save_hyperparameters(params)
-        #self.save_hyperparameters({**hparams, **kwargs})
-        #print('..................')
-        #print(params)
-        
-        #print( params )
-        #self.params = OmegaConf.to_container(params, resolve=True)
-        #self.hparams = OmegaConf.to_container(params, resolve=True)
-        #self.params = OmegaConf.to_container(params, resolve=True)
+        #self.save_hyperparameters(params)
 
         self.params = params
-        print( params.shapeData)              
-        print( self.params.shapeData )
        
         self.w_loss          = torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
-        self.hparams.automatic_optimization = True# False#
+        self.params.automatic_optimization = True# False#
 
         # prior
         if Phi == None :
@@ -1300,8 +1289,8 @@ class Lit4dVarNet_L63(pl.LightningModule):
                                                                 mod_H, 
                                                                 mod_Grad,
                                                                 m_NormObs, m_NormPhi, 
-                                                                self.hparams.shapeData, self.hparams.n_grad, EPS_NORM_GRAD,self.hparams.k_n_grad,self.hparams.lr_grad,self.hparams.lr_rnd,
-                                                                self.hparams.type_step_lstm,self.hparams.param_lstm_step)            
+                                                                self.params.shapeData, self.params.n_grad, EPS_NORM_GRAD,self.params.k_n_grad,self.params.lr_grad,self.params.lr_rnd,
+                                                                self.params.type_step_lstm,self.params.param_lstm_step)            
 
         if 1*0 :
             if self.hparams.solver =='4dvarnet-with-rnd' :
