@@ -1861,7 +1861,8 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 self.x_gt  = np.concatenate((self.x_gt,targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
                 self.x_ode  = np.concatenate((self.x_ode,out_all_seq_ode * self.stdTr + self.meanTr),axis=0)
     
-    def compute_mse_loss(self,rec,targets_GT,thr_mse=0.):
+    def compute_mse_loss(self,rec,targets_GT):
+        thr_mse = self.params.thr_mse
         
         if self.params.integration_step > 1 :
             rec = torch.nn.functional.interpolate(rec, scale_factor=(self.params.integration_step,1), mode='bicubic',align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                

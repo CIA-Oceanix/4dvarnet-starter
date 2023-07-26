@@ -33,6 +33,7 @@ model:
     alpha_mse_implicit: ?? #1.e1 #1e2 # weighing factor of term ||x_true-x_pred||**2 in the training loss
     alpha_gmse: 0. #50. # weighing factor of term (time derivative) ||D_t x_true-D_t x_pred||**2 in the training loss
     lr_grad: 0. #1e-2 #1.e3 # weighing factor of the firxed-step gradient descent term in 4dvarnet optimisation, \beta in equation (10)
+    thr_mse: 1e-1
     init_state: ?? #'zeros' #'last_state' #'ode_solver' # selected initialization for the simulation window
     suffix_exp: ?? #'-lstm+grad' #
     shapeData_modGrad: #${model.params.shapeData} # shape of the gradient tensor (similar as shapeData for convLSTM solver, one-dimensional for a dense LSTM solver)
