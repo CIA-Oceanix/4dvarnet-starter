@@ -1878,7 +1878,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         if thr_mse > 0. :
             loss_mse = torch.sum( (err ** 2)  ) / rec.size(0)     
         else:
-            loss_mse = torch.sum( thr_mse - torch.relu( 0.1 - thr_mse ** 2)  ) / rec.size(0)     
+            loss_mse = torch.sum( thr_mse - torch.relu( thr_mse - err ** 2)  ) / rec.size(0)     
         #loss_mse = torch.sum( torch.sqrt( err ** 2 + 1e-2 ) ) / rec.size(0)
         
         loss_mse_implicit_integration = self.compute_implicit_euler_loss(rec)
