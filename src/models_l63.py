@@ -1875,7 +1875,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 
         err = (rec - gt) * self.w_loss[None,...]     
         
-        if thr_mse > 0. :
+        if thr_mse == 0. :
             loss_mse = torch.sum( (err ** 2)  ) / rec.size(0)     
         else:
             loss_mse = torch.sum( thr_mse - torch.relu( thr_mse - err ** 2)  ) / rec.size(0)     
