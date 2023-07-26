@@ -523,7 +523,7 @@ def base_testing_ode_solver(trainer, dm, lit_mod,ckpt=None,num_members=1):
             return np.mean( err**2 )
 
         print('.... RMSE wrt implicit integration error :')
-        print('.... integration_step: %f')
+        print('.... integration_step: %f'%(lit_mod.ode_solver.dt / lit_mod.hparams.integration_step))
         print('.... NN solver: %.3f'%np.sqrt( compute_mse_implicit_solver( x_rec ) ))
         print('.... Ref solver: %.3f'%np.sqrt( compute_mse_implicit_solver( X_test[:,:,:x_rec.shape[2]] ) ))
     
