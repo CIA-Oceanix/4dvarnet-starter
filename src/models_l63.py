@@ -1273,6 +1273,7 @@ class Lit4dVarNet_L63(pl.LightningModule):
        
         self.save_hyperparameters(params)
         #self.save_hyperparameters({**hparams, **kwargs})
+        #self.hparams = params
 
                         
         self.w_loss          = torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
@@ -1865,7 +1866,7 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
                 self.x_gt  = np.concatenate((self.x_gt,targets_GT.squeeze(dim=-1).detach().cpu().numpy() * self.stdTr + self.meanTr),axis=0)
                 self.x_ode  = np.concatenate((self.x_ode,out_all_seq_ode * self.stdTr + self.meanTr),axis=0)
     
-    def compute_mse_loss(self,rec,targets_GT):
+    def compute_mse_loss(self,rec,targets_GT,thr_mse=0.):
         
         if self.hparams.integration_step > 1 :
             rec = torch.nn.functional.interpolate(rec, scale_factor=(self.hparams.integration_step,1), mode='bicubic',align_corners=True)#, align_corners=None, recompute_scale_factor=None, antialias=False)                
@@ -1873,8 +1874,12 @@ class Lit4dVarNet_L63_OdeSolver(Lit4dVarNet_L63):
         rec = rec[:,:,self.hparams.dt_mse:rec.size(2)-self.hparams.dt_mse]
         gt = targets_GT[:,:,self.hparams.dt_mse:rec.size(2)-self.hparams.dt_mse]
                 
-        err = (rec - gt) * self.w_loss[None,...]        
-        loss_mse = torch.sum( 0.1 - torch.relu( 0.1 - err ** 2)  ) / rec.size(0)     
+        err = (rec - gt) * self.w_loss[None,...]     
+        
+        if thr_mse > 0. :
+            loss_mse = torch.sum( (err ** 2)  ) / rec.size(0)     
+        else:
+            loss_mse = torch.sum( thr_mse - torch.relu( 0.1 - thr_mse ** 2)  ) / rec.size(0)     
         #loss_mse = torch.sum( torch.sqrt( err ** 2 + 1e-2 ) ) / rec.size(0)
         
         loss_mse_implicit_integration = self.compute_implicit_euler_loss(rec)
