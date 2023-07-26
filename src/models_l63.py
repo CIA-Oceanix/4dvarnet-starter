@@ -1276,9 +1276,13 @@ class Lit4dVarNet_L63(pl.LightningModule):
         #print('..................')
         #print(params)
         
-        self.hparams = OmegaConf.to_container(params, resolve=True)
+        print( params )
+        self.params = OmegaConf.to_container(params, resolve=True)
+        #self.hparams = OmegaConf.to_container(params, resolve=True)
+        #self.params = OmegaConf.to_container(params, resolve=True)
 
-                        
+        print( self.params )                 
+       
         self.w_loss          = torch.nn.Parameter(torch.Tensor(patch_weight), requires_grad=False) if patch_weight is not None else 1.
         self.hparams.automatic_optimization = True# False#
 
