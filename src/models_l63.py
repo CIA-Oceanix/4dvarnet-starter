@@ -1271,16 +1271,17 @@ class Lit4dVarNet_L63(pl.LightningModule):
         #print(hparams,flush=True)
         
        
-        #self.save_hyperparameters(params)
+        self.save_hyperparameters(params)
         #self.save_hyperparameters({**hparams, **kwargs})
         #print('..................')
         #print(params)
         
-        print( params )
-        self.params = OmegaConf.to_container(params, resolve=True)
+        #print( params )
+        #self.params = OmegaConf.to_container(params, resolve=True)
         #self.hparams = OmegaConf.to_container(params, resolve=True)
         #self.params = OmegaConf.to_container(params, resolve=True)
 
+        self.params = params
         print( params.shapeData)              
         print( self.params.shapeData )
        
