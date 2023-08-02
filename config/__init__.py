@@ -4,7 +4,7 @@ from omegaconf import OmegaConf
 OmegaConf.register_new_resolver(
     "_singleton",
     lambda k: dict(
-        _target_="main.SingletonStore.get",
+        _target_="config.SingletonStore.get",
         key=k,
         obj_cfg="${" + k + "}",
     ),

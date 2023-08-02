@@ -1,0 +1,38 @@
+#@package _global_
+
+_mod: contrib.uw_convlstm.models
+new_model:
+  _target_: ${_mod}.Interp2dWrapper
+  inp_shape: [128, 128]
+  inp_pattern: batch time lat lon
+  out_pattern: batch () time lat lon
+  mod:
+    _target_: ${_mod}.BidirectionalConvLstm2d
+    encoder: 
+      _target_: torch.nn.Sequential
+      _args_:
+        - {_target_: '${_mod}.CNNEncoder', kernel_size: 5}
+        - {_target_: torch.nn.Dropout, p: 0.2}
+    convlstm: {_target_: '${_mod}.ConvLstm', kernel_size: 5}
+    decoder: 
+      _target_: torch.nn.Sequential
+      _args_:
+        - {_target_: torch.nn.Dropout, p: 0.2}
+        - {_target_: '${_mod}.CNNDecoder', kernel_size: 5}
+
+trainer:
+  max_epochs: 300
+
+datamodule:
+  xrds_kw:
+    patch_dims: {time: 30}
+  dl_kw: {batch_size: 32}
+  aug_kw:
+    aug_factor: 10
+    aug_only: False
+
+model: 
+  opt_fn:
+    _target_: contrib.uw_convlstm.utils.cosanneal_lr_adam
+    lr: 1e-3
+  solver: ${new_model}
