@@ -1,4 +1,5 @@
 # @package _global_
+xp_name: ${hydra:runtime.choices.xp}
 
 paths:
     natl_gf_5nads: data/natl_gf_w_5nadirs.nc
@@ -15,7 +16,7 @@ trainer:
   logger: 
     _target_: pytorch_lightning.loggers.CSVLogger
     save_dir: ${hydra:runtime.output_dir}
-    name: ${hydra:runtime.choices.xp}
+    name: ${xp_name}
     version: ''
   max_epochs: 150
   callbacks:
@@ -97,6 +98,8 @@ metrics:
     'lx': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.psd_scores}', '${metrics.get0}']}
     'lt': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.psd_scores}', '${metrics.get1}']}
 
+ckpt: null
+
 entrypoints:
   - _target_: pytorch_lightning.seed_everything
     seed: 333
@@ -104,6 +107,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
+    ckpt: ${ckpt}
 
 defaults:
   - /domain: gf

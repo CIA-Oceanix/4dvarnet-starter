@@ -1,0 +1,38 @@
+# @package _global_
+
+
+
+strides: {time: 5}
+sst: false
+trainer:
+  max_epochs: 300
+
+ose_dm:
+  _target_: contrib.ose_training.data.OseDatamodule
+  norm_stats: [0.45041265751056536, 0.4245028360946941]
+  dl_kws: {batch_size: 16, num_workers: 1}
+  train_ds:
+    _target_: contrib.ose_training.data.XrConcatDataset
+    _args_: [['${ose_ds.trainval.alg}', '${ose_ds.trainval.al}', '${ose_ds.trainval.e1g}', '${ose_ds.trainval.e1}', '${ose_ds.trainval.e2}', '${ose_ds.trainval.en}', '${ose_ds.trainval.enn}', 
+      '${ose_ds.trainval.g2}', '${ose_ds.trainval.h2ag}', '${ose_ds.trainval.h2a}', '${ose_ds.trainval.h2b}', '${ose_ds.trainval.h2c}', '${ose_ds.trainval.j1g}', '${ose_ds.trainval.j1}',
+      '${ose_ds.trainval.j2g}', '${ose_ds.trainval.j2}', '${ose_ds.trainval.j2n}', '${ose_ds.trainval.j3}', '${ose_ds.trainval.j3n}', '${ose_ds.trainval.s3a}', '${ose_ds.trainval.s3b}']]
+
+  val_ds:
+    _target_: contrib.ose_training.data.XrConcatDataset
+    _args_: [['${ose_ds.trainval.c2}', '${ose_ds.trainval.tpn}']]
+
+  test_ds:
+    _target_: contrib.ose_training.data.XrConcatDataset
+    _args_: [['${ose_ds.test.c2}', '${ose_ds.test.c2n}']]
+
+
+
+model:
+  _target_: contrib.ose_training.models.LitOse
+  pre_metric_fn: null
+  test_metrics: {}
+datamodule: ${ose_dm}
+
+
+defaults:
+  - /ose_ds/all

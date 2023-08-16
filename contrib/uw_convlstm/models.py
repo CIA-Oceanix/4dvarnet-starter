@@ -4,10 +4,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class ResBlock(nn.Module):
-    def __init__(self, cin, cout, ks=3):
+    def __init__(self, cin, cout, ks=3, tks=1):
         super().__init__()
         self.mod = nn.Sequential(
-            nn.Conv3d(cin, cout, kernel_size=(1, ks, ks), padding=(0, ks//2, ks//2)),
+            nn.Conv3d(cin, cout, kernel_size=(tks, ks, ks), padding=(tks//2, ks//2, ks//2)),
             nn.ReLU(),
             nn.BatchNorm3d(cout),
         )
@@ -31,25 +31,25 @@ class DownBlock(nn.Module):
 
 
 class CNNEncoder(nn.Module):
-    def __init__(self, dim_in=1, kernel_size=3):
+    def __init__(self, dim_in=1, dim_hidden=32, kernel_size=3):
         super().__init__()
         self.mod = nn.Sequential(
             DownBlock(dim_in, 16, ks=kernel_size),
             ResBlock(16, 16, ks=kernel_size),
-            DownBlock(16, 32, ks=kernel_size),
-            ResBlock(32, 32, ks=kernel_size),
-            DownBlock(32, 32, ks=kernel_size),
-            ResBlock(32, 32, ks=kernel_size),
+            DownBlock(16, dim_hidden, ks=kernel_size),
+            ResBlock(dim_hidden, dim_hidden, ks=kernel_size),
+            DownBlock(dim_hidden, dim_hidden, ks=kernel_size),
+            ResBlock(dim_hidden, dim_hidden, ks=kernel_size),
         )
 
     def forward(self, x):
         return self.mod(x)
 
 class CNNDecoder(nn.Module):
-    def __init__(self, dim_in=32, kernel_size=3):
+    def __init__(self, dim_in=64, kernel_size=3):
         super().__init__()
         self.mod = nn.Sequential(
-            ResBlock(32, 32, ks=kernel_size),
+            ResBlock(dim_in, 32, ks=kernel_size),
             nn.Upsample(scale_factor=(1, 2, 2)),
             ResBlock(32, 16, ks=kernel_size),
             nn.Upsample(scale_factor=(1, 2, 2)),
@@ -64,7 +64,7 @@ class CNNDecoder(nn.Module):
         return self.mod(x)
 
 class ConvLstm(nn.Module):
-    def __init__(self, dim_in=32, dim_hidden=16, kernel_size=3):
+    def __init__(self, dim_in=32, dim_hidden=64, kernel_size=3):
         super().__init__()
         self.dim_hidden = dim_hidden
         self.gates = torch.nn.Conv2d(
@@ -99,7 +99,8 @@ class BidirectionalConvLstm2d(nn.Module):
         super().__init__()
         self.encoder = encoder
         self.decoder = decoder
-        self.convlstm = convlstm
+        self.convlstm_fwd = convlstm()
+        self.convlstm_bwd = convlstm()
 
     def forward(self, x):
         x = self.encoder(x)
@@ -114,29 +115,55 @@ class BidirectionalConvLstm2d(nn.Module):
         # init
         out = None
         hidden, cell = (
-            torch.randn((b, self.convlstm.dim_hidden, nx, ny), device=x.device),
-            torch.randn((b, self.convlstm.dim_hidden, nx, ny), device=x.device),
+            torch.zeros((b, self.convlstm_fwd.dim_hidden, nx, ny), device=x.device),
+            torch.zeros((b, self.convlstm_fwd.dim_hidden, nx, ny), device=x.device),
         )
 
         # forward 
+        outs_fwd = []
         for inp in inps:
-            out, hidden, cell = self.convlstm(inp, hidden, cell)
+            out, hidden, cell = self.convlstm_fwd(inp, hidden, cell)
+            outs_fwd.append(out)
 
 
-        outs = [out]
-        for inp in inps[:-1][::-1]:
-            out, hidden, cell = self.convlstm(inp, hidden, cell)
-            outs.append(out)
+        hidden, cell = (
+            torch.zeros((b, self.convlstm_fwd.dim_hidden, nx, ny), device=x.device),
+            torch.zeros((b, self.convlstm_fwd.dim_hidden, nx, ny), device=x.device),
+        )
+        outs_bwd = []
+        for inp in inps[::-1]:
+            out, hidden, cell = self.convlstm_bwd(inp, hidden, cell)
+            outs_bwd.append(out)
 
-        return torch.stack(outs[::-1], dim=2)
+        output =  torch.cat(
+            [torch.stack(outs_bwd[::-1], dim=2),
+            torch.stack(outs_fwd, dim=2)], dim=1
+        ) 
+        # print(output.size())
+        return output
+
+class PriorWrapper(nn.Module):
+    def __init__(self, mod, sst=False):
+        super().__init__()
+        self.mod = mod
+
+    def forward_ae(self, x):
+        inp = einops.rearrange(x, 'b t y x -> b () t y x')
+        out = self.mod(inp)
+        out = einops.rearrange(out, 'b () t y x -> b t y x')
+        return out
+
+    def forward(self, x):
+        return F.mse_loss(x, self.forward_ae(x))
 
 class Interp2dWrapper(nn.Module):
-    def __init__(self, mod, inp_shape, inp_pattern='...', out_pattern='...'):
+    def __init__(self, mod, inp_shape, inp_pattern='...', out_pattern='...', sst=False):
         super().__init__()
         self.mod = mod
         self.inp_shape=tuple(inp_shape)
         self.inp_pattern=inp_pattern
         self.out_pattern=out_pattern
+        self.sst = sst
 
     def prior_cost(self, x, *args, **kwargs):
         return 0.
@@ -145,18 +172,30 @@ class Interp2dWrapper(nn.Module):
         return 0.
 
     def forward(self, batch):
+
         x = batch.input.nan_to_num()
-        out_shape = x.shape[-2:]
-        x = F.interpolate(x, self.inp_shape, mode='bilinear')
         x = einops.rearrange(x, self.inp_pattern + '->' + self.out_pattern)
+        # out_shape = x.shape[-2:]
+        # x = F.interpolate(x, self.inp_shape, mode='bilinear')
+        if self.sst:
+            x = torch.stack([
+                batch.input.nan_to_num(),
+                batch.sst.nan_to_num()
+            ], dim=1)
+        # import lovely_tensors
+        # lovely_tensors.monkey_patch()
+        # print(self.sst, x)
         x = self.mod(x)
         x = einops.rearrange(x, self.out_pattern + '->' + self.inp_pattern)
-        x = F.interpolate(x, out_shape, mode='bilinear')
+        # x = F.interpolate(x, out_shape, mode='bilinear')
         return x
 
 
 
 if __name__ == '__main__':
+    import importlib
+    import contrib.uw_convlstm.models
+    importlib.reload(contrib.uw_convlstm.models)
     import hydra
     from omegaconf import OmegaConf
     from hydra.core.config_store import ConfigStore
@@ -178,6 +217,7 @@ if __name__ == '__main__':
     batch = mod.transfer_batch_to_device(_batch, mod.device, 0)
     opt = torch.optim.Adam(mod.parameters())
 
+    self = mod.solver
     opt.zero_grad()
     loss = mod.training_step(batch, 0)
     print(mod.solver.mod.encoder.mod[0].mod[0].weight.grad)
@@ -188,6 +228,8 @@ if __name__ == '__main__':
     print(loss)
 
 
+    import matplotlib.pyplot as plt
+    plt.imshow(x.detach().cpu().numpy()[0,0])
     
     print('toto')
     x = torch.rand(2, 30, 240, 240)

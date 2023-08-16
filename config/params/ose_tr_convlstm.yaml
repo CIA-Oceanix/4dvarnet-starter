@@ -1,0 +1,23 @@
+# @package _global_
+
+
+patches: {time: 30, lat: 240, lon: 240}
+
+sst: false
+datamodule:
+  sst: ${sst}
+  coarsen: 1
+  dl_kws: 
+    batch_size: 32
+    num_workers: 3
+model:
+  rec_weight: 
+    patch_dims: '${patches}'
+    crop: {lat: 0, lon:0}
+    offset: 10
+  opt_fn:
+    _target_: contrib.uw_convlstm.utils.scotts_lr
+  solver: ${convlstm.new_model}
+
+defaults:
+  - /params/convlstm@convlstm

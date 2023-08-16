@@ -70,7 +70,7 @@ class LitLorenz(src.models.Lit4dVarNet):
         loss, out = super().base_step(batch, phase)
         prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
         grad_loss = self.weighted_mse( kfilts.sobel(out[..., None]).squeeze()
-            - kfilts.sobel(batch.tgt[..., None]).squeeze(), self.rec_weight)
+            - kfilts.sobel(batch.tgt[..., None]).squeeze(), self.rec_weight[None, ...])
         return  loss + prior_cost, out
     
     def on_test_epoch_end(self):

@@ -7,6 +7,8 @@ def base_training(trainer, dm, lit_mod, ckpt=None):
         print("Logdir:", trainer.logger.log_dir)
         print()
 
+    # print(dm)
+    # print(lit_mod.solver.prior_cost)
     trainer.fit(lit_mod, datamodule=dm, ckpt_path=ckpt)
     trainer.test(lit_mod, datamodule=dm, ckpt_path='best')
 

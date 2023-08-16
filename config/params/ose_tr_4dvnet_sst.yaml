@@ -1,0 +1,15 @@
+# @package _global_
+
+patches: {time: 15, lat: 240, lon: 240}
+
+obs_cost:
+  _target_: contrib.multimodal.MultiModalObsCost
+  dim_in: ${patches.time}
+  dim_hidden: 5
+
+model:
+  rec_weight: {patch_dims: '${patches}'}
+  solver:
+    prior_cost: {dim_in: '${patches.time}'}
+    grad_mod: {dim_in: '${patches.time}'}
+    obs_cost: ${obs_cost}

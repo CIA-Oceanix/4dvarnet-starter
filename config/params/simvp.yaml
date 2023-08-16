@@ -1,0 +1,43 @@
+#@package _global_
+
+inp_da: default
+
+in_channel:
+  default: 1
+  sst: 2
+
+new_model:
+  _target_: contrib.open_stl.Wrapper
+  mod:
+    _target_: openstl.models.SimVP_Model
+    in_shape: 
+      - ${datamodule.xrds_kw.patch_dims.time}
+      - ${oc.select:in_channel.${....inp_da},1}
+      - ${datamodule.xrds_kw.patch_dims.lat}
+      - ${datamodule.xrds_kw.patch_dims.lon}
+    drop: 0.
+    drop_path: 0.
+    hid_S: 2
+    N_S: 2
+    N_T: 2
+    hid_T: 8
+    model_type: gsta
+
+trainer:
+  max_epochs: 100
+
+datamodule:
+  xrds_kw:
+    patch_dims: {time: 15}
+  dl_kw: {batch_size: 16}
+  aug_kw:
+    aug_factor: 10
+    aug_only: False
+
+model: 
+  opt_fn:
+    _target_: contrib.uw_convlstm.utils.cosanneal_lr_adam
+    lr: 1e-3
+    weight_decay: 0.
+  solver: ${..new_model}
+

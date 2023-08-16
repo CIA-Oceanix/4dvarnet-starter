@@ -1,0 +1,11 @@
+#@package _global_
+conv_lstm_prior_cost:
+  _target_: contrib.uw_convlstm.models.PriorWrapper
+  mod: ${convlstm.new_model.mod}
+
+model:
+  solver:
+    prior_cost: ${conv_lstm_prior_cost}
+
+defaults:
+  - /params/convlstm@convlstm

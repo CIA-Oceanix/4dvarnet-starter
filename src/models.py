@@ -5,13 +5,13 @@ import kornia.filters as kfilts
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import numpy as np
 
 class Lit4dVarNet(pl.LightningModule):
     def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
         super().__init__()
         self.solver = solver
-        self.register_buffer('rec_weight', torch.from_numpy(rec_weight), persistent=persist_rw)
+        self.register_buffer('rec_weight', torch.from_numpy(rec_weight).float(), persistent=persist_rw)
         self.test_data = None
         self._norm_stats = norm_stats
         self.opt_fn = opt_fn
@@ -28,8 +28,8 @@ class Lit4dVarNet(pl.LightningModule):
 
     @staticmethod
     def weighted_mse(err, weight):
-        err_w = err * weight[None, ...]
-        non_zeros = (torch.ones_like(err) * weight[None, ...]) == 0.0
+        err_w = err * weight
+        non_zeros = (torch.ones_like(err) * weight) == 0.0
         err_num = err.isfinite() & ~non_zeros
         if err_num.sum() == 0:
             return torch.scalar_tensor(1000.0, device=err_num.device).requires_grad_()
@@ -50,7 +50,7 @@ class Lit4dVarNet(pl.LightningModule):
             return None, None
 
         loss, out = self.base_step(batch, phase)
-        grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
+        grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight[None, ...])
         prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
         self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
 
@@ -59,7 +59,7 @@ class Lit4dVarNet(pl.LightningModule):
 
     def base_step(self, batch, phase=""):
         out = self(batch=batch)
-        loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
+        loss = self.weighted_mse(out - batch.tgt, self.rec_weight[None, ...])
 
         with torch.no_grad():
             self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)

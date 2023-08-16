@@ -30,6 +30,8 @@ ckpt:
 entrypoints:
   - _target_: pytorch_lightning.seed_everything
     seed: 333
+  - _target_: builtins.print
+    _args_: ['${hydra:runtime.output_dir}']
   - _target_: pytorch_lightning.Trainer.test
     self: ${trainer}
     model: ${lit_mod}

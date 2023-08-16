@@ -33,7 +33,7 @@ class XrDataset(torch.utils.data.Dataset):
     def __init__(
             self, da, patch_dims, domain_limits=None, strides=None,
             check_full_scan=False, check_dim_order=False,
-            postpro_fn=None
+            postpro_fn=None, coarsen=1.
             ):
         """
         da: xarray.DataArray with patch dims at the end in the dim orders
@@ -43,6 +43,7 @@ class XrDataset(torch.utils.data.Dataset):
         check_full_scan: Boolean: if True raise an error if the whole domain is not scanned by the patch size stride combination
         """
         super().__init__()
+        self.coarsen = coarsen
         self.return_coords = False
         self.postpro_fn = postpro_fn
         self.da = da.sel(**(domain_limits or {}))
@@ -106,6 +107,8 @@ class XrDataset(torch.utils.data.Dataset):
                                     np.unravel_index(item, tuple(self.ds_size.values())))
                 }
         item =  self.da.isel(**sl)
+        if self.coarsen > 1:
+            item = item.coarsen(lat=self.coarsen, lon=self.coarsen).mean()
 
         if self.return_coords:
             return item.coords.to_dataset()[list(self.patch_dims)]
@@ -124,6 +127,11 @@ class XrDataset(torch.utils.data.Dataset):
         weight: tensor of size patch_dims corresponding to the weight of a prediction depending on the position on the patch (default to ones everywhere)
         overlapping patches will be averaged with weighting 
         """
+
+        if self.coarsen > 1:
+            batches = [
+                torch.nn.functional.interpolate(b, scale_factor=(1, self.coarsen, self.coarsen))
+                for b in batches]
 
         items = list(itertools.chain(*batches))
         return self.reconstruct_from_items(items, weight)

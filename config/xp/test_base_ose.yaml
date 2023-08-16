@@ -1,7 +1,6 @@
 # @package _global_
 xpd: ???
 
-
 domain: ???
 
 inp_da: default
@@ -20,6 +19,9 @@ xp_overrides:
     xrds_kw: 
       strides: {lat: 100, lon: 100}
       domain_limits: ${domain.train}
+    dl_kw:
+      batch_size: 16
+      num_workers: 3
   
 trainer: 
   _target_: pytorch_lightning.Trainer
@@ -58,8 +60,10 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${lit_mod}
     ose_dm: ${dm}
+    rec_weight: ${rec_weight}
     ckpt: ${ckpt}
-    diag_data_dir: ${xpd}/diag_data/natl
+    diag_data_dir: ${xpd}/diag_data/${hydra:runtime.choices.domain}
+    # test_track_path: '../sla-data-registry/data_OSE/along_track/c2_2017_world.nc'
     test_track_path: '../sla-data-registry/data_OSE/along_track/dt_gulfstream_c2_phy_l3_20161201-20180131_285-315_23-53.nc'
     oi_path: '../sla-data-registry/data_OSE/NATL/training/ssh_alg_h2g_j2g_j2n_j3_s3a_duacs.nc'
 

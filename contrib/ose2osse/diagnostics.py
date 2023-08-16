@@ -1,4 +1,5 @@
 import hydra
+import torch
 from pathlib import Path
 import pandas as pd
 import xrft
@@ -132,8 +133,10 @@ def ose_diags(model, test_track_path, oi_path, save_rec_path=None):
     return metric_df
 
 
-def test_ose(trainer, lit_mod, ose_dm, ckpt, diag_data_dir, test_track_path, oi_path):
+def test_ose(trainer, lit_mod, ose_dm, ckpt, diag_data_dir, test_track_path, oi_path, rec_weight=None):
     lit_mod._norm_stats = ose_dm.norm_stats()
+    if rec_weight is not None:
+        lit_mod.rec_weight.data = torch.from_numpy(rec_weight)
     trainer.test(lit_mod, datamodule=ose_dm, ckpt_path=ckpt)
     ose_tdat = lit_mod.test_data
 

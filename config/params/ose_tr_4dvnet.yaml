@@ -1,0 +1,9 @@
+# @package _global_
+
+patches: {time: 15, lat: 240, lon: 240}
+
+model:
+  rec_weight: {patch_dims: '${patches}'}
+  solver:
+    prior_cost: {dim_in: '${patches.time}'}
+    grad_mod: {dim_in: '${patches.time}'}
