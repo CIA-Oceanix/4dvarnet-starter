@@ -20,11 +20,11 @@ def load_cfg_from_xp(xpd, key, overrides=None, call=True, new_target=None):
     OmegaConf.set_struct(src_cfg, True)
     with omegaconf.open_dict(src_cfg):
         cfg = OmegaConf.merge(src_cfg, overrides)
-        print(new_target)
+        # print(new_target)
         node = OmegaConf.select(cfg, key)
         if new_target:
             node._target_ = new_target
-    print(node)
+    # print(node)
     return hydra.utils.call(node) if call else node
 
 
@@ -132,7 +132,7 @@ def multi_domain_ose_metrics(tdat, test_domains, test_periods, test_track, oi):
         for p in test_periods:
             print(p)
             tdom_spat = test_domains[d].test
-            print(tdom_spat)
+            # print(tdom_spat)
             test_domain = dict(time=slice(*p), **tdom_spat)
 
             sl_bounds = lambda sl: [(sl.start, sl.stop)]

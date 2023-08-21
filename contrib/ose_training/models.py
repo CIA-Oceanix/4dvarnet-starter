@@ -51,7 +51,7 @@ class LitOse(src.models.Lit4dVarNet):
         self.log( f"{phase}_lloss", lloss, prog_bar=True, on_step=False, on_epoch=True)
 
         training_loss = 50 * loss + 100 * gloss + 100 * lloss + prior_cost
-        self.log( f"{phase}_loss", loss, prog_bar=False, on_step=False, on_epoch=True)
+        # self.log( f"{phase}_loss", loss, prog_bar=False, on_step=False, on_epoch=True)
         return training_loss, out
 
     def test_step(self, batch, batch_idx):
@@ -73,9 +73,9 @@ class LitOse(src.models.Lit4dVarNet):
         return ['inp', 'out']
 
     def on_test_epoch_end(self):
-        import lovely_tensors
-        lovely_tensors.monkey_patch()
-        print(self.test_data)
+        # import lovely_tensors
+        # lovely_tensors.monkey_patch()
+        # print(self.test_data)
         #
         rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
             self.test_data,

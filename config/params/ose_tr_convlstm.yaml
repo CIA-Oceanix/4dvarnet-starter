@@ -1,7 +1,7 @@
 # @package _global_
 
 
-patches: {time: 30, lat: 240, lon: 240}
+patches: {time: 20, lat: 240, lon: 240}
 
 sst: false
 datamodule:
@@ -11,12 +11,13 @@ datamodule:
     batch_size: 32
     num_workers: 3
 model:
-  rec_weight: 
-    patch_dims: '${patches}'
-    crop: {lat: 0, lon:0}
-    offset: 10
   opt_fn:
     _target_: contrib.uw_convlstm.utils.scotts_lr
+    weight_decay: 2e-5
+  rec_weight:
+    patch_dims: '${patches}'
+    crop: {lat: 5, lon: 5}
+    offset: 1
   solver: ${convlstm.new_model}
 
 defaults:

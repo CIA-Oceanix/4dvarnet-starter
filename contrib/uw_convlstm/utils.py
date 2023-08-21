@@ -14,6 +14,6 @@ def scotts_lr(lit_mod, lr=5e-4, weight_decay=0., **kwargs):
         "lr_scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(
             opt, factor=0.3, patience=8, verbose=1, cooldown=0, min_lr=1e-5,
         ),
-        "monitor": "val_loss"
+        "monitor": "val_mse"
     }
 

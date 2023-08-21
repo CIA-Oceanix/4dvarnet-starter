@@ -1,10 +1,11 @@
 #@package _global_
 
-inp_da: default
 
-in_channel:
-  default: 1
-  sst: 2
+dim_in:
+  _target_: operator.add
+  _args_:
+    - 1 
+    - {_target_: builtins.int, _args_: ['${sst}']}
 
 new_model:
   _target_: contrib.open_stl.Wrapper
@@ -12,7 +13,7 @@ new_model:
     _target_: openstl.models.SimVP_Model
     in_shape: 
       - ${datamodule.xrds_kw.patch_dims.time}
-      - ${oc.select:in_channel.${....inp_da},1}
+      - ${dim_in}
       - ${datamodule.xrds_kw.patch_dims.lat}
       - ${datamodule.xrds_kw.patch_dims.lon}
     drop: 0.

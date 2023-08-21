@@ -15,6 +15,9 @@ import contrib.ose2osse.dc_diag
 def compute_segment_data(
     rec, test_track, oi, period=slice("2017-01-01", "2017-12-31"), npt=156
 ):
+    # print(f"{rec=}")
+    # print(f"{oi=}")
+    # print(f"{test_track=}")
     diag_data = test_track.assign(
         oi=lambda ds: oi.interp(
             time=ds.time,
@@ -133,12 +136,14 @@ def ose_diags(model, test_track_path, oi_path, save_rec_path=None):
     return metric_df
 
 
-def test_ose(trainer, lit_mod, ose_dm, ckpt, diag_data_dir, test_track_path, oi_path, rec_weight=None):
+def test_ose(trainer, lit_mod, ose_dm, ckpt, diag_data_dir, test_track_path, oi_path, rec_weight=None, domain=None):
     lit_mod._norm_stats = ose_dm.norm_stats()
     if rec_weight is not None:
         lit_mod.rec_weight.data = torch.from_numpy(rec_weight)
     trainer.test(lit_mod, datamodule=ose_dm, ckpt_path=ckpt)
     ose_tdat = lit_mod.test_data
+    if domain is not None:
+        ose_tdat = ose_tdat.sel(domain)
 
     test_track = xr.open_dataset(test_track_path).load()
     oi = xr.open_dataset(oi_path).ssh

@@ -18,12 +18,12 @@ new_model:
       _target_: torch.nn.Sequential
       _args_:
         - {_target_: 'contrib.uw_convlstm.models.CNNEncoder', kernel_size: 3, dim_in: '${......dim_in}'}
-        - {_target_: torch.nn.Dropout, p: 0.5}
-    convlstm: {_target_: 'contrib.uw_convlstm.models.ConvLstm', kernel_size: 3, _partial_: true}
+        - {_target_: torch.nn.Dropout3d, p: 0.4}
+    convlstm: {_target_: 'contrib.uw_convlstm.models.ConvLstm', kernel_size: 3, dim_hidden: 128, _partial_: true}
     decoder: 
       _target_: torch.nn.Sequential
       _args_:
-        - {_target_: torch.nn.Dropout, p: 0.6}
+        - {_target_: torch.nn.Dropout3d, p: 0.4}
         - {_target_: 'contrib.uw_convlstm.models.CNNDecoder', kernel_size: 3}
 
 trainer:
@@ -32,13 +32,17 @@ trainer:
 datamodule:
   coarsen: 1
   xrds_kw:
-    patch_dims: {time: 30}
+    patch_dims: {time: 20}
   dl_kw: {batch_size: 16}
   aug_kw:
-    aug_factor: 10
+    aug_factor: 15
     aug_only: False
 
 model: 
   opt_fn:
     _target_: contrib.uw_convlstm.utils.scotts_lr
+    weight_decay: 2e-5
+  rec_weight:
+    crop: {lat: 5, lon: 5}
+    offset: 1
   solver: ${..new_model}

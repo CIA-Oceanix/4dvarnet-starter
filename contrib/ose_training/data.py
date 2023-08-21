@@ -70,9 +70,9 @@ class OseDataset(torch.utils.data.Dataset):
         if len(batches)==0:
             return None
         # print(f"{len(batches)=}")
-        print(f"{(batches[0])=}")
+        # print(f"{(batches[0])=}")
         # print(f"{[*itertools.chain(*batches)]=}")
-        print(f"{[*itertools.chain(*batches)][0]=}")
+        # print(f"{[*itertools.chain(*batches)][0]=}")
         if self.coarsen > 1:
             batches = [torch.nn.functional.interpolate(b, scale_factor=self.coarsen) for b in batches]
         return self.patcher.reconstruct([*itertools.chain(*batches)], **rec_kws)

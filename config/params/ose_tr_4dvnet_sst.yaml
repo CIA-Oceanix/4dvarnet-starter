@@ -2,8 +2,14 @@
 
 patches: {time: 15, lat: 240, lon: 240}
 
+sst_cost: linear
+
+obs_cost_class:
+  non_linear: contrib.multimodal.NonLinearMultiModalObsCost
+  linear: contrib.multimodal.MultiModalObsCost
+
 obs_cost:
-  _target_: contrib.multimodal.MultiModalObsCost
+  _target_: ${obs_cost_class.${sst_cost}}
   dim_in: ${patches.time}
   dim_hidden: 5
 

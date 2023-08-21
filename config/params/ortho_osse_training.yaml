@@ -1,6 +1,3 @@
-# @package _global_
-
-
 
 strides: {time: 1}
 sst: false
