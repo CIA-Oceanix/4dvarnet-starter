@@ -1,4 +1,5 @@
 import xarray as xr
+import numpy as np
 import einops
 import functools as ft
 import torch
@@ -44,6 +45,7 @@ class MultiModalDataModule(src.data.BaseDataModule):
             ft.reduce,
             lambda i, f: f(i),
             [
+                lambda item: item.astype(np.float32),
                 MultiModalSSTTrainingItem._make,
                 lambda item: item._replace(tgt=normalize_ssh(item.tgt)),
                 lambda item: item._replace(input=normalize_ssh(item.input)),

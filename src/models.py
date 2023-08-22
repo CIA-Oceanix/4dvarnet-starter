@@ -91,15 +91,17 @@ class Lit4dVarNet(pl.LightningModule):
 
     def on_test_epoch_end(self):
         rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
-            self.test_data, self.rec_weight.cpu().numpy()
+            self.test_data,
+            weight=self.rec_weight.cpu().numpy(),
+            dims_labels=('v', 'time', 'lat', 'lon')
         )
 
         if isinstance(rec_da, list):
             rec_da = rec_da[0]
 
         self.test_data = rec_da.assign_coords(
-            dict(v0=self.test_quantities)
-        ).to_dataset(dim='v0')
+            dict(v=self.test_quantities)
+        ).to_dataset(dim='v')
 
         metric_data = self.test_data.pipe(self.pre_metric_fn)
         metrics = pd.Series({
