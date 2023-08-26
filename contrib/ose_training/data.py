@@ -17,9 +17,12 @@ TrainingItem = collections.namedtuple('TrainingItem', ['input', 'input_coords', 
 
 
 class OseDataset(torch.utils.data.Dataset):
-    def __init__(self, path, patcher_kws, postpro_fn=None, sst=False, sst_path='../sla-data-registry/mur_pp.nc'):
+    def __init__(self, path, patcher_kws, postpro_fn=None, sst=False, sst_path='../sla-data-registry/mur_pp.nc', patcher_cls=xrpatcher.XRDAPatcher, ortho=False):
         ds = xr.open_dataset(path)
-        self.patcher = xrpatcher.XRDAPatcher(ds.others, **patcher_kws)
+        # print(ds[['others']])
+        self.patcher = patcher_cls(da=ds[['others']].to_array(), **patcher_kws)
+        self.ortho = ortho
+        # print(self.patcher)
         self.nad_ds = ds.nadir
         self.postpro = postpro_fn
         self.sst = None
@@ -33,7 +36,8 @@ class OseDataset(torch.utils.data.Dataset):
         return slice(fmt(git.time.min().values),fmt(git.time.max().values))
 
     def __getitem__(self, idx):
-        grid_item = self.patcher[idx]
+        grid_item = self.patcher[idx][0]
+        # print(f'{grid_item.shape=}')
         nad_item = self.nad_ds.sel(nad_time=self.time_range(grid_item))
         sst_item = xr.full_like(grid_item, np.nan)
         if self.sst is not None:
@@ -44,19 +48,26 @@ class OseDataset(torch.utils.data.Dataset):
             grid_item = grid_item.coarsen(lat=self.coarsen, lon=self.coarsen).mean()
             sst_item = sst_item.sel(grid_item.coords, method='nearest')
 
+        glat, glon = grid_item.lat.values, grid_item.lon.values
+        lat, lon = nad_item.nad_lat.values, nad_item.nad_lon.values
+        if self.ortho:
+            glon, glat = grid_item.x.values, grid_item.y.values
+            lon, lat, _  = np.split(self.patcher.convert(lon, lat), 3, axis=1)
+            lon, lat = lon[..., 0], lat[..., 0]
+
         item = TrainingItem(
             input=grid_item.values.astype(np.float32),
             sst=sst_item.values.astype(np.float32),
             tgt=nad_item.values.astype(np.float32),
             input_coords=Coords(
                 time=((grid_item.time - grid_item.time.min())/pd.to_timedelta('1D')).values.astype(np.float32),
-                lat=grid_item.lat.values.astype(np.float32),
-                lon=grid_item.lon.values.astype(np.float32),
+                lat=glat.astype(np.float32),
+                lon=glon.astype(np.float32),
             ),
             tgt_coords=Coords(
                 time=((nad_item.nad_time - grid_item.time.min())/pd.to_timedelta('1D')).values.astype(np.float32),
-                lat=nad_item.nad_lat.values.astype(np.float32),
-                lon=nad_item.nad_lon.values.astype(np.float32),
+                lat=lat.astype(np.float32),
+                lon=lon.astype(np.float32),
             )
         )
         if self.postpro:
@@ -78,6 +89,7 @@ class OseDataset(torch.utils.data.Dataset):
         return self.patcher.reconstruct([*itertools.chain(*batches)], **rec_kws)
 
 def pad_stack(ts):
+    # print(ts)
     tgt_size = torch.stack([torch.tensor(t.shape) for t in ts]).max(0).values.long()
     ps = lambda t: torch.stack(
             [torch.zeros_like(tgt_size), (tgt_size - torch.tensor(t.size())).maximum(torch.zeros_like(tgt_size))]
@@ -86,6 +98,8 @@ def pad_stack(ts):
 
 def collate_fn(list_of_items):
     to_t = torch.utils.data.default_convert
+    import lovely_tensors
+    lovely_tensors.monkey_patch()
     return TrainingItem(
         input=torch.utils.data.default_collate([l.input for l in list_of_items]),
         sst=torch.utils.data.default_collate([l.sst for l in list_of_items]),
@@ -140,7 +154,7 @@ class XrConcatDataset(torch.utils.data.ConcatDataset):
 
     
 class OseDatamodule(pl.LightningDataModule):
-    def __init__(self, train_ds, val_ds, test_ds, dl_kws, norm_stats=None, sst=False, coarsen=1):
+    def __init__(self, train_ds, val_ds, test_ds, dl_kws, norm_stats=None, sst=False, coarsen=1, *args, **kwargs):
         super().__init__()
         self.train_ds = train_ds
         self.val_ds = val_ds

@@ -84,6 +84,28 @@ def dc_spat_res_from_diag_data(diag_data, v='rec'):
 
     return resolved_scale(ds.psd_diff)
 
+
+def rmse(diag_data):
+    return (
+        diag_data.pipe(lambda ds: ds - ds.gt)[["rec", "oi"]]
+        .pipe(np.square)
+        .resample(time="1D")
+        .mean()
+        .pipe(np.sqrt)
+    ).mean().rec.values.item()
+
+def rmse_score(diag_data):
+    rmse = (
+        diag_data.pipe(lambda ds: ds - ds.gt)[["rec", "oi"]]
+        .pipe(np.square)
+        .resample(time="1D")
+        .mean()
+        .pipe(np.sqrt)
+    )
+    rms = np.sqrt(np.square(diag_data.gt).resample(time="1D").mean())
+    rmse_score = 1.0 - rmse / rms
+    return rmse_score.mean().rec.values.item()
+
 def ose_diags_from_da(rec, test_track, oi, crop_psd=50):
     segment_data, diag_data = compute_segment_data(rec, test_track, oi)
 

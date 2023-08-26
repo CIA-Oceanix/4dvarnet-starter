@@ -1,0 +1,3 @@
+- xp=test_base
+- xpd=jobs/new_baseline
+- trainer.devices=2

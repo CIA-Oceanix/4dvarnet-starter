@@ -8,7 +8,7 @@ import tqdm
 from collections import namedtuple
 import xrpatcher
 
-TrainingItem = namedtuple('TrainingItem', ['input', 'tgt'])
+TrainingItem = namedtuple('TrainingItem', ['input', 'tgt', 'weight'], defaults=[None, None, np.empty(0)])
 
 class XrDataset(torch.utils.data.Dataset):
     def __init__(self, patcher: xrpatcher.XRDAPatcher, postpro_fn=None):
@@ -19,6 +19,7 @@ class XrDataset(torch.utils.data.Dataset):
         item = self.patcher[idx].load().values
         if self.postpro:
             item = self.postpro(item)
+
         return item
 
     def reconstruct(self, batches, **rec_kws):
@@ -78,10 +79,11 @@ class AugmentedDataset(torch.utils.data.Dataset):
                              item.tgt, np.full_like(item.tgt,np.nan)))
 
 class BaseDataModule(pl.LightningDataModule):
-    def __init__(self, input_da, domains, xrds_kw, dl_kw, aug_kw=None, norm_stats=None, **kwargs):
+    def __init__(self, input_da, domains, xrds_kw, dl_kw, aug_kw=None, norm_stats=None, patcher_cls=xrpatcher.XRDAPatcher, **kwargs):
         super().__init__()
         self.input_da = input_da
         self.domains = domains
+        self.pa_cls = patcher_cls
         self.xrds_kw = xrds_kw
         if 'patch_dims' in self.xrds_kw:
             self.xrds_kw['patches'] = self.xrds_kw.pop('patch_dims')
@@ -110,7 +112,7 @@ class BaseDataModule(pl.LightningDataModule):
         normalize = lambda item: (item - m) / s
         return ft.partial(ft.reduce,lambda i, f: f(i), [
             lambda item: item.astype(np.float32),
-            TrainingItem._make,
+            lambda item: TrainingItem(*item),
             lambda item: item._replace(tgt=normalize(item.tgt)),
             lambda item: item._replace(input=normalize(item.input)),
         ])
@@ -120,16 +122,16 @@ class BaseDataModule(pl.LightningDataModule):
         train_data = self.input_da.sel(self.domains['train'])
         post_fn = self.post_fn()
         self.train_ds = XrDataset(
-            xrpatcher.XRDAPatcher(train_data, **self.xrds_kw), postpro_fn=post_fn,
+            self.pa_cls(da=train_data, **self.xrds_kw), postpro_fn=post_fn,
         )
         if self.aug_kw:
             self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
 
         self.val_ds = XrDataset(
-            xrpatcher.XRDAPatcher(self.input_da.sel(self.domains['val']), **self.xrds_kw), postpro_fn=post_fn,
+            self.pa_cls(da=self.input_da.sel(self.domains['val']), **self.xrds_kw), postpro_fn=post_fn,
         )
         self.test_ds = XrDataset(
-            xrpatcher.XRDAPatcher(self.input_da.sel(self.domains['test']), **self.xrds_kw), postpro_fn=post_fn,
+            self.pa_cls(da=self.input_da.sel(self.domains['test']), **self.xrds_kw), postpro_fn=post_fn,
         )
 
 
@@ -162,18 +164,18 @@ class ConcatDataModule(BaseDataModule):
     def setup(self, stage='test'):
         post_fn = self.post_fn()
         self.train_ds = XrConcatDataset([
-            XrDataset(xrpatcher.XRDAPatcher(self.input_da.sel(domain), **self.xrds_kw), postpro_fn=post_fn,)
+            XrDataset(da=self.pa_cls(da=self.input_da.sel(domain), **self.xrds_kw), postpro_fn=post_fn,)
             for domain in self.domains['train']
         ])
         if self.aug_factor >= 1:
             self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
 
         self.val_ds = XrConcatDataset([
-            XrDataset(xrpatcher.XRDAPatcher(self.input_da.sel(domain)), **self.xrds_kw, postpro_fn=post_fn,)
+            XrDataset(da=self.pa_cls(da=self.input_da.sel(domain)), **self.xrds_kw, postpro_fn=post_fn,)
             for domain in self.domains['val']
         ])
         self.test_ds = XrConcatDataset([
-            XrDataset(xrpatcher.XRDAPatcher(self.input_da.sel(domain)), **self.xrds_kw, postpro_fn=post_fn,)
+            XrDataset(da=self.pa_cls(da=self.input_da.sel(domain)), **self.xrds_kw, postpro_fn=post_fn,)
             for domain in self.domains['test']
         ])
 

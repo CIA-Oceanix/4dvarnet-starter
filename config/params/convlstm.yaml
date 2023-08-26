@@ -32,7 +32,7 @@ trainer:
 datamodule:
   coarsen: 1
   xrds_kw:
-    patch_dims: {time: 20}
+    patches: {time: 20}
   dl_kw: {batch_size: 16}
   aug_kw:
     aug_factor: 15

@@ -12,8 +12,6 @@ xp_overrides:
   datamodule:
     norm_stats: [0.45041265751056536, 0.4245028360946941]
     dl_kw: {batch_size: 16, num_workers: 1}
-    xrds_kw:
-      patch_dims: ${patches}
     domains:
       val:
         time: {_target_: builtins.slice, _args_: ['2016-12-01', '2018-01-31']}

@@ -12,10 +12,10 @@ new_model:
   mod:
     _target_: openstl.models.SimVP_Model
     in_shape: 
-      - ${datamodule.xrds_kw.patch_dims.time}
+      - ${datamodule.xrds_kw.patches.time}
       - ${dim_in}
-      - ${datamodule.xrds_kw.patch_dims.lat}
-      - ${datamodule.xrds_kw.patch_dims.lon}
+      - ${datamodule.xrds_kw.patches.lat}
+      - ${datamodule.xrds_kw.patches.lon}
     drop: 0.
     drop_path: 0.
     hid_S: 2
@@ -29,7 +29,7 @@ trainer:
 
 datamodule:
   xrds_kw:
-    patch_dims: {time: 15}
+    patches: {time: 15}
   dl_kw: {batch_size: 16}
   aug_kw:
     aug_factor: 10

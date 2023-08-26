@@ -1,5 +1,6 @@
 **/__pycache__
 outputs
+test_data
 logs
 multirun
 lightning_logs
@@ -8,8 +9,3 @@ scratches
 tmp
 data
 jobs
-
-.hydra
-train_ddp_process_1.log
-train_ddp_process_2.log
-train_ddp_process_3.log

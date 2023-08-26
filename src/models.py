@@ -1,4 +1,6 @@
 import pandas as pd
+import itertools
+import torch.distributed as dist
 from pathlib import Path
 import pytorch_lightning as pl
 import kornia.filters as kfilts
@@ -8,7 +10,7 @@ import torch.nn.functional as F
 import numpy as np
 
 class Lit4dVarNet(pl.LightningModule):
-    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, save_dir='.'):
         super().__init__()
         self.solver = solver
         self.register_buffer('rec_weight', torch.from_numpy(rec_weight).float(), persistent=persist_rw)
@@ -17,6 +19,11 @@ class Lit4dVarNet(pl.LightningModule):
         self.opt_fn = opt_fn
         self.metrics = test_metrics or {}
         self.pre_metric_fn = pre_metric_fn or (lambda x: x)
+        self.save_dir = save_dir
+        # self.save_hyperparameters('save_dir')
+        print(f'{self.save_dir=}', f'{self.global_rank=}')
+        # print(f'{self.hparams=}', f'{self.global_rank=}')
+        # print(f'{self.rec_weight.mean()=}', f'{self.rec_weight.mean()=}')
 
     @property
     def norm_stats(self):
@@ -46,11 +53,12 @@ class Lit4dVarNet(pl.LightningModule):
         return self.solver(batch)
     
     def step(self, batch, phase=""):
-        if self.training and batch.tgt.isfinite().float().mean() < 0.9:
-            return None, None
+        # if self.training and batch.tgt.isfinite().float().mean() < 0.9:
+        #     return None, None
 
         loss, out = self.base_step(batch, phase)
-        grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight[None, ...])
+        w = batch.weight if batch.weight.numel() else self.rec_weight[None, ...]
+        grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilts.sobel(batch.tgt), w)
         prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
         self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
 
@@ -59,7 +67,8 @@ class Lit4dVarNet(pl.LightningModule):
 
     def base_step(self, batch, phase=""):
         out = self(batch=batch)
-        loss = self.weighted_mse(out - batch.tgt, self.rec_weight[None, ...])
+        w = batch.weight if batch.weight.numel() else self.rec_weight[None, ...]
+        loss = self.weighted_mse(out - batch.tgt, w)
 
         with torch.no_grad():
             self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
@@ -89,12 +98,44 @@ class Lit4dVarNet(pl.LightningModule):
     def test_quantities(self):
         return ['inp', 'tgt', 'out']
 
+    def gather_outputs(self, outputs):
+        data_path = Path(f'{self.save_dir}/test_data')
+        data_path.mkdir(exist_ok=True, parents=True)
+        torch.save(outputs, data_path / f'{self.global_rank}.t')
+        print(f' tgo {self.global_rank=}')
+        print(f'{sorted(data_path.glob("*"))=}')
+
+        if dist.is_initialized():
+            print(f' {self.global_rank=} is waiting')
+            dist.barrier()
+            print('everybody is here')
+
+        if self.global_rank == 0:
+            print(f'{sorted(data_path.glob("*"))=}')
+            outputs = [torch.load(f) for f in sorted(data_path.glob('*'))]
+            print(f'{[len(o) for o in outputs]=}')
+            outputs = [list(itertools.chain(*o)) for o in outputs]
+            outputs = list(itertools.chain(*zip(*outputs)))#[:len(self.trainer.test_dataloaders.dataset)]
+            print(f'{len(outputs)=}')
+            print(f'{outputs[0].shape=}') 
+            for f in data_path.glob('*'):
+                f.unlink()
+            data_path.rmdir()
+            return outputs
+
     def on_test_epoch_end(self):
-        rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+        print(f' tee {self.global_rank=}')
+
+        self.test_data = self.gather_outputs(self.test_data)
+        if self.test_data is None:
+            return
+
+        rec_da = self.trainer.test_dataloaders.dataset.patcher.reconstruct(
             self.test_data,
             weight=self.rec_weight.cpu().numpy(),
             dims_labels=('v', 'time', 'lat', 'lon')
         )
+
 
         if isinstance(rec_da, list):
             rec_da = rec_da[0]
@@ -103,7 +144,9 @@ class Lit4dVarNet(pl.LightningModule):
             dict(v=self.test_quantities)
         ).to_dataset(dim='v')
 
+        print(f'{self.test_data.pipe(np.isfinite).mean()=}')
         metric_data = self.test_data.pipe(self.pre_metric_fn)
+        print(f'{metric_data.pipe(np.isfinite).mean()=}')
         metrics = pd.Series({
             metric_n: metric_fn(metric_data) 
             for metric_n, metric_fn in self.metrics.items()

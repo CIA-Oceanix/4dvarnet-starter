@@ -9,8 +9,8 @@ import torch.nn.functional as F
 
 def scale_tgt_coords(batch):
     minmax = lambda t: (
-        einops.reduce( t, 'b ... -> b ()', 'min'),
-        einops.reduce( t, 'b ... -> b ()', 'max'),
+        einops.reduce( t.nan_to_num(nan=torch.inf), 'b ... -> b ()', 'min'),
+        einops.reduce( t.nan_to_num(nan=-torch.inf), 'b ... -> b ()', 'max'),
     )
     def rescale(inp, tgt):
         m, M = minmax(inp)

@@ -31,7 +31,7 @@ ose_datamodule:
     train: ${ose_datamodule.domains.test} 
     val: ${ose_datamodule.domains.test} 
   xrds_kw: 
-    patch_dims: ${osse_datamodule.xrds_kw.patch_dims}
+    patches: ${osse_datamodule.xrds_kw.patches}
     strides: ${osse_datamodule.xrds_kw.strides}
     domain_limits: 
       lat: {_target_: builtins.slice, _args_: [32., 44.]}

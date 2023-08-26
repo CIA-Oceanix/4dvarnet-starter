@@ -15,6 +15,15 @@ OmegaConf.register_new_resolver(
     "singleton", lambda k: "${oc.create:${_singleton:" + k + "}}", replace=True
 )
 
+def drop_target(cfg):
+    cfg = OmegaConf.resolve(cfg)
+    if "_target_" in cfg:
+        del cfg["_target_"]
+    return cfg
+
+OmegaConf.register_new_resolver(
+    "drop_tgt", drop_target, replace=True
+)
 
 class SingletonStore:
     STORE = dict()

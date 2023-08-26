@@ -13,7 +13,7 @@ datamodule:
     test: 
       time: {_target_: builtins.slice,  _args_: ['2012-10-01', '2012-12-20']}
   xrds_kw:
-    patch_dims: { time: 15, lat: 240, lon: 240}
+    patches: { time: 15, lat: 240, lon: 240}
     strides: { time: 1, lat: 200, lon: 200}
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 4, num_workers: 1}
@@ -29,7 +29,7 @@ model:
     T_max: 300
   rec_weight:
       _target_: src.utils.get_triang_time_wei
-      patch_dims: ${datamodule.xrds_kw.patch_dims}
+      patch_dims: ${datamodule.xrds_kw.patches}
       crop: {time: 0, lat: 20, lon: 20}
       offset: 0
   solver:
@@ -40,11 +40,11 @@ model:
       _target_: contrib.multiprior.MultiPriorCost
       prior_costs:
       - _target_: src.models.BilinAEPriorCost
-        dim_in: ${datamodule.xrds_kw.patch_dims.time}
+        dim_in: ${datamodule.xrds_kw.patches.time}
         dim_hidden: 64
         downsamp: 2
       # - _target_: src.models.BilinAEPriorCost
-      #   dim_in: ${datamodule.xrds_kw.patch_dims.time}
+      #   dim_in: ${datamodule.xrds_kw.patches.time}
       #   dim_hidden: 32
       #   downsamp: 20
       weight_mod_factory:
@@ -54,7 +54,7 @@ model:
       _target_: src.models.BaseObsCost
     grad_mod:
       _target_: src.models.ConvLstmGradModel
-      dim_in: ${datamodule.xrds_kw.patch_dims.time}
+      dim_in: ${datamodule.xrds_kw.patches.time}
       dim_hidden: 96
 
 trainer:

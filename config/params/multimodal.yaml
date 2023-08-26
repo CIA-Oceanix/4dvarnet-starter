@@ -13,7 +13,7 @@ sst_da:
 
 obs_cost:
   _target_: ${obs_cost_class.${sst_cost}}
-  dim_in: ${datamodule.xrds_kw.patch_dims.time}
+  dim_in: ${datamodule.xrds_kw.patches.time}
   dim_hidden: 5
 
 

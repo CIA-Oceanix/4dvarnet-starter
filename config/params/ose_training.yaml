@@ -10,7 +10,7 @@ trainer:
 ose_dm:
   _target_: contrib.ose_training.data.OseDatamodule
   norm_stats: [0.45041265751056536, 0.4245028360946941]
-  dl_kws: {batch_size: 16, num_workers: 1}
+  dl_kws: {batch_size: 16, num_workers: 8, persistent_workers: True}
   train_ds:
     _target_: contrib.ose_training.data.XrConcatDataset
     _args_: [['${ose_ds.trainval.alg}', '${ose_ds.trainval.al}', '${ose_ds.trainval.e1g}', '${ose_ds.trainval.e1}', '${ose_ds.trainval.e2}', '${ose_ds.trainval.en}', '${ose_ds.trainval.enn}', 
@@ -35,4 +35,4 @@ datamodule: ${ose_dm}
 
 
 defaults:
-  - /ose_ds/all
+  - /ose_ds/all_ortho

@@ -12,7 +12,7 @@ import src.utils
 import hydra
 
 
-def load_cfg_from_xp(xpd, key, overrides=None, call=True, new_target=None):
+def load_cfg_from_xp(xpd, key, overrides=None, call=True, overrides_targets=None):
     xpd = Path(xpd)
     src_cfg, xp = src.utils.load_cfg(xpd)
     overrides = overrides or dict()
@@ -21,14 +21,17 @@ def load_cfg_from_xp(xpd, key, overrides=None, call=True, new_target=None):
     with omegaconf.open_dict(src_cfg):
         cfg = OmegaConf.merge(src_cfg, overrides)
         # print(new_target)
+        if overrides_targets is not None:
+            for path, target in overrides_targets.items():
+                node = OmegaConf.select(cfg, path)
+                node._target_ = target
+            # node._target_ = new_targ
         node = OmegaConf.select(cfg, key)
-        if new_target:
-            node._target_ = new_target
     # print(node)
     return hydra.utils.call(node) if call else node
 
 
-def get_smooth_spat_rec_weight(orig_rec_weight):
+def get_smooth_spat_rec_weight(orig_rec_weight, *args, **kwargs):
     # orig_rec_weight = src.utils.get_triang_time_wei(cfg.datamodule.xrds_kw.patch_dims, crop=dict(lat=20, lon=20))
     rec_weight = ndi.gaussian_filter(orig_rec_weight, sigma=[0, 25, 25])
     rec_weight = np.where(
