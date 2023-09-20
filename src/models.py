@@ -99,7 +99,10 @@ class Lit4dVarNet(pl.LightningModule):
         return ['inp', 'tgt', 'out']
 
     def gather_outputs(self, outputs):
-        data_path = Path(f'{self.save_dir}/test_data')
+        if self.logger:
+            data_path = Path(self.logger.log_dir)/'test_data'
+        else:
+            data_path = Path(f'{self.save_dir}/test_data')
         data_path.mkdir(exist_ok=True, parents=True)
         torch.save(outputs, data_path / f'{self.global_rank}.t')
         print(f' tgo {self.global_rank=}')
@@ -144,6 +147,10 @@ class Lit4dVarNet(pl.LightningModule):
             dict(v=self.test_quantities)
         ).to_dataset(dim='v')
 
+        if self.logger:
+            self.test_data.to_netcdf(Path(self.logger.log_dir) / 'test_data.nc')
+            print(Path(self.trainer.log_dir) / 'test_data.nc')
+
         print(f'{self.test_data.pipe(np.isfinite).mean()=}')
         metric_data = self.test_data.pipe(self.pre_metric_fn)
         print(f'{metric_data.pipe(np.isfinite).mean()=}')
@@ -154,10 +161,7 @@ class Lit4dVarNet(pl.LightningModule):
 
         print(metrics.to_frame(name="Metrics").to_markdown())
         if self.logger:
-            self.test_data.to_netcdf(Path(self.logger.log_dir) / 'test_data.nc')
-            print(Path(self.trainer.log_dir) / 'test_data.nc')
             self.logger.log_metrics(metrics.to_dict())
-
 
 class GradSolver(nn.Module):
     def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.2, **kwargs):

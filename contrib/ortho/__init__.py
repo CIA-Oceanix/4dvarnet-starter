@@ -79,54 +79,31 @@ def ortho(item, dense_vars=('ssh',), sparse_vars=('nadir_obs',), res=5e3):
     return ds_out, src_geo, tgt_geo
 
 
-class OrthoPatcher(xrpatcher.XRDAPatcher):
-    def __init__(self, dense_vars=('ssh',), sparse_vars=('nadir_obs',), res=5e3, weight=None, cache=True, nproc_rec=1, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.weight = weight
+class Ortho:
+    def __init__(self, dense_vars=('ssh',), sparse_vars=('nadir_obs',), res=5e3):
         self.dense_vars = dense_vars or []
-        if weight is not None:
-            self.dense_vars = list([*self.dense_vars, "weight"])
         self.sparse_vars = sparse_vars or []
         self.res = res
-        self.manual_cache = {}
-        self.cache = cache
-        self.nproc_rec = int(nproc_rec)
-        self.latest_geos = None
 
-    ortho_
-    def __getitem__(self, idx):
-        # print(idx, list(self.manual_cache.keys()))
-        if self.cache and (idx in self.manual_cache):
-            return self.manual_cache[idx]
+    def __call__(self, item_ds):
 
-        item = super().__getitem__(idx)
-        item_ds = item.to_dataset(dim='variable')
-        if self.weight is not None:
-            item_ds = item_ds.assign(
-                weight=(('time', 'lat', 'lon'), self.weight),
-            )
         item_ds = item_ds.to_array().transpose('lat', 'lon', 'time', 'variable', transpose_coords=True).to_dataset(dim='variable')
         o_it, sgeo, tgeo =  ortho(item_ds, self.dense_vars, self.sparse_vars, self.res)
         
-        try:
-            o_it = o_it.reindex(time=item.time)
-            o_it = o_it.assign(
-                **{v: (lambda dd: xr.DataArray(np.nan).broadcast_like(dd)) for v in item_ds if v not in o_it}
-            )
-            o_it = o_it.to_array().sortby('variable').transpose('variable', 'time', 'y', 'x', transpose_coords=True)
-        except Exception as e:
-            print(item_ds, o_it)
-            print(item_ds.pipe(np.isfinite).mean())
-            print(o_it.pipe(np.isfinite).mean())
-            raise e
-        to_padx =  self.patches['lon'] - o_it.x.size
+        o_it = o_it.reindex(time=item_ds.time)
+        o_it = o_it.assign(
+            **{v: (lambda dd: xr.DataArray(np.nan).broadcast_like(dd)) for v in item_ds if v not in o_it}
+        )
+        o_it = o_it.to_array().sortby('variable').transpose('variable', 'time', 'y', 'x', transpose_coords=True)
+
+        to_padx =  len(item_ds['lon']) - o_it.x.size
         if to_padx > 0:
             o_it = o_it.pad(x=(to_padx//2, to_padx - to_padx//2), constant_values=np.nan)
 
         if to_padx < 0:
             o_it = o_it.isel(x=slice(-to_padx//2, to_padx - to_padx//2))
 
-        to_pady =  self.patches['lat'] - o_it.y.size
+        to_pady =  len(item_ds['lat']) - o_it.y.size
         if to_pady > 0:
             o_it = o_it.pad(y=(to_pady//2, to_pady - to_pady//2), constant_values=np.nan)
 
@@ -134,6 +111,38 @@ class OrthoPatcher(xrpatcher.XRDAPatcher):
             o_it = o_it.isel(y=slice(-to_pady//2, to_pady - to_pady//2))
 
 
+        return o_it, sgeo, tgeo
+
+class OrthoPatcher:
+    def __init__(self, dense_vars=('ssh',), sparse_vars=('nadir_obs',), res=5e3, weight=None, cache=True, nproc_rec=1, *args, **kwargs):
+        self.patcher = xrpatcher.XRDAPatcher(*args, **kwargs)
+        self.weight = weight
+        self.dense_vars = dense_vars
+        self.sparse_vars = sparse_vars
+        self.res = res
+        if weight is not None:
+            dense_vars = dense_vars or []
+            dense_vars = list([*dense_vars, "weight"])
+        self.ortho = Ortho(dense_vars=dense_vars, sparse_vars=sparse_vars, res=res)
+        self.manual_cache = {}
+        self.cache = cache
+        self.latest_geos = None
+        self.nproc_rec = nproc_rec
+
+    def __getitem__(self, idx):
+        # print(idx, list(self.manual_cache.keys()))
+        if self.cache and (idx in self.manual_cache):
+            return self.manual_cache[idx]
+
+        item = self.patcher.__getitem__(idx)
+        item_ds = item.to_dataset(dim='variable')
+        if self.weight is not None:
+            item_ds = item_ds.assign(
+                weight=(('time', 'lat', 'lon'), self.weight),
+            )
+        item_ds = item_ds.to_array().transpose('lat', 'lon', 'time', 'variable', transpose_coords=True).to_dataset(dim='variable')
+        o_it, sgeo, tgeo =  self.ortho(item_ds)
+        
         self.latest_geos = (sgeo, tgeo)
         self.manual_cache[idx] = o_it
         # print(o_it.to_dataset(dim='variable').map(np.isfinite).mean())
@@ -145,18 +154,13 @@ class OrthoPatcher(xrpatcher.XRDAPatcher):
         trans = tgeo.transform_points(sgeo, lons, lats)
         return trans
 
-    def get_coord(self, idx):
-        item = super().__getitem__(idx)
-        return item.coords.to_dataset()[list(self.patches)]
-
-    def get_ortho_coord(self, idx):
-        item = self[idx]
-        return item.coords.to_dataset()
-
+    def __len__(self):
+        return len(self.patcher)
+    
     def get_coords(self):
         coords = []
         for i in range(len(self)):
-            coords.append(super().__getitem__(i).coords.to_dataset()[list(self.patches)])
+            coords.append(self.patcher.__getitem__(i).coords.to_dataset()[list(self.patches)])
         return coords
 
     def get_ortho_coords(self):
@@ -165,118 +169,46 @@ class OrthoPatcher(xrpatcher.XRDAPatcher):
             coords.append(self[i].coords.to_dataset())
         return coords
 
-    def _reconstruct(self, items, dims_labels, *args, **kwargs):
-        ortho_coords = self.get_ortho_coords()
-        coords = self.get_coords()
 
-        regridders = [
-            xe.Regridder(oc.transpose('y', 'x', 'time', 'variable'), c.transpose('lat', 'lon', 'time', 'variable'), 'bilinear', unmapped_to_nan=True)
-            for oc, c in zip(ortho_coords, coords)
-        ]
-
-        das = [
-            reg(xr.DataArray(it, dims=dims_labels, coords=co).transpose('v', 'time', 'lat', 'lon'))
-            for reg, it, co in zip(regridders,  items, ortho_coords)
-        ]
-        return super().reconstruct([da.values for da in das], dims_labels=das[0].dims, *args, **kwargs)
-
-
-    def _reconstruct(self, items, dims_labels, weight, *args, **kwargs):
-
-        import time
-        t0 = time.time()
-        if self.nproc_rec <= 1:
-            ortho_coords = self.get_ortho_coords()
-        else:
-            ortho_items = plel_apply(zip(range(len(self))), self.__getitem__, nproc=self.nproc_rec)
-            ortho_coords = [it.coords.to_dataset() for it in ortho_items]
-
-        # ortho_coords = self.get_ortho_coords()
-        coords = self.get_coords()
-
-        print(time.time() - t0, 'get_coords')
-        if self.nproc_rec <= 1:
-            das = [regrid(it, oc, co) for it, oc, co in tqdm.tqdm(zip(items, ortho_coords, coords)) ]
-        else:
-            das = plel_apply(zip(items, ortho_coords, coords), regrid, nproc=self.nproc_rec)
-        print(time.time() - t0, 'regrid')
-        # print(f'{das[0].shape=}')
-        ws = [xr.zeros_like(da) + weight[None] for da in das]
-        wdas = [w * da for w, da in zip(ws, das)]
-        # print(f'{wdas[0].shape=}')
-        # print(f'{wdas[0].pipe(np.isfinite).mean()=}')
-
-        if True or self.nproc_rec <= 1:
-            rec_da = outer_add_das(wdas)
-            # rec_da = outer_add_das(das)
-            count_da = outer_add_das(ws)
-        else:
-            rec_da = plel_merge(wdas, outer_add_das, nproc=self.nproc_rec)
-            count_da = plel_merge(ws, outer_add_das, nproc=self.nproc_rec)
-
-        print(time.time() - t0, 'merge')
-        # print(rec_da.shape)
-        # print(rec_da.pipe(np.isfinite).mean())
-        # print(count_da.shape)
-        out = (rec_da.chunk() / count_da.chunk()).compute()
-
-        print(time.time() - t0, 'out')
-        return out
-
-    def _reconstruct(self, items, dims_labels, weight, *args, **kwargs):
-        rec_da = regrid(items[0], self.get_ortho_coord(0), self.get_coord(0))
-        count_da = xr.zeros_like(rec_da) + weight[None]
-        rec_da = rec_da * count_da
-        for idx, item in tqdm.tqdm(enumerate(items[1:])):
-            da = regrid(item, self.get_ortho_coord(idx), self.get_coord(idx))
-            w = xr.zeros_like(da) + weight[None]
-            da = da * w
-            rec_da = outer_add_das([rec_da, da])
-            count_da = outer_add_das([count_da, w])
-        return rec_da /count_da
 
     def reconstruct(self, items, dims_labels, weight, *args, **kwargs):
         nitems = len(items)
-        idxes = range(nitems)
-        if self.nproc_rec <= 1:
-            rec_da, count_da = rec_merge(self, items, idxes, weight)
-        else:
-            chunk_bounds = list(range(0, nitems, nitems//self.nproc_rec)) + [None]
-            print(chunk_bounds)
-            inputs = [
-                (items[s:e], idxes[s:e], weight)
-                 for s, e in zip(chunk_bounds[:-1], chunk_bounds[1:])
-            ]
-            print(f'{len(inputs)=}')
-            print(f'{len(inputs[0][1])=}')
-            with Pool(self.nproc_rec) as pool:
-                merged  = list(tqdm.tqdm(pool.imap(self.rec_merge, inputs), total=len(inputs)))
-            rec_das, count_das = zip(*merged)
-            rec_da = outer_add_das(rec_das)
-            count_da = outer_add_das(count_das)
+        CHUNK = 450
+        CHUNK_BOUNDS = list(range(0, nitems, CHUNK)) + [nitems]
+        REC_DAS = []
+        COUNT_DAS = []
+        ortho = Ortho(dense_vars=self.dense_vars, sparse_vars=self.sparse_vars, res=self.res)
+        for S, E in tqdm.tqdm(list(zip(CHUNK_BOUNDS[:-1], CHUNK_BOUNDS[1:]))):
 
+            idxes = range(S, E)
+            patcher_items = [self.patcher.__getitem__(idx) for idx in idxes]
+            # print(patcher_items[0])
+
+            if self.nproc_rec <= 1:
+                rec_da, count_da = rec_merge(ortho, items[S:E], patcher_items, weight)
+            else:
+                chunk_bounds = list(range(0, CHUNK, CHUNK//self.nproc_rec)) + [None]
+                # print(chunk_bounds)
+                inputs = [
+                    (ortho, items[S:E][s:e], patcher_items[s:e], weight)
+                    for s, e in zip(chunk_bounds[:-1], chunk_bounds[1:])
+                ]
+                # print(f'{len(inputs)=}')
+                # print(f'{len(inputs[0][1])=}')
+                with Pool(self.nproc_rec) as pool:
+                    merged  = list(tqdm.tqdm(pool.starmap(rec_merge, inputs), total=len(inputs)))
+                rec_das, count_das = zip(*merged)
+                rec_da = outer_add_das([d for d in rec_das if d is not None])
+                count_da = outer_add_das([d for d in count_das if d is not None])
+            REC_DAS.append(rec_da)
+            COUNT_DAS.append(count_da)
+
+        rec_da = outer_add_das(REC_DAS)
+        count_da = outer_add_das(COUNT_DAS)
         print(f'{rec_da.shape=}')
         print(f'{rec_da.pipe(np.isfinite).mean()=}')
 
         return rec_da / count_da
-
-    def rec_merge(self, items, idxes, weight):
-        i0 = idxes[0]
-        rec_da = regrid(items[i0], self.get_ortho_coord(i0), self.get_coord(i0))
-        count_da = xr.zeros_like(rec_da) + weight[None]
-        rec_da = rec_da * count_da
-        for idx, item in tqdm.tqdm(zip(idxes[1:], items[1:])):
-            da = regrid(item, self.get_ortho_coord(idx), self.get_coord(idx))
-            w = xr.zeros_like(da) + weight[None]
-            da = da * w
-            rec_da = outer_add_das([rec_da, da])
-            count_da = outer_add_das([count_da, w])
-        return rec_da, count_da
-
-def weight_das(da, weight):
-    w = xr.zeros_like(da) + weight[None],
-    wda = w * da
-    return w, wda
 
 def regrid(it, oc, c):
     import os
@@ -296,6 +228,30 @@ def regrid(it, oc, c):
     # print("so far so good")
     # print("done")
     return reg_out.transpose('v', 'time', 'lat', 'lon')
+
+def rec_merge(ortho, items, patcher_items, weight):
+    if len(items) == 0:
+        print('empty')
+        return None, None
+    rec_da = regrid(items[0], ortho(patcher_items[0].to_dataset('variable'))[0].coords.to_dataset(), patcher_items[0].coords.to_dataset())
+    count_da = xr.zeros_like(rec_da) + weight[None]
+    rec_da = rec_da * count_da
+    for item, patcher_item in tqdm.tqdm(list(zip(items[1:], patcher_items[1:]))):
+        # da = regrid(item, self.get_ortho_coord(idx), self.get_coord(idx))
+        da = regrid(item, ortho(patcher_item.to_dataset('variable'))[0].coords.to_dataset(), patcher_item.coords.to_dataset())
+        w = xr.zeros_like(da) + weight[None]
+        w = w.where(da.pipe(np.isfinite), 0.)
+        da = da.pipe(np.nan_to_num) * w
+        rec_da = outer_add_das([rec_da, da])
+        count_da = outer_add_das([count_da, w])
+    return rec_da, count_da
+
+def weight_das(da, weight):
+    w = xr.zeros_like(da) + weight[None],
+    wda = w * da
+    return w, wda
+
+
 
 def outer_add_das(das):
     out_coords = xr.merge([da.coords.to_dataset() for da in das])

@@ -8,8 +8,8 @@ class ResBlock(nn.Module):
         super().__init__()
         self.mod = nn.Sequential(
             nn.Conv3d(cin, cout, kernel_size=(tks, ks, ks), padding=(tks//2, ks//2, ks//2)),
-            nn.BatchNorm3d(cout),
             nn.ReLU(),
+            nn.BatchNorm3d(cout),
         )
 
         self.skip_mod = nn.Identity() if cin == cout else nn.Conv3d(cin, cout, kernel_size=(1,3,3), padding=(0, 1, 1))
@@ -22,8 +22,8 @@ class DownBlock(nn.Module):
         super().__init__()
         self.mod = nn.Sequential(
             nn.Conv3d(cin, cout, kernel_size=(1,ks,ks), stride= (1, 2, 2), padding=(0, ks//2, ks//2)),
-            nn.BatchNorm3d(cout),
             nn.ReLU(),
+            nn.BatchNorm3d(cout),
         )
 
     def forward(self, x):
@@ -40,7 +40,7 @@ class CNNEncoder(nn.Module):
             ResBlock(dim_hidden, dim_hidden, ks=kernel_size),
             DownBlock(dim_hidden, dim_hidden, ks=kernel_size),
             ResBlock(dim_hidden, dim_hidden, ks=kernel_size),
-            nn.Conv3d(dim_hidden, dim_hidden, kernel_size=3, padding=1),
+            # nn.Conv3d(dim_hidden, dim_hidden, kernel_size=3, padding=1),
         )
 
     def forward(self, x):
@@ -65,7 +65,7 @@ class CNNDecoder(nn.Module):
         return self.mod(x)
 
 class ConvLstm(nn.Module):
-    def __init__(self, dim_in=32, dim_hidden=128, kernel_size=3):
+    def __init__(self, dim_in=32, dim_hidden=64, kernel_size=3):
         super().__init__()
         self.dim_hidden = dim_hidden
         self.gates = torch.nn.Conv2d(

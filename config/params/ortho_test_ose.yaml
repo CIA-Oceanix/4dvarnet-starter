@@ -11,7 +11,8 @@ xp_overrides:
       res: 5e3
       weight: ${rec_weight}
       cache: False
-      nproc_rec: 10
+      nproc_rec: 1
+      # nproc_rec: 10
     dl_kw:
       persistent_workers: false
       num_workers: 10

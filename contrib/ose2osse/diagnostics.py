@@ -13,11 +13,15 @@ import contrib.ose2osse.dc_diag
 
 
 def compute_segment_data(
-    rec, test_track, oi, period=slice("2017-01-01", "2017-12-31"), npt=156
+    rec, test_track, oi, period=slice("2017-01-01", "2017-12-31"), npt=156, domain=None,
 ):
     # print(f"{rec=}")
     # print(f"{oi=}")
     # print(f"{test_track=}")
+    if domain is not None:
+        rec = rec.sel(domain)
+        oi = oi.sel(domain)
+
     diag_data = test_track.assign(
         oi=lambda ds: oi.interp(
             time=ds.time,

@@ -37,6 +37,7 @@ ose_metrics:
       - _target_: operator.attrgetter
         _args_: ['out']
       - _target_: contrib.ose2osse.diagnostics.compute_segment_data
+        domain: ${domain.test}
         _partial_: true
         oi:
           _target_: src.utils.pipe

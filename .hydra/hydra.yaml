@@ -118,11 +118,13 @@ hydra:
     task:
     - xp=test_base
     - xpd=jobs/new_baseline
+    - +params=[ose_metrics,ortho_test_ose]
     - trainer.devices=2
+    - domain=cNATL
   job:
     name: train_ddp_process_1
     chdir: null
-    override_dirname: trainer.devices=2,xp=test_base,xpd=jobs/new_baseline
+    override_dirname: +params=[ose_metrics,ortho_test_ose],domain=cNATL,trainer.devices=2,xp=test_base,xpd=jobs/new_baseline
     id: ???
     num: ???
     config_name: main
@@ -155,6 +157,7 @@ hydra:
       provider: schema
     output_dir: /raid/localscratch/qfebvre/4dvarnet-starter
     choices:
+      domain: cNATL
       xp: test_base
       hydra/env: default
       hydra/callbacks: null

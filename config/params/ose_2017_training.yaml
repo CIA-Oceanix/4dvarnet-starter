@@ -12,7 +12,7 @@ ose_dm:
   _target_: contrib.ose_training.data.OseDatamodule
   coarsen: 1
   sst: ${sst}
-  norm_stats: [0.45041265751056536, 0.4245028360946941]
+  # norm_stats: [0.45041265751056536, 0.4245028360946941]
   dl_kws: {batch_size: 16, num_workers: 10}
   train_ds:
     _target_: contrib.ose_training.data.XrConcatDataset

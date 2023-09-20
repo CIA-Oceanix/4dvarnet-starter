@@ -1,10 +1,10 @@
 # @package _global_
 xpd: ???
 
+xp_name: ${hydra:runtime.choices.xp}
 
 xp_overrides: 
   model: 
-    save_dir: ${hydra:runtime.output_dir}
     rec_weight: ${rec_weight}
 
 overrides_targets:
@@ -16,7 +16,11 @@ trainer:
   inference_mode: False
   accelerator: gpu
   devices: 1
-  logger: False
+  logger: 
+    _target_: pytorch_lightning.loggers.CSVLogger
+    save_dir: ${xpd}
+    name: ${xp_name}
+    version: ${now:%y%m%d%H%M%S}
 
 lit_mod: 
   _target_: contrib.multi_domain_diag.load_cfg_from_xp

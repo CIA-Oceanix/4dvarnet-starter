@@ -7,27 +7,26 @@ patches:
   overrides: null
 
 
-metrics: {}
 xp_overrides:
   datamodule:
     norm_stats: [0.45041265751056536, 0.4245028360946941]
     dl_kw: {batch_size: 16, num_workers: 1}
+    xrds_kw: {patches: '${patches}'}
     domains:
       val:
         time: {_target_: builtins.slice, _args_: ['2016-12-01', '2018-01-31']}
   model:
-    test_metrics: ${metrics}
+    test_metrics: {}
     pre_metric_fn: null
+
+overrides_targets:
+  datamodule: ${oc.select:dm_cls.${inp_da},src.data.BaseDataModule}
+  model: src.models.Lit4dVarNet
 
 dm_cls:
   default: src.data.BaseDataModule
   sst: contrib.multimodal.MultiModalDataModule
 
-dm:
-  new_target: ${oc.select:dm_cls.${inp_da},src.data.BaseDataModule}
-
-lit_mod:
-  new_target: src.models.Lit4dVarNet
 
 # new_dm:
 #   _target_: src.data.BaseDataModule

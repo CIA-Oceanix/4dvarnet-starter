@@ -1,11 +1,12 @@
 import torch
 torch.set_float32_matmul_precision('high')
 
-def base_training(trainer, dm, lit_mod, ckpt=None, weights_only=False):
+def base_training(trainer, dm, lit_mod, ckpt=None, weights_only=False, ):
     if trainer.logger is not None:
         print()
         print("Logdir:", trainer.logger.log_dir)
         print()
+
 
     if weights_only:
         lit_mod.load_state_dict(torch.load(ckpt)['state_dict'])
