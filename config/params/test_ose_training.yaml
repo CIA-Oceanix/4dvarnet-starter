@@ -1,5 +1,5 @@
 # @package _global_
-
+inp_da: default
 patches: 
   _target_: contrib.multi_domain_diag.load_cfg_from_xp
   key: patches

@@ -17,7 +17,7 @@ def grad_mod_finetune(lit_mod, lr, T_max=100, weight_decay=0.):
 
 def load_glob_2019_tracks(path='../sla-data-registry/glob_tracks_2019/alg_noin_alg.nc'):
     return (
-        xr.open_dataset(path)[['others']]
+        xr.open_dataset(path, engine='netcdf4')[['others']]
         .rename({'others': 'input'})
         .assign(tgt=lambda ds: ds.input)
         .to_array()

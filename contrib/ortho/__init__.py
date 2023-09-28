@@ -11,6 +11,7 @@ import tqdm
 
 def get_tgt_grid(item, res=5e3):
     mlat, mlon = item.lat.mean().values, item.lon.mean().values
+    nlat, nlon = len(item.lat.values), len(item.lon.values)
 
     src_geo = ccrs.PlateCarree()
     tgt_geo = ccrs.Orthographic(central_longitude=mlon, central_latitude=mlat)
@@ -30,6 +31,7 @@ def get_tgt_grid(item, res=5e3):
                 "y": ('y', y_kilo, dict(units='meters'))
                 }
     )
+    # print(ds_out)
     return ds_out, src_geo, tgt_geo
 
 def regrid_bilin(item, ds_out):
@@ -48,8 +50,10 @@ def rebin(src_geo, tgt_geo, obs, ds_out):
             obs['variable'].broadcast_like(obs).values[msk.values]
         )
 
+        # print(obs_lon.shape, obs_lat.shape)
         obs_trans = tgt_geo.transform_points(src_geo, obs_lon, obs_lat)
         obs_xs, obs_ys, _ = np.split(obs_trans, 3, axis=1)
+        # print(obs_trans.shape)
 
         tgt_xs = ds_out.x.sel(dict(x=obs_xs[:, 0]), method='nearest')
         tgt_ys = ds_out.y.sel(dict(y=obs_ys[:, 0]), method='nearest')
@@ -59,6 +63,8 @@ def rebin(src_geo, tgt_geo, obs, ds_out):
             time=('t', obs_t),
             variable=('t', obs_v),
         ), dims=['t'])
+        # print(obs_ds)
+        # print(obs_ds.to_dataframe(name='obs').groupby(['y', 'x', 'time', 'variable']).mean().to_xarray().obs.to_dataset(dim='variable'))
         return obs_ds.to_dataframe(name='obs').groupby(['y', 'x', 'time', 'variable']).mean().to_xarray().obs.to_dataset(dim='variable')
 
 def ortho(item, dense_vars=('ssh',), sparse_vars=('nadir_obs',), res=5e3):
@@ -96,20 +102,22 @@ class Ortho:
         )
         o_it = o_it.to_array().sortby('variable').transpose('variable', 'time', 'y', 'x', transpose_coords=True)
 
+        # print(o_it)
         to_padx =  len(item_ds['lon']) - o_it.x.size
         if to_padx > 0:
             o_it = o_it.pad(x=(to_padx//2, to_padx - to_padx//2), constant_values=np.nan)
 
         if to_padx < 0:
-            o_it = o_it.isel(x=slice(-to_padx//2, to_padx - to_padx//2))
+            o_it = o_it.isel(x=slice(-to_padx//2, to_padx//2))
 
         to_pady =  len(item_ds['lat']) - o_it.y.size
         if to_pady > 0:
             o_it = o_it.pad(y=(to_pady//2, to_pady - to_pady//2), constant_values=np.nan)
 
         if to_pady < 0:
-            o_it = o_it.isel(y=slice(-to_pady//2, to_pady - to_pady//2))
+            o_it = o_it.isel(y=slice(-to_pady//2, to_pady//2))
 
+        # print(o_it, to_padx, to_pady)
 
         return o_it, sgeo, tgeo
 
@@ -141,10 +149,13 @@ class OrthoPatcher:
                 weight=(('time', 'lat', 'lon'), self.weight),
             )
         item_ds = item_ds.to_array().transpose('lat', 'lon', 'time', 'variable', transpose_coords=True).to_dataset(dim='variable')
+        # print(item_ds)
         o_it, sgeo, tgeo =  self.ortho(item_ds)
+        # print(o_it)
         
         self.latest_geos = (sgeo, tgeo)
-        self.manual_cache[idx] = o_it
+        if self.cache:
+            self.manual_cache[idx] = o_it
         # print(o_it.to_dataset(dim='variable').map(np.isfinite).mean())
         return o_it
 

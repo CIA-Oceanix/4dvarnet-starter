@@ -15,7 +15,7 @@ xp_overrides:
       # nproc_rec: 10
     dl_kw:
       persistent_workers: false
-      num_workers: 10
+      num_workers: 1
 
 overrides_targets:
   datamodule.patcher_cls: contrib.ortho.OrthoPatcher
