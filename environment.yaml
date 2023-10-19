@@ -5,23 +5,16 @@ channels:
   - pyviz
 dependencies:
   - pip
-  - pytorch::pytorch=2.0
-  - pytorch::pytorch-cuda=11.7
-  - pytorch-lightning=2.0
+  - pytorch::pytorch=2.1
+  - pytorch::pytorch-cuda=11.8
+  - pytorch-lightning=2.1
   - pyinterp
-  - xarray
-  - dask
-  - netCDF4
-  - bottleneck
-  - xrft
-  - metpy
-  - scipy
-  - matplotlib
-  - holoviews
+  - esmf
   - pip:
     - xrpatcher
     - GitPython
     - einops
-    - hydra-core
     - kornia
     - tabulate
+    - git+https://github.com/jejjohnson/ocn-tools.git
+    - git+https://github.com/jejjohnson/oceanbench.git@refacto-configs

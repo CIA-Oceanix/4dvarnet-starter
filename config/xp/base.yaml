@@ -2,7 +2,7 @@
 xp_name: ${hydra:runtime.choices.xp}
 
 paths:
-    natl_gf_5nads: data/natl_gf_w_5nadirs.nc
+    natl_gf_5nads: ../sla-data-registry/qdata/natl20.nc
     enatl_gf_5nads: ../sla-data-registry/qdata/enatl_wo_tide.nc
 
 domain: ???
