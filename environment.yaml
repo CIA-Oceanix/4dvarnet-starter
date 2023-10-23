@@ -7,9 +7,9 @@ dependencies:
   - pip
   - pytorch::pytorch=2.1
   - pytorch::pytorch-cuda=11.8
-  - pytorch-lightning=2.1
+  - lightning=2.1
   - pyinterp
-  - esmf
+  - xesmf
   - pip:
     - xrpatcher
     - GitPython
