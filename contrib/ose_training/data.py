@@ -5,7 +5,7 @@ import numpy as np
 import xarray as xr
 import collections
 import pandas as pd
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from pathlib import Path
 import torch
 import torch.nn.functional as F

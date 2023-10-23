@@ -1,11 +1,9 @@
-from oceanbench import conf
 import loguru
 import itertools
 import kornia.filters as kfilts
 import xarray as xr
 from pathlib import Path
 import operator
-import ocn_tools._src.utils.data as ocnuda
 import hydra_zen
 import xrpatcher
 from collections import namedtuple
@@ -17,46 +15,57 @@ import pandas as pd
 import numpy as np
 import torch
 import torch.nn.functional as F
-import pytorch_lightning as pl
+# import pytorch_lightning as pl
+# pl.__version__
+# import lightning
+import lightning.pytorch as pl
 import torch.distributed as dist
 
 
 TrainingItem = namedtuple('TrainingItem', ('input', 'tgt'))
 
 class XrDataset(torch.utils.data.Dataset):
-    def __init__(self, patcher: xrpatcher.XRDAPatcher, postpro_fn=None):
+    def __init__(self, patcher: xrpatcher.XRDAPatcher, postpro_fns=None):
         self.patcher = patcher
-        self.postpro = postpro_fn or (lambda x: x.values)
+        self.postpro_fns = postpro_fns or [lambda x: x.values]
 
     def __getitem__(self, idx):
         item = self.patcher[idx].load()
-        item = self.postpro(item)
+        item = toolz.thread_first(item, *self.postpro_fns)
         return item
-
-    def reconstruct(self, batches, **rec_kws):
-        return self.patcher.reconstruct([*itertools.chain(*batches)], **rec_kws)
 
     def __len__(self):
         return len(self.patcher)
 
+    def __iter__(self):
+        for idx in range(len(self)):
+            yield self[idx]
+
+def to_item(item): 
+    return TrainingItem(
+        input=item.sel(variable='obs').values.astype(np.float32),
+        tgt=item.sel(variable='ssh').values.astype(np.float32)
+    )
 
 class BasePatchingDataModule(pl.LightningDataModule):
     def __init__(self, train_ds, val_ds, test_ds, dl_kws=None, norm_stats=None):
+        super().__init__()
         self.train_ds, self.val_ds, self.test_ds = train_ds, val_ds, test_ds
         self.dl_kws = dl_kws or dict()
         self.norm_stats = norm_stats
+        self._init_postpro_fns = train_ds.postpro_fns
 
     @staticmethod
     def train_mean_std(ds, v='tgt'):
         sum, count = 0, 0
         for item in ds: 
-            sum += np.sum(np.nan_to_num(item[v]))
-            count += np.sum(np.isfinite(item[v]))
+            sum += np.sum(np.nan_to_num(getattr(item, v)))
+            count += np.sum(np.isfinite(getattr(item, v)))
         mean = sum / count
 
         sum = 0
         for item in ds: 
-            sum += np.sum(np.square(np.nan_to_num(item[v]) - mean))
+            sum += np.sum(np.square(np.nan_to_num(getattr(item, v)) - mean))
         std = (sum / count)**0.5
         return mean, std
 
@@ -64,14 +73,12 @@ class BasePatchingDataModule(pl.LightningDataModule):
         self.norm_stats = self.norm_stats or self.train_mean_std(self.train_ds)
         mean, std = self.norm_stats
 
-        postpro = toolz.compose(
-            self.train_ds.postpro,
-            lambda item: item._replace(
-                input=(item.input - mean) / std, tgt=(item.tgt - mean) / std
-            )
+        normalize = lambda item: item._replace(
+            input=(item.input - mean) / std, tgt=(item.tgt - mean) / std
         )
+
         for ds in (self.train_ds, self.val_ds, self.test_ds):
-            ds.postpro = postpro
+            ds.postpro_fns = self._init_postpro_fns + [normalize]
 
     def train_dataloader(self):
         return  torch.utils.data.DataLoader(self.train_ds, shuffle=True, **self.dl_kws)
@@ -89,13 +96,6 @@ class Lit4dVarNet(pl.LightningModule):
         self.solver = solver
         self.opt_fn = opt_fn
         self.loss_fn = loss_fn
-        self.norm_stats = norm_stats
-
-    def setup(self, stage):
-        if stage=='fit' and (self.norm_stats is None):
-            self.norm_stats = self.trainer.datamodule.norm_stats
-            print("Norm stats", self.norm_stats)
-        self.save_hyperparameters(dict(norm_stats=self.norm_stats))
 
     def configure_optimizers(self):
         return self.opt_fn(self)
@@ -116,15 +116,23 @@ class Lit4dVarNet(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         out = self(batch=batch)
-        m, s = self.norm_stats or (0, 1)
-        return out.squeeze(dim=-1).detach().cpu() * s + m
+        m, s = self.norm_stats
+        return (out.squeeze(dim=-1).detach() * s + m).cpu()
 
+class RegisterDmNormStats(pl.Callback):
+    def setup(self, trainer, pl_module, stage):
+        pl_module.register_buffer('norm_stats', torch.tensor(trainer.datamodule.norm_stats))
+        print("Norm stats", pl_module.norm_stats)
+
+class LogValLoss(pl.Callback):
+    def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0):
+        pl_module.log('val_loss', outputs['loss'], on_step=False, on_epoch=True, prog_bar=True)
 
 class BasicReconstruction(pl.Callback):
     def __init__(self, patcher, out_dims=('v', 'time', 'lat', 'lon'), weight=None, save_path=None):
         super().__init__()
         self.patcher = patcher
-        self.out_dims = out_dims
+        self.out_dims = list(out_dims)
         self.weight = weight
         self.save_path = save_path
         self.test_data = None
@@ -134,19 +142,18 @@ class BasicReconstruction(pl.Callback):
 
     def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0):
         m, s = pl_module.norm_stats
+        print(batch.tgt.nan_to_num().mean())
+        print(outputs.nan_to_num().mean())
         self.test_data.append(torch.stack([
-            batch.tgt.cpu() * s + m,
-            outputs.squeeze(dim=-1).detach().cpu(),
+            (batch.tgt * s + m).cpu(),
+            outputs.squeeze(dim=-1),
         ], dim=1,))
 
     def on_test_epoch_end(self, trainer, pl_module):
-        da = self.patcher.reconstruct(self.test_data,
-            weight=self.weight.cpu().numpy(),
-            dims_labels=self.out_dims
+        da = self.patcher.reconstruct(
+            [*itertools.chain(*self.test_data)], weight=self.weight, dims_labels=self.out_dims
         )
-        self.test_data = da.assign_coords(
-            dict(v=['ref', 'study'])
-        ).to_dataset(dim='v')
+        self.test_data = da.assign_coords(dict(v=['ref', 'study'])).to_dataset(dim='v')
 
         if self.save_path is not None:
             self.test_data.to_netcdf(self.save_path)
@@ -165,83 +172,79 @@ class BasicMetricsDiag(pl.Callback):
         rec_ds = xr.open_dataset(self.path)
         diag_ds = self.pre_fn(rec_ds)
         metrics = {k: v(diag_ds) for k, v in self.metrics.items()}
-        metrics_df = pd.Series(metrics, index=[0])
+        metrics_df = pd.Series(metrics)
         if self.save_path is not None:
             metrics_df.to_csv(self.save_path, index=False)
 
         print(metrics_df.to_markdown())
 
+def triang(n, min=0.):
+    return np.clip(1 - np.abs(np.linspace(-1, 1, n)), min, 1.)
 
-def basic_run():
-    ds = lambda split: XrDataset(
-            patcher=xrpatcher.XRDAPatcher(
-               da=xr.open_dataset('../sla-data-registry/qdata/natl20.nc').to_array(),
-               patches=dict(time=15, lat=240, lon=240), 
-               strides=dict(time=1, lat=100, lon=100),
-               domain_limits=dict(lat=slice(34, 46), lon=slice(-66, -54), time=slice(*split)),
-            ),
-            postpro_fn=lambda item: TrainingItem(input=item.sel(variable='nadir_obs'), tgt=item.sel(variable='ssh'))
+def crop(n, crop):
+    w = np.zeros(n)
+    w[crop:-crop] = 1.
+    return w
+
+def loss_weight(patch_dims, n_crop):
+    return (
+        triang(patch_dims['time'])[:, None, None] 
+        * crop(patch_dims['lat'], n_crop)[None, :, None] 
+        * crop(patch_dims['lon'], n_crop)[None, None, :]
+    )
+
+class WeightedLoss(torch.nn.Module):
+    def __init__(self, loss_fn, weight):
+        super().__init__()
+        self.loss_fn = loss_fn
+        self.register_buffer('weight', torch.from_numpy(weight).float())
+
+    def forward(self, preds, target, weight=None):
+        if weight is None:
+            weight = self.weight
+        non_zeros = (torch.ones_like(target) * weight) == 0.0
+        tgt_msk = target.isfinite() & ~non_zeros
+        return self.loss_fn(
+            (preds * weight)[tgt_msk],
+            (target.nan_to_num() * weight)[tgt_msk]
         )
 
-    dm = BasePatchingDataModule(
-        train_ds=ds(['2013-02-24', '2013-09-30']),
-        val_ds=ds(['2012-12-15', '2013-02-24']),
-        test_ds=ds(['2012-10-01', '2012-12-20']),
-        dl_kws={'batch_size': 4, 'num_workers': 1}
-    )
 
-    model = Lit4dVarNet(
-        solver=src.models.GradSolver(
-            grad_mod=src.models.ConvLstmGradModel(dim_in=15, dim_hidden=64),
-            obs_cost=src.models.BaseObsCost(),
-            prior_cost=src.models.BilinAEPriorCost(dim_in=15, dim_hidden=96),
-            lr_grad=1000, n_step=15),
-        opt_fn=lambda mod: torch.optim.Adam(mod.solver.parameters(), lr=1e-2),
-        loss_fn=lambda pred, true: F.mse_loss(pred, true.nan_to_num())
-    )
-    logger = pl.loggers.CSVLogger('tmp', name='4dvar_basic')
-    versi_cb = src.versioning_cb.VersioningCallback(),
-    ckpt_cb = pl.callbacks.ModelCheckpoint(monitor='val_loss', save_top_k=3, filename='{val_loss:.5f}-{epoch:03d}'),
-    rec_cb = BasicReconstruction(patcher=dm.test_ds.patcher, save_path=Path(logger.log_dir) / "test_data.nc")
-    diag_cb = BasicMetricsDiag(path=Path(logger.log_dir) / "test_data.nc")
+class AddSobelLoss(pl.Callback):
+    def __init__(self, loss_fn, w=20):
+        self.loss_fn = loss_fn
+        self.w = w
 
-    trainer = pl.Trainer(
-        inference_mode=False,
-        accelerator='gpu', devices=1,
-        logger=logger,
-        max_epochs=1,
-        callbacks=[
-            versi_cb,
-            ckpt_cb,
-            # rec_cb,
-            # diag_cb
-        ],
-    )
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+        loss = self.loss_fn(kfilts.sobel(outputs['out']), kfilts.sobel(batch.tgt))
+        outputs['loss'] += self.w * loss
 
-    trainer.fit(model, datamodule=dm)
-    trainer.test(model, datamodule=dm)
-    
+class AddPriorCostLoss(pl.Callback):
+    def __init__(self, w=0.02):
+        self.w = w
 
-if __name__ == '__main__':
-    basic_run()
-
-
-def base_patch_dm_time_split(patch_kws, splits, *args, **kwargs):
-    train_ds, val_ds, test_ds = (XrDataset(
-        xrpatcher.XRDAPatcher(
-            **toolz.assoc_in(patch_kws, ('domain_limits', 'time'), slice(*split)),
-        )
-    ) for split in (splits['train'], splits['val'], splits['test']))
-
-    return BasePatchingDataModule(train_ds, val_ds, test_ds, *args, **kwargs)
-
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+        solver = pl_module.solver
+        loss = solver.prior_cost(solver.init_state(batch, outputs['out']))
+        outputs['loss'] += self.w * loss
 
 
 class AugmentedDataset(torch.utils.data.Dataset):
     def __init__(self, inp_ds, aug_factor):
-        self.aug_factor = aug_factor
         self.inp_ds = inp_ds
+        self.aug_factor = aug_factor
         self.perm = np.random.permutation(len(self.inp_ds))
+
+    def __setattr__(self, name, value):
+        if name in ['postpro_fns']:
+            setattr(self.inp_ds, name, value)
+            return
+        super().__setattr__(name, value)
+
+    def __getattr__(self, name):
+        if name in ['postpro_fns']:
+            return getattr(self.inp_ds, name)
+        return super().__getattr__(name)
 
     def __len__(self):
         return len(self.inp_ds) * (1 + self.aug_factor)
@@ -262,40 +265,6 @@ class AugmentedDataset(torch.utils.data.Dataset):
             input=np.where(np.isfinite(perm_item.input), item.tgt, np.full_like(item.tgt, np.nan))
         )
 
-class WeightedLoss(torch.nn.Module):
-    def __init__(self, loss_fn, weight):
-        super().__init__()
-        self.loss_fn = loss_fn
-        self.register_buffer('weight', torch.from_numpy(weight).float())
-
-    def forward(self, preds, target, weight=None):
-        if weight is None:
-            weight = self.weight
-        non_zeros = (torch.ones_like(target) * weight) == 0.0
-        tgt_msk = target.isfinite() & ~non_zeros
-        return self.loss_fn(
-            (preds * weight)[tgt_msk],
-            (target.nan_to_num() * weight)[tgt_msk]
-        )
-
-class AddSobelLoss(pl.Callback):
-    def __init__(self, loss_module, w=20):
-        self.loss_module = loss_module
-        self.w = w
-
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
-        loss = self.loss_module(kfilts.sobel(outputs['out']), kfilts.sobel(batch.tgt))
-        outputs['loss'] += self.w * loss
-
-class AddPriorCostLoss(pl.Callback):
-    def __init__(self, w=0.02):
-        self.w = w
-
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
-        solver = pl_module.solver
-        loss = solver.prior_cost(solver.init_state(batch, outputs['out']))
-        outputs['loss'] += self.w * loss
-
 
 def cosanneal_lr_adam(lit_mod, lr, T_max=100, weight_decay=0.):
     opt = torch.optim.Adam(
@@ -310,20 +279,142 @@ def cosanneal_lr_adam(lit_mod, lr, T_max=100, weight_decay=0.):
         "lr_scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=T_max),
     }
 
-def triang(n, min=0.):
-    return np.clip(1 - np.abs(np.linspace(-1, 1, n)), min, 1.)
 
-def crop(n, crop):
-    w = np.zeros(n)
-    w[crop:-crop] = 1.
-    return w
+def split_period(start_end, prop=0.2, from_end=False):
+    dates = pd.date_range(*start_end, freq='D')
+    split_idx = int(prop * len(dates))
+    if from_end:
+        return dates[split_idx+1], dates[-1]
+    return dates[0], dates[split_idx]
 
-def loss_weight(patch_dims, crop):
-    return (
-        triang(patch_dims['time'])[:, None, None] 
-        * crop(patch_dims['lat'], crop)[None, :, None] 
-        * crop(patch_dims['lon'], crop)[None, None, :]
+
+def extendby(bounds, amount):
+    import operator
+    return tuple(map(operator.add, bounds, (-amount, amount)))
+
+from oceanbench import conf
+import hydra_zen
+import ocn_tools._src.utils.data as ocnuda
+
+def input_data_from_osse_task(task, coords_round=dict(lat=1e-10, lon=1e-10)):
+    task_data = {
+        k: v() for k,v in task.data.items()
+    }
+    bounds = {
+        k: slice(
+            np.max([v[k].min().values for v in task_data.values()]),
+            np.min([v[k].max().values for v in task_data.values()]),
+        ) for k in task_data['ssh'].coords
+    }
+    for c, r in coords_round.items():
+        bounds[c] = slice(
+            np.round(bounds[c].start / r) * r,
+            np.round(bounds[c].stop / r) * r,
+        )
+
+    return ocnuda.stack_dataarrays({k: v.sel(bounds) for k,v in task_data.items()}, ref_var='ssh')
+
+def from_task_to_split(task_splits, val_prop=0.2, extend='15D'):
+    bounds = (split_period(task_splits.trainval, prop=1-val_prop, from_end=True),
+            split_period(task_splits.trainval, prop=val_prop),
+            map(pd.to_datetime, task_splits.test))
+    xbounds = [extendby(bound, pd.to_timedelta(extend)) for bound in bounds]
+    fmt_bounds = [(str(bound[0].date()), str(bound[1].date())) for bound in xbounds]
+    return fmt_bounds
+
+def run():
+    state_dims = dict(time=15, lat=240, lon=240) 
+
+    ocb_tools_cfg = conf.store.get_entry('oceanbench/leaderboard', 'osse_gf_nadir')['node']
+    ocb_tools = hydra_zen.instantiate(ocb_tools_cfg)
+    task = ocb_tools.task
+    domain_limits = dict(lat=slice(*extendby(task.domain.lat, 1)), lon=slice(*extendby(task.domain.lon, 1)))
+    (train_split, val_split, test_split) = from_task_to_split(ocb_tools.task.splits)
+
+    ds = lambda split: XrDataset(
+        patcher=xrpatcher.XRDAPatcher(
+            da=input_data_from_osse_task(task), patches=state_dims,
+            strides=dict(time=1, lat=100, lon=100),
+            domain_limits=dict(**domain_limits, time=slice(*split)),
+        ),
+        postpro_fns=[to_item]
     )
+
+    train_ds = ds(train_split)
+    mean, std = BasePatchingDataModule.train_mean_std(train_ds)
+    dm = BasePatchingDataModule(
+        train_ds=AugmentedDataset(train_ds, aug_factor=6),
+        val_ds=ds(val_split), test_ds=ds(test_split),
+        dl_kws={'batch_size': 4, 'num_workers': 1},
+        norm_stats=(mean, std)
+    )
+
+    weight =loss_weight(state_dims, 20)
+    loss_fn = WeightedLoss(F.mse_loss, weight)
+    model = Lit4dVarNet(
+        solver=src.models.GradSolver(
+            grad_mod=src.models.ConvLstmGradModel(dim_in=15, dim_hidden=96),
+            obs_cost=src.models.BaseObsCost(),
+            prior_cost=src.models.BilinAEPriorCost(dim_in=15, dim_hidden=64, downsamp=2),
+            lr_grad=1000., n_step=15),
+        opt_fn=lambda mod: cosanneal_lr_adam(mod, lr=9e-4, T_max=400),
+        loss_fn=loss_fn,
+    )
+
+    logger = pl.loggers.CSVLogger('tmp', name='4dvar_basic')
+    ckpt_cb = pl.callbacks.ModelCheckpoint(
+        monitor='val_loss', save_top_k=1, filename='{val_loss:.5f}-{epoch:03d}'
+    )
+    rec_cb = BasicReconstruction(
+        patcher=dm.test_ds.patcher, weight=weight,
+        save_path=Path(logger.log_dir) / "test_data.nc"
+    )
+
+    postpro_recipe = conf.store.get_entry('oceanbench/recipes', 'osse_results_prepostpro')['node']
+
+    pre_fn=toolz.compose(
+        ocb_tools.build_diag_ds,
+        hydra_zen.instantiate(dict(data=ocb_tools.data, task=ocb_tools_cfg.task, fn=conf.from_recipe(postpro_recipe())))['fn'],
+        operator.methodcaller('to_dataset', name='ssh'),
+        operator.itemgetter('study'),
+    )
+    metrics_cb = BasicMetricsDiag(
+        path=Path(logger.log_dir) / "test_data.nc",
+        pre_fn=pre_fn,
+        metrics=ocb_tools.metrics,
+    )
+
+    trainer = pl.Trainer(
+        gradient_clip_val=0.5,
+        inference_mode=False, accelerator='gpu', devices=1,
+        logger=logger,
+        max_epochs=350,
+        callbacks=[
+            src.versioning_cb.VersioningCallback(),
+            ckpt_cb, rec_cb, metrics_cb,
+            RegisterDmNormStats(), LogValLoss(),
+            AddSobelLoss(loss_fn), AddPriorCostLoss(),
+        ],
+    )
+
+    trainer.fit(model, datamodule=dm)
+
+    ckpt_path ='tmp/4dvar_basic/version_68/checkpoints/val_loss=0.03427-epoch=103.ckpt'
+    trainer.test(model, datamodule=dm, ckpt_path=ckpt_path)
+
+if __name__ == '__main__':
+    run()
+
+def base_patch_dm_time_split(patch_kws, splits, *args, **kwargs):
+    train_ds, val_ds, test_ds = (XrDataset(
+        xrpatcher.XRDAPatcher(
+            **toolz.assoc_in(patch_kws, ('domain_limits', 'time'), slice(*split)),
+        )
+    ) for split in (splits['train'], splits['val'], splits['test']))
+
+    return BasePatchingDataModule(train_ds, val_ds, test_ds, *args, **kwargs)
+
+
 
 def base_item_postpro(item): # we use a namedtuple to store the input and target data
     return TrainingItem(input=item.sel(variable='obs'), tgt=item.sel(variable='ssh'))
@@ -406,114 +497,104 @@ class OceanBenchDiagPlots(pl.Callback):
         metrics_fmt = {k: self.fmt.get(k, lambda x: x)(v) for k, v in metrics.items()}
         print(pd.Series(metrics_fmt).to_markdown())
 
-ocb_tools_cfg = conf.pipelines_store.get_entry('leaderboard', 'osse_gf_nadir')['node']
-ocb_tools = hydra_zen.instantiate(ocb_tools_cfg)
-
-store = hydra_zen.store(group='starter')
-pb = hydra_zen.make_custom_builds_fn(zen_partial=True)
-b = hydra_zen.make_custom_builds_fn(zen_partial=False)
-
-def input_data_from_osse_task(task):
-    return ocnuda.stack_dataarrays({k: v() for k,v in task.data.items()})
-
-def split_period(start_end, prop=0.2, from_end=False):
-    dates = pd.date_range(*start_end, freq='D')
-    split_idx = int(prop * len(dates))
-    if from_end:
-        return dates[split_idx+1], dates[-1]
-    return dates[0], dates[split_idx]
-
-def extendby(bounds, amount):
-    return tuple(map(operator.add, bounds, (-amount, amount)))
-
-
-def main():
-    state_dims={'time': 15, 'lat': 240, 'lon': 240}
-
-
-common_patching_kwargs = hydra_zen.make_config(
-    da=b(input_data_from_osse_task, '${oceanbench.leaderboard.task}'),
-    patches='${params.state_dims}',
-    strides={'time': 1, 'lat': 100, 'lon': 100},
-    domain_limits=dict(
-        lat=b(slice, b(extendby, '${oceanbench.leaderboard.task.domain.lat}', 1)),
-        lon=b(slice, b(extendby, '${oceanbench.leaderboard.task.domain.lon}', 1)),
-    ))
-
-
-split_patching_kwargs = dict(
-    test=(dict(domain_limits=dict())),
-    train=(dict(domain_limits=dict(time=b(extendby,
-        b(split_period, start_end='${oceanbench.leaderboard.task.splits.trainval}', prop=0.8), 
-        b(pd.to_timedelta, '15D'))))),
-    val=(dict(domain_limits=dict(time=b(extendby,
-        b(split_period, start_end='${oceanbench.leaderboard.task.splits.trainval}', prop=0.2, from_end=True), 
-        b(pd.to_timedelta, '15D'))))),
-)
-
-datamodule = b(
-    base_patch_dm_time_split,
-    patch_kws=common_patching_kwargs,
-    splits=dict(
-        train=b(extendby, b(split_period, start_end='${oceanbench.leaderboard.task.splits.trainval}', prop=0.8), b(pd.to_timedelta, '15D')), 
-        val=b(extendby, b(split_period, start_end='${oceanbench.leaderboard.task.splits.trainval}', prop=0.2), b(pd.to_timedelta, '15D')), 
-        test=b(extendby, '${oceanbench.leaderboard.task.splits.test}', 1), 
-    ),
-    aug_kws=dict(aug_factor=5),
-    dl_kws=dict(batch_size=4, num_workers=1),
-)
-
-
-model = b(
-    Lit4dVarNet,
-    solver=b(src.models.Solver,
-        grad_mod=b(src.models.GradModel, dim_in='${params.state_dims}', dim_hidden=64),
-        obs_cost=b(src.models.ObsCost),
-        prior_cost=b(src.models.PriorCost, dim_in='${params.state_dims}', dim_hidden=96),
-        lr_grad=1000,
-        n_step=15,
-    ),
-    opt_fn=b(cosanneal_lr_adam, lr=1e-3, T_max='${params.training_epochs}'),
-    loss_fn=b(WeightedLoss, loss_fn=F.mse_loss, weight=loss_weight('${params.state_dims}', 20)),
-)
-
-
-
-
-## config
-### Params
-#### common_patching_kwargs
-
-#### split patching kwargs
-
-#### shared objects
-
-## Objects
-### Loss
-
-### Callbacks
-### Trainer
-### DataModule
-### Model
-
-
-# - _target_: src.versioning_cb.VersioningCallback
-# - _target_: src.models.TestCb
-# - _target_: pytorch_lightning.callbacks.LearningRateMonitor
-# - _target_: pytorch_lightning.callbacks.ModelCheckpoint
-#     monitor: val_mse
-#     save_top_k: 3
-#     filename: '{val_mse:.5f}-{epoch:03d}'
-
-
-
-
-### patchers
-
-
-
-def run(trainer, datamodule, model):
-    trainer.fit(model, datamodule=datamodule)
-    trainer.test(model, datamodule=datamodule)
-
+# import ocn_tools._src.utils.data as ocnuda
+#
+# store = hydra_zen.store(group='starter')
+# pb = hydra_zen.make_custom_builds_fn(zen_partial=True)
+# b = hydra_zen.make_custom_builds_fn(zen_partial=False)
+#
+# def input_data_from_osse_task(task):
+#     return ocnuda.stack_dataarrays({k: v() for k,v in task.data.items()})
+#
+#
+#
+# def main():
+#     state_dims={'time': 15, 'lat': 240, 'lon': 240}
+#
+#
+# common_patching_kwargs = hydra_zen.make_config(
+#     da=b(input_data_from_osse_task, '${oceanbench.leaderboard.task}'),
+#     patches='${params.state_dims}',
+#     strides={'time': 1, 'lat': 100, 'lon': 100},
+#     domain_limits=dict(
+#         lat=b(slice, b(extendby, '${oceanbench.leaderboard.task.domain.lat}', 1)),
+#         lon=b(slice, b(extendby, '${oceanbench.leaderboard.task.domain.lon}', 1)),
+#     ))
+#
+#
+# split_patching_kwargs = dict(
+#     test=(dict(domain_limits=dict())),
+#     train=(dict(domain_limits=dict(time=b(extendby,
+#         b(split_period, start_end='${oceanbench.leaderboard.task.splits.trainval}', prop=0.8), 
+#         b(pd.to_timedelta, '15D'))))),
+#     val=(dict(domain_limits=dict(time=b(extendby,
+#         b(split_period, start_end='${oceanbench.leaderboard.task.splits.trainval}', prop=0.2, from_end=True), 
+#         b(pd.to_timedelta, '15D'))))),
+# )
+#
+# datamodule = b(
+#     base_patch_dm_time_split,
+#     patch_kws=common_patching_kwargs,
+#     splits=dict(
+#         train=b(extendby, b(split_period, start_end='${oceanbench.leaderboard.task.splits.trainval}', prop=0.8), b(pd.to_timedelta, '15D')), 
+#         val=b(extendby, b(split_period, start_end='${oceanbench.leaderboard.task.splits.trainval}', prop=0.2), b(pd.to_timedelta, '15D')), 
+#         test=b(extendby, '${oceanbench.leaderboard.task.splits.test}', 1), 
+#     ),
+#     aug_kws=dict(aug_factor=5),
+#     dl_kws=dict(batch_size=4, num_workers=1),
+# )
+#
+#
+# model = b(
+#     Lit4dVarNet,
+#     solver=b(src.models.Solver,
+#         grad_mod=b(src.models.GradModel, dim_in='${params.state_dims}', dim_hidden=64),
+#         obs_cost=b(src.models.ObsCost),
+#         prior_cost=b(src.models.PriorCost, dim_in='${params.state_dims}', dim_hidden=96),
+#         lr_grad=1000,
+#         n_step=15,
+#     ),
+#     opt_fn=b(cosanneal_lr_adam, lr=1e-3, T_max='${params.training_epochs}'),
+#     loss_fn=b(WeightedLoss, loss_fn=F.mse_loss, weight=loss_weight('${params.state_dims}', 20)),
+# )
+#
+#
+#
+#
+# ## config
+# ### Params
+# #### common_patching_kwargs
+#
+# #### split patching kwargs
+#
+# #### shared objects
+#
+# ## Objects
+# ### Loss
+#
+# ### Callbacks
+# ### Trainer
+# ### DataModule
+# ### Model
+#
+#
+# # - _target_: src.versioning_cb.VersioningCallback
+# # - _target_: src.models.TestCb
+# # - _target_: pytorch_lightning.callbacks.LearningRateMonitor
+# # - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+# #     monitor: val_mse
+# #     save_top_k: 3
+# #     filename: '{val_mse:.5f}-{epoch:03d}'
+#
+#
+#
+#
+# ### patchers
+#
+#
+#
+# def run(trainer, datamodule, model):
+#     trainer.fit(model, datamodule=datamodule)
+#     trainer.test(model, datamodule=datamodule)
+#
 

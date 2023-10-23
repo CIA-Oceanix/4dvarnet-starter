@@ -2,7 +2,7 @@ import pandas as pd
 import itertools
 import torch.distributed as dist
 from pathlib import Path
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import kornia.filters as kfilts
 import torch
 import torch.nn as nn

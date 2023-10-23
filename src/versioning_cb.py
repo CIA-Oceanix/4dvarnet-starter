@@ -1,7 +1,7 @@
 import platform
 from datetime import date
 
-from pytorch_lightning import Callback
+from lightning.pytorch import Callback
 from git.repo import Repo as GitRepo
 from git import IndexFile
 
