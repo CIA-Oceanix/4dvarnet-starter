@@ -8,21 +8,21 @@ paths:
 domain: ???
 
 trainer:
-  _target_: pytorch_lightning.Trainer
+  _target_: lightning.pytorch.Trainer
   inference_mode: False
   gradient_clip_val: 0.5
   accelerator: gpu
   devices: 1
   logger: 
-    _target_: pytorch_lightning.loggers.CSVLogger
+    _target_: lightning.pytorch.loggers.CSVLogger
     save_dir: ${hydra:runtime.output_dir}
     name: ${xp_name}
     version: ''
   max_epochs: 150
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
-    - _target_: pytorch_lightning.callbacks.LearningRateMonitor
-    - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    - _target_: lightning.pytorch.callbacks.LearningRateMonitor
+    - _target_: lightning.pytorch.callbacks.ModelCheckpoint
       monitor: val_mse
       save_top_k: 3
       filename: '{val_mse:.5f}-{epoch:03d}'
@@ -70,7 +70,7 @@ model:
       _target_: src.models.BilinAEPriorCost
       dim_in: ${datamodule.xrds_kw.patches.time}
       dim_hidden: 32
-      bilin_quad: False
+      # bilin_quad: False
       # bilin_quad: True
       downsamp: 2
     obs_cost: 
@@ -102,7 +102,7 @@ ckpt: null
 weights_only: false
 
 entrypoints:
-  - _target_: pytorch_lightning.seed_everything
+  - _target_: lightning.pytorch.seed_everything
     seed: 333
   - _target_: src.train.base_training
     trainer: ${trainer}

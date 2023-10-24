@@ -278,9 +278,8 @@ class BaseObsCost(nn.Module):
 
 
 class BilinAEPriorCost(nn.Module):
-    def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None, bilin_quad=True):
+    def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None):
         super().__init__()
-        self.bilin_quad = bilin_quad
         self.conv_in = nn.Conv2d(
             dim_in, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
         )
@@ -314,7 +313,7 @@ class BilinAEPriorCost(nn.Module):
         x = self.conv_in(x)
         x = self.conv_hidden(F.relu(x))
 
-        nonlin = self.bilin_21(x)**2 if self.bilin_quad else (self.bilin_21(x) * self.bilin_22(x))
+        nonlin = (self.bilin_21(x) * self.bilin_22(x))
         x = self.conv_out(
             torch.cat([self.bilin_1(x), nonlin], dim=1)
         )
