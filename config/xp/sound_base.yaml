@@ -1,10 +1,7 @@
 # @package _global_
 
 paths:
-    natl_gf_5nads: /DATASET/NATL/natl_gf_w_5nadirs.nc
-    enatl_gf_5nads: ../sla-data-registry/qdata/enatl_wo_tide.nc
-    enatl_gf_celerity: '/DATASET/envs/oscar/cutoff_frequency_enatl_v2.nc'
-
+    enatl_gf_celerity: '/DATASET/eNATL/eNATL60_BLB002_cutoff_freq_0_1000m_regrid.nc'
 domain: ???
 
 trainer:
@@ -18,7 +15,7 @@ trainer:
     save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 150
+  max_epochs: 250
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
@@ -30,15 +27,22 @@ trainer:
 datamodule:
   _target_: src.data.BaseDataModule
   input_da: 
+    #_target_: src.utils.load_enatl_ecs
     _target_: src.utils.load_cutoff_freq
     path: ${paths.enatl_gf_celerity}
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2009-11-24', '2010-06-30']}
+      time: {_target_: builtins.slice, _args_: ['2009-07-01', '2010-01-31']}
     val: 
-      time: {_target_: builtins.slice, _args_: ['2009-09-20', '2009-11-24']}
+      time: {_target_: builtins.slice, _args_: ['2010-02-01', '2010-04-09']}
     test: 
-      time: {_target_: builtins.slice,  _args_: ['2009-07-01', '2009-09-20']}
+      time: {_target_: builtins.slice,  _args_: ['2010-04-10', '2010-06-30']}
+    # train:
+    #   time: {_target_: builtins.slice, _args_: ['2009-11-24', '2010-06-30']}
+    # val: 
+    #   time: {_target_: builtins.slice, _args_: ['2009-09-20', '2009-11-24']}
+    # test: 
+    #   time: {_target_: builtins.slice,  _args_: ['2009-07-01', '2009-09-20']}
   xrds_kw:
     patch_dims: { time: 15, lat: 240, lon: 240}
     strides: { time: 1, lat: 200, lon: 200}
@@ -68,7 +72,7 @@ model:
     # lr_grad: 0.2
     prior_cost: 
       _target_: src.models.BilinAEPriorCost
-      weight3: 1. 
+      #weight3: 1. 
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
       dim_hidden: 32
       bilin_quad: False
@@ -76,18 +80,18 @@ model:
       downsamp: 2
     obs_cost: 
       _target_: src.models.BaseObsCost
-      weight1: 1. 
-      weight2: 1.
+      #weight1: 1. 
+      #weight2: 1.
     grad_mod: 
       _target_: src.models.ConvLstmGradModel
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
       dim_hidden: 48
-  sampling_rate: 0.1
+  sampling_rate: 0.5
   test_metrics: ${metrics.test_metrics}
   pre_metric_fn: 
         _target_: xarray.Dataset.sel
         _partial_: True
-        time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
+        time: {_target_: builtins.slice, _args_: ["2010-04-30", "2010-06-10"]}
         lat: ${domain.test.lat}
         lon: ${domain.test.lon}
 

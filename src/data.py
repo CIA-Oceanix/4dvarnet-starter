@@ -205,42 +205,6 @@ class AugmentedDataset(torch.utils.data.Dataset):
 
         return item._replace(input=noise + np.where(np.isfinite(perm_item.input),
                              item.tgt, np.full_like(item.tgt,np.nan)))
-                             
-#class BaseDataModule_depth(pl.LightningDataModule):
-#    def __init__(self, input_da,domails, xrds_kw, dl_kw, aug_kw=None, norm_stats=None, **kwargs):
-#        super().__init__()
-#        self.input_da = input_da
-#        self.domains = domains
-#        self.xrds_kw = xrds_kw
-#        self.dl_kw = dl_kw
-#        self.aug_kw = aug_kw if aug_kw is not None else {}
-#        self._norm_stats = norm_stats
-#
-#        self.train_ds = None
-#        self.val_ds = None
-#        self.test_ds = None
-#        self._post_fn = None
-#
-#    def norm_stats(self):
-#        if self._norm_stats is None:
-#            self._norm_stats = self.train_mean_std()
-#            print("Norm stats", self._norm_stats)
-#        return self._norm_stats
-#
-#    def train_mean_std(self, variable='tgt'):
-#        train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {})).sel(self.domains['train'])
-#        return train_data.sel(variable=variable).pipe(lambda da: (da.mean().values.item(), da.std().values.item()))
-#
-#    def post_fn(self):
-#        m, s = self.norm_stats()
-#        normalize = lambda item: (item - m) / s
-#        return ft.partial(ft.reduce,lambda i, f: f(i), [
-#            TrainingItem._make,
-#            lambda item: item._replace(tgt=normalize(item.tgt)),
-#            lambda item: item._replace(input=normalize(item.input)),
-#        ])
-#
-#
 
 class BaseDataModule(pl.LightningDataModule):
     def __init__(self, input_da, domains, xrds_kw, dl_kw, aug_kw=None, norm_stats=None, **kwargs):
