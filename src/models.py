@@ -5,10 +5,11 @@ import kornia.filters as kfilts
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 
 class Lit4dVarNet(pl.LightningModule):
-    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
+    def __init__(self, solver, rec_weight, opt_fn, sampling_rate = 0.1, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
         super().__init__()
         self.solver = solver
         self.register_buffer('rec_weight', torch.from_numpy(rec_weight), persistent=persist_rw)
@@ -17,6 +18,10 @@ class Lit4dVarNet(pl.LightningModule):
         self.opt_fn = opt_fn
         self.metrics = test_metrics or {}
         self.pre_metric_fn = pre_metric_fn or (lambda x: x)
+        self.sampling_rate = sampling_rate
+        self.alphaObs    = solver.obs_cost.weight1_torch
+        self.alphaReg    = solver.prior_cost.weight3_torch
+        self.alphaGrad   = solver.obs_cost.weight2_torch
 
     @property
     def norm_stats(self):
@@ -46,20 +51,27 @@ class Lit4dVarNet(pl.LightningModule):
         return self.solver(batch)
     
     def step(self, batch, phase=""):
+        mask_sampling = torch.bernoulli(self.sampling_rate*torch.ones_like(batch[0]))
+
         if self.training and batch.tgt.isfinite().float().mean() < 0.9:
             return None, None
 
-        loss, out = self.base_step(batch, phase)
-        grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
-        prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
-        self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
+        loss, out = self.base_step(batch, mask_sampling, phase)
+        #grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
+        prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out), mask_sampling)
+        #self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
 
-        training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost
+        #training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost
+        #training_loss = self.alphaObs * loss + self.alphaGrad * grad_loss + self.alphaReg * prior_cost
+        training_loss = self.alphaObs * loss + self.alphaReg * prior_cost
+        self.log( f"{phase}_alphaObs", self.alphaObs, prog_bar=True, on_step=False, on_epoch=True)
+        #self.log( f"{phase}_alphaGrad", self.alphaGrad, prog_bar=True, on_step=False, on_epoch=True)
+        self.log( f"{phase}_alphaReg", self.alphaReg, prog_bar=True, on_step=False, on_epoch=True)
         return training_loss, out
 
-    def base_step(self, batch, phase=""):
+    def base_step(self, batch, mask, phase=""):
         out = self(batch=batch)
-        loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
+        loss = self.weighted_mse(out - batch.tgt, self.rec_weight) * mask
 
         with torch.no_grad():
             self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
@@ -113,7 +125,28 @@ class Lit4dVarNet(pl.LightningModule):
             print(Path(self.trainer.log_dir) / 'test_data.nc')
             self.logger.log_metrics(metrics.to_dict())
 
-
+#class Model_H(torch.nn.Module):
+#    def __init__(self, shape_data):
+#        super(Model_H, self).__init__()
+#        self.dim_obs = 1
+#        self.dim_obs_channel = np.array([shape_data])
+#        self.sampling_rate = 0.1
+#
+#    def forward(self, x, y, sampling_rate):
+#        mask_sampling = torch.bernoulli(sampling_rate)
+#        dyout = self.weighted_mse((x - y) * mask_sampling)
+#        return dyout
+#    
+#    @staticmethod
+#    def weighted_mse(err, weight):
+#        err_w = err * weight[None, ...]
+#        non_zeros = (torch.ones_like(err) * weight[None, ...]) == 0.0
+#        err_num = err.isfinite() & ~non_zeros
+#        if err_num.sum() == 0:
+#            return torch.scalar_tensor(1000.0, device=err_num.device).requires_grad_()
+#        loss = F.mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
+#        return loss
+        
 class GradSolver(nn.Module):
     def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.2, **kwargs):
         super().__init__()
@@ -218,9 +251,11 @@ class ConvLstmGradModel(nn.Module):
 
 
 class BaseObsCost(nn.Module):
-    def __init__(self, w=1) -> None:
+    def __init__(self, weight1, weight2, w=1) -> None:
         super().__init__()
         self.w=w
+        self.weight1_torch = torch.nn.Parameter(torch.tensor(weight1), requires_grad = True)
+        self.weight2_torch = torch.nn.Parameter(torch.tensor(weight2), requires_grad = True)
 
     def forward(self, state, batch):
         msk = batch.input.isfinite()
@@ -228,8 +263,9 @@ class BaseObsCost(nn.Module):
 
 
 class BilinAEPriorCost(nn.Module):
-    def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None, bilin_quad=True):
+    def __init__(self, weight3, dim_in, dim_hidden, kernel_size=3, downsamp=None, bilin_quad=True):
         super().__init__()
+        self.weight3_torch = torch.nn.Parameter(torch.tensor(weight3), requires_grad = True)
         self.bilin_quad = bilin_quad
         self.conv_in = nn.Conv2d(
             dim_in, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
@@ -259,8 +295,10 @@ class BilinAEPriorCost(nn.Module):
             else nn.Identity()
         )
 
-    def forward_ae(self, x):
+    def forward_ae(self, x, mask=None):
         x = self.down(x)
+        if mask is not None:
+            x = x * mask
         x = self.conv_in(x)
         x = self.conv_hidden(F.relu(x))
 
@@ -271,5 +309,5 @@ class BilinAEPriorCost(nn.Module):
         x = self.up(x)
         return x
 
-    def forward(self, state):
-        return F.mse_loss(state, self.forward_ae(state))
+    def forward(self, state, mask= None):
+        return F.mse_loss(state, self.forward_ae(state, mask=mask))

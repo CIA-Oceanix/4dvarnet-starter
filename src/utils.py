@@ -71,6 +71,7 @@ def triang_lr_adam(lit_mod, lr_min=5e-5, lr_max=3e-3, nsteps=200):
             {"params": lit_mod.solver.prior_cost.parameters(), "lr": lr_max / 2},
         ],
     )
+
     return {
         "optimizer": opt,
         "lr_scheduler": torch.optim.lr_scheduler.CyclicLR(
@@ -155,10 +156,38 @@ def load_altimetry_data(path, obs_from_tgt=False):
     
     return (
         ds[[*src.data.TrainingItem._fields]]
+        .transpose('time', 'lat', 'lon')
+        .to_array()
+    )
+
+def load_celerity_data(path, obs_from_tgt=False):
+    ds =  (
+        xr.open_dataset(path)
+        # .assign(ssh=lambda ds: ds.ssh.coarsen(lon=2, lat=2).mean().interp(lat=ds.lat, lon=ds.lon))
+        .load()
+        .assign(input=lambda ds: ds.cut_off,
+                tgt=lambda ds: ds.cut_off)    
+    )
+    return (
+        ds[[*src.data.TrainingItem._fields]]
+        #.transpose("time", "z", "y", "x")
         .transpose("time", "lat", "lon")
         .to_array()
     )
 
+def load_cutoff_freq(path, obs_from_tgt=False):
+    ds =  (
+        xr.open_dataset(path)
+        # .assign(ssh=lambda ds: ds.ssh.coarsen(lon=2, lat=2).mean().interp(lat=ds.lat, lon=ds.lon))
+        .load()
+        .assign(input=lambda ds: ds.cutoff_freq,
+                tgt=lambda ds: ds.cutoff_freq)    
+    )
+    return (
+        ds[[*src.data.TrainingItem._fields]]
+        .transpose("time", "lat", "lon")
+        .to_array()
+    )
 
 def load_full_natl_data(
         path_obs="../sla-data-registry/CalData/cal_data_new_errs.nc",
