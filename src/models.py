@@ -106,7 +106,6 @@ class Lit4dVarNet(pl.LightningModule):
         return self.opt_fn(self)
 
     def test_step(self, batch, batch_idx):
-        print(self.sampling_rate)
         if batch_idx == 0:
             self.test_data = []
         batch_input_clone = batch.input.clone()

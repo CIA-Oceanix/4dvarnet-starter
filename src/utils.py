@@ -107,25 +107,25 @@ def remove_nan(da):
     return da
 
 def mask(da, sampling_rate = 0.1):
-    sampling_rate = 0.1
-    #print(da.time.size)
     time_dim = da.time.size
-    #print(time_dim)
     lat_dim = da.lat.size
     lon_dim = da.lon.size
 
     random_mask = np.random.choice([0, 1], size=(time_dim, lat_dim, lon_dim), p=[1 - sampling_rate, sampling_rate])
     mask_data_array = xr.DataArray(random_mask, dims=['time', 'lat', 'lon'])
     masked_data_array = da.where(mask_data_array == 1, other=np.nan)
-    # threshold = 10**4
-    # masked_data_array = xr.where(masked_data_array > threshold, -10, masked_data_array)
     return masked_data_array
+
 def threshold_xarray(da):
     threshold = 10**3
     da = xr.where(da > threshold, 1, da)
     return da
 
 def get_constant_crop(patch_dims, crop, dim_order=["time", "lat", "lon"]):
+        # Check if depth is present in the data
+    if "z" in patch_dims:
+        dim_order = ["time", "z", "lat", "lon"]
+
     patch_weight = np.zeros([patch_dims[d] for d in dim_order], dtype="float32")
     mask = tuple(
         slice(crop[d], -crop[d]) if crop.get(d, 0) > 0 else slice(None, None)
@@ -133,7 +133,6 @@ def get_constant_crop(patch_dims, crop, dim_order=["time", "lat", "lon"]):
     )
     patch_weight[mask] = 1.0
     return patch_weight
-
 
 def get_cropped_hanning_mask(patch_dims, crop, **kwargs):
     pw = get_constant_crop(patch_dims, crop)
@@ -167,19 +166,19 @@ def load_enatl(*args, obs_from_tgt=False, **kwargs):
         ds = ds.assign(input=ds.tgt.transpose(*ds.input.dims).where(np.isfinite(ds.input), np.nan))
     return ds.transpose('time', 'lat', 'lon').to_array().load()
 
-def load_enatl_ecs(*args, obs_from_tgt=False, **kwargs):
-    ssh = xr.open_dataset('/DATASET/eNATL/eNATL60_BLB002_cutoff_freq_0_1000m_regrid.nc').ecs
-    nadirs = xr.open_dataset('/DATASET/eNATL/eNATL60_BLB002_cutoff_freq_0_1000m_regrid.nc').ecs
-    ssh = ssh.interp(
-        lon=np.arange(ssh.lon.min(), ssh.lon.max(), 1/20),
-        lat=np.arange(ssh.lat.min(), ssh.lat.max(), 1/20)
-    )
-    nadirs = nadirs.interp(time=ssh.time, method='nearest').interp(lat=ssh.lat, lon=ssh.lon, method='nearest')
-    ds =  xr.Dataset(dict(input=nadirs, tgt=(ssh.dims, ssh.values)), nadirs.coords)
-
-    if obs_from_tgt:
-        ds = ds.assign(input=ds.tgt.transpose(*ds.input.dims).where(np.isfinite(ds.input), np.nan))
-    return ds.transpose('time', 'lat', 'lon').to_array().load()
+#def load_enatl_ecs(*args, obs_from_tgt=False, **kwargs):
+#    ssh = xr.open_dataset('/DATASET/eNATL/eNATL60_BLB002_cutoff_freq_0_1000m_regrid.nc').ecs
+#    nadirs = xr.open_dataset('/DATASET/eNATL/eNATL60_BLB002_cutoff_freq_0_1000m_regrid.nc').ecs
+#    ssh = ssh.interp(
+#        lon=np.arange(ssh.lon.min(), ssh.lon.max(), 1/20),
+#        lat=np.arange(ssh.lat.min(), ssh.lat.max(), 1/20)
+#    )
+#    nadirs = nadirs.interp(time=ssh.time, method='nearest').interp(lat=ssh.lat, lon=ssh.lon, method='nearest')
+#    ds =  xr.Dataset(dict(input=nadirs, tgt=(ssh.dims, ssh.values)), nadirs.coords)
+#
+#    if obs_from_tgt:
+#        ds = ds.assign(input=ds.tgt.transpose(*ds.input.dims).where(np.isfinite(ds.input), np.nan))
+#    return ds.transpose('time', 'lat', 'lon').to_array().load()
 
 def load_altimetry_data(path, obs_from_tgt=False):
     ds =  (
@@ -206,13 +205,13 @@ def load_celerity_data(path, obs_from_tgt=False):
         xr.open_dataset(path)
         # .assign(ssh=lambda ds: ds.ssh.coarsen(lon=2, lat=2).mean().interp(lat=ds.lat, lon=ds.lon))
         .load()
-        .assign(input=lambda ds: ds.cut_off,
-                tgt=lambda ds: remove_nan(ds.cut_off))    
+        .assign(input=lambda ds: ds.celerity,
+                tgt=lambda ds: ds.celerity.fillna(0))    
     )
     return (
         ds[[*src.data.TrainingItem._fields]]
         #.transpose("time", "z", "y", "x")
-        .transpose("time", "lat", "lon")
+        .transpose("time", "z", "lat", "lon")
         .to_array()
     )
 
@@ -233,22 +232,22 @@ def load_cutoff_freq(path, obs_from_tgt=False):
         .to_array()
     )
 
-def load_cutoff_freq_mask(path, obs_from_tgt=False):
-    ds =  (
-        xr.open_dataset(path)
-        # .assign(ssh=lambda ds: ds.ssh.coarsen(lon=2, lat=2).mean().interp(lat=ds.lat, lon=ds.lon))
-        .load()
-        # .assign(input=lambda ds: (threshold_xarray(ds.ecs)),
-        #         tgt=lambda ds: remove_nan(threshold_xarray(ds.ecs)))   
-        .assign(input=lambda ds: mask(threshold_xarray(ds.cutoff_freq)),
-                tgt=lambda ds: remove_nan(threshold_xarray(ds.cutoff_freq)))   
-    )
-    da = ds[[*src.data.TrainingItem._fields]].transpose("time", "lat", "lon").to_array()
-    return (
-        ds[[*src.data.TrainingItem._fields]]
-        .transpose("time", "lat", "lon")
-        .to_array()
-    )
+#def load_cutoff_freq_mask(path, obs_from_tgt=False):
+#    ds =  (
+#        xr.open_dataset(path)
+#        # .assign(ssh=lambda ds: ds.ssh.coarsen(lon=2, lat=2).mean().interp(lat=ds.lat, lon=ds.lon))
+#        .load()
+#        # .assign(input=lambda ds: (threshold_xarray(ds.ecs)),
+#        #         tgt=lambda ds: remove_nan(threshold_xarray(ds.ecs)))   
+#        .assign(input=lambda ds: mask(threshold_xarray(ds.cutoff_freq)),
+#                tgt=lambda ds: remove_nan(threshold_xarray(ds.cutoff_freq)))   
+#    )
+#    da = ds[[*src.data.TrainingItem._fields]].transpose("time", "lat", "lon").to_array()
+#    return (
+#        ds[[*src.data.TrainingItem._fields]]
+#        .transpose("time", "lat", "lon")
+#        .to_array()
+#    )
 
 def load_full_natl_data(
         path_obs="../sla-data-registry/CalData/cal_data_new_errs.nc",
