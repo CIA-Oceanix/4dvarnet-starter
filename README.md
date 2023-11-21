@@ -1,5 +1,5 @@
 # 4DVarNet
-
+Implementation of the 4DVarNet framework for underwater acoustic reconstruction.
 ## Prerequisite
 - git
 - conda
@@ -25,6 +25,12 @@ wget https://s3.eu-central-1.wasabisys.com/sla-data-registry/6d/206c6be2dfe0edf1
 The model uses hydra see [#useful-links]
 ```
 python main.py xp=base 
+```
+
+## Run the ECS reconstruction
+To run the configuration for the ECS reconstruction
+```
+python main.py xp=sound_base 
 ```
 ## Saved weights:
 
