@@ -240,7 +240,6 @@ class BaseDataModule(pl.LightningDataModule):
             lambda item: item._replace(input=normalize(item.input)),
         ])
 
-
     def setup(self, stage='test'):
         train_data = self.input_da.sel(self.domains['train'])
         post_fn = self.post_fn()
