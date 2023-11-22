@@ -15,19 +15,8 @@ conda activate 4dvarnet-starter
 mamba env update -f environment.yaml
 ```
 
-### Download example data
-From the directory
-```
-wget https://s3.eu-central-1.wasabisys.com/sla-data-registry/6d/206c6be2dfe0edf1a53c29029ed239 -O data/natl_gf_w_5nadirs.nc
-```
-
-## Run
-The model uses hydra see [#useful-links]
-```
-python main.py xp=base 
-```
-
 ## Run the ECS reconstruction
+The model uses hydra see [#useful-links].
 To run the configuration for the ECS reconstruction
 ```
 python main.py xp=sound_base 
@@ -35,15 +24,7 @@ python main.py xp=sound_base
 ## Saved weights:
 
 ### Gulfstream training
-A bigger model has been trained using the command
 
-```
-python main.py xp=base +params=bigger_model 
-```
-
-You can find pre-trained weights [here](https://s3.eu-central-1.wasabisys.com/melody/quentin_cloud/starter_big_mod_07a265.ckpt)
-
-The test metrics of this model are ([see here for the details])(https://github.com/ocean-data-challenges/2020a_SSH_mapping_NATL60):
 
 |          |   osse_metrics |
 |:---------|---------------:|

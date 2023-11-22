@@ -19,8 +19,6 @@ class Lit4dVarNet(pl.LightningModule):
         self.pre_metric_fn = pre_metric_fn or (lambda x: x)
 
         self.sampling_rate = sampling_rate
-        self.mask_sampling = torch.bernoulli(torch.full([4,15,240,240], self.sampling_rate)).to('cuda:0')
-        self.mask_sampling_with_nan = torch.where(self.mask_sampling == 0, float('nan'), self.mask_sampling)
         print(sampling_rate)
     
     @property
@@ -131,7 +129,6 @@ class Lit4dVarNet(pl.LightningModule):
         return ['input', 'inp', 'tgt', 'out']
 
     def on_test_epoch_end(self):
-        print('hellohellohellohellohello')
         rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
             self.test_data, self.rec_weight.cpu().numpy()
         )
