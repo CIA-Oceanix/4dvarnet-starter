@@ -8,7 +8,7 @@ import torch.nn.functional as F
 
 
 class Lit4dVarNet(pl.LightningModule):
-    def __init__(self, solver, rec_weight, opt_fn, sampling_rate = 0.1, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
+    def __init__(self, solver, rec_weight, opt_fn, sampling_rate = 1, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
         super().__init__()
         self.solver = solver
         self.register_buffer('rec_weight', torch.from_numpy(rec_weight), persistent=persist_rw)
@@ -17,10 +17,8 @@ class Lit4dVarNet(pl.LightningModule):
         self.opt_fn = opt_fn
         self.metrics = test_metrics or {}
         self.pre_metric_fn = pre_metric_fn or (lambda x: x)
-
         self.sampling_rate = sampling_rate
-        self.mask_sampling = torch.bernoulli(torch.full([4,15,240,240], self.sampling_rate)).to('cuda:0')
-        self.mask_sampling_with_nan = torch.where(self.mask_sampling == 0, float('nan'), self.mask_sampling)
+        #self.mask = (torch.rand(1, *input_shape) > self.sampling_rate).to('cuda:0')
         print(sampling_rate)
     
     @property
@@ -70,7 +68,6 @@ class Lit4dVarNet(pl.LightningModule):
         return self.solver(batch)
     
     def step(self, batch, phase=""):
-        mask_nan = torch.tensor(~torch.isnan(batch.input))
         if self.training and batch.tgt.isfinite().float().mean() < 0.9:
             return None, None
         loss, out = self.base_step(batch, phase)
@@ -83,11 +80,8 @@ class Lit4dVarNet(pl.LightningModule):
 
     def base_step(self, batch, phase=""):
         # Create a mask selecting non-NaN values
-        mask_nan = torch.tensor(~torch.isnan(batch.input))
-        #mask_nan = batch.input.clone().detach().isnan()
         # if self.mask_sampling_with_nan is not None:
         mask = (torch.rand(batch.input.size()) > self.sampling_rate).to('cuda:0')
-        combined_mask = mask_nan * mask
         # Apply the mask to the input data, setting selected values to NaN
         masked_input = batch.input.clone()
         masked_input[mask] = float('nan')
@@ -115,6 +109,7 @@ class Lit4dVarNet(pl.LightningModule):
         masked_input[mask] = float('nan')
         batch = batch._replace(input = masked_input)
         out = self(batch=batch)
+        
         m, s = self.norm_stats
 
         self.test_data.append(torch.stack(
@@ -131,7 +126,6 @@ class Lit4dVarNet(pl.LightningModule):
         return ['input', 'inp', 'tgt', 'out']
 
     def on_test_epoch_end(self):
-        print('hellohellohellohellohello')
         rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
             self.test_data, self.rec_weight.cpu().numpy()
         )

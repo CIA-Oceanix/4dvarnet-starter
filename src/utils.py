@@ -122,10 +122,6 @@ def threshold_xarray(da):
     return da
 
 def get_constant_crop(patch_dims, crop, dim_order=["time", "lat", "lon"]):
-        # Check if depth is present in the data
-    if "z" in patch_dims:
-        dim_order = ["time", "z", "lat", "lon"]
-
     patch_weight = np.zeros([patch_dims[d] for d in dim_order], dtype="float32")
     mask = tuple(
         slice(crop[d], -crop[d]) if crop.get(d, 0) > 0 else slice(None, None)
@@ -151,6 +147,35 @@ def get_triang_time_wei(patch_dims, offset=0, **crop_kw):
         ),
         patch_dims.values(),
     )
+
+def get_constant_crop_depth(patch_dims, crop, dim_order=["time", "z","lat", "lon"]):
+    patch_weight = np.zeros([patch_dims[d] for d in dim_order], dtype="float32")
+    mask = tuple(
+        slice(crop[d], -crop[d]) if crop.get(d, 0) > 0 else slice(None, None)
+        for d in dim_order
+    )
+    patch_weight[mask] = 1.0
+    return patch_weight
+
+def get_cropped_hanning_mask_depth(patch_dims, crop, **kwargs):
+    pw = get_constant_crop(patch_dims, crop)
+
+    t_msk = kornia.filters.get_hanning_kernel1d(patch_dims["time"])
+    z_msk = kornia.filters.get_hanning_kernel1d(patch_dims["z"]) 
+    patch_weight = t_msk[:, None, None, None] * z_msk[None, :, None, None] * pw
+    return patch_weight.cpu().numpy()
+
+
+def get_triang_time_wei_depth(patch_dims, offset=0, **crop_kw):
+    pw = get_constant_crop(patch_dims, **crop_kw)
+    pw = pw[None, :, None, None]
+    return np.fromfunction(
+        lambda t, z,*a: (
+            (1 - np.abs(offset + 2 * t - patch_dims["time"]) / patch_dims["time"]) * pw
+        ),
+        patch_dims.values(),
+    )
+
 
 def load_enatl(*args, obs_from_tgt=False, **kwargs):
     ssh = xr.open_zarr('../sla-data-registry/enatl_preproc/truth_SLA_SSH_NATL60.zarr/').ssh
@@ -190,7 +215,6 @@ def load_altimetry_data(path, obs_from_tgt=False):
             tgt=lambda ds: remove_nan(ds.ssh),
         )    
     )
-
     if obs_from_tgt:
         ds = ds.assign(input=ds.tgt.where(np.isfinite(ds.input), np.nan))
     
