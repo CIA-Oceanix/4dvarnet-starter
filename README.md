@@ -26,10 +26,10 @@ Here is an example of the reconstruction of the ECS using a 0.1 sampling rate (i
 
 |     |  ECS Metrics |
 |:----|-------------:|
-| mu  |   0.38142    |
-| sig |   0.14853    |
-| lx  |   0.802      |
-| lt  |   8.308      |
+| μ   |   0.38142    |
+| σ   |   0.14853    |
+| λx  |   0.802      |
+| λt  |   8.308      |
 
 Animation:
 ![Animation](https://s3.eu-central-1.wasabisys.com/melody/eNATL/ECS/animation_git.gif)

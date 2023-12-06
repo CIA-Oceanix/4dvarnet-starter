@@ -65,20 +65,16 @@ class Lit4dVarNet(pl.LightningModule):
         return self.step(batch, "val")[0]
 
     def forward(self, batch):
-        return self.solver(batch)
+        if self.solver.n_step > 0:
+            return self.solver(batch)
+        else:
+            #print(batch.input)
+            return self.solver.prior_cost.forward_ae(batch.input)
     
     def step(self, batch, phase=""):
+        #print('hello')
         if self.training and batch.tgt.isfinite().float().mean() < 0.9:
             return None, None
-        loss, out = self.base_step(batch, phase)
-        grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
-        prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
-        self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
-        training_loss = 2 * loss + 20 * prior_cost + 5 * grad_loss
-        #training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost
-        return training_loss, out
-
-    def base_step(self, batch, phase=""):
         # Create a mask selecting non-NaN values
         # if self.mask_sampling_with_nan is not None:
         mask = (torch.rand(batch.input.size()) > self.sampling_rate).to('cuda:0')
@@ -86,12 +82,26 @@ class Lit4dVarNet(pl.LightningModule):
         masked_input = batch.input.clone()
         masked_input[mask] = float('nan')
         batch = batch._replace(input = masked_input)
+        loss, out = self.base_step(batch, phase)
+        grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
+        prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
+        # nan_count = torch.isnan(batch.input).sum().item()
+        # print(f"Number of NaN values: {nan_count}")
+        
+        self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
+        training_loss = 10 * loss + 20 * prior_cost + 5 * grad_loss
+        #training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost
+        return training_loss, out
+
+    def base_step(self, batch, phase=""):
+        # nan_count = torch.isnan(batch.input).sum().item()
+        # print(f"Number of NaN values 1: {nan_count}")
         # batch = batch._replace(input = batch.input / torch.bernoulli(torch.full(batch.input.size(), self.sampling_rate)).to('cuda:0'))
         out = self(batch=batch)
         loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
 
         with torch.no_grad():
-            self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
+            self.log(f"{phase}_mse",  loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
             self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
 
         return loss, out
