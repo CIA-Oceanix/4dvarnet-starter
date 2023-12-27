@@ -35,6 +35,8 @@ class VersioningCallback(Callback):
         self.branch = f'{branch}-{self.date}-{platform.node()}'
 
     def setup(self, trainer, pl_module, stage):
+        if trainer.global_rank != 0:
+            return
         msg = ''
         if trainer.logger is not None:
             msg = trainer.logger.log_dir
