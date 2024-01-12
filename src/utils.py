@@ -147,6 +147,15 @@ def get_triang_time_wei(patch_dims, offset=0, **crop_kw):
         ),
         patch_dims.values(),
     )
+#Weight 0 sauf 1 au centre
+# def get_triang_time_wei(patch_dims, offset=0, **crop_kw):
+#     pw = get_constant_crop(patch_dims, **crop_kw)
+#     return np.fromfunction(
+#         lambda t, *a: (
+#             (1 - np.abs(offset + 2 * t - patch_dims["time"]) / patch_dims["time"]) * pw
+#         ),
+#         patch_dims.values(),
+#     )
 
 def get_constant_crop_depth(patch_dims, crop, dim_order=["time", "z","lat", "lon"]):
     patch_weight = np.zeros([patch_dims[d] for d in dim_order], dtype="float32")
@@ -174,6 +183,26 @@ def get_triang_time_wei_depth(patch_dims, offset=0, **crop_kw):
             (1 - np.abs(offset + 2 * t - patch_dims["time"]) / patch_dims["time"]) * pw
         ),
         patch_dims.values(),
+    )
+
+def load_natl_data(tgt_path, tgt_var, inp_path, inp_var, **kwargs):
+    tgt = (
+        xr.open_dataset(tgt_path)[tgt_var]
+        .sel(kwargs.get('domain', None))
+        .sel(kwargs.get('period', None))
+    )
+    inp = (
+        xr.open_dataset(inp_path)[inp_var]
+        .sel(kwargs.get('domain', None))
+        .sel(kwargs.get('period', None))
+    )
+    return (
+        xr.Dataset(
+            dict(input=inp, tgt=(tgt.dims, tgt.values)),
+            inp.coords,
+        )
+        .transpose('time', 'lat', 'lon')
+        .to_array()
     )
 
 

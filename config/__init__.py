@@ -56,3 +56,38 @@ for n, d in domains.items():
         lon=dict(_target_="builtins.slice", _args_=[d["lon"][0] + 1, d["lon"][1] - 1]),
     )
     cs.store(name=n, node={"train": train, "test": test}, group="domain")
+
+# Pre-defined periods
+# -------------------
+# As a reminder, NATL60 goes from 01-10-2012 to 30-09-2013 while eNATL60
+# goes from 01-07-2009 to 30-06-2010.
+
+periods = {
+    # Validation period to be set if 'allyear' is used for training
+    'allyear': [
+        (None, None), (None, None)
+    ],
+
+    'midautumn': [  #                                    eNATL   NATL
+        (f'{year}-10-21', f'{year}-11-30') for year in ('2009', '2012')
+    ],
+    'midwinter': [
+        (f'{year}-01-02', f'{year}-03-13') for year in ('2010', '2013')
+    ],
+    'midspring': [
+        (f'{year}-04-30', f'{year}-06-09') for year in ('2010', '2013')
+    ],
+    'midsummer': [
+        (f'{year}-07-11', f'{year}-08-20') for year in ('2009', '2013')
+    ],
+}
+
+for period_name, dates in periods.items():
+    cs.store(
+        name=period_name,
+        node={
+            'train': {'time': dict(_target_='builtins.slice', _args_=dates[0])},
+            'test': {'time': dict(_target_='builtins.slice', _args_=dates[1])},
+        },
+        group="period",
+    )
