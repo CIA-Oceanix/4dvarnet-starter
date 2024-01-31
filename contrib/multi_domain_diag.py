@@ -12,6 +12,7 @@ import src.utils
 import hydra
 
 
+from omegaconf import OmegaConf
 def load_cfg_from_xp(xpd, key, overrides=None, call=True, overrides_targets=None):
     xpd = Path(xpd)
     src_cfg, xp = src.utils.load_cfg(xpd)
