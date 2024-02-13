@@ -1,8 +1,9 @@
 # @package _global_
 
 paths:
-    enatl_gf_ecs: '/DATASET/eNATL/eNATL60_BLB002_cutoff_freq_0_1000m_regrid.nc'
-    enatl_gf_celerity: '/DATASET/eNATL/eNATL60_BLB002_sound_speed_0_1000m_regrid.nc'
+  enatl_gf_ecs: '/DATASET/eNATL/NATL60GULF-CJM165_cutoff_freq_0_1000m_from_t_s_regrid.nc'
+  #enatl_gf_ecs: '/DATASET/eNATL/eNATL6 0_BLB002_cutoff_freq_0_1000m_regrid.nc'
+  #enatl_gf_celerity: '/DATASET/eNATL/eNATL60_BLB002_sound_speed_0_1000m_regrid.nc'
 domain: ???
 
 trainer:
@@ -33,11 +34,17 @@ datamodule:
     path: ${paths.enatl_gf_ecs}
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2009-07-01', '2010-01-31']}
+      time: {_target_: builtins.slice, _args_: ['2013-02-24', '2013-09-30']}
     val: 
-      time: {_target_: builtins.slice, _args_: ['2010-02-01', '2010-04-09']}
+      time: {_target_: builtins.slice, _args_: ['2012-12-15', '2013-02-24']}
     test: 
-      time: {_target_: builtins.slice,  _args_: ['2010-04-10', '2010-06-30']}
+      time: {_target_: builtins.slice,  _args_: ['2012-10-01', '2012-12-20']}
+    #train:
+    #  time: {_target_: builtins.slice, _args_: ['2009-07-01-12', '2010-01-31-12']}
+    #val: 
+    #  time: {_target_: builtins.slice, _args_: ['2010-02-01-12', '2010-04-09-12']}
+    #test: 
+    #  time: {_target_: builtins.slice,  _args_: ['2010-04-10-12', '2010-06-30-12']}
     # train:
     #   time: {_target_: builtins.slice, _args_: ['2009-11-24', '2010-06-30']}
     # val: 
@@ -92,10 +99,11 @@ model:
   pre_metric_fn: 
         _target_: xarray.Dataset.sel
         _partial_: True
-        time: {_target_: builtins.slice, _args_: ["2010-04-30", "2010-06-10"]}
+        #time: {_target_: builtins.slice, _args_: ["2010-04-30", "2010-06-10"]}
+        time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
         lat: ${domain.test.lat}
         lon: ${domain.test.lon}
-
+ 
 metrics:
   nrmse_scores: {_target_: src.utils.rmse_based_scores_from_ds, _partial_: True}
   psd_scores: {_target_: src.utils.psd_based_scores_from_ds, _partial_: True}

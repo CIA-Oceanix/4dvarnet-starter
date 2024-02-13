@@ -119,6 +119,7 @@ def mask(da, sampling_rate = 0.1):
 def threshold_xarray(da):
     threshold = 10**3
     da = xr.where(da > threshold, 1, da)
+    da = xr.where(da <= 0, 0, da)
     return da
 
 def get_constant_crop(patch_dims, crop, dim_order=["time", "lat", "lon"]):
@@ -147,15 +148,16 @@ def get_triang_time_wei(patch_dims, offset=0, **crop_kw):
         ),
         patch_dims.values(),
     )
+
 #Weight 0 sauf 1 au centre
-# def get_triang_time_wei(patch_dims, offset=0, **crop_kw):
-#     pw = get_constant_crop(patch_dims, **crop_kw)
-#     return np.fromfunction(
-#         lambda t, *a: (
-#             (1 - np.abs(offset + 2 * t - patch_dims["time"]) / patch_dims["time"]) * pw
-#         ),
-#         patch_dims.values(),
-#     )
+def get_dirac_time_wei(patch_dims, offset=0, **crop_kw):
+     pw = get_constant_crop(patch_dims, **crop_kw)
+     return np.fromfunction(
+        lambda t, *a: (
+            1 if np.abs(offset + 2 * t - patch_dims["time"]) == 0 else 0
+        ),
+         patch_dims.values(),
+     )
 
 def get_constant_crop_depth(patch_dims, crop, dim_order=["time", "z","lat", "lon"]):
     patch_weight = np.zeros([patch_dims[d] for d in dim_order], dtype="float32")
@@ -185,17 +187,35 @@ def get_triang_time_wei_depth(patch_dims, offset=0, **crop_kw):
         patch_dims.values(),
     )
 
+def get_triang_time_depth_wei(patch_dims, offset=0, **crop_kw):
+    pw = get_constant_crop(patch_dims, **crop_kw)
+    return np.fromfunction(
+        lambda t, z, *a: (
+            (1 - np.abs(offset + 2 * t - patch_dims["time"]) / patch_dims["time"]) * pw
+        ),
+        patch_dims.values(),
+    )
+
 def load_natl_data(tgt_path, tgt_var, inp_path, inp_var, **kwargs):
     tgt = (
         xr.open_dataset(tgt_path)[tgt_var]
         .sel(kwargs.get('domain', None))
         .sel(kwargs.get('period', None))
+        .pipe(threshold_xarray)
     )
     inp = (
         xr.open_dataset(inp_path)[inp_var]
         .sel(kwargs.get('domain', None))
         .sel(kwargs.get('period', None))
+        .pipe(threshold_xarray)
+        #.pipe(mask)
     )
+    print(xr.Dataset(
+            dict(input=inp, tgt=(tgt.dims, tgt.values)),
+            inp.coords,
+        )
+        .transpose('time', 'lat', 'lon')
+        .to_array())
     return (
         xr.Dataset(
             dict(input=inp, tgt=(tgt.dims, tgt.values)),
@@ -278,7 +298,8 @@ def load_cutoff_freq(path, obs_from_tgt=False):
         # .assign(input=lambda ds: mask(threshold_xarray(ds.cutoff_freq)),
         #         tgt=lambda ds: remove_nan(threshold_xarray(ds.cutoff_freq)))   
     )
-    da = ds[[*src.data.TrainingItem._fields]].transpose("time", "lat", "lon").to_array()
+    print(ds)
+    #da = ds[[*src.data.TrainingItem._fields]].transpose("time", "lat", "lon").to_array()
     return (
         ds[[*src.data.TrainingItem._fields]]
         .transpose("time", "lat", "lon")
@@ -377,9 +398,6 @@ def psd_based_scores(da_rec, da_ref, mask = None):
     psd_signal = xrft.power_spectrum(
         signal, dim=["time", "lon"], detrend="constant", window="hann"
     ).compute()
-    # print(psd_signal)
-    # psd_signal.to_netcdf('/DATASET/envs/oscar/4dvarnet-starter/outputs/psd_base_signal.nc')
-    # psd_err.to_netcdf('/DATASET/envs/oscar/4dvarnet-starter/outputs/psd_base_err.nc')
 
     mean_psd_signal = psd_signal.mean(dim="lat").where(
         (psd_signal.freq_lon > 0.0) & (psd_signal.freq_time > 0), drop=True
