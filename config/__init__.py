@@ -1,5 +1,6 @@
 from hydra.core.config_store import ConfigStore
 from omegaconf import OmegaConf
+import datetime
 
 OmegaConf.register_new_resolver(
     "_singleton",
@@ -57,6 +58,23 @@ for n, d in domains.items():
     )
     cs.store(name=n, node={"train": train, "test": test}, group="domain")
 
+def grow_dates_by_n_days(dates, n_days=20):
+    """
+    Example:
+    ```python
+    >>> dates = ('2009-10-21', '2009-11-30')
+    >>> n_days = 10
+    >>> grow_dates_by_n_days(dates, n_days)
+    ('2009-10-11', '2009-12-10')
+    ```
+    """
+    _format = r'%Y-%m-%d'
+    twenty_days = datetime.timedelta(days=n_days)
+    date_start = datetime.datetime.strptime(dates[0], _format) - twenty_days
+    date_end = datetime.datetime.strptime(dates[1], _format) + twenty_days
+
+    return date_start.strftime(_format), date_end.strftime(_format)
+
 # Pre-defined periods
 # -------------------
 # As a reminder, NATL60 goes from 01-10-2012 to 30-09-2013 while eNATL60
@@ -83,6 +101,9 @@ periods = {
 }
 
 for period_name, dates in periods.items():
+    if period_name != 'allyear':
+        dates[1] = grow_dates_by_n_days(dates[1], n_days=20)
+
     cs.store(
         name=period_name,
         node={
