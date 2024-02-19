@@ -3,8 +3,9 @@
 resolution: '1_20'
 entrypoint: train  # 'train' or 'test'
 checkpoint: null
-# #1 z
+#/DATASET/envs/oscar/4dvarnet-starter/outputs/2024-02-13/14-06-54/sound_base_comfra/checkpoints/val_mse=230.95845-epoch=379.ckpt #1 z
 #/DATASET/envs/oscar/4dvarnet-starter/outputs/2024-02-13/10-30-53/sound_base_comfra/checkpoints/val_mse=595.82034-epoch=382.ckpt #0.1 z
+#/DATASET/envs/oscar/4dvarnet-starter/outputs/2024-02-13/18-11-53/sound_base_comfra/checkpoints/val_mse=776.64259-epoch=382.ckpt #0.05 z
 val_period:
   time:
     _target_: builtins.slice
@@ -72,7 +73,7 @@ datamodule:
   aug_kw:
     aug_factor: 2
     aug_only: true
-  norm_type: 'min_max'
+  norm_type: 'z_score'
 
 model:
   _target_: src.models.Lit4dVarNet
@@ -89,7 +90,7 @@ model:
       offset: 1
   solver:
     _target_: src.models.GradSolver
-    n_step: 10
+    n_step: 0
     lr_grad: 1e3
     prior_cost:
       _target_: src.models.BilinAEPriorCost
@@ -104,7 +105,7 @@ model:
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
       dim_hidden: 48
   sampling_rate: 0.1
-  norm_type: 'min_max'
+  norm_type: 'z_score'
   test_metrics: ${metrics.test_metrics}
   pre_metric_fn:
     _target_: xarray.Dataset.sel

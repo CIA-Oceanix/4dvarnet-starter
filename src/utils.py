@@ -240,20 +240,6 @@ def load_enatl(*args, obs_from_tgt=False, **kwargs):
         ds = ds.assign(input=ds.tgt.transpose(*ds.input.dims).where(np.isfinite(ds.input), np.nan))
     return ds.transpose('time', 'lat', 'lon').to_array().load()
 
-#def load_enatl_ecs(*args, obs_from_tgt=False, **kwargs):
-#    ssh = xr.open_dataset('/DATASET/eNATL/eNATL60_BLB002_cutoff_freq_0_1000m_regrid.nc').ecs
-#    nadirs = xr.open_dataset('/DATASET/eNATL/eNATL60_BLB002_cutoff_freq_0_1000m_regrid.nc').ecs
-#    ssh = ssh.interp(
-#        lon=np.arange(ssh.lon.min(), ssh.lon.max(), 1/20),
-#        lat=np.arange(ssh.lat.min(), ssh.lat.max(), 1/20)
-#    )
-#    nadirs = nadirs.interp(time=ssh.time, method='nearest').interp(lat=ssh.lat, lon=ssh.lon, method='nearest')
-#    ds =  xr.Dataset(dict(input=nadirs, tgt=(ssh.dims, ssh.values)), nadirs.coords)
-#
-#    if obs_from_tgt:
-#        ds = ds.assign(input=ds.tgt.transpose(*ds.input.dims).where(np.isfinite(ds.input), np.nan))
-#    return ds.transpose('time', 'lat', 'lon').to_array().load()
-
 def load_altimetry_data(path, obs_from_tgt=False):
     ds =  (
         xr.open_dataset(path)
@@ -306,22 +292,6 @@ def load_cutoff_freq(path, obs_from_tgt=False):
         .to_array()
     )
 
-#def load_cutoff_freq_mask(path, obs_from_tgt=False):
-#    ds =  (
-#        xr.open_dataset(path)
-#        # .assign(ssh=lambda ds: ds.ssh.coarsen(lon=2, lat=2).mean().interp(lat=ds.lat, lon=ds.lon))
-#        .load()
-#        # .assign(input=lambda ds: (threshold_xarray(ds.ecs)),
-#        #         tgt=lambda ds: remove_nan(threshold_xarray(ds.ecs)))   
-#        .assign(input=lambda ds: mask(threshold_xarray(ds.cutoff_freq)),
-#                tgt=lambda ds: remove_nan(threshold_xarray(ds.cutoff_freq)))   
-#    )
-#    da = ds[[*src.data.TrainingItem._fields]].transpose("time", "lat", "lon").to_array()
-#    return (
-#        ds[[*src.data.TrainingItem._fields]]
-#        .transpose("time", "lat", "lon")
-#        .to_array()
-#    )
 
 def load_full_natl_data(
         path_obs="../sla-data-registry/CalData/cal_data_new_errs.nc",
@@ -354,11 +324,7 @@ def psd_based_scores_from_ds(ds, ref_variable='tgt', study_variable='out'):
     except:
         return [np.nan, np.nan]
 
-def rmse_based_scores(da_rec, da_ref, mask = None):
-    if mask is not None:
-        # Apply the mask to da_rec and da_ref
-        da_rec = da_rec.where(mask)
-        da_ref = da_ref.where(mask)
+def rmse_based_scores(da_rec, da_ref):
     rmse_t = (
         1.0
         - (((da_rec - da_ref) ** 2).mean(dim=("lon", "lat"))) ** 0.5
@@ -379,11 +345,7 @@ def rmse_based_scores(da_rec, da_ref, mask = None):
     )
 
 
-def psd_based_scores(da_rec, da_ref, mask = None):
-    if mask is not None:
-        # Apply the mask to da_rec and da_ref
-        da_rec = da_rec.where(mask)
-        da_ref = da_ref.where(mask)
+def psd_based_scores(da_rec, da_ref):
     print('hello')
     #print(da_rec)
     #print(da_ref)
