@@ -3,9 +3,12 @@
 resolution: '1_20'
 entrypoint: train  # 'train' or 'test'
 checkpoint: null
+#checkpoint: /DATASET/envs/oscar/4dvarnet-starter/outputs/2024-02-19/10-39-31/sound_base_comfra/checkpoints/val_mse=826.88221-epoch=339.ckpt #0.1 z baseline
 #/DATASET/envs/oscar/4dvarnet-starter/outputs/2024-02-13/14-06-54/sound_base_comfra/checkpoints/val_mse=230.95845-epoch=379.ckpt #1 z
 #/DATASET/envs/oscar/4dvarnet-starter/outputs/2024-02-13/10-30-53/sound_base_comfra/checkpoints/val_mse=595.82034-epoch=382.ckpt #0.1 z
 #/DATASET/envs/oscar/4dvarnet-starter/outputs/2024-02-13/18-11-53/sound_base_comfra/checkpoints/val_mse=776.64259-epoch=382.ckpt #0.05 z
+#/DATASET/envs/oscar/4dvarnet-starter/outputs/2024-02-20/10-23-18/sound_base_comfra/checkpoints/val_mse=547.78453-epoch=390.ckpt  #0.1 z sst
+#/DATASET/envs/oscar/4dvarnet-starter/outputs/2024-02-20/10-35-02/sound_base_comfra/checkpoints/val_mse=546.50232-epoch=390.ckpt #0.1 z ssh
 val_period:
   time:
     _target_: builtins.slice
@@ -14,20 +17,30 @@ val_period:
       - 2010-06-30-12
 
 paths:
-    enatl_train: '/DATASET/eNATL/eNATL60_BLB002_cutoff_freq_regrid_0_1000m.nc'
-    natl_test: '/DATASET/eNATL/NATL60GULF-CJM165_cutoff_freq_regrid_0_1000m.nc'
     inp:
       train: '/DATASET/eNATL/eNATL60_BLB002_cutoff_freq_regrid_0_1000m.nc'
       test: '/DATASET/eNATL/NATL60GULF-CJM165_cutoff_freq_regrid_0_1000m.nc'
+
+    inp_sst: 
+      train: '/DATASET/eNATL/eNATL60-BLB002-SST-GF-2009-2010-1_20.nc'
+      test: '/DATASET/NATL/NATL60-CJM165_NATL_sst_y2013.1y.nc'
+    
+    inp_ssh: 
+      train: /DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-ssh-2009-2010-${resolution}.nc
+      #train: /DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-7nadirs-2009-2010-${resolution}.nc
+      test: /DATASET/NATL/NATL60-CJM165-ssh-2012-2013-${resolution}.nc
+    
     tgt:
       train: '/DATASET/eNATL/eNATL60_BLB002_cutoff_freq_regrid_0_1000m.nc'
       test: '/DATASET/eNATL/NATL60GULF-CJM165_cutoff_freq_regrid_0_1000m.nc'
-  # inp:
-  #   train: /DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-7nadirs-2009-2010-${resolution}.nc
-  #   test: /DATASET/NATL/NATL60-CJM165-7nadirs-2012-2013-${resolution}.nc
-  # tgt:
-  #   train: /DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-ssh-2009-2010-${resolution}.nc
-  #   test: /DATASET/NATL/NATL60-CJM165-ssh-2012-2013-${resolution}.nc
+    
+    tgt_sst:
+      train: '/DATASET/eNATL/eNATL60-BLB002-SST-GF-2009-2010-1_20.nc'
+      test: '/DATASET/NATL/NATL60-CJM165_NATL_sst_y2013.1y.nc'
+
+    tgt_ssh:  
+      train: /DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-ssh-2009-2010-${resolution}.nc
+      test: /DATASET/NATL/NATL60-CJM165-ssh-2012-2013-${resolution}.nc
 
 trainer:
   _target_: pytorch_lightning.Trainer
@@ -90,7 +103,7 @@ model:
       offset: 1
   solver:
     _target_: src.models.GradSolver
-    n_step: 0
+    n_step: 10
     lr_grad: 1e3
     prior_cost:
       _target_: src.models.BilinAEPriorCost
@@ -104,7 +117,7 @@ model:
       _target_: src.models.ConvLstmGradModel
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
       dim_hidden: 48
-  sampling_rate: 0.1
+  sampling_rate: 0.01
   norm_type: 'z_score'
   test_metrics: ${metrics.test_metrics}
   pre_metric_fn:
@@ -129,7 +142,7 @@ metrics:
 entrypoints:
   - _target_: pytorch_lightning.seed_everything
     seed: 333
-  - _target_: src.train.base_training
+  - _target_: src.train.base_training #base_testing
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
