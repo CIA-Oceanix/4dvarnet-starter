@@ -12,6 +12,47 @@ MultiModalSSTTrainingItem = collections.namedtuple(
     "MultiModalSSTTrainingItem", ["input", "tgt", "sst"]
 )
 
+def threshold_xarray(da):
+    threshold = 10**3
+    da = xr.where(da > threshold, 1, da)
+    da = xr.where(da <= 0, 0, da)
+    return da
+
+def load_natl_data_sst(tgt_path, tgt_var, inp_path, inp_var, sst_path, sst_var, **kwargs):
+    tgt = (
+        xr.open_dataset(tgt_path)[tgt_var]
+        .sel(kwargs.get('domain', None))
+        .sel(kwargs.get('period', None))
+        .pipe(threshold_xarray)
+    )
+    inp = (
+        xr.open_dataset(inp_path)[inp_var]
+        .sel(kwargs.get('domain', None))
+        .sel(kwargs.get('period', None))
+        .pipe(threshold_xarray)
+        #.pipe(mask)
+    )
+    sst = (
+        xr.open_dataset(sst_path)[sst_var]
+        .sel(kwargs.get('domain', None))
+        .sel(kwargs.get('period', None))
+        #.pipe(mask)
+    )
+    print(xr.Dataset(
+            dict(input=inp, tgt=(tgt.dims, tgt.values)),
+            inp.coords,
+        )
+        .transpose('time', 'lat', 'lon')
+        .to_array())
+    return (
+        xr.Dataset(
+            dict(input=inp, tgt=(tgt.dims, tgt.values), sst = (sst.dims, sst.values)),
+            inp.coords,
+        )
+        .transpose('time', 'lat', 'lon')
+        .to_array()
+    )
+
 
 def load_data_with_sst(obs_var='five_nadirs'):
     inp = xr.open_dataset( "../sla-data-registry/CalData/cal_data_new_errs.nc")[obs_var]
