@@ -4,7 +4,7 @@ trainer:
 
 datamodule:
   xrds_kw:
-    patch_dims: { time: 15, lat: 200, lon: 200}
+    patches: { time: 15, lat: 200, lon: 200}
     domain_limits: ${domain.test}
   aug_kw:
     aug_factor: 5

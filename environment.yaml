@@ -19,6 +19,7 @@ dependencies:
   - matplotlib
   - holoviews
   - pip:
+    - xrpatcher
     - GitPython
     - einops
     - hydra-core

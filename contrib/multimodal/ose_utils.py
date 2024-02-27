@@ -7,7 +7,8 @@ def load_ose_data_with_mursst(pp_sst_ds='../sla-data-registry/mur_pp.nc'):
     ds = xr.open_dataset(pp_sst_ds)
     return ds.to_array()
 
-def preprocess_mur(path='../sla-data-registry/data_OSE/NATL/training/data_OSE_OSSE_nad.nc', pp_sst_ds='../sla-data-registry/mur_pp.nc'):
+def preprocess_mur(path='../sla-data-registry/data_OSE/NATL/training/data_OSE_OSSE_nad.nc',
+                   pp_sst_ds='../sla-data-registry/mur_pp.nc'):
         ose_ssh =  xr.open_dataset(path).load().assign(
             input=lambda ds: ds.ssh,
             tgt=lambda ds: ds.ssh,
@@ -30,5 +31,10 @@ def preprocess_mur(path='../sla-data-registry/data_OSE/NATL/training/data_OSE_OS
             .assign(sst=(sst_dses[0].analysed_sst.dims, np.concatenate([ds.analysed_sst.values for ds in sst_dses], axis=0)))
         ).transpose('time', 'lat', 'lon')
         ds.to_netcdf(pp_sst_ds)
+
+
+if __name__ == '__main__':
+    pass
+
 
 

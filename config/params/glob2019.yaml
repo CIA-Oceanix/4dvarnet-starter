@@ -1,0 +1,36 @@
+# @package _global_
+domain: 
+  train:
+    lat:
+      _target_: builtins.slice
+      _args_: [-80, 80]
+    lon:
+      _target_: builtins.slice
+      _args_: [-180, 180]
+
+xp_overrides:
+  datamodule:
+    norm_stats: [0.40639868, 0.57022274]
+    input_da: 
+      _target_: contrib.ose_training.utils.load_glob_2019_tracks
+    domains: 
+      test: 
+        time: {_target_: builtins.slice, _args_: ['2019-01-01', '2019-02-01']}
+        # time: {_target_: builtins.slice, _args_: ['2018-12-01', '2020-01-31']}
+      train: 
+        # time: {_target_: builtins.slice, _args_: ['2018-12-01', '2020-01-31']}
+        time: {_target_: builtins.slice, _args_: ['2019-01-01', '2019-02-01']}
+    xrds_kw: 
+      strides: {lat: 150, lon: 150}
+      domain_limits: ${domain.train}
+    dl_kw:
+      batch_size: 16
+      num_workers: 3
+
+  model:
+    test_metrics: ${ose_metrics.test_metrics}
+    pre_metric_fn: ${ose_metrics.pre_metric_fn}
+
+ose_metrics:
+  test_metrics: {}
+  pre_metric_fn: null

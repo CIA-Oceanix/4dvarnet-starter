@@ -1,0 +1,12 @@
+# @package _global_
+datamodule:
+  patcher_cls: 
+    _target_: contrib.ortho.OrthoPatcher
+    _partial_: true
+    dense_vars: [tgt]
+    sparse_vars: [input]
+    res: 5e3
+    weight: ${model.rec_weight}
+  dl_kw:
+    persistent_workers: true
+

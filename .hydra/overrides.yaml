@@ -1,0 +1,5 @@
+- xp=test_base
+- xpd=jobs/new_baseline
+- +params=[ose_metrics,ortho_test_ose]
+- trainer.devices=2
+- domain=cNATL

@@ -1,4 +1,5 @@
 from pathlib import Path
+import contrib.ose2osse.diagnostics
 import xarray as xr
 import pandas as pd
 import torch
@@ -11,18 +12,27 @@ import src.utils
 import hydra
 
 
-def load_cfg_from_xp(xpd, key, overrides=None, call=True):
+from omegaconf import OmegaConf
+def load_cfg_from_xp(xpd, key, overrides=None, call=True, overrides_targets=None):
     xpd = Path(xpd)
     src_cfg, xp = src.utils.load_cfg(xpd)
     overrides = overrides or dict()
+    # print(src_cfg)
     OmegaConf.set_struct(src_cfg, True)
     with omegaconf.open_dict(src_cfg):
         cfg = OmegaConf.merge(src_cfg, overrides)
-    node = OmegaConf.select(cfg, key)
+        # print(new_target)
+        if overrides_targets is not None:
+            for path, target in overrides_targets.items():
+                node = OmegaConf.select(cfg, path)
+                node._target_ = target
+            # node._target_ = new_targ
+        node = OmegaConf.select(cfg, key)
+    # print(node)
     return hydra.utils.call(node) if call else node
 
 
-def get_smooth_spat_rec_weight(orig_rec_weight):
+def get_smooth_spat_rec_weight(orig_rec_weight, *args, **kwargs):
     # orig_rec_weight = src.utils.get_triang_time_wei(cfg.datamodule.xrds_kw.patch_dims, crop=dict(lat=20, lon=20))
     rec_weight = ndi.gaussian_filter(orig_rec_weight, sigma=[0, 25, 25])
     rec_weight = np.where(
@@ -112,6 +122,34 @@ def multi_domain_osse_metrics(tdat, test_domains, test_periods,):
                 )
                 .set_index("variable")
                 .join(leaderboard_rmse.to_array().to_dataframe(name="mu"))
+            )
+            metrics.append(mdf)
+            print(mdf.to_markdown())
+    metrics_df = pd.concat(metrics)
+    return metrics_df
+
+
+def multi_domain_ose_metrics(tdat, test_domains, test_periods, test_track, oi):
+    metrics = []
+    for d in test_domains:
+        print(d)
+        for p in test_periods:
+            print(p)
+            tdom_spat = test_domains[d].test
+            # print(tdom_spat)
+            test_domain = dict(time=slice(*p), **tdom_spat)
+
+            sl_bounds = lambda sl: [(sl.start, sl.stop)]
+
+            da_rec = tdat.sel(test_domain)
+            ose_metrics = contrib.ose2osse.diagnostics.ose_diags_from_da(da_rec, test_track, oi, crop_psd=60)
+            mdf = ose_metrics.assign(zero=0).reset_index().set_index('zero').join(
+                pd.DataFrame([{
+                    "domain": d,
+                    "period": tuple(p),
+                    "lats": sl_bounds(test_domains[d].test["lat"]),
+                    "lons": sl_bounds(test_domains[d].test["lon"]),
+                }]),
             )
             metrics.append(mdf)
             print(mdf.to_markdown())
