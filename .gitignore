@@ -8,3 +8,4 @@ scratches
 tmp
 data
 jobs
+**/*egg-info
