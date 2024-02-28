@@ -1,8 +1,13 @@
 # @package _global_
 
 resolution: '1_20'
-entrypoint: train  # 'train' or 'test'
-checkpoint: null
+entrypoint: test  # 'train' or 'test'
+checkpoint: outputs/2024-02-23/21-18-38/sound_base_comfra/checkpoints/val_mse=407.15841-epoch=292.ckpt
+#outputs/2024-02-21/18-29-03/sound_base_comfra/checkpoints/val_mse=822.07630-epoch=296.ckpt #0.01 4dVar bigger_model z sst
+#outputs/2024-02-21/18-24-35/sound_base_comfra/checkpoints/val_mse=1294.97376-epoch=268.ckpt #0.01 4dVar bigger_model z
+#/DATASET/envs/oscar/4dvarnet-starter/outputs/2024-02-21/18-23-29/sound_base_comfra/checkpoints/val_mse=1440.81562-epoch=384.ckpt #0.01 4dVar z
+#/DATASET/envs/oscar/4dvarnet-starter/outputs/2024-02-21/18-35-33/sound_base_comfra/checkpoints/val_mse=1454.06590-epoch=213.ckpt # 0.01 Unet z
+
 #checkpoint: /DATASET/envs/oscar/4dvarnet-starter/outputs/2024-02-19/10-39-31/sound_base_comfra/checkpoints/val_mse=826.88221-epoch=339.ckpt #0.1 z baseline
 #/DATASET/envs/oscar/4dvarnet-starter/outputs/2024-02-13/14-06-54/sound_base_comfra/checkpoints/val_mse=230.95845-epoch=379.ckpt #1 z
 #/DATASET/envs/oscar/4dvarnet-starter/outputs/2024-02-13/10-30-53/sound_base_comfra/checkpoints/val_mse=595.82034-epoch=382.ckpt #0.1 z
@@ -70,14 +75,11 @@ datamodule:
     tgt_var: ecs
     inp_var: ecs
     domain: ${domain.train}
-    period: ${period[${entrypoint}]}  # .train or .test
+    period: ${period[${entrypoint}]}
   domains:
     train: ${period.train}
     val: ${val_period}
-    #test:
     test: ${period.test}
-        #time: {_target_: builtins.slice, _args_: ['2012-10-01', '2012-12-20']}
-      #time: {_target_: builtins.slice,  _args_: ['2012-10-20-12', '2013-08-20-12']}  # ${period.test}
   xrds_kw:
     patch_dims: { time: 15, lat: 240, lon: 240}
     strides: { time: 1, lat: 200, lon: 200}
@@ -142,7 +144,7 @@ metrics:
 entrypoints:
   - _target_: pytorch_lightning.seed_everything
     seed: 333
-  - _target_: src.train.base_training #base_testing
+  - _target_: src.train.base_training
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}

@@ -1,13 +1,19 @@
 # @package _global_
-prior_cost:
+prior_cost_unet:
   _target_: src.unet.UNet
   n_channels: ${datamodule.xrds_kw.patch_dims.time}
   n_classes: ${datamodule.xrds_kw.patch_dims.time}
   bilinear: false
 
+prior_cost_bilinAE:
+  _target_: src.models.BilinAEPriorCost
+  dim_in: ${datamodule.xrds_kw.patch_dims.time}
+  dim_hidden: 64
+  bilin_quad: false
+  downsamp: 2
 model:
   _target_: src.models.Lit4dVarNet
   solver:
     n_step: 0
-    prior_cost: ${prior_cost}
+    prior_cost: ${prior_cost_unet}
 
