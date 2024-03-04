@@ -117,8 +117,8 @@ def mask(da, sampling_rate = 0.1):
     return masked_data_array
 
 def threshold_xarray(da):
-    threshold = 10**3
-    da = xr.where(da > threshold, 1, da)
+    threshold = 1000
+    da = xr.where(da > threshold, 0, da)
     da = xr.where(da <= 0, 0, da)
     return da
 
