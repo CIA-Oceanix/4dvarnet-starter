@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+dynamic = ["version"]
+name = "dz_4dvarnet_predict"
+authors=[
+  {name = "Daniel & Quentin Zhu & Febvre", email = "daniel.zhu@imt-atlantique.fr"},
+]
+#packages
+[project.urls]
+Repository="https://github.com/CIA-Oceanix/4dvarnet-starter.git"
+
+[project.scripts]
+dz_4dvarnet_predict = "dz_4dvarnet_predict:api_endpoint"
+
+[tool.setuptools]
+py-modules=["dz_4dvarnet_predict"]
+
+[tool.setuptools.packages.find]
+include = ["src*"]
+namespaces = false
