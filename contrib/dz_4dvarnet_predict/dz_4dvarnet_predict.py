@@ -118,7 +118,15 @@ class LitModel(pl.LightningModule):
             da.to_netcdf(self.save_dir / f"{idx}.nc")
 
 
-def load_from_cfg(cfg_path, key, overrides=None, cfg_hydra_path=None, call=True):
+def load_from_cfg(
+    cfg_path,
+    key,
+    overrides=None,
+    overrides_targets=None,
+    cfg_hydra_path=None,
+    call=True,
+):
+    print(key)
     src_cfg = OmegaConf.load(Path(cfg_path))
     overrides = overrides or dict()
     OmegaConf.set_struct(src_cfg, True)
@@ -129,6 +137,10 @@ def load_from_cfg(cfg_path, key, overrides=None, cfg_hydra_path=None, call=True)
         )
     with omegaconf.open_dict(src_cfg):
         cfg = OmegaConf.merge(src_cfg, overrides)
+    if overrides_targets is not None:
+        for path, target in overrides_targets.items():
+            node = OmegaConf.select(cfg, path)
+            node._target_ = target
     node = OmegaConf.select(cfg, key)
     return hydra.utils.call(node) if call else node
 
