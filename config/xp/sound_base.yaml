@@ -1,7 +1,7 @@
 # @package _global_
 
 paths:
-  enatl_gf_ecs: '/DATASET/eNATL/NATL60GULF-CJM165_cutoff_freq_0_1000m_from_t_s_regrid.nc'
+  enatl_gf_ecs: '/DATASET/NATL/NATL60GULF-CJM165_cutoff_freq_regrid_0_1000m.nc'
   #enatl_gf_ecs: '/DATASET/eNATL/eNATL6 0_BLB002_cutoff_freq_0_1000m_regrid.nc'
   #enatl_gf_celerity: '/DATASET/eNATL/eNATL60_BLB002_sound_speed_0_1000m_regrid.nc'
 domain: ???
@@ -76,8 +76,7 @@ model:
   solver:
     _target_: src.models.GradSolver
     n_step: 10
-    lr_grad: 1e3
-    # lr_grad: 0.2
+    lr_grad: 1e-3
     prior_cost: 
       _target_: src.models.BilinAEPriorCost
       #weight3: 1. 
