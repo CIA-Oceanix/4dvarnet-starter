@@ -5,6 +5,7 @@ import kornia.filters as kfilts
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from pytorch_lightning.utilities import grad_norm
 
 
 class Lit4dVarNet(pl.LightningModule):
@@ -65,6 +66,10 @@ class Lit4dVarNet(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         return self.step(batch, "val")[0]
+    
+    def on_before_optimizer_step(self, optimizer, optimizer_idx = None):
+        norms = grad_norm(self.solver, norm_type=2)
+        self.log_dict(norms)
 
     def forward(self, batch):
         if self.solver.n_step > 0:
@@ -89,14 +94,25 @@ class Lit4dVarNet(pl.LightningModule):
             loss, out = self.base_step(batch, phase)
             grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
             prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
-            # nan_count = torch.isnan(batch.input).sum().item()
-            # print(f"Number of NaN values: {nan_count}")
         
             self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
             self.log( f"{phase}_prior_cost", prior_cost, prog_bar=True, on_step=False, on_epoch=True)
         
-            training_loss = 10 * loss + 20 * prior_cost + 5 * grad_loss
+            if torch.isnan(prior_cost).any():
+                batch_dim = batch.input.shape[0]
+                for i in range(batch_dim):
+                    batch_id = batch.input[i]
+                    mask = ~torch.isnan(batch_id)
+                    batch_id_no_nan = batch_id[mask]
+                    time_window_normed = torch.norm(batch_id_no_nan[1])
+                    self.log('norm_batch_nan', time_window_normed, on_step=True, on_epoch=True, prog_bar=True)
+                #self.log('loss_nan', prior_cost, on_step=True, on_epoch=True, prog_bar=True)
+                # Optionally, skip the current batch or stop training
+                #return None
         
+            training_loss = 10 * loss + 20 * prior_cost + 5 * grad_loss
+            # Check for NaN in loss
+            
             self.log('sampling_rate', self.sampling_rate, on_step=False, on_epoch=True)
             self.log('weight loss', 10., on_step=False, on_epoch=True)
             self.log('prior cost', 20.,on_step=False, on_epoch=True)
@@ -109,8 +125,6 @@ class Lit4dVarNet(pl.LightningModule):
             return loss, out
 
     def base_step(self, batch, phase=""):
-        #nan_count = torch.isnan(batch.input).sum().item()
-        #print(f"Number of NaN values 1: {nan_count}")
         # batch = batch._replace(input = batch.input / torch.bernoulli(torch.full(batch.input.size(), self.sampling_rate)).to('cuda:0'))
         out = self(batch=batch)
         loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
@@ -134,8 +148,6 @@ class Lit4dVarNet(pl.LightningModule):
         masked_input[mask] = float('nan')
         batch = batch._replace(input = masked_input)
         out = self(batch=batch)
-        nan_count = torch.isnan(batch.input).sum().item()
-        print(f"Number of NaN values 1: {nan_count}")
 
         if self.norm_type == 'z_score':
             m, s = self.norm_stats
@@ -199,23 +211,47 @@ class GradSolver(nn.Module):
         self.lr_grad = lr_grad
 
         self._grad_norm = None
+    
+        def _apply_kaiming(module):
+            if isinstance(module, torch.nn.Conv2d):
+                torch.nn.init.kaiming_uniform_(module.weight)
 
+        def _apply_xavier(module):
+            if isinstance(module, torch.nn.Conv2d):
+                torch.nn.init.xavier_uniform_(module.weight)
+
+        self.prior_cost.apply(_apply_kaiming)
+        self.grad_mod.apply(_apply_xavier)
+    
     def init_state(self, batch, x_init=None):
         if x_init is not None:
             return x_init
 
         return batch.input.nan_to_num().detach().requires_grad_(True)
-
+    
     def solver_step(self, state, batch, step):
+        self._previous_prior_cost = self.prior_cost.save_state()
+        #self._previous_grad_mod = self.grad_mod.detach()
+
         var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
-
+        if torch.isnan(var_cost).any():
+            batch_dim = batch.input.shape[0]
+            for i in range(batch_dim):
+                batch_id = batch.input[i]
+                mask = ~torch.isnan(batch_id)
+                batch_id_no_nan = batch_id[mask]
+                time_window_normed = torch.norm(batch_id_no_nan[1])
+                self.log('norm_batch_nan', time_window_normed, on_step=True, on_epoch=True, prog_bar=True)
+                self.prior_cost.restore_state()
+                #self.log('loss_nan', prior_cost, on_step=True, on_epoch=True, prog_bar=True)
+                # Optionally, skip the current batch or stop training
+                return state
         gmod = self.grad_mod(grad)
         state_update = (
             1 / (step + 1) * gmod
                 + self.lr_grad * (step + 1) / self.n_step * grad
         )
-
         return state - state_update
 
     def forward(self, batch):
@@ -345,3 +381,12 @@ class BilinAEPriorCost(nn.Module):
 
     def forward(self, state):
         return F.mse_loss(state, self.forward_ae(state))
+    
+    def save_state(self):
+        # Save the state of all parameters within this class
+        self._saved_state = {name: param.clone() for name, param in self.named_parameters()}
+
+    def restore_state(self):
+        # Restore the state of all parameters within this class
+        for name, param in self.named_parameters():
+            param.data.copy_(self._saved_state[name])

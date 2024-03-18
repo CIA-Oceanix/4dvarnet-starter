@@ -61,6 +61,19 @@ def cosanneal_lr_adam(lit_mod, lr, T_max=100, weight_decay=0.):
         "lr_scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=T_max),
     }
 
+def cosanneal_lr_adamw(lit_mod, lr, T_max=100, weight_decay=0.):
+    opt = torch.optim.AdamW(
+        [
+            {"params": lit_mod.solver.grad_mod.parameters(), "lr": lr},
+            {"params": lit_mod.solver.obs_cost.parameters(), "lr": lr},
+            {"params": lit_mod.solver.prior_cost.parameters(), "lr": lr / 2},
+        ], weight_decay=weight_decay
+    )
+    return {
+        "optimizer": opt,
+        "lr_scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=T_max),
+    }
+
 def cosanneal_lr_lion(lit_mod, lr, T_max=100):
     import lion_pytorch
     opt = lion_pytorch.Lion(
@@ -347,10 +360,7 @@ def rmse_based_scores(da_rec, da_ref):
 
 def psd_based_scores(da_rec, da_ref):
     print('hello')
-    #print(da_rec)
-    #print(da_ref)
     err = da_rec - da_ref
-    #print(err)
     err["time"] = (err.time - err.time[0]) / np.timedelta64(1, "D")
     signal = da_ref
     signal["time"] = (signal.time - signal.time[0]) / np.timedelta64(1, "D")

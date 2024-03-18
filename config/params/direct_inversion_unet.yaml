@@ -1,4 +1,8 @@
 # @package _global_
+
+trainer:
+  max_epochs: 600
+
 prior_cost_unet:
   _target_: src.unet.UNet
   n_channels: ${datamodule.xrds_kw.patch_dims.time}
