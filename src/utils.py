@@ -36,7 +36,6 @@ def half_lr_adam(lit_mod, lr):
         ],
     )
 
-
 def cosanneal_lr_adam(lit_mod, lr, T_max=100, weight_decay=0.):
     opt = torch.optim.Adam(
         [
@@ -48,6 +47,58 @@ def cosanneal_lr_adam(lit_mod, lr, T_max=100, weight_decay=0.):
     return {
         "optimizer": opt,
         "lr_scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=T_max),
+    }
+
+def cosanneal_spde_lr_adam(lit_mod, lr, T_max=100, weight_decay=0.):
+    opt = torch.optim.Adam(
+        [
+            {"params": lit_mod.solver.grad_mod.parameters(), "lr": lr},
+            {"params": lit_mod.solver.nll.parameters(), "lr": lr},
+            {"params": lit_mod.solver.nlpobs.parameters(), "lr": lr / 2},
+        ], weight_decay=weight_decay
+    )
+    return {
+        "optimizer": opt,
+        "lr_scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=T_max),
+    }
+
+def cosanneal_spde_lr_adam_winit2(lit_mod, lr, T_max=100, weight_decay=0.):
+
+    opt = torch.optim.Adam(
+            [
+             #{"params": lit_mod.solver.parameters(), "lr": lr},
+             {"params": lit_mod.solver2.parameters(), "lr": lr},
+            ],weight_decay=weight_decay)
+    return {
+        "optimizer": opt,
+        "lr_scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=T_max),
+    }
+
+def cosanneal_spde_lr_adam_winit(lit_mod, lr, T_max=100, weight_decay=0.):
+
+    opt1 = torch.optim.Adam(
+            [
+                {"params": lit_mod.solver2.parameters(), "lr": lr},
+            ],weight_decay=weight_decay)
+    opt2 = torch.optim.Adam(
+            [
+                {"params": lit_mod.solver.parameters(), "lr": lr},
+            ],weight_decay=weight_decay)
+    scheduler1 = torch.optim.lr_scheduler.CosineAnnealingLR(opt1, T_max=T_max)
+    scheduler2 = torch.optim.lr_scheduler.CosineAnnealingLR(opt2, T_max=T_max)
+    return  [opt1, opt2], [scheduler1, scheduler2]
+
+def cosanneal_score_lr_adam(lit_mod, lr, T_max=100, weight_decay=0.):
+    opt = torch.optim.Adam(
+        [
+            {"params": lit_mod.solver.grad_mod.parameters(), "lr": lr},
+            {"params": lit_mod.solver.score_model.parameters(), "lr": lr},
+            {"params": lit_mod.solver.nlpobs.parameters(), "lr": lr / 2},
+        ], weight_decay=weight_decay
+    )
+    return {
+        "optimizers": opt,
+        "lr_schedulers": torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=T_max),
     }
 
 def cosanneal_lr_lion(lit_mod, lr, T_max=100):
@@ -124,6 +175,34 @@ def get_triang_time_wei(patch_dims, offset=0, **crop_kw):
         patch_dims.values(),
     )
 
+def get_linear_time_wei(patch_dims, offset=0, **crop_kw):
+    pw = get_constant_crop(patch_dims, **crop_kw)
+    return np.fromfunction(
+        lambda t, *a: (
+            (1 - np.abs(offset + t - patch_dims["time"]) / patch_dims["time"]) * pw
+        ),
+        patch_dims.values(),
+    )
+
+def get_last_time_wei(patch_dims, offset=0, **crop_kw):
+    pw = get_constant_crop(patch_dims, **crop_kw)
+    return np.fromfunction(
+        lambda t, *a: (
+            pw * (t == (patch_dims["time"]-1) )
+        ),
+        patch_dims.values(),
+    )
+
+def get_center_time_wei(patch_dims, offset=0, **crop_kw):
+    pw = get_constant_crop(patch_dims, **crop_kw)
+    return np.fromfunction(
+        lambda t, *a: (
+            pw * (t == np.floor(patch_dims["time"]/2)) 
+        ),
+        patch_dims.values(),
+    )
+
+
 def load_enatl(*args, obs_from_tgt=True, **kwargs):
     # ds = xr.open_dataset('../sla-data-registry/qdata/enatl_wo_tide.nc')
     # print(ds)
@@ -158,6 +237,45 @@ def load_altimetry_data(path, obs_from_tgt=False):
     
     return (
         ds[[*src.data.TrainingItem._fields]]
+        .transpose("time", "lat", "lon")
+        .to_array()
+    )
+
+def load_altimetry_data_ose(path, obs_from_tgt=False):
+    ds =  (
+        xr.open_dataset(path)
+        .load()
+        .assign(
+            input=lambda ds: ds.ssh,
+            tgt=lambda ds: ds.ssh,
+        )    
+    )
+
+    if obs_from_tgt:
+        ds = ds.assign(input=ds.tgt.where(np.isfinite(ds.input), np.nan))
+    
+    return (
+        ds[[*src.data.TrainingItem._fields]]
+        .transpose("time", "lat", "lon")
+        .to_array()
+    )
+
+def load_altimetry_data_woi(path, obs_from_tgt=False):
+    ds =  (
+        xr.open_dataset(path)
+        .load()
+        .assign(
+            input=lambda ds: ds.nadir_obs,
+            oi=lambda ds: ds.ssh_mod,
+            tgt=lambda ds: remove_nan(ds.ssh),
+        )
+    )
+
+    if obs_from_tgt:
+        ds = ds.assign(input=ds.tgt.where(np.isfinite(ds.input), np.nan))
+
+    return (
+        ds[[*src.data_notebook_woi.TrainingItem._fields]]
         .transpose("time", "lat", "lon")
         .to_array()
     )

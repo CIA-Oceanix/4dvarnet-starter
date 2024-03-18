@@ -1,7 +1,6 @@
 # @package _global_
 xpd: ???
 
-
 domain: ???
 
 inp_da: default
@@ -11,7 +10,7 @@ data:
 xp_overrides: 
   datamodule:
     input_da: 
-      _target_: ${oc.select:data.${inp_da},contrib.ose2osse.data.load_ose_data}
+      _target_: ${oc.select:data.${inp_da},contrib.ose2osse.data.load_ose_data_new}
     domains: 
       test: 
         time: {_target_: builtins.slice, _args_: ['2016-12-01', '2018-01-31']}
@@ -60,8 +59,8 @@ entrypoints:
     ose_dm: ${dm}
     ckpt: ${ckpt}
     diag_data_dir: ${xpd}/diag_data/natl
-    test_track_path: '../sla-data-registry/data_OSE/along_track/dt_gulfstream_c2_phy_l3_20161201-20180131_285-315_23-53.nc'
-    oi_path: '../sla-data-registry/data_OSE/NATL/training/ssh_alg_h2g_j2g_j2n_j3_s3a_duacs.nc'
+    test_track_path: '/DATASET/data_xp_ose/dt_gulfstream_c2_phy_l3_20161201-20180131_285-315_23-53.nc'
+    oi_path: '/DATASET/data_xp_ose/training/cropped_ssh_alg_h2g_j2g_j2n_j3_s3a_duacs.nc'
 
 defaults:
   - /domain: gf

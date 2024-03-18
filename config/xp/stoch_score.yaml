@@ -1,0 +1,124 @@
+# @package _global_
+
+paths:
+    natl_gf_5nads: data/natl_gf_w_5nadirs.nc
+    enatl_gf_5nads: ../sla-data-registry/qdata/enatl_wo_tide.nc
+
+domain: ???
+
+trainer:
+  _target_: pytorch_lightning.Trainer
+  inference_mode: False
+  gradient_clip_val: 0.5
+  accelerator: gpu
+  devices: 1
+  logger: 
+    _target_: pytorch_lightning.loggers.CSVLogger
+    save_dir: ${hydra:runtime.output_dir}
+    name: ${hydra:runtime.choices.xp}
+    version: ''
+  max_epochs: 30
+  callbacks:
+    - _target_: src.versioning_cb.VersioningCallback
+    - _target_: pytorch_lightning.callbacks.LearningRateMonitor
+    - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+      monitor: val_mse
+      save_top_k: 3
+      filename: '{val_mse:.5f}-{epoch:03d}'
+
+datamodule:
+  _target_: src.data.BaseDataModule
+  input_da: 
+    _target_: src.utils.load_altimetry_data
+    path: ${paths.natl_gf_5nads}
+  domains:
+    train:
+      time: {_target_: builtins.slice, _args_: ['2013-02-24', '2013-09-30']}
+    val: 
+      time: {_target_: builtins.slice, _args_: ['2012-12-15', '2013-02-24']}
+    test: 
+      time: {_target_: builtins.slice,  _args_: ['2012-10-01', '2012-12-20']}
+  xrds_kw:
+    #patch_dims: { time: 15, lat: "$(( 240//${datamodule.resize_factor))", lon: "$(( 240//${datamodule.resize_factor ))"}
+    #strides: { time: 1, lat: "$((200//${datamodule.resize_factor)", lon: "$((200//${datamodule.resize_factor ))"}
+    patch_dims: { time: 15, lat: 112, lon: 112}
+    strides: { time: 1, lat: 100, lon: 100}
+    domain_limits: ${domain.train}
+  dl_kw: {batch_size: 1, num_workers: 1}
+  aug_kw:
+    aug_factor: 2
+    aug_only: True
+  resize_factor: 2
+
+model:
+  _target_: contrib.stoch_spde.lit_model_score.Lit4dVarNet
+  persist_rw: False
+  opt_fn:
+    _target_: src.utils.cosanneal_score_lr_adam
+    _partial_: true
+    lr: 1e-3
+    T_max: ${trainer.max_epochs}
+  loss_fn :
+    _target_: contrib.stoch_spde.loss_score.loss_fn
+    model: 
+      _target_: contrib.stoch_spde.score_based.ScoreNet
+      marginal_prob_std: 
+        _target_: contrib.stoch_spde.sde_perturb.marginal_prob_std
+        sigma: 25
+      time_channels: ${datamodule.xrds_kw.patch_dims.time}
+      channels:
+        - 32
+        - 64
+        - 128 
+        - 256
+      embed_dim: 256
+  rec_weight:
+    _target_: src.utils.get_triang_time_wei
+    #patch_dims: { time: ${datamodule.xrds_kw.patch_dims.time},  lat: '#{${datamodule.xrds_kw.patch_dims.lat}//${datamodule.resize_factor}', lon: '#{${datamodule.xrds_kw.patch_dims.lon}//${datamodule.resize_factor}' }
+    patch_dims: ${datamodule.xrds_kw.patch_dims}
+    #crop: {time: 0, lat: '#{20//${datamodule.resize_factor}', lon: '#{20//${datamodule.resize_factor}'}
+    crop: {time: 0, lat: 6, lon: 6}
+    offset: 1
+  solver: 
+    _target_: contrib.stoch_spde.solver_score.GradSolver_Lgv
+    n_step: 20
+    lr_grad: 1e-3
+    score_model: ${model.loss_fn.model}
+    nlpobs: 
+      _target_: contrib.stoch_spde.models_spde.NLpObs
+    grad_mod: 
+      _target_: src.models.ConvLstmGradModel
+      dim_in: ${datamodule.xrds_kw.patch_dims.time}
+      dim_hidden: 48
+  test_metrics: ${metrics.test_metrics}
+  pre_metric_fn: 
+        _target_: xarray.Dataset.sel
+        _partial_: True
+        time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
+        lat: ${domain.test.lat}
+        lon: ${domain.test.lon}
+  n_simu: 2
+
+metrics:
+  nrmse_scores: {_target_: src.utils.rmse_based_scores_from_ds, _partial_: True}
+  psd_scores: {_target_: src.utils.psd_based_scores_from_ds, _partial_: True}
+  get0: {_target_: operator.itemgetter, _args_: [0]}
+  get1: {_target_: operator.itemgetter, _args_: [1]}
+  test_metrics:
+    'mu': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.nrmse_scores}', '${metrics.get0}']}
+    'sig': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.nrmse_scores}', '${metrics.get1}']}
+    'lx': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.psd_scores}', '${metrics.get0}']}
+    'lt': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.psd_scores}', '${metrics.get1}']}
+
+entrypoints:
+  - _target_: pytorch_lightning.seed_everything
+    seed: 333
+  - _target_: src.train.base_training
+    trainer: ${trainer}
+    lit_mod: ${model}
+    dm: ${datamodule}
+
+defaults:
+  - /domain: gf
+  - _self_
+

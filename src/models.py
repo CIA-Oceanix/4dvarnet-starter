@@ -5,7 +5,8 @@ import kornia.filters as kfilts
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import numpy as np
+import xarray as xr
 
 class Lit4dVarNet(pl.LightningModule):
     def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
@@ -31,6 +32,15 @@ class Lit4dVarNet(pl.LightningModule):
         err_w = err * weight[None, ...]
         non_zeros = (torch.ones_like(err) * weight[None, ...]) == 0.0
         err_num = err.isfinite() & ~non_zeros
+        '''
+        import matplotlib.pyplot as plt
+        fig, axs = plt.subplots(1,2,figsize=(10,10))
+        im = axs[0].pcolormesh(err_num[0,3,:,:].detach().cpu().numpy(),vmin=0, vmax=1)
+        im = axs[1].pcolormesh(err_num[0,3,:,:].detach().cpu().numpy(),vmin=0, vmax=1)
+        cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+        fig.colorbar(im, cax=cbar_ax)
+        plt.show()
+        '''
         if err_num.sum() == 0:
             return torch.scalar_tensor(1000.0, device=err_num.device).requires_grad_()
         loss = F.mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
@@ -90,12 +100,15 @@ class Lit4dVarNet(pl.LightningModule):
         return ['inp', 'tgt', 'out']
 
     def on_test_epoch_end(self):
-        rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
-            self.test_data, self.rec_weight.cpu().numpy()
-        )
 
-        if isinstance(rec_da, list):
-            rec_da = rec_da[0]
+        if isinstance(self.trainer.test_dataloaders,list):
+            rec_da = self.trainer.test_dataloaders[0].dataset.reconstruct(
+                self.test_data, self.rec_weight.cpu().numpy()
+            )
+        else:
+            rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+                self.test_data, self.rec_weight.cpu().numpy()
+            )
 
         self.test_data = rec_da.assign_coords(
             dict(v0=self.test_quantities)
@@ -113,6 +126,145 @@ class Lit4dVarNet(pl.LightningModule):
             print(Path(self.trainer.log_dir) / 'test_data.nc')
             self.logger.log_metrics(metrics.to_dict())
 
+class Lit4dVarNet_SST(Lit4dVarNet):
+
+    def __init__(self, path_mask, domain_limits, *args, **kwargs):
+         super().__init__(*args, **kwargs)
+         self.domain_limits = domain_limits
+         #self.mask_land = xr.open_dataset(path_mask).sel(**(self.domain_limits or {})).analysed_sst[0]
+         self.mask_land = xr.open_dataset(path_mask).sel(**(self.domain_limits or {})).mask
+
+    def mask(self, var):
+        #mask_3d = np.broadcast_to(np.where(np.isnan(self.mask_land),0,1), var.shape)
+        mask_3d = np.broadcast_to(self.mask_land, var.shape)
+        return np.where(mask_3d,var,np.nan)       
+
+    def step(self, batch, phase=""):
+
+        if self.training and batch.tgt.isfinite().float().mean() < 0.05:
+            return None, None
+
+        loss, out = self.base_step(batch, phase)
+        grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt),
+                                      self.rec_weight)
+        prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
+        self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
+
+        print(50*loss, 10*prior_cost, 10000*grad_loss)
+        training_loss = 50 * loss + 10 * prior_cost + 10000 * grad_loss 
+        return training_loss, out
+
+    def base_step(self, batch, phase=""):
+
+        '''
+        # base_step used in train/val only
+        inp, tgt = batch.input.detach().cpu().numpy(), batch.tgt.detach().cpu().numpy()
+        import matplotlib.pyplot as plt
+        fig, axs = plt.subplots(1,2,figsize=(20,10))
+        min, max = np.nanmin(inp[0,3,:,:]), np.nanmax(inp[0,3,:,:])
+        im = axs[0].pcolormesh(inp[0,3,:,:],vmin=min, vmax=max)
+        im = axs[1].pcolormesh(tgt[0,3,:,:],vmin=min, vmax=max)
+        fig.subplots_adjust(right=0.8)
+        cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+        fig.colorbar(im, cax=cbar_ax)
+        plt.show()
+        '''
+        out = self(batch=batch)
+        loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
+
+        with torch.no_grad():
+            self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
+            self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
+
+        return loss, out
+
+    def on_test_epoch_end(self):
+
+        if isinstance(self.trainer.test_dataloaders,list):
+            rec_da = self.trainer.test_dataloaders[0].dataset.reconstruct(
+                self.test_data, self.rec_weight.cpu().numpy()
+            )
+        else:
+            rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+                self.test_data, self.rec_weight.cpu().numpy()
+            )
+
+        self.test_data = rec_da.assign_coords(
+            dict(v0=self.test_quantities)
+        ).to_dataset(dim='v0')
+
+        # crop (if necessary) 
+        print(self.test_data.lon.data[0],self.test_data.lon.data[-1])
+        self.test_data = self.test_data.sel(**(self.domain_limits or {}))
+        print(self.test_data)
+        self.mask_land = self.mask_land.sel(**(self.domain_limits or {}))
+        self.mask_land, _ = xr.align(self.mask_land, self.test_data, join="right", fill_value=np.nan)  
+        print(self.mask_land)
+        # set NaN according to mask
+        self.test_data = self.test_data.update({'inp':(('time','lat','lon'),self.mask(self.test_data.inp.data)),
+                                                'tgt':(('time','lat','lon'),self.mask(self.test_data.tgt.data)),
+                                                'analysed_sst':(('time','lat','lon'),self.mask(self.test_data.out.data))})
+
+
+        metric_data = self.test_data.pipe(self.pre_metric_fn),
+        metrics = pd.Series({
+            metric_n: metric_fn(metric_data)
+            for metric_n, metric_fn in self.metrics.items()
+        })
+
+        print(metrics.to_frame(name="Metrics").to_markdown())
+        if self.logger:
+            self.test_data.to_netcdf(Path(self.logger.log_dir) / 'test_data.nc')
+            print(Path(self.trainer.log_dir) / 'test_data.nc')
+            self.logger.log_metrics(metrics.to_dict())
+
+class Lit4dVarNet_OSE(Lit4dVarNet):
+
+    def __init__(self, *args, **kwargs):
+         super().__init__(*args, **kwargs)
+
+    def step(self, batch, phase=""):
+        print(100*batch.tgt.isfinite().float().mean())
+        if self.training and 100*batch.tgt.isfinite().float().mean() < 0.1:
+            return None, None
+
+        loss, out = self.base_step(batch, phase)
+        self.log( f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
+
+        training_loss = loss
+        return training_loss, out
+
+    @staticmethod
+    def weighted_mse(err, weight):
+
+        # remove nan from err and weight
+        err_w = err * weight[None, ...]
+        non_zeros = (torch.ones_like(err) * weight[None, ...]) == 0.0
+        err_num = err.isfinite() & ~non_zeros
+        if err_num.sum() == 0:
+            return torch.scalar_tensor(1000.0, device=err_num.device).requires_grad_()
+        loss = F.mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
+        return loss
+
+
+    def base_step(self, batch, phase=""):
+ 
+        out = self(batch=batch)
+
+        grad_out = kfilts.sobel(out,3)
+        grad_tgt = kfilts.sobel(batch.tgt,3)
+        lapl_out = kfilts.laplacian(out,3)
+        lapl_tgt = kfilts.laplacian(batch.tgt,3)
+
+        loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
+        #loss += self.weighted_mse(grad_out - grad_tgt, self.rec_weight)
+        #loss += self.weighted_mse(lapl_out - lapl_tgt, self.rec_weight)
+
+        with torch.no_grad():
+            self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
+            self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
+
+        return loss, out
 
 class GradSolver(nn.Module):
     def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.2, **kwargs):
@@ -141,7 +293,6 @@ class GradSolver(nn.Module):
             1 / (step + 1) * gmod
                 + self.lr_grad * (step + 1) / self.n_step * grad
         )
-        
 
         return state - state_update
 
@@ -155,8 +306,9 @@ class GradSolver(nn.Module):
                 if not self.training:
                     state = state.detach().requires_grad_(True)
 
-            if not self.training:
-                state = self.prior_cost.forward_ae(state)
+            #if not self.training:
+            #    state = self.prior_cost.forward_ae(state)
+            #state = self.prior_cost.forward_ae(state)
         return state
 
 
@@ -226,10 +378,10 @@ class BaseObsCost(nn.Module):
         msk = batch.input.isfinite()
         return self.w * F.mse_loss(state[msk], batch.input.nan_to_num()[msk])
 
-
 class BilinAEPriorCost(nn.Module):
-    def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None, bilin_quad=True):
+    def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None, bilin_quad=True, nt=None):
         super().__init__()
+        self.nt = nt
         self.bilin_quad = bilin_quad
         self.conv_in = nn.Conv2d(
             dim_in, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
@@ -271,5 +423,9 @@ class BilinAEPriorCost(nn.Module):
         x = self.up(x)
         return x
 
-    def forward(self, state):
-        return F.mse_loss(state, self.forward_ae(state))
+    def forward(self, state, exclude_params=False):
+        if not exclude_params:
+            return F.mse_loss(state, self.forward_ae(state))
+        else:
+            return F.mse_loss(state[:,:self.nt,:,:], self.forward_ae(state)[:,:self.nt,:,:])
+

@@ -21,7 +21,6 @@ def load_cfg_from_xp(xpd, key, overrides=None, call=True):
     node = OmegaConf.select(cfg, key)
     return hydra.utils.call(node) if call else node
 
-
 def get_smooth_spat_rec_weight(orig_rec_weight):
     # orig_rec_weight = src.utils.get_triang_time_wei(cfg.datamodule.xrds_kw.patch_dims, crop=dict(lat=20, lon=20))
     rec_weight = ndi.gaussian_filter(orig_rec_weight, sigma=[0, 25, 25])
