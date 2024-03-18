@@ -111,6 +111,7 @@ class LitModel(pl.LightningModule):
         item_idxes = (
             batch_idx * self.bs + torch.arange(numitem)
         ) * num_devices + self.global_rank
+        assert len(self.out_dims) == len(outputs[0].shape)
         for i, idx in enumerate(item_idxes):
             out = outputs[i]
             c = self.patcher[idx].coords.to_dataset()[list(self.out_dims)]
@@ -154,6 +155,7 @@ def run(
     solver="???",
     norm_stats: list = None,
     batch_size: int = 4,
+    params: Optional[dict] = None,
     _skip_val: bool = False,
 ):
     log.info("Starting")
@@ -195,53 +197,58 @@ Output description:
 Returns:
     None
 """
-store = hydra_zen.store(group="4dvarnet", package="_global_")
-patcher_store = store(group="4dvarnet/patcher", package="patcher")
-trainer_store = store(group="4dvarnet/trainer", package="trainer")
-solver_store = store(group="4dvarnet/solver", package="solver")
-patcher_store("???", name="default", to_config=lambda x: x)
-trainer_store("???", name="default", to_config=lambda x: x)
-solver_store("???", name="default", to_config=lambda x: x)
-# Wrap the function to accept the configuration as input
-# Store the config
-store = hydra_zen.store()
-store(HydraConf(help=HelpConf(header=run.__doc__, app_name=__name__)))
 
-base_config = hydra_zen.builds(
-    run,
-    populate_full_signature=True,
-    zen_partial=True,
-    zen_dataclass=dict(cls_name="BasePredict"),
-)
 
-store(
-    hydra_zen.make_config(
-        bases=(base_config,),
-        hydra_defaults=[
-            "_self_",
-            {"/4dvarnet/patcher": "default"},
-            {"/4dvarnet/trainer": "default"},
-            {"/4dvarnet/solver": "default"},
-        ],
-    ),
-    name=__name__,
-    group="4dvarnet",
-    package="_global_",
-)
-# Create a  partial configuration associated with the above function (for easy extensibility)
+def register_lit_patch_predict(name, solver, patcher, trainer, params=None):
+    params = params or None
+    store = hydra_zen.store(group="patch_predict", package="_global_")
+    params_store = hydra_zen.store(group="patch_predict/params", package="params")
+    patcher_store = store(group="patch_predict/patcher", package="patcher")
+    trainer_store = store(group="patch_predict/trainer", package="trainer")
+    solver_store = store(group="patch_predict/solver", package="solver")
+    params_store(params, name=name)
+    patcher_store(patcher, name=name)
+    trainer_store(trainer, name=name)
+    solver_store(solver, name=name)
+    store = hydra_zen.store()
+    store(HydraConf(help=HelpConf(header=run.__doc__, app_name=__name__)))
 
-store.add_to_hydra_store(overwrite_ok=True)
-patcher_store.add_to_hydra_store(overwrite_ok=True)
-trainer_store.add_to_hydra_store(overwrite_ok=True)
-solver_store.add_to_hydra_store(overwrite_ok=True)
-# Create CLI endpoint
+    base_config = hydra_zen.builds(
+        run,
+        populate_full_signature=True,
+        zen_partial=True,
+        zen_dataclass=dict(cls_name="BasePredict"),
+    )
 
-zen_endpoint = hydra_zen.zen(run)
-api_endpoint = hydra.main(
-    config_name="4dvarnet/" + __name__, version_base="1.3", config_path="."
-)(zen_endpoint)
+    store(
+        hydra_zen.make_config(
+            bases=(base_config,),
+            hydra_defaults=[
+                "_self_",
+                {"/patch_predict/patcher": name},
+                {"/patch_predict/trainer": name},
+                {"/patch_predict/solver": name},
+            ],
+        ),
+        name=name,
+        group="4dvarnet",
+        package="_global_",
+    )
+    # Create a  partial configuration associated with the above function (for easy extensibility)
+
+    store.add_to_hydra_store(overwrite_ok=True)
+    patcher_store.add_to_hydra_store(overwrite_ok=True)
+    trainer_store.add_to_hydra_store(overwrite_ok=True)
+    solver_store.add_to_hydra_store(overwrite_ok=True)
+    # Create CLI endpoint
+
+    zen_endpoint = hydra_zen.zen(run)
+    api_endpoint = hydra.main(
+        config_name="4dvarnet/" + __name__, version_base="1.3", config_path="."
+    )(zen_endpoint)
+
+    return api_endpoint
 
 
 if __name__ == "__main__":
     api_endpoint()
-
