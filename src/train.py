@@ -1,7 +1,22 @@
 import torch
+import os
+import random
 torch.set_float32_matmul_precision('high')
+from pytorch_lightning import loggers
 
 def base_training(trainer, dm, lit_mod, ckpt=None):
+
+
+    version = 'version_' + str(random.randint(0, 100000))
+    save_dir = "/DATASET/mbeauchamp/DMI/results"
+    logger_name = "lightning_logs"
+    print(os.path.join(save_dir, logger_name, version))
+    tb_logger = loggers.TensorBoardLogger(save_dir=save_dir,
+                                                   name=logger_name,
+                                                   version=version)
+
+    trainer.logger = tb_logger
+
     if trainer.logger is not None:
         print()
         print("Logdir:", trainer.logger.log_dir)

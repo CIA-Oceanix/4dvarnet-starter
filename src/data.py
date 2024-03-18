@@ -15,6 +15,16 @@ class IncompleteScanConfiguration(Exception):
 class DangerousDimOrdering(Exception):
     pass
 
+def find_pad(sl, st, N):
+    k = np.floor(N/st)
+    if N>((k*st) + (sl-st)):
+        pad = (k+1)*st + (sl-st) - N
+    elif N<((k*st) + (sl-st)):
+        pad = (k*st) + (sl-st) - N
+    else:
+        pad = 0
+    return int(pad/2), int(pad-int(pad/2))
+
 class XrDataset(torch.utils.data.Dataset):
     """
     torch Dataset based on an xarray.DataArray with on the fly slicing.
@@ -33,7 +43,9 @@ class XrDataset(torch.utils.data.Dataset):
     def __init__(
             self, da, patch_dims, domain_limits=None, strides=None,
             check_full_scan=False, check_dim_order=False,
-            postpro_fn=None
+            postpro_fn=None,
+            resize_factor=1,
+            res=0.05
             ):
         """
         da: xarray.DataArray with patch dims at the end in the dim orders
@@ -48,6 +60,58 @@ class XrDataset(torch.utils.data.Dataset):
         self.da = da.sel(**(domain_limits or {}))
         self.patch_dims = patch_dims
         self.strides = strides or {}
+        self.res = res
+
+        # extend self.da if domain larger than NetCDF
+        '''
+        if ( (domain_limits['lon'].start < self.da.lon.data[0]) or \
+             (domain_limits['lon'].stop > self.da.lon.data[-1]) or \
+             (domain_limits['lat'].start < self.da.lat.data[0]) or \
+             (domain_limits['lat'].stop > self.da.lat.data[-1]) ):
+
+            new_lon = np.arange(domain_limits['lon'].start,domain_limits['lon'].stop+self.res,self.res)
+            new_lat = np.arange(domain_limits['lat'].start,domain_limits['lat'].stop+self.res,self.res)
+            pad_ = {'lon':( int(np.abs(domain_limits['lon'].start - self.da.lon.data[0])/self.res),
+                            int(np.abs(domain_limits['lon'].stop - self.da.lon.data[-1])/self.res)),
+                    'lat':( int(np.abs(domain_limits['lat'].start - self.da.lat.data[0])/self.res),
+                            int(np.abs(domain_limits['lat'].stop - self.da.lat.data[-1])/self.res))}
+            self.da = self.da.pad(pad_, mode='constant', constant_values=np.nan)
+            self.da = self.da.assign_coords(
+                         lat = new_lat,
+                         lon = new_lon
+                       )
+        '''
+
+        # resizing
+        if resize_factor!=1:
+            self.da = self.da.coarsen(lon=resize_factor,boundary='trim').mean(skipna=True).coarsen(lat=resize_factor,boundary='trim').mean(skipna=True)
+            self.res*=resize_factor
+
+        # store coords 
+        lon_orig = self.da.lon.data
+        lat_orig = self.da.lat.data
+
+        # pad
+        nt, ny, nx = tuple(self.da.sizes[d] for d in ['time', 'lat', 'lon'])
+        pad_x = find_pad(self.patch_dims['lon'], self.strides['lon'], nx)
+        pad_y = find_pad(self.patch_dims['lat'], self.strides['lat'], ny)
+        pad_ = {'lon':(pad_x[0],pad_x[1]),
+                'lat':(pad_y[0],pad_y[1])}
+        self.da = self.da.pad(pad_, mode='reflect') #'constant', constant_values=0)
+        #self.da = self.da.pad(pad_, mode='constant', constant_values=0)
+        dx = [pad_ *self.res for pad_ in pad_x]
+        dy = [pad_ *self.res for pad_ in pad_y]
+        new_lon = np.concatenate((np.linspace(lon_orig[0]-dx[0],lon_orig[0],pad_x[0],endpoint=False),
+                                  lon_orig,
+                                  np.linspace(lon_orig[-1]+self.res,lon_orig[-1]+dx[1]+ self.res,pad_x[1],endpoint=False))) 
+        new_lat = np.concatenate((np.linspace(lat_orig[0]-dy[0],lat_orig[0],pad_y[0],endpoint=False),
+                                  lat_orig,
+                                  np.linspace(lat_orig[-1]+self.res,lat_orig[-1]+dy[1]+ self.res,pad_y[1],endpoint=False))) 
+        self.da = self.da.assign_coords(
+                         lat = np.round(new_lat,2),
+                         lon = np.round(new_lon,2)
+                       )
+
         da_dims = dict(zip(self.da.dims, self.da.shape))
         self.ds_size = {
             dim: max((da_dims[dim] - patch_dims[dim]) // self.strides.get(dim, 1) + 1, 0)
@@ -120,7 +184,7 @@ class XrDataset(torch.utils.data.Dataset):
         takes as input a list of np.ndarray of dimensions (b, *, *patch_dims)
         return a stitched xarray.DataArray with the coords of patch_dims
 
-    batches: list of torch tensor correspondin to batches without shuffle
+        batches: list of torch tensor correspondin to batches without shuffle
         weight: tensor of size patch_dims corresponding to the weight of a prediction depending on the position on the patch (default to ones everywhere)
         overlapping patches will be averaged with weighting 
         """
@@ -207,13 +271,15 @@ class AugmentedDataset(torch.utils.data.Dataset):
                              item.tgt, np.full_like(item.tgt,np.nan)))
 
 class BaseDataModule(pl.LightningDataModule):
-    def __init__(self, input_da, domains, xrds_kw, dl_kw, aug_kw=None, norm_stats=None, **kwargs):
+    def __init__(self, input_da, domains, xrds_kw, dl_kw, aug_kw=None, resize_factor=1, res=0.05, norm_stats=None, **kwargs):
         super().__init__()
         self.input_da = input_da
         self.domains = domains
         self.xrds_kw = xrds_kw
         self.dl_kw = dl_kw
         self.aug_kw = aug_kw if aug_kw is not None else {}
+        self.resize_factor = resize_factor
+        self.res = res
         self._norm_stats = norm_stats
 
         self.train_ds = None
@@ -236,27 +302,113 @@ class BaseDataModule(pl.LightningDataModule):
         normalize = lambda item: (item - m) / s
         return ft.partial(ft.reduce,lambda i, f: f(i), [
             TrainingItem._make,
-            lambda item: item._replace(tgt=normalize(item.tgt)),
             lambda item: item._replace(input=normalize(item.input)),
+            lambda item: item._replace(tgt=normalize(item.tgt)),
         ])
 
+    def post_fn_rand(self):
+        m, s = self.norm_stats()
+        normalize = lambda item: (item - m) / s
+        return ft.partial(ft.reduce,lambda i, f: f(i), [
+            TrainingItem._make,
+            lambda item: item._replace(input=normalize(self.rand_obs(item.input,obs=True))),
+            lambda item: item._replace(tgt=normalize(item.tgt)),
+        ])
+
+    def rand_obs(self, gt_item, obs=True):
+        obs_mask_item = ~np.isnan(gt_item)
+        _obs_item = gt_item
+        dtime = self.xrds_kw.patch_dims.time
+        dlat = self.xrds_kw.patch_dims.lat
+        dlon = self.xrds_kw.patch_dims.lon
+        for t_ in range(dtime):
+            obs_mask_item_t_ = obs_mask_item[t_]
+            if np.sum(obs_mask_item_t_)>.25*dlat*dlon:
+                obs_obj = .5*np.sum(obs_mask_item_t_)
+                while  np.sum(obs_mask_item_t_)>= obs_obj:
+                    half_patch_height = np.random.randint(2,10)
+                    half_patch_width = np.random.randint(2,10)
+                    idx_lat = np.random.randint(0,dlat)
+                    idx_lon = np.random.randint(0,dlon)
+                    obs_mask_item_t_[np.max([0,idx_lat-half_patch_height]):np.min([dlat,idx_lat+half_patch_height+1]),np.max([0,idx_lon-half_patch_width]):np.min([dlon,idx_lon+half_patch_width+1])] = 0
+                obs_mask_item[t_] = obs_mask_item_t_
+        obs_mask_item = obs_mask_item == 1
+        if obs==True:
+            obs_item = np.where(obs_mask_item, _obs_item, np.nan)
+            return obs_item
+        else:
+            tgt_item = np.where(obs_mask_item, np.nan, _obs_item)
+            return tgt_item
+
+    def rand_obs2(self, gt_item, obs=True):
+
+        npatch = 500
+        obs_mask_item = ~np.isnan(gt_item)
+        _obs_item = gt_item
+        dtime = self.xrds_kw.patch_dims.time
+        dlat = self.xrds_kw.patch_dims.lat
+        dlon = self.xrds_kw.patch_dims.lon
+
+        # define random size of additional wholes
+        half_patch_height = np.random.randint(2,10,(dtime,npatch))
+        half_patch_width = np.random.randint(2,10,(dtime,npatch))
+        idx_lat = np.random.randint(0,dlat,(dtime,npatch))
+        idx_lon = np.random.randint(0,dlon,(dtime,npatch))
+
+        # define objective of missing data (50% of the initial obs)
+        obs_obj = .5 * np.sum(obs_mask_item,axis=(1,2))
+        
+        # define 3d-numpy array index of new mask 
+        posy_start = (idx_lat-half_patch_height).clip(min=0)
+        posy_stop = (idx_lat+half_patch_height).clip(max=dlat)
+        posx_start = (idx_lon-half_patch_width).clip(min=0)
+        posx_stop = (idx_lon+half_patch_width).clip(max=dlon)
+        id_lat = [ [ np.arange(k,l) for k,l in zip(posy_start[t],posy_stop[t])] for t in range(dtime)]
+        id_lon = [ [ np.arange(k,l) for k,l in zip(posx_start[t],posx_stop[t])] for t in range(dtime)]
+        idx = np.concatenate([ np.array(np.meshgrid([t],id_lat[t][p],id_lon[t][p])).T.reshape(-1,3) \
+                               for t, p in np.array(np.meshgrid(np.arange(dtime),np.arange(npatch))).T.reshape(-1,2) ])
+        # clip the number of new missing data according to the objectives
+        idx_t = [ np.where(idx[:,0]==t)[0][0] for t in range(dtime) ]
+        idx_t.append(len(idx)-1)
+        stop_idx = [ idx_t[t] + np.argwhere( np.cumsum(obs_mask_item[idx[idx_t[t]:idx_t[t+1],0],
+                                                                     idx[idx_t[t]:idx_t[t+1],1],
+                                                                     idx[idx_t[t]:idx_t[t+1],2]]==1) >= obs_obj[t])[0] \
+                     if 2*obs_obj[t]/(dlat*dlon)>.4 else idx_t[t] for t in range(dtime) ]
+        idx_final = np.concatenate([np.arange(idx_t[t],stop_idx[t]) for t in range(dtime)])
+        # fill the new mask with 0
+        obs_mask_item[idx[idx_final,0],idx[idx_final,1],idx[idx_final,2]] = 0
+        # return the new item
+        if obs==True:
+            obs_item = np.where(obs_mask_item, _obs_item, np.nan)
+            return obs_item
+        else:
+            tgt_item = np.where(obs_mask_item, np.nan, _obs_item)
+            return tgt_item
 
     def setup(self, stage='test'):
         train_data = self.input_da.sel(self.domains['train'])
         post_fn = self.post_fn()
+        post_fn_rand = self.post_fn_rand()
+        #post_fn_rand = self.post_fn()
+
         self.train_ds = XrDataset(
-            train_data, **self.xrds_kw, postpro_fn=post_fn,
+            train_data, **self.xrds_kw, postpro_fn=post_fn_rand,
+            resize_factor = self.resize_factor,
+            res = self.res
         )
         if self.aug_kw:
             self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
 
         self.val_ds = XrDataset(
             self.input_da.sel(self.domains['val']), **self.xrds_kw, postpro_fn=post_fn,
+            resize_factor = self.resize_factor,
+            res =self.res
         )
         self.test_ds = XrDataset(
             self.input_da.sel(self.domains['test']), **self.xrds_kw, postpro_fn=post_fn,
+            resize_factor = self.resize_factor,
+            res = self.res
         )
-
 
     def train_dataloader(self):
         return  torch.utils.data.DataLoader(self.train_ds, shuffle=True, **self.dl_kw)
@@ -287,14 +439,14 @@ class ConcatDataModule(BaseDataModule):
     def setup(self, stage='test'):
         post_fn = self.post_fn()
         self.train_ds = XrConcatDataset([
-            XrDataset(self.input_da.sel(domain), **self.xrds_kw, postpro_fn=post_fn,)
+            XrDataset(self.input_da.sel(domain), **self.xrds_kw, postpro_fn=post_fn_rand,)
             for domain in self.domains['train']
         ])
         if self.aug_factor >= 1:
             self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
 
         self.val_ds = XrConcatDataset([
-            XrDataset(self.input_da.sel(domain), **self.xrds_kw, postpro_fn=post_fn,)
+            XrDataset(self.input_da.sel(domain), **self.xrds_kw, postpro_fn=post_fn_rand,)
             for domain in self.domains['val']
         ])
         self.test_ds = XrConcatDataset([

@@ -3,8 +3,10 @@ outputs
 logs
 multirun
 lightning_logs
-**/*.ipynb
+**/*.ipynb_checkpoints*
+*.ipynb_checkpoints*
 scratches
 tmp
 data
 jobs
+Notebook_SDE/natl_gf_w_5nadirs_swot.nc

@@ -1,5 +1,6 @@
 from hydra.core.config_store import ConfigStore
 from omegaconf import OmegaConf
+import esm_parser
 
 OmegaConf.register_new_resolver(
     "_singleton",
@@ -44,6 +45,12 @@ domains = {
     "qnatl": dict(lon=[-77., 0.], lat=[27., 64.]),
     "canaries": dict(lon=[-31, -14], lat=[33, 46]),
     "canaries_t": dict(lon=[-29, -17], lat=[33, 45]),
+    "baltic": dict(lon=[-10, 30], lat=[48, 66]),
+    "baltic_ext": dict(lon=[-12, 32], lat=[46, 68.001]),
+    #"baltic_small": dict(lon=[11, 30], lat=[54, 66])
+    "baltic_small": dict(lon=[18, 29.999], lat=[54, 65.999]),
+    "baltic_small2": dict(lon=[-10, 1.999], lat=[54, 65.999]),
+    "baltic_interior": dict(lon=[8, 30], lat=[54, 66])
 }
 
 for n, d in domains.items():
