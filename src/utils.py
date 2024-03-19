@@ -1,8 +1,6 @@
 import numpy as np
-import hydra
 from omegaconf import OmegaConf
 from pathlib import Path
-import functools as ft
 import metpy.calc as mpcalc
 import kornia
 import pandas as pd
@@ -21,11 +19,14 @@ def pipe(inp, fns):
         inp = f(inp)
     return inp
 
+
 def kwgetattr(obj, name):
     return getattr(obj, name)
 
+
 def callmap(inp, fns):
     return [fn(inp) for fn in fns]
+
 
 def half_lr_adam(lit_mod, lr):
     return torch.optim.Adam(
@@ -49,6 +50,7 @@ def cosanneal_lr_adam(lit_mod, lr, T_max=100, weight_decay=0.):
         "optimizer": opt,
         "lr_scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=T_max),
     }
+
 
 def cosanneal_lr_lion(lit_mod, lr, T_max=100):
     import lion_pytorch
@@ -124,6 +126,7 @@ def get_triang_time_wei(patch_dims, offset=0, **crop_kw):
         patch_dims.values(),
     )
 
+
 def load_enatl(*args, obs_from_tgt=True, **kwargs):
     # ds = xr.open_dataset('../sla-data-registry/qdata/enatl_wo_tide.nc')
     # print(ds)
@@ -136,44 +139,45 @@ def load_enatl(*args, obs_from_tgt=True, **kwargs):
     )
     nadirs = nadirs.interp(time=ssh.time, method='nearest')\
         .interp(lat=ssh.lat, lon=ssh.lon, method='zero')
-    ds =  xr.Dataset(dict(input=nadirs, tgt=(ssh.dims, ssh.values)), nadirs.coords)
+    ds = xr.Dataset(dict(input=nadirs, tgt=(ssh.dims, ssh.values)), nadirs.coords)
     if obs_from_tgt:
         ds = ds.assign(input=ds.tgt.transpose(*ds.input.dims).where(np.isfinite(ds.input), np.nan))
     return ds.transpose('time', 'lat', 'lon').to_array().load().sortby('variable')
 
 
 def load_altimetry_data(path, obs_from_tgt=False):
-    ds =  (
+    ds = (
         xr.open_dataset(path)
         # .assign(ssh=lambda ds: ds.ssh.coarsen(lon=2, lat=2).mean().interp(lat=ds.lat, lon=ds.lon))
         .load()
         .assign(
             input=lambda ds: ds.nadir_obs,
             tgt=lambda ds: remove_nan(ds.ssh),
-        )    
+        )
     )
 
     if obs_from_tgt:
         ds = ds.assign(input=ds.tgt.where(np.isfinite(ds.input), np.nan))
-    
+
     return (
         ds[[*src.data.TrainingItem._fields]]
         .transpose("time", "lat", "lon")
         .to_array()
     )
 
+
 def load_dc_data(**kwargs):
-    path_gt="../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_ssh_y2013.1y.nc",
-    path_obs ="NATL60/NATL/data_new/dataset_nadir_0d.nc"
+    path_gt = "../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_ssh_y2013.1y.nc",
+    path_obs = "NATL60/NATL/data_new/dataset_nadir_0d.nc"
 
 
 def load_full_natl_data(
-        path_obs="../sla-data-registry/CalData/cal_data_new_errs.nc",
-        path_gt="../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_ssh_y2013.1y.nc",
-        obs_var='five_nadirs',
-        gt_var='ssh',
-        **kwargs
-    ):
+    path_obs="../sla-data-registry/CalData/cal_data_new_errs.nc",
+    path_gt="../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_ssh_y2013.1y.nc",
+    obs_var='five_nadirs',
+    gt_var='ssh',
+    **kwargs
+):
     inp = xr.open_dataset(path_obs)[obs_var]
     gt = (
         xr.open_dataset(path_gt)[gt_var]
@@ -187,14 +191,16 @@ def load_full_natl_data(
 def rmse_based_scores_from_ds(ds, ref_variable='tgt', study_variable='out'):
     try:
         return rmse_based_scores(ds[ref_variable], ds[study_variable])[2:]
-    except:
+    except Exception:
         return [np.nan, np.nan]
+
 
 def psd_based_scores_from_ds(ds, ref_variable='tgt', study_variable='out'):
     try:
         return psd_based_scores(ds[ref_variable], ds[study_variable])[1:]
-    except:
+    except Exception:
         return [np.nan, np.nan]
+
 
 def rmse_based_scores(da_rec, da_ref):
     rmse_t = (
@@ -377,9 +383,7 @@ def load_cfg(xp_dir):
     try:
         OmegaConf.resolve(cfg)
         OmegaConf.resolve(cfg)
-    except Exception as e:
+    except Exception:
         return None, None
 
     return cfg, OmegaConf.select(hydra_cfg, "runtime.choices.xp")
-
-

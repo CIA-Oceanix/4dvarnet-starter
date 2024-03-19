@@ -1,6 +1,7 @@
 import torch
 torch.set_float32_matmul_precision('high')
 
+
 def base_training(trainer, dm, lit_mod, ckpt=None):
     if trainer.logger is not None:
         print()
@@ -9,6 +10,7 @@ def base_training(trainer, dm, lit_mod, ckpt=None):
 
     trainer.fit(lit_mod, datamodule=dm, ckpt_path=ckpt)
     trainer.test(lit_mod, datamodule=dm, ckpt_path='best')
+
 
 def multi_dm_training(trainer, dm, lit_mod, test_dm=None, test_fn=None, ckpt=None):
     if trainer.logger is not None:

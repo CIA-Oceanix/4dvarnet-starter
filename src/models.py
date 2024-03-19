@@ -44,15 +44,15 @@ class Lit4dVarNet(pl.LightningModule):
 
     def forward(self, batch):
         return self.solver(batch)
-    
+
     def step(self, batch, phase=""):
         if self.training and batch.tgt.isfinite().float().mean() < 0.9:
             return None, None
 
         loss, out = self.base_step(batch, phase)
-        grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
+        grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
         prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
-        self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
+        self.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
 
         training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost
         return training_loss, out
@@ -103,7 +103,7 @@ class Lit4dVarNet(pl.LightningModule):
 
         metric_data = self.test_data.pipe(self.pre_metric_fn)
         metrics = pd.Series({
-            metric_n: metric_fn(metric_data) 
+            metric_n: metric_fn(metric_data)
             for metric_n, metric_fn in self.metrics.items()
         })
 
@@ -139,9 +139,8 @@ class GradSolver(nn.Module):
         gmod = self.grad_mod(grad)
         state_update = (
             1 / (step + 1) * gmod
-                + self.lr_grad * (step + 1) / self.n_step * grad
+            + self.lr_grad * (step + 1) / self.n_step * grad
         )
-        
 
         return state - state_update
 
@@ -195,7 +194,7 @@ class ConvLstmGradModel(nn.Module):
     def forward(self, x):
         if self._grad_norm is None:
             self._grad_norm = (x**2).mean().sqrt()
-        x =  x / self._grad_norm
+        x = x / self._grad_norm
         hidden, cell = self._state
         x = self.dropout(x)
         x = self.down(x)
@@ -220,7 +219,7 @@ class ConvLstmGradModel(nn.Module):
 class BaseObsCost(nn.Module):
     def __init__(self, w=1) -> None:
         super().__init__()
-        self.w=w
+        self.w = w
 
     def forward(self, state, batch):
         msk = batch.input.isfinite()

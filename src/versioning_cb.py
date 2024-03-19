@@ -5,16 +5,17 @@ from pytorch_lightning import Callback
 from git.repo import Repo as GitRepo
 from git import IndexFile
 
+
 def commit_cwd(branch, message, repo=None):
     repo = repo or GitRepo('.')
     index = IndexFile(repo)
     log_branch = getattr(repo.heads, branch, False) or repo.create_head(branch)
 
     to_add = (
-                     set(repo.untracked_files)
-                     | set([d.a_path or d.b_path for d in index.diff(None) if d.change_type != 'D'])
-                     | set([d.a_path or d.b_path for d in index.diff(repo.head.commit) if d.change_type != 'A'])
-             ) - set([d.a_path or d.b_path for d in index.diff(None) if d.change_type == 'D'])
+        set(repo.untracked_files)
+        | set([d.a_path or d.b_path for d in index.diff(None) if d.change_type != 'D'])
+        | set([d.a_path or d.b_path for d in index.diff(repo.head.commit) if d.change_type != 'A'])
+    ) - set([d.a_path or d.b_path for d in index.diff(None) if d.change_type == 'D'])
 
     index.add(
         to_add,
@@ -26,6 +27,7 @@ def commit_cwd(branch, message, repo=None):
     log_commit = index.commit(message, parent_commits=[log_branch.commit], head=False)
     log_branch.commit = log_commit
     return log_commit
+
 
 class VersioningCallback(Callback):
     def __init__(self, repo_path='.', branch='run_log'):
@@ -44,4 +46,3 @@ class VersioningCallback(Callback):
             repo=self.git_repo
         )
         self.setup_hash = str(commit)
-
