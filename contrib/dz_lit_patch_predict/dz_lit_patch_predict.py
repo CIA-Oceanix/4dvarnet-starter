@@ -119,33 +119,6 @@ class LitModel(pl.LightningModule):
             da.to_netcdf(self.save_dir / f"{idx}.nc")
 
 
-def load_from_cfg(
-    cfg_path,
-    key,
-    overrides=None,
-    overrides_targets=None,
-    cfg_hydra_path=None,
-    call=True,
-):
-    print(key)
-    src_cfg = OmegaConf.load(Path(cfg_path))
-    overrides = overrides or dict()
-    OmegaConf.set_struct(src_cfg, True)
-    if cfg_hydra_path is not None:
-        hydra_cfg = OmegaConf.load(Path(cfg_hydra_path))
-        OmegaConf.register_new_resolver(
-            "hydra", lambda k: OmegaConf.select(hydra_cfg, k), replace=True
-        )
-    with omegaconf.open_dict(src_cfg):
-        cfg = OmegaConf.merge(src_cfg, overrides)
-    if overrides_targets is not None:
-        for path, target in overrides_targets.items():
-            node = OmegaConf.select(cfg, path)
-            node._target_ = target
-    node = OmegaConf.select(cfg, key)
-    return hydra.utils.call(node) if call else node
-
-
 ## PROCESS: Parameterize and implement how to go from input_files to output_files
 def run(
     input_path: str = "???",
@@ -199,7 +172,7 @@ Returns:
 """
 
 
-def register_lit_patch_predict(name, solver, patcher, trainer, params=None):
+def register(name, solver, patcher, trainer, params=None):
     params = params or None
     store = hydra_zen.store(group="patch_predict", package="_global_")
     params_store = hydra_zen.store(group="patch_predict/params", package="params")
