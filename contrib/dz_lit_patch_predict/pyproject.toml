@@ -14,7 +14,7 @@ Repository="https://github.com/CIA-Oceanix/4dvarnet-starter.git"
 
 
 [tool.setuptools]
-py-modules=["dz_lit_patch_predict"]
+py-modules=["dz_lit_patch_predict", "predict_4dvarnet_starter"]
 
 [tool.setuptools.packages.find]
 include = ["src*"]

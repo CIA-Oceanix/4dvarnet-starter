@@ -154,8 +154,9 @@ zen_endpoint = hydra_zen.zen(run)
 store = hydra_zen.ZenStore()
 store(HydraConf(help=HelpConf(header=run.__doc__, app_name=__name__)))
 
+recipe = hydra_zen.builds(run, populate_full_signature=True)
 store(
-    hydra_zen.builds(run, populate_full_signature=True),
+    recipe,
     name=__name__,
     group="ocb_mods",
     package="_global_",

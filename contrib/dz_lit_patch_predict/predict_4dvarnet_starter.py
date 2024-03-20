@@ -80,7 +80,7 @@ patcher = b(
     check_full_scan="${..params.check_full_scan}",
 )
 
-starter_predict = dz_lit_patch_predict.register(
+starter_predict, predict_recipe = dz_lit_patch_predict.register(
     name="starter_predict",
     solver=solver,
     patcher=patcher,

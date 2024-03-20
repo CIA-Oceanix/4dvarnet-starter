@@ -193,8 +193,7 @@ def register(name, solver, patcher, trainer, params=None):
         zen_dataclass=dict(cls_name="BasePredict"),
     )
 
-    store(
-        hydra_zen.make_config(
+    recipe = hydra_zen.make_config(
             bases=(base_config,),
             hydra_defaults=[
                 "_self_",
@@ -203,6 +202,7 @@ def register(name, solver, patcher, trainer, params=None):
                 {"/patch_predict/solver": name},
             ],
         ),
+    store(
         name=name,
         group="4dvarnet",
         package="_global_",
@@ -220,7 +220,7 @@ def register(name, solver, patcher, trainer, params=None):
         config_name="4dvarnet/" + __name__, version_base="1.3", config_path="."
     )(zen_endpoint)
 
-    return api_endpoint
+    return api_endpoint, recipe
 
 
 if __name__ == "__main__":
