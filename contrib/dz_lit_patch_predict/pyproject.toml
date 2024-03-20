@@ -12,9 +12,11 @@ authors=[
 [project.urls]
 Repository="https://github.com/CIA-Oceanix/4dvarnet-starter.git"
 
+[project.scripts]
+qf_predict_4dvarnet_starter = "qf_predict_4dvarnet_starter:starter_predict"
 
 [tool.setuptools]
-py-modules=["dz_lit_patch_predict", "predict_4dvarnet_starter"]
+py-modules=["dz_lit_patch_predict", "qf_predict_4dvarnet_starter"]
 
 [tool.setuptools.packages.find]
 include = ["src*"]

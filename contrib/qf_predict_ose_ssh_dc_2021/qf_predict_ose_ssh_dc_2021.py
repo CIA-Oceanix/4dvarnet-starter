@@ -4,9 +4,10 @@ import pandas as pd
 import qf_pipeline
 from qf_filter_merge_daily_ssh_tracks import run_cfg as filter_conf
 import qf_hydra_recipes
-import predict_4dvarnet_starter
+import qf_predict_4dvarnet_starter
 import qf_merge_patches
 import qf_download_altimetry_constellation
+import qf_alongtrack_metrics_from_map
 
 b = hydra_zen.make_custom_builds_fn()
 stages = {
@@ -24,7 +25,7 @@ stages = {
             output_path="data/prepared/gridded.nc",
         )
     )),
-    "_05_predict": predict_4dvarnet_starter.recipe(
+    "_05_predict": qf_predict_4dvarnet_starter.recipe(
         input_path= '${..04_grid.params.output_path}',
         output_dir= 'data/inference/batches',
         params = dict(
@@ -40,7 +41,7 @@ stages = {
         weight=b(qf_merge_patches.build_weight, patch_dims='${...05_predict.patcher.patches}'),
         out_coords='${..04_grid.params.grid}',
     ),
-    "_07_compute_metrics": qf_alongtrack_metrics_from_map.recipe,
+    "_07_compute_metrics": qf_alongtrack_metrics_from_map.recipe(),
 }
 
 

@@ -174,15 +174,19 @@ Returns:
 
 def register(name, solver, patcher, trainer, params=None):
     params = params or None
+
     store = hydra_zen.store(group="patch_predict", package="_global_")
+
     params_store = hydra_zen.store(group="patch_predict/params", package="params")
     patcher_store = store(group="patch_predict/patcher", package="patcher")
     trainer_store = store(group="patch_predict/trainer", package="trainer")
     solver_store = store(group="patch_predict/solver", package="solver")
+
     params_store(params, name=name)
     patcher_store(patcher, name=name)
     trainer_store(trainer, name=name)
     solver_store(solver, name=name)
+
     store = hydra_zen.store()
     store(HydraConf(help=HelpConf(header=run.__doc__, app_name=__name__)))
 
@@ -200,11 +204,14 @@ def register(name, solver, patcher, trainer, params=None):
                 {"/patch_predict/patcher": name},
                 {"/patch_predict/trainer": name},
                 {"/patch_predict/solver": name},
+                {"/patch_predict/params": name},
             ],
-        ),
+    )
+
     store(
+        recipe,
         name=name,
-        group="4dvarnet",
+        group="patch_predict",
         package="_global_",
     )
     # Create a  partial configuration associated with the above function (for easy extensibility)
@@ -217,11 +224,8 @@ def register(name, solver, patcher, trainer, params=None):
 
     zen_endpoint = hydra_zen.zen(run)
     api_endpoint = hydra.main(
-        config_name="4dvarnet/" + __name__, version_base="1.3", config_path="."
+        config_name="patch_predict/" + name, version_base="1.3", config_path="."
     )(zen_endpoint)
 
     return api_endpoint, recipe
 
-
-if __name__ == "__main__":
-    api_endpoint()

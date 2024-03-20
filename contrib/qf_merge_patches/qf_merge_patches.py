@@ -66,29 +66,6 @@ def build_weight(patch_dims, dim_weights=dict(time=triang, lat=crop, lon=crop)):
     )
 
 
-def better_merge_batches():
-    rec_da = xr.DataArray(
-        np.zeros(dims_shape.values()),
-        dims=dims_shape.keys(),
-        coords=out_coords,
-    )
-
-    count_da = xr.zeros_like(rec_da)
-    batches = list(Path(input_directory).glob("*.nc"))
-
-    for b in tqdm.tqdm(batches):
-        da = xr.open_dataarray(b)
-        w = xr.zeros_like(da) + weight
-        wda = da * w
-        coords_labels = set(dims_shape.keys()).intersection(da.coords.dims)
-        da_co = {c: da[c] for c in coords_labels}
-        rec_da.loc[da_co] = rec_da.sel(da_co) + wda
-        count_da.loc[da_co] = count_da.sel(da_co) + w
-
-    Path(output_path).parent.mkdir(exist_ok=True, parents=True)
-    (rec_da / count_da).to_dataset(name=out_var).to_netcdf(output_path)
-
-
 ## PROCESS: Parameterize and implement how to go from input_files to output_files
 def run(
     input_directory="data/inferred_batches",
@@ -134,7 +111,7 @@ def run(
 
 ## EXPOSE: document, and configure CLI
 run.__doc__ = f"""
-Pipeline description: 
+Pipeline description:
     {PIPELINE_DESC}
 
 Input description:
