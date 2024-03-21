@@ -54,10 +54,10 @@ params = dict(
 trainer = b(pl.Trainer, inference_mode=False, accelerator="${..params.accelerator}")
 solver = b(
     load_from_cfg,
-    cfg_path="config.yaml",
+    cfg_path="${..params.config_path}",
     key="model",
     overrides=dict(
-        model=dict(checkpoint_path="${.....params.ckpt_path}", map_location="cpu"),
+        model=dict(checkpoint_path="${....params.ckpt_path}", map_location="cpu"),
     ),
     overrides_targets=dict(
         model="src.models.Lit4dVarNet.load_from_checkpoint",
@@ -68,11 +68,11 @@ patcher = b(
     da=b(
         toolz.pipe,
         b(xr.open_dataset, filename_or_obj="${.....input_path}"),
-        b(operator.itemgetter, "${....params.input_var}"),
+        b(operator.itemgetter, "${......params.input_var}"),
     ),
     patches=b(
         load_from_cfg,
-        cfg_path="config.yaml",
+        cfg_path="${...params.config_path}",
         key="datamodule.xrds_kw.patch_dims",
         call=False,
     ),
@@ -80,7 +80,7 @@ patcher = b(
     check_full_scan="${..params.check_full_scan}",
 )
 
-starter_predict, predict_recipe = dz_lit_patch_predict.register(
+starter_predict, recipe = dz_lit_patch_predict.register(
     name="starter_predict",
     solver=solver,
     patcher=patcher,

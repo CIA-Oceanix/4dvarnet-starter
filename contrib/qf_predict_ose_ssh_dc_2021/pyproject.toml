@@ -12,7 +12,7 @@ authors=[
 Repository="https://github.com/quentinf00/my_ocb.git"
 
 [project.scripts]
-qf_predict_ose_ssh_dc_2021 = "qf_predict_ose_ssh_dc_2021:api_endpoint"
+qf_predict_ose_ssh_dc_2021 = "qf_predict_ose_ssh_dc_2021:inference_data_pipeline"
 
 [tool.setuptools]
 py-modules=["qf_predict_ose_ssh_dc_2021"]
