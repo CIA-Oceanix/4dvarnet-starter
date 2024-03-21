@@ -197,7 +197,7 @@ def register(name, solver, patcher, trainer, params=None):
         zen_dataclass=dict(cls_name="BasePredict"),
     )
 
-    recipe = hydra_zen.make_config(
+    _recipe = hydra_zen.make_config(
             bases=(base_config,),
             hydra_defaults=[
                 "_self_",
@@ -209,7 +209,7 @@ def register(name, solver, patcher, trainer, params=None):
     )
 
     store(
-        recipe,
+        _recipe,
         name=name,
         group="patch_predict",
         package="_global_",
@@ -222,6 +222,16 @@ def register(name, solver, patcher, trainer, params=None):
     solver_store.add_to_hydra_store(overwrite_ok=True)
     # Create CLI endpoint
 
+
+    with hydra.initialize(version_base='1.3', config_path='.'):
+        cfg = hydra.compose("/patch_predict/" + name)
+    from omegaconf import OmegaConf
+    recipe = hydra_zen.make_config(
+        **{k: node for k,node in OmegaConf.to_container(cfg).items()
+            if k not in ('_target_', '_partial_', '_args_', '_convert_', '_recursive_')},
+        bases=(base_config,),
+        zen_dataclass={'cls_name': f'{"".join(x.capitalize() for x in name.lower().split("_"))}Recipe'}
+    )
     zen_endpoint = hydra_zen.zen(run)
     api_endpoint = hydra.main(
         config_name="patch_predict/" + name, version_base="1.3", config_path="."

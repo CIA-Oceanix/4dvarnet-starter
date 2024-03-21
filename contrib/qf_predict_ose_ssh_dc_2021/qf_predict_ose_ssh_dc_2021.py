@@ -9,6 +9,7 @@ import qf_download_altimetry_constellation
 import qf_alongtrack_metrics_from_map
 
 b = hydra_zen.make_custom_builds_fn()
+
 grid_cfg = qf_hydra_recipes.grid_recipe(params=dict(
     dict(
         input_path="data/prepared/inference_combined.nc",
@@ -22,15 +23,9 @@ grid_cfg = qf_hydra_recipes.grid_recipe(params=dict(
 ))
 
 s3cfg = qf_hydra_recipes.get_s3_recipe(params=dict(remote_path='${....params.config_path}', local_path='model_xp/config.yaml'))
+s3ckpt = qf_hydra_recipes.get_s3_recipe(params=dict(remote_path='${....params.checkpoint_path}', local_path='model_xp/checkpoint.ckpt'))
 
-print(hydra_zen.to_yaml(s3cfg))
-
-stages = {
-    "_01_fetch_inference_data": qf_download_altimetry_constellation.recipe(),
-    "_02_fetch_config": s3cfg,
-    "_03_fetch_checkpoint": qf_hydra_recipes.get_s3_recipe(params=dict(remote_path='${....params.checkpoint_path}', local_path='model_xp/checkpoint.ckpt')),
-    "_04_grid": grid_cfg,
-    "_05_predict": qf_predict_4dvarnet_starter.recipe(
+predict_cfg = qf_predict_4dvarnet_starter.recipe(
         input_path= '${.._04_grid.params.output_path}',
         output_dir= 'data/inference/batches',
         params = dict(
@@ -39,13 +34,21 @@ stages = {
             strides='${....params.strides}',
             check_full_scan=True,
         ),
-    ),
-    "_06_merge_batches": qf_merge_patches.recipe(
-        input_directory="data/inference/batches",
-        output_path="method_outputs/merged_batches.nc",
-        weight=b(qf_merge_patches.build_weight, patch_dims='${..._05_predict.patcher.patches}'),
-        out_coords='${.._04_grid.params.grid}',
-    ),
+    )
+merge_cfg = qf_merge_patches.recipe(
+    input_directory="data/inference/batches",
+    output_path="method_outputs/merged_batches.nc",
+    weight=b(qf_merge_patches.build_weight, patch_dims='${..._05_predict.patcher.patches}'),
+    out_coords='${.._04_grid.params.grid}',
+)
+
+stages = {
+    "_01_fetch_inference_data": qf_download_altimetry_constellation.recipe(),
+    "_02_fetch_config": s3cfg,
+    "_03_fetch_checkpoint": s3ckpt,
+    "_04_grid": grid_cfg,
+    "_05_predict": predict_cfg,
+    "_06_merge_batches": merge_cfg,
     "_07_compute_metrics": qf_alongtrack_metrics_from_map.recipe(),
 }
 
@@ -67,5 +70,5 @@ params = dict(
 
 
 inference_data_pipeline, recipe = qf_pipeline.register_pipeline(
-    "4dvarnet-dc_ose_2021", stages=stages, params=params
+    "dc_ose_2021_4dvarnet", stages=stages, params=params
 )
