@@ -135,9 +135,9 @@ zen_endpoint = hydra_zen.zen(run)
 store = hydra_zen.ZenStore()
 store(HydraConf(help=HelpConf(header=run.__doc__, app_name=__name__)))
 
-recipe = hydra_zen.builds(run, populate_full_signature=True)
+_recipe = hydra_zen.builds(run, populate_full_signature=True)
 store(
-    recipe,
+    _recipe,
     name=__name__,
     group="ocb_mods",
     package="_global_",
@@ -145,6 +145,7 @@ store(
 # Create a  partial configuration associated with the above function (for easy extensibility)
 run_cfg = hydra_zen.builds(run, populate_full_signature=True, zen_partial=True)
 
+recipe = hydra_zen.builds(run, populate_full_signature=True, zen_partial=True)
 store.add_to_hydra_store(overwrite_ok=True)
 
 # Create CLI endpoint
