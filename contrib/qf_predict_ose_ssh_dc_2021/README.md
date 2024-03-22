@@ -25,6 +25,7 @@ pip install -q -e my_ocb/modules/qf_hydra_recipes
 pip install -q -e my_ocb/modules/qf_pipeline
 pip install -q --no-deps -e my_ocb/pipelines/qf_alongtrack_metrics_from_map
 pip install -q --no-deps -e my_ocb/pipelines/qf_download_altimetry_constellation
+pip install -q --no-deps -e my_ocb/datachallenges/dc_ose_2021
 
 # install 4dvarnet-starter modules
 pip install -q -e 4dvarnet-starter/contrib/qf_merge_patches

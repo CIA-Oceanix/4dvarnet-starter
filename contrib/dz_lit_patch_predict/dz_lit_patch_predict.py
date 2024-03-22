@@ -58,6 +58,30 @@ def output_validation(
     except:
         log.error("Failed to validate output", exc_info=1)
 
+def load_from_cfg(
+    cfg_path,
+    key,
+    overrides=None,
+    overrides_targets=None,
+    cfg_hydra_path=None,
+    call=True,
+):
+    src_cfg = OmegaConf.load(Path(cfg_path))
+    overrides = overrides or dict()
+    OmegaConf.set_struct(src_cfg, True)
+    if cfg_hydra_path is not None:
+        hydra_cfg = OmegaConf.load(Path(cfg_hydra_path))
+        OmegaConf.register_new_resolver(
+            "hydra", lambda k: OmegaConf.select(hydra_cfg, k), replace=True
+        )
+    with omegaconf.open_dict(src_cfg):
+        cfg = OmegaConf.merge(src_cfg, overrides)
+    if overrides_targets is not None:
+        for path, target in overrides_targets.items():
+            node = OmegaConf.select(cfg, path)
+            node._target_ = target
+    node = OmegaConf.select(cfg, key)
+    return hydra.utils.call(node) if call else node
 
 PredictItem = namedtuple("PredictItem", ("input",))
 
@@ -123,18 +147,23 @@ class LitModel(pl.LightningModule):
 def run(
     input_path: str = "???",
     output_dir: str = "???",
-    trainer="???",
-    patcher="???",
-    solver="???",
     norm_stats: list = None,
-    batch_size: int = 4,
+    dl_kws: dict = dict(batch_size=4, num_workers=1),
+    trainer_fn="???",
+    patcher_fn="???",
+    solver_fn="???",
     params: Optional[dict] = None,
     _skip_val: bool = False,
 ):
+    print(patcher_fn)
     log.info("Starting")
     if not _skip_val:
         input_validation(input_path=input_path)
     Path(output_dir).mkdir(parents=True, exist_ok=True)  # Make output directory
+
+    trainer = trainer_fn(**params)
+    patcher = patcher_fn(**params)
+    solver = solver_fn(**params)
 
     if norm_stats is None:
         norm_stats = patcher.da.mean().item(), patcher.da.std().item()
@@ -148,7 +177,7 @@ def run(
         ),
     )
 
-    dl = torch.utils.data.DataLoader(torch_ds, batch_size=batch_size)
+    dl = torch.utils.data.DataLoader(torch_ds, **dl_kws)
     litmod = LitModel(patcher, solver, norm_stats, save_dir=output_dir)
     trainer.predict(litmod, dataloaders=dl)
 
@@ -173,14 +202,15 @@ Returns:
 
 
 def register(name, solver, patcher, trainer, params=None):
-    params = params or None
+    if isinstance(params, dict):
+        params = hydra_zen.make_config(**params)
 
     store = hydra_zen.store(group="patch_predict", package="_global_")
 
     params_store = hydra_zen.store(group="patch_predict/params", package="params")
-    patcher_store = store(group="patch_predict/patcher", package="patcher")
-    trainer_store = store(group="patch_predict/trainer", package="trainer")
-    solver_store = store(group="patch_predict/solver", package="solver")
+    patcher_store = store(group="patch_predict/patcher", package="patcher_fn")
+    trainer_store = store(group="patch_predict/trainer", package="trainer_fn")
+    solver_store = store(group="patch_predict/solver", package="solver_fn")
 
     params_store(params, name=name)
     patcher_store(patcher, name=name)
@@ -237,5 +267,5 @@ def register(name, solver, patcher, trainer, params=None):
         config_name="patch_predict/" + name, version_base="1.3", config_path="."
     )(zen_endpoint)
 
-    return api_endpoint, recipe
+    return api_endpoint, recipe, params
 

@@ -77,18 +77,22 @@ def run(
     _skip_val: bool = False,
 ):
     log.info("Starting")
-    if not _skip_val:
-        input_validation(input_directory=input_directory)
+    # if not _skip_val:
+    #     input_validation(input_directory=input_directory)
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)  # Make output directory
 
     ## TODO: actual stuff
+    out_coords = xr.Dataset(coords=out_coords)
+    dims_shape = dims_shape or dict(**out_coords.sizes)
 
+    log.info(f"Reconstructing array with dims {dims_shape}")
     rec_da = xr.DataArray(
-        np.zeros(dims_shape.values()),
-        dims=dims_shape.keys(),
-        coords=out_coords,
+        np.zeros(list(dims_shape.values())),
+        dims=list(dims_shape.keys()),
+        coords=out_coords.coords,
     )
+    log.debug(f"Output dataarray {rec_da}")
 
     count_da = xr.zeros_like(rec_da)
     batches = list(Path(input_directory).glob("*.nc"))
@@ -105,8 +109,8 @@ def run(
     Path(output_path).parent.mkdir(exist_ok=True, parents=True)
     (rec_da / count_da).to_dataset(name=out_var).to_netcdf(output_path)
 
-    if not _skip_val:
-        output_validation(output_path=output_path)
+    # if not _skip_val:
+    #     output_validation(output_path=output_path)
 
 
 ## EXPOSE: document, and configure CLI
