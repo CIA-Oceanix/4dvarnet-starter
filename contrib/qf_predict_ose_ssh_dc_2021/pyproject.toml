@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+dynamic = ["version"]
+name = "qf_predict_ose_ssh_dc_2021"
+authors=[
+  {name = "Quentin Febvre", email = "quentin.febvre@gmail.com"},
+]
+[project.urls]
+Repository="https://github.com/quentinf00/my_ocb.git"
+
+[project.scripts]
+qf_predict_ose_ssh_dc_2021 = "qf_predict_ose_ssh_dc_2021:inference_data_pipeline"
+
+[tool.setuptools]
+py-modules=["qf_predict_ose_ssh_dc_2021"]

@@ -21,6 +21,9 @@ dependencies:
   - pip:
     - GitPython
     - einops
+    - toolz
+    - xrpatcher
     - hydra-core
+    - hydra-zen
     - kornia
     - tabulate
