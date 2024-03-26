@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+dynamic = ["version"]
+name = "dz_lit_patch_predict"
+authors=[
+  {name = "Daniel & Quentin Zhu & Febvre", email = "daniel.zhu@imt-atlantique.fr"},
+]
+#packages
+[project.urls]
+Repository="https://github.com/CIA-Oceanix/4dvarnet-starter.git"
+
+[project.scripts]
+qf_predict_4dvarnet_starter = "qf_predict_4dvarnet_starter:starter_predict"
+
+[tool.setuptools]
+py-modules=["dz_lit_patch_predict", "qf_predict_4dvarnet_starter"]
+
+[tool.setuptools.packages.find]
+include = ["src*"]
+namespaces = false
