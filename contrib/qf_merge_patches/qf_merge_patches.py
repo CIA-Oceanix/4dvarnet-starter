@@ -66,6 +66,7 @@ def build_weight(patch_dims, dim_weights=dict(time=triang, lat=crop, lon=crop)):
     )
 
 
+
 ## PROCESS: Parameterize and implement how to go from input_files to output_files
 def run(
     input_directory="data/inferred_batches",
@@ -74,6 +75,8 @@ def run(
     out_coords="???",
     dims_shape=None,
     out_var="ssh",
+    _cround=dict(lat=3, lon=3),
+    # dump_every=1000,
     _skip_val: bool = False,
 ):
     log.info("Starting")
@@ -83,6 +86,8 @@ def run(
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)  # Make output directory
 
     ## TODO: actual stuff
+    for c, nd in _cround.items():
+        out_coords[c] = np.round(out_coords[c], nd)
     out_coords = xr.Dataset(coords=out_coords)
     dims_shape = dims_shape or dict(**out_coords.sizes)
 
@@ -97,16 +102,28 @@ def run(
     count_da = xr.zeros_like(rec_da)
     batches = list(Path(input_directory).glob("*.nc"))
 
-    for b in tqdm.tqdm(batches):
+    Path(output_path).parent.mkdir(exist_ok=True, parents=True)
+    # rec_da.to_dataset(name=out_var).to_netcdf(output_path+'.tmp_rec.nc')
+    # count_da.to_dataset(name=out_var).to_netcdf(output_path+'.tmp_w.nc')
+    # rec_da = xr.open_dataset(output_path+'.tmp_rec.nc', chunks={})
+    # count_da = xr.open_dataset(output_path+'.tmp_w.nc', chunks={})
+    for i, b in enumerate(tqdm.tqdm(batches)):
         da = xr.open_dataarray(b)
+        da = da.assign_coords(**{c: np.round(da[c].values, nd) for c, nd in _cround.items()})
         w = xr.zeros_like(da) + weight
         wda = da * w
         coords_labels = set(dims_shape.keys()).intersection(da.coords.dims)
-        da_co = {c: da[c] for c in coords_labels}
+        da_co = {c: da[c].values for c in coords_labels}
         rec_da.loc[da_co] = rec_da.sel(da_co) + wda
         count_da.loc[da_co] = count_da.sel(da_co) + w
+        # da.close()
+        # del da, w, wda
+        # if (i+1) % dump_every == 0:
+        #     rec_da.to_dataset(name=out_var).to_netcdf(output_path+'.tmp_rec.nc')
+        #     count_da.to_dataset(name=out_var).to_netcdf(output_path+'.tmp_w.nc')
+        #     rec_da = xr.open_dataset(output_path+'.tmp_rec.nc', chunks={})
+        #     count_da = xr.open_dataset(output_path+'.tmp_w.nc', chunks={})
 
-    Path(output_path).parent.mkdir(exist_ok=True, parents=True)
     (rec_da / count_da).to_dataset(name=out_var).to_netcdf(output_path)
 
     # if not _skip_val:

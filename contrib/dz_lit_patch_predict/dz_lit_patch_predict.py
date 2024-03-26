@@ -140,7 +140,7 @@ class LitModel(pl.LightningModule):
             out = outputs[i]
             c = self.patcher[idx].coords.to_dataset()[list(self.out_dims)]
             da = xr.DataArray(out, dims=self.out_dims, coords=c.coords)
-            da.to_netcdf(self.save_dir / f"{idx}.nc")
+            da.astype(np.float32).to_netcdf(self.save_dir / f"{idx}.nc")
 
 
 ## PROCESS: Parameterize and implement how to go from input_files to output_files
@@ -161,8 +161,11 @@ def run(
         input_validation(input_path=input_path)
     Path(output_dir).mkdir(parents=True, exist_ok=True)  # Make output directory
 
+    log.info("Instantiating Trainer")
     trainer = trainer_fn(**params)
+    log.info("Instantiating Patcher")
     patcher = patcher_fn(**params)
+    log.info("Instantiating Solver")
     solver = solver_fn(**params)
 
     if norm_stats is None:
@@ -178,6 +181,7 @@ def run(
     )
 
     dl = torch.utils.data.DataLoader(torch_ds, **dl_kws)
+    log.info(f"{next(iter(dl)).input.shape=}")
     litmod = LitModel(patcher, solver, norm_stats, save_dir=output_dir)
     trainer.predict(litmod, dataloaders=dl)
 
