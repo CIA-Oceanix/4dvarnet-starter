@@ -114,6 +114,7 @@ class LitModel(pl.LightningModule):
         norm_stats,
         save_dir="batch_preds",
         out_dims=("time", "lat", "lon"),
+        crop_save=None,
     ):
         super().__init__()
         self.patcher = patcher
@@ -123,6 +124,7 @@ class LitModel(pl.LightningModule):
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.out_dims = out_dims
         self.bs = 0
+        self.crop_save = crop_save
 
     def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0):
         outputs = self.solver(batch)
@@ -140,6 +142,8 @@ class LitModel(pl.LightningModule):
             out = outputs[i]
             c = self.patcher[idx].coords.to_dataset()[list(self.out_dims)]
             da = xr.DataArray(out, dims=self.out_dims, coords=c.coords)
+            if self.crop_save is not None:
+                da = da.isel(self.crop_save)
             da.astype(np.float32).to_netcdf(self.save_dir / f"{idx}.nc")
 
 
@@ -148,6 +152,7 @@ def run(
     input_path: str = "???",
     output_dir: str = "???",
     norm_stats: list = None,
+    crop_save: dict | None = None,
     dl_kws: dict = dict(batch_size=4, num_workers=1),
     trainer_fn="???",
     patcher_fn="???",
@@ -182,7 +187,7 @@ def run(
 
     dl = torch.utils.data.DataLoader(torch_ds, **dl_kws)
     log.info(f"{next(iter(dl)).input.shape=}")
-    litmod = LitModel(patcher, solver, norm_stats, save_dir=output_dir)
+    litmod = LitModel(patcher, solver, norm_stats, save_dir=output_dir, crop_save=crop_save)
     trainer.predict(litmod, dataloaders=dl)
 
     if not _skip_val:

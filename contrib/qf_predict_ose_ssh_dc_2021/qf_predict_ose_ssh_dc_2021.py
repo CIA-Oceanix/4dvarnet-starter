@@ -3,16 +3,15 @@ import numpy as np
 import pandas as pd
 import qf_pipeline
 import qf_hydra_recipes
-import dz_lit_patch_predict
+# import dz_lit_patch_predict
 import qf_predict_4dvarnet_starter
 import qf_merge_patches
-import qf_download_altimetry_constellation
-import qf_alongtrack_metrics_from_map
 import dc_ose_2021_pipelines
 
 b = hydra_zen.make_custom_builds_fn()
-input_data_cfg = dc_ose_2021_pipelines.dl_inference_data.recipe(
-    params=dc_ose_2021_pipelines.dl_inference_data.params(
+pb = hydra_zen.make_custom_builds_fn(zen_partial=True)
+input_data_cfg = dc_ose_2021_pipelines.dl_input_data.recipe(
+    params=dc_ose_2021_pipelines.dl_input_data.params(
         sweep='${....params.sweep}',
         sat_list='${....params.input_sats}',
         min_time='${....params.inference.min_time}',
@@ -51,16 +50,19 @@ predict_cfg = qf_predict_4dvarnet_starter.recipe(
             ckpt_path="model_xp/checkpoint.ckpt",
             strides='${....params.patching.strides}',
             check_full_scan=True,
+            devices=1,
         ),
+        crop_save=dict(time=b(slice,7, -7), lat=b(slice,20, -20), lon=b(slice,20, -20))
     )
 
+import toolz, operator
 merge_cfg = qf_merge_patches.recipe(
     input_directory="data/inference/batches",
     output_path="data/method_outputs/merged_batches.nc",
-    weight=b(qf_merge_patches.build_weight,
-        patch_dims='${....params.patching.patch_dims}',
-        dim_weights='${....params.patching.dim_weights}',
-    ),
+    weight=b(toolz.pipe, b(qf_merge_patches.build_weight,
+        patch_dims='${params.patching.patch_dims}',
+        dim_weights='${params.patching.dim_weights}',
+        ), pb(qf_merge_patches.crop_w, slices='${oc.dict.values: stages._06_predict.crop_save}')),
     out_coords='${.._05_grid.params.grid}',
 )
 

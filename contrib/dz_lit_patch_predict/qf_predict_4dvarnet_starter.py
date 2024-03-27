@@ -28,6 +28,7 @@ params = dict(
     accelerator="gpu",
     strides=dict(),
     check_full_scan=True,
+    devices=1,
 )
 
 def trainer(accelerator, devices, **kwargs):

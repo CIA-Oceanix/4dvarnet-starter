@@ -65,8 +65,57 @@ def build_weight(patch_dims, dim_weights=dict(time=triang, lat=crop, lon=crop)):
         * dim_weights.get("lon", np.ones)(patch_dims["lon"])[None, None, :]
     )
 
+def crop_w(weight, slices):
+    print(slices)
+    return weight[tuple(slices)]
+
+def foo():
+
+    import pandas as pd
+    import numpy as np
+
+    date = pd.to_datetime('2019-03-05')
 
 
+    coords = dict(
+        time = pd.date_range('2018-12-01', '2020-01-31'),
+        lat = np.arange(-90, 90, 0.05),
+        lon = np.arange(-180, 180, 0.05),
+    )
+
+    patch_dims=dict(time=15, lat=240, lon=240)
+    strides=dict(time=7, lat=120, lon=120)
+
+    from collections import OrderedDict
+    import numpy as np
+    import itertools
+
+    point = dict(time=np.nonzero(coords['time'] == (date))[0], lat=0, lon=7199)
+    patches=patch_dims
+    strides = strides
+    da_size = {c: (len(coords[c]) - patches[c]) // strides[c] + 1 for c in coords}
+
+
+    def get_indices_for_point(
+        point: dict[str, int],
+        da_size: dict[str, int],
+        patches: dict[str, int],
+        strides: dict[str, int],
+    ) -> list[int]:
+
+        start_indices = {dim: 0 for dim in da_size.keys()}
+        for dim in point:
+            start_indices[dim] =  max(0, np.ceil((point[dim] - patches[dim]) / strides[dim]).astype(int))
+
+        end_indices = {dim: da_size[dim] for dim in da_size.keys()}
+        for dim in point:
+            end_indices[dim] =  min(da_size[dim], 1+start_indices[dim] + (point[dim] - (start_indices[dim] * strides[dim]))  // strides[dim])
+
+        dim_indices = {
+            dim: np.arange(start_indices[dim], end_indices[dim]) for dim in da_size.keys()
+        }
+        dim_indices
+        np.ravel_multi_index([ np.ravel(a) for a in np.meshgrid(*dim_indices.values()) ], tuple(da_size.values()))
 ## PROCESS: Parameterize and implement how to go from input_files to output_files
 def run(
     input_directory="data/inferred_batches",
@@ -103,10 +152,6 @@ def run(
     batches = list(Path(input_directory).glob("*.nc"))
 
     Path(output_path).parent.mkdir(exist_ok=True, parents=True)
-    # rec_da.to_dataset(name=out_var).to_netcdf(output_path+'.tmp_rec.nc')
-    # count_da.to_dataset(name=out_var).to_netcdf(output_path+'.tmp_w.nc')
-    # rec_da = xr.open_dataset(output_path+'.tmp_rec.nc', chunks={})
-    # count_da = xr.open_dataset(output_path+'.tmp_w.nc', chunks={})
     for i, b in enumerate(tqdm.tqdm(batches)):
         da = xr.open_dataarray(b)
         da = da.assign_coords(**{c: np.round(da[c].values, nd) for c, nd in _cround.items()})
