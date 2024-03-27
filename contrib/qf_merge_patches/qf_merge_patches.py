@@ -96,26 +96,84 @@ def foo():
     da_size = {c: (len(coords[c]) - patches[c]) // strides[c] + 1 for c in coords}
 
 
-    def get_indices_for_point(
-        point: dict[str, int],
-        da_size: dict[str, int],
-        patches: dict[str, int],
-        strides: dict[str, int],
-    ) -> list[int]:
+def get_indices_for_point(
+    point: dict[str, int],
+    da_size: dict[str, int],
+    patches: dict[str, int],
+    strides: dict[str, int],
+) -> list[int]:
 
-        start_indices = {dim: 0 for dim in da_size.keys()}
-        for dim in point:
-            start_indices[dim] =  max(0, np.ceil((point[dim] - patches[dim]) / strides[dim]).astype(int))
+    start_indices = {dim: 0 for dim in da_size.keys()}
+    for dim in point:
+        start_indices[dim] =  max(0, np.ceil((point[dim] - patches[dim]) / strides[dim]).astype(int))
 
-        end_indices = {dim: da_size[dim] for dim in da_size.keys()}
-        for dim in point:
-            end_indices[dim] =  min(da_size[dim], 1+start_indices[dim] + (point[dim] - (start_indices[dim] * strides[dim]))  // strides[dim])
+    end_indices = {dim: da_size[dim] for dim in da_size.keys()}
+    for dim in point:
+        end_indices[dim] =  min(da_size[dim], 1+start_indices[dim] + (point[dim] - (start_indices[dim] * strides[dim]))  // strides[dim])
 
-        dim_indices = {
-            dim: np.arange(start_indices[dim], end_indices[dim]) for dim in da_size.keys()
-        }
-        dim_indices
-        np.ravel_multi_index([ np.ravel(a) for a in np.meshgrid(*dim_indices.values()) ], tuple(da_size.values()))
+    dim_indices = {
+        dim: np.arange(start_indices[dim], end_indices[dim]) for dim in da_size.keys()
+    }
+    return  np.ravel_multi_index([ np.ravel(a) for a in np.meshgrid(*dim_indices.values()) ], tuple(da_size.values()))
+
+
+## PROCESS: Parameterize and implement how to go from input_files to output_files
+def run_one_day(
+    input_directory="data/inferred_batches",
+    output_path="method_outputs/merged_batches.nc",
+    weight="???",
+    out_coords="???",
+    dims_shape=None,
+    out_var="ssh",
+    _cround=dict(lat=3, lon=3),
+    da_size='???',
+    patches='???',
+    strides='???',
+    # dump_every=1000,
+    _skip_val: bool = False,
+):
+    log.info("Starting")
+    # if not _skip_val:
+    #     input_validation(input_directory=input_directory)
+
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)  # Make output directory
+
+    ## TODO: actual stuff
+    for c, nd in _cround.items():
+        out_coords[c] = np.round(out_coords[c], nd)
+    out_coords = xr.Dataset(coords=out_coords)
+    dims_shape = dims_shape or dict(**out_coords.sizes)
+
+    log.info(f"Reconstructing array with dims {dims_shape}")
+    rec_da = xr.DataArray(
+        np.zeros(list(dims_shape.values())),
+        dims=list(dims_shape.keys()),
+        coords=out_coords.coords,
+    )
+    log.debug(f"Output dataarray {rec_da}")
+
+    count_da = xr.zeros_like(rec_da)
+    batch_idx = get_indices_for_point(dict(time=np.nonzero(out_coords.time['time'] == (date))[0]))
+    batches = list(Path(input_directory).glob("*.nc"))
+
+    Path(output_path).parent.mkdir(exist_ok=True, parents=True)
+    for i, b in enumerate(tqdm.tqdm(batches)):
+        da = xr.open_dataarray(b)
+        da = da.assign_coords(**{c: np.round(da[c].values, nd) for c, nd in _cround.items()})
+        w = xr.zeros_like(da) + weight
+        wda = da * w
+        coords_labels = set(dims_shape.keys()).intersection(da.coords.dims)
+        da_co = {c: da[c].values for c in coords_labels}
+        rec_da.loc[da_co] = rec_da.sel(da_co) + wda
+        count_da.loc[da_co] = count_da.sel(da_co) + w
+
+
+    (rec_da / count_da).to_dataset(name=out_var).to_netcdf(output_path)
+
+    # if not _skip_val:
+    #     output_validation(output_path=output_path)
+
+
 ## PROCESS: Parameterize and implement how to go from input_files to output_files
 def run(
     input_directory="data/inferred_batches",
@@ -161,13 +219,7 @@ def run(
         da_co = {c: da[c].values for c in coords_labels}
         rec_da.loc[da_co] = rec_da.sel(da_co) + wda
         count_da.loc[da_co] = count_da.sel(da_co) + w
-        # da.close()
-        # del da, w, wda
-        # if (i+1) % dump_every == 0:
-        #     rec_da.to_dataset(name=out_var).to_netcdf(output_path+'.tmp_rec.nc')
-        #     count_da.to_dataset(name=out_var).to_netcdf(output_path+'.tmp_w.nc')
-        #     rec_da = xr.open_dataset(output_path+'.tmp_rec.nc', chunks={})
-        #     count_da = xr.open_dataset(output_path+'.tmp_w.nc', chunks={})
+
 
     (rec_da / count_da).to_dataset(name=out_var).to_netcdf(output_path)
 

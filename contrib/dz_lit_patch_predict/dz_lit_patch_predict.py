@@ -3,7 +3,7 @@ import operator
 from collections import namedtuple
 from pathlib import Path
 from typing import Any, Callable, Optional
-
+from functools import partial
 import hydra
 import hydra_zen
 import numpy as np
@@ -94,7 +94,7 @@ class XrDataset(torch.utils.data.Dataset):
         self.postpro_fns = postpro_fns or [lambda x: x.values]
 
     def __getitem__(self, idx):
-        item = self.patcher[idx].load()
+        item = self.patcher[idx].compute()
         item = toolz.thread_first(item, *self.postpro_fns)
         return item
 
@@ -147,6 +147,12 @@ class LitModel(pl.LightningModule):
             da.astype(np.float32).to_netcdf(self.save_dir / f"{idx}.nc")
 
 
+def make_item(item):
+    return PredictItem._make((item.values.astype(np.float32),))
+
+def norm(item , mean, std):
+    return item._replace(input=(item.input - mean) / std)
+
 ## PROCESS: Parameterize and implement how to go from input_files to output_files
 def run(
     input_path: str = "???",
@@ -174,19 +180,24 @@ def run(
     solver = solver_fn(**params)
 
     if norm_stats is None:
-        norm_stats = patcher.da.mean().item(), patcher.da.std().item()
+        logging.info(f"Computing norm stats")
+        norm_stats = patcher.da.mean().compute().item(), patcher.da.std().compute().item()
     mean, std = norm_stats
     logging.info(f"{norm_stats=}")
+
+    logging.info(f"Instantiating Dataset")
+
+
     torch_ds = XrDataset(
         patcher=patcher,
-        postpro_fns=(
-            lambda item: PredictItem._make((item.values.astype(np.float32),)),
-            lambda item: item._replace(input=(item.input - mean) / std),
-        ),
+        postpro_fns=[make_item, partial(norm, mean=mean, std=std)],
     )
+    logging.info(f"Instantiating DataLoader")
+    dl = torch.utils.data.DataLoader(torch_ds, **dl_kws, multiprocessing_context="forkserver")
+    log.info(f"Batch shape: {next(iter(dl)).input.shape=}")
 
-    dl = torch.utils.data.DataLoader(torch_ds, **dl_kws)
-    log.info(f"{next(iter(dl)).input.shape=}")
+    logging.info(f"Instantiating solver")
+
     litmod = LitModel(patcher, solver, norm_stats, save_dir=output_dir, crop_save=crop_save)
     trainer.predict(litmod, dataloaders=dl)
 

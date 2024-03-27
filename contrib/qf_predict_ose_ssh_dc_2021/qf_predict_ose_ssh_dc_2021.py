@@ -43,9 +43,11 @@ s3cfg = qf_hydra_recipes.get_s3_recipe(params=dict(remote_path='${....params.mod
 s3ckpt = qf_hydra_recipes.get_s3_recipe(params=dict(remote_path='${....params.model.checkpoint_path}', local_path='model_xp/checkpoint.ckpt'))
 
 predict_cfg = qf_predict_4dvarnet_starter.recipe(
-        input_path= '${.._05_grid.params.output_path}',
+        # input_path= '${.._05_grid.params.output_path}',
         output_dir= 'data/inference/batches',
+
         params = qf_predict_4dvarnet_starter.params(
+            input_path= 'data/prepared/gridded',
             config_path="model_xp/config.yaml",
             ckpt_path="model_xp/checkpoint.ckpt",
             strides='${....params.patching.strides}',
@@ -112,7 +114,7 @@ params = dict(
 )
 
 stages = {
-    "_01_fetch_inference_data": input_data_cfg, 
+    "_01_fetch_inference_data": input_data_cfg,
     "_02_fetch_config": s3cfg,
     "_03_fetch_checkpoint": s3ckpt,
     "_04_concat": concat_cfg,
