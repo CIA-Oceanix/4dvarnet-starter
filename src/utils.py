@@ -74,7 +74,7 @@ def cosanneal_spde_lr_adam_winit2(lit_mod, lr, T_max=100, weight_decay=0.):
         "lr_scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=T_max),
     }
 
-def cosanneal_spde_lr_adam_winit(lit_mod, lr, T_max=100, weight_decay=0.):
+def cosanneal_spde_lr_adam_winit(lit_mod, lr, T_max=100, weight_decay=0., epoch_start_opt2=50):
 
     opt1 = torch.optim.Adam(
             [
@@ -85,7 +85,9 @@ def cosanneal_spde_lr_adam_winit(lit_mod, lr, T_max=100, weight_decay=0.):
                 {"params": lit_mod.solver.parameters(), "lr": lr},
             ],weight_decay=weight_decay)
     scheduler1 = torch.optim.lr_scheduler.CosineAnnealingLR(opt1, T_max=T_max)
-    scheduler2 = torch.optim.lr_scheduler.CosineAnnealingLR(opt2, T_max=T_max)
+    #scheduler2 = torch.optim.lr_scheduler.CosineAnnealingLR(opt2, T_max=T_max)
+    lambda2 = lambda epoch: 10**float(-( np.max([epoch-epoch_start_opt2,0])//10))
+    scheduler2 = torch.optim.lr_scheduler.LambdaLR(opt2, lr_lambda = lambda2)
     return  [opt1, opt2], [scheduler1, scheduler2]
 
 def cosanneal_score_lr_adam(lit_mod, lr, T_max=100, weight_decay=0.):

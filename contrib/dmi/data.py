@@ -10,6 +10,10 @@ from torch.utils.data import  ConcatDataset
 
 TrainingItem = namedtuple('TrainingItem', ['input', 'tgt'])
 
+TrainingItem_wgeo = namedtuple(
+    'TrainingItem_wgeo', ['input', 'tgt', 'lat', 'lon', 'mask']
+)
+
 class IncompleteScanConfiguration(Exception):
     pass
 
@@ -46,7 +50,8 @@ class XrDataset(torch.utils.data.Dataset):
             check_full_scan=False, check_dim_order=False,
             postpro_fn=None,
             resize_factor=1,
-            res=0.05
+            res=0.05,
+            pad = False
             ):
         """
         da: xarray.DataArray with patch dims at the end in the dim orders
@@ -62,6 +67,7 @@ class XrDataset(torch.utils.data.Dataset):
         self.patch_dims = patch_dims
         self.strides = strides or {}
         self.res = res
+        self.pad = pad
 
         # extend self.da if domain larger than NetCDF
         '''
@@ -94,21 +100,22 @@ class XrDataset(torch.utils.data.Dataset):
 
         # pad
         nt, ny, nx = tuple(self.da.sizes[d] for d in ['time', 'lat', 'lon'])
-        pad_x = find_pad(self.patch_dims['lon'], self.strides['lon'], nx)
-        pad_y = find_pad(self.patch_dims['lat'], self.strides['lat'], ny)
-        pad_ = {'lon':(pad_x[0],pad_x[1]),
+        if self.pad:
+            pad_x = find_pad(self.patch_dims['lon'], self.strides['lon'], nx)
+            pad_y = find_pad(self.patch_dims['lat'], self.strides['lat'], ny)
+            pad_ = {'lon':(pad_x[0],pad_x[1]),
                 'lat':(pad_y[0],pad_y[1])}
-        self.da = self.da.pad(pad_, mode='reflect') #'constant', constant_values=0)
-        #self.da = self.da.pad(pad_, mode='constant', constant_values=0)
-        dx = [pad_ *self.res for pad_ in pad_x]
-        dy = [pad_ *self.res for pad_ in pad_y]
-        new_lon = np.concatenate((np.linspace(lon_orig[0]-dx[0],lon_orig[0],pad_x[0],endpoint=False),
+            self.da = self.da.pad(pad_, mode='reflect') #'constant', constant_values=0)
+            #self.da = self.da.pad(pad_, mode='constant', constant_values=0)
+            dx = [pad_ *self.res for pad_ in pad_x]
+            dy = [pad_ *self.res for pad_ in pad_y]
+            new_lon = np.concatenate((np.linspace(lon_orig[0]-dx[0],lon_orig[0],pad_x[0],endpoint=False),
                                   lon_orig,
                                   np.linspace(lon_orig[-1]+self.res,lon_orig[-1]+dx[1]+ self.res,pad_x[1],endpoint=False))) 
-        new_lat = np.concatenate((np.linspace(lat_orig[0]-dy[0],lat_orig[0],pad_y[0],endpoint=False),
+            new_lat = np.concatenate((np.linspace(lat_orig[0]-dy[0],lat_orig[0],pad_y[0],endpoint=False),
                                   lat_orig,
                                   np.linspace(lat_orig[-1]+self.res,lat_orig[-1]+dy[1]+ self.res,pad_y[1],endpoint=False))) 
-        self.da = self.da.assign_coords(
+            self.da = self.da.assign_coords(
                          lat = np.round(new_lat,2),
                          lon = np.round(new_lon,2)
                        )
@@ -171,8 +178,7 @@ class XrDataset(torch.utils.data.Dataset):
                 for dim, idx in zip(self.ds_size.keys(),
                                     np.unravel_index(item, tuple(self.ds_size.values())))
                 }
-        item =  self.da.isel(**sl).to_array().sortby('variable')
-
+        item =  self.da.isel(**sl).to_array()#.sortby('variable')
         if self.return_coords:
             return item.coords.to_dataset()[list(self.patch_dims)]
 
@@ -198,15 +204,19 @@ class XrDataset(torch.utils.data.Dataset):
         if weight is None:
             weight = np.ones(list(self.patch_dims.values()))
         w = xr.DataArray(weight, dims=list(self.patch_dims.keys()))
-
+        
+        print(items)
+        print('toto1')
         coords = self.get_coords()
-
+        print('toto2')
         new_dims = [f'v{i}' for i in range(len(items[0].shape) - len(coords[0].dims))]
+        print('toto3')
         dims = new_dims + list(coords[0].dims)
-
+        print('toto4')
         das = [xr.DataArray(it.numpy(), dims=dims, coords=co.coords)
                for  it, co in zip(items, coords)]
 
+        print(das[0])
         #da_shape = dict(zip(coords[0].dims, self.da.shape[-len(coords[0].dims):]))
         self.da.dims.values()
         da_shape = dict(zip(coords[0].dims, list(self.da.dims.values())[-len(coords[0].dims):]))
@@ -224,6 +234,23 @@ class XrDataset(torch.utils.data.Dataset):
             count_da.loc[da.coords] = count_da.sel(da.coords) + w
 
         return rec_da / count_da
+
+class XrDataset_wgeo(XrDataset):
+    def __getitem__(self, item):
+        sl = {
+                dim: slice(self.strides.get(dim, 1) * idx,
+                           self.strides.get(dim, 1) * idx + self.patch_dims[dim])
+                for dim, idx in zip(self.ds_size.keys(),
+                                    np.unravel_index(item, tuple(self.ds_size.values())))
+                }
+        item =  self.da.isel(**sl).to_array()#.sortby('variable')
+        if self.return_coords:
+            return item.coords.to_dataset()[list(self.patch_dims)]
+
+        item = item.data.astype(np.float32)
+        if self.postpro_fn is not None:
+            return self.postpro_fn(item)
+        return item
 
 class XrConcatDataset(torch.utils.data.ConcatDataset):
     """
@@ -390,6 +417,7 @@ class BaseDataModule(pl.LightningDataModule):
             return tgt_item
 
     def setup(self, stage='test'):
+
         train_data = self.input_da.sel(self.domains['train'])
         post_fn = self.post_fn()
         post_fn_rand = self.post_fn_rand()
@@ -415,14 +443,15 @@ class BaseDataModule(pl.LightningDataModule):
                 self.input_da.sel(**{'time': sl}), 
                 **self.xrds_kw, postpro_fn=post_fn,
                 resize_factor = self.resize_factor,
-                res =self.res
+                res = self.res,
               ) for sl in self.domains['val']['time'] ]
             )
 
         self.test_ds = XrDataset(
             self.input_da.sel(self.domains['test']), **self.xrds_kw, postpro_fn=post_fn,
             resize_factor = self.resize_factor,
-            res = self.res
+            res = self.res,
+            pad = True
         )
 
     def train_dataloader(self):
@@ -433,6 +462,89 @@ class BaseDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         return torch.utils.data.DataLoader(self.test_ds, shuffle=False, **self.dl_kw)
+
+class BaseDataModule_wgeo(BaseDataModule):
+
+    def get_train_range(self, v):
+        train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {})).sel(
+            self.domains['train']
+        )
+        return train_data[v].min().values.item(), train_data[v].max().values.item()
+
+    def post_fn(self):
+        normalize = lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1]
+        lat_r = self.get_train_range('lat')
+        lon_r = self.get_train_range('lon')
+        minmax_scale = lambda l, r: 2 * (l - r[0]) / (r[1] - r[0]) - 1.
+        return ft.partial(
+            ft.reduce,
+            lambda i, f: f(i),
+            [
+                TrainingItem_wgeo._make,
+                lambda item: item._replace(input=normalize(item.input)),
+                lambda item: item._replace(tgt=normalize(item.tgt)),
+                lambda item: item._replace(lat=minmax_scale(np.expand_dims(item.lat[0], axis=0), lat_r)),
+
+                lambda item: item._replace(lon=minmax_scale(np.expand_dims(item.lon[0], axis=0), lon_r)),
+                lambda item: item._replace(mask=np.expand_dims(item.mask[0], axis=0)),
+            ],
+        )
+
+    def post_fn_rand(self):
+        normalize = lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1]
+        lat_r = self.get_train_range('lat')
+        lon_r = self.get_train_range('lon')
+        minmax_scale = lambda l, r: 2 * (l - r[0]) / (r[1] - r[0]) - 1.
+        return ft.partial(
+            ft.reduce,
+            lambda i, f: f(i),
+            [
+                TrainingItem_wgeo._make,
+                lambda item: item._replace(input=normalize(self.rand_obs(item.input,obs=True))),
+                lambda item: item._replace(tgt=normalize(item.tgt)),
+                lambda item: item._replace(lat=minmax_scale(np.expand_dims(item.lat[0], axis=0), lat_r)),
+                lambda item: item._replace(lon=minmax_scale(np.expand_dims(item.lon[0], axis=0), lon_r)),
+                lambda item: item._replace(mask=np.expand_dims(item.mask[0], axis=0)),
+            ],
+        )
+
+    def setup(self, stage='test'):
+
+        train_data = self.input_da.sel(self.domains['train'])
+        post_fn = self.post_fn()
+        post_fn_rand = self.post_fn_rand()
+        #post_fn_rand = self.post_fn()
+
+        self.train_ds = XrDataset_wgeo(
+            train_data, **self.xrds_kw, postpro_fn=post_fn_rand,
+            resize_factor = self.resize_factor,
+            res = self.res
+        )
+        if self.aug_kw:
+            self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
+
+        if isinstance(self.domains['val']['time'], slice):
+            self.val_ds = XrDataset_wgeo(
+                self.input_da.sel(self.domains['val']), **self.xrds_kw, postpro_fn=post_fn,
+                resize_factor = self.resize_factor,
+                res =self.res
+            )
+        else:
+           self.val_ds =ConcatDataset([
+              XrDataset_wgeo(
+                self.input_da.sel(**{'time': sl}),
+                **self.xrds_kw, postpro_fn=post_fn,
+                resize_factor = self.resize_factor,
+                res =self.res
+              ) for sl in self.domains['val']['time'] ]
+            )
+
+        self.test_ds = XrDataset_wgeo(
+            self.input_da.sel(self.domains['test']), **self.xrds_kw, postpro_fn=post_fn,
+            resize_factor = self.resize_factor,
+            res = self.res,
+            pad = True
+        )
 
 class ConcatDataModule(BaseDataModule):
     def train_mean_std(self):

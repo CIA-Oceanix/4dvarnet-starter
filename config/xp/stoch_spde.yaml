@@ -1,9 +1,8 @@
 # @package _global_
 
 paths:
-    natl_gf_5nads: data/natl_gf_w_5nadirs.nc
-    natl_gf_5nads_swot: data/natl_gf_w_5nadirs_swot.nc  
-    enatl_gf_5nads: ../sla-data-registry/qdata/enatl_wo_tide.nc
+    natl_4nads_swot_osse: /DATASET/mbeauchamp/natl_4nadirs_swot.nc
+    natl_6nads_ose: /DATASET/mbeauchamp/natl_ose_6nadirs.nc
 
 domain: ???
 
@@ -18,7 +17,7 @@ trainer:
     save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 97 #92 v2
+  max_epochs: 53
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
@@ -31,20 +30,14 @@ datamodule:
   _target_: src.data.BaseDataModule
   input_da: 
     _target_: src.utils.load_altimetry_data
-    path: ${paths.natl_gf_5nads_swot}
+    path: ${paths.natl_4nads_swot_osse}
   domains:
     train:
       time: {_target_: builtins.slice, _args_: ['2013-02-24', '2013-09-30']}
     val: 
       time: {_target_: builtins.slice, _args_: ['2012-12-15', '2013-02-24']}
-    #test: 
-    #  time: {_target_: builtins.slice,  _args_: ['2012-10-01', '2012-12-20']}
-    #train:
-    #  time: {_target_: builtins.slice, _args_: ['2013-02-13', '2013-02-28']}
-    #val:
-    #  time: {_target_: builtins.slice, _args_: ['2012-12-11', '2012-12-26']}
-    test:
-      time: {_target_: builtins.slice,  _args_: ['2012-10-01', '2012-10-13']}
+    test: 
+      time: {_target_: builtins.slice,  _args_: ['2012-10-01', '2012-12-20']}
   xrds_kw:
     #patch_dims: { time: 15, lat: "$(( 240//${datamodule.resize_factor))", lon: "$(( 240//${datamodule.resize_factor ))"}
     #strides: { time: 1, lat: "$((200//${datamodule.resize_factor)", lon: "$((200//${datamodule.resize_factor ))"}
@@ -58,18 +51,26 @@ datamodule:
   resize_factor: 2
 
 model:
-  _target_: contrib.stoch_spde.lit_model_spde.Lit4dVarNet
+  _target_: contrib.stoch_spde.lit_model_spde_winit.Lit4dVarNet
+  train_init: True
+  downsamp: 4
+  frcst_lead: 1
   persist_rw: False
   opt_fn:
-    _target_: src.utils.cosanneal_spde_lr_adam
+    _target_: src.utils.cosanneal_spde_lr_adam_winit
     _partial_: true
     lr: 1e-3
     T_max: ${trainer.max_epochs}
-  rec_weight:
-    _target_: src.utils.get_triang_time_wei
-    #patch_dims: { time: ${datamodule.xrds_kw.patch_dims.time},  lat: '#{${datamodule.xrds_kw.patch_dims.lat}//${datamodule.resize_factor}', lon: '#{${datamodule.xrds_kw.patch_dims.lon}//${datamodule.resize_factor}' }
+  rec_weight: 
+    #_target_: src.utils.get_triang_time_wei
+    _target_: src.utils.get_last_time_wei
     patch_dims: ${datamodule.xrds_kw.patch_dims}
-    #crop: {time: 0, lat: '#{20//${datamodule.resize_factor}', lon: '#{20//${datamodule.resize_factor}'}
+    crop: {time: 0, lat: 10, lon: 10}
+    offset: 1
+  optim_weight:
+    #_target_: src.utils.get_triang_time_wei
+    _target_: src.utils.get_linear_time_wei
+    patch_dims: ${datamodule.xrds_kw.patch_dims}
     crop: {time: 0, lat: 10, lon: 10}
     offset: 1
   solver: 
@@ -81,43 +82,34 @@ model:
       _target_: contrib.stoch_spde.models_spde.NLL
       shape_data: 
         - ${datamodule.xrds_kw.patch_dims.time}
-        #- '#{${datamodule.xrds_kw.patch_dims.lat}//${datamodule.resize_factor}'
         - 120
-        # - '#{${datamodule.xrds_kw.patch_dims.lon}//${datamodule.resize_factor}'
         - 120
-      pow: 2
+      pow: 1
       spde_type: "adv_diff"
+      st_lag:
+        - 1
+        - 20
+        - 20
+      scheme: FUDM1
+      downsamp: 2
     nlpobs: 
       _target_: contrib.stoch_spde.models_spde.NLpObs
-    #prior_cost:
-    #  _target_: src.models.BilinAEPriorCost
-    #  dim_in: 81 #${datamodule.xrds_kw.patch_dims.time}
-    #  dim_hidden: 162
-    #  bilin_quad: False
-    #  # bilin_quad: True
-    #  downsamp: 2
-    #  nt: ${datamodule.xrds_kw.patch_dims.time}
-    prior_cost:
-      _target_: contrib.stoch_spde.unet.UNetPriorCost
-      dim_in: 81 #${datamodule.xrds_kw.patch_dims.time}
-      nt: ${datamodule.xrds_kw.patch_dims.time}
+    prior_cost: None
     obs_cost:
       _target_: src.models.BaseObsCost
     grad_mod: 
       _target_: src.models.ConvLstmGradModel
-      #dim_in: ${datamodule.xrds_kw.patch_dims.time}
       dim_in: 81
       dim_hidden: 244
-    unet_prior: True
+    unet_prior: False
   test_metrics: ${metrics.test_metrics}
   pre_metric_fn: 
         _target_: xarray.Dataset.sel
         _partial_: True
-        #time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
-        time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-11-22"]}
+        time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
         lat: ${domain.test.lat}
         lon: ${domain.test.lon}
-  n_simu: 2
+  n_simu: 100
 
 metrics:
   nrmse_scores: {_target_: src.utils.rmse_based_scores_from_ds, _partial_: True}
@@ -131,13 +123,12 @@ metrics:
     'lt': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.psd_scores}', '${metrics.get1}']}
 
 entrypoints:
-  - _target_: pytorch_lightning.seed_everything
-    seed: 333
+  #- _target_: pytorch_lightning.seed_everything
+  #  seed: 333
   - _target_: src.train.base_training
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    ckpt: /homes/m19beauc/4dvarnet-starter/4dvarnet_spde.ckpt
 
 defaults:
   - /domain: gf

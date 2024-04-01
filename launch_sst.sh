@@ -6,7 +6,7 @@ list_outputs=()
 # run 4DVarNet sequentially for the 12 months
 for month in {1..12} ; do
   echo "Run 4DVarNet on month"${month}
-  CUDA_VISIBLE_DEVICES=3 HYDRA_FULL_ERROR=1 python main.py xp=dmi_sst_test_${month}_oibench
+  CUDA_VISIBLE_DEVICES=5 HYDRA_FULL_ERROR=1 python main.py xp=dmi_sst_test_${month}_oibench
   N=`ls -Art ${diro} | tail -n 1 | cut -f2 -d'_'`
   mm1=$((month-1))
   mp1=$((month+1))

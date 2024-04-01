@@ -43,6 +43,18 @@ class GradSolver_Lgv(nn.Module):
         self.lambda_obs = torch.nn.Parameter(torch.Tensor([1.]))
         self.lambda_reg = torch.nn.Parameter(torch.Tensor([1.]))
 
+        self.downsamp = 2#self.nll.downsamp
+        self.down = nn.AvgPool2d(self.downsamp) if self.downsamp is not None else nn.Identity()
+        
+        self.up = (
+            nn.UpsamplingBilinear2d(scale_factor=self.downsamp)
+            #Upsampler(scale_factor=self.downsamp,
+            #         mode='bilinear',
+            #         align_corners=False,
+            #         antialias=True)
+            if self.downsamp is not None
+            else nn.Identity()
+        )
     def custom_sigmoid(self,x,min,max):
         add_const = min/(max-min)
         mult_const = max-min
@@ -84,6 +96,16 @@ class GradSolver_Lgv(nn.Module):
             #qg_veloc = self.init_fields(batch.input.detach()).to(device)
             #m1_init = qg_veloc[:,0,:,:,:]
             #m2_init = qg_veloc[:,1,:,:,:]
+            kappa_init = torch.sum(torch.abs(kfilts.spatial_gradient(x_init,normalized=True)),dim=2)
+            kappa_init = torch.max(kappa_init)-kappa_init+.01
+            tau_init = torch.sum(torch.abs(kfilts.spatial_gradient(x_init,normalized=True)),dim=2)+.01
+            m1_init = kfilts.spatial_gradient(x_init,normalized=True)[:,:,0,:,:]
+            m2_init = kfilts.spatial_gradient(x_init,normalized=True)[:,:,1,:,:]
+            vx_init = kfilts.spatial_gradient(x_init,order=1,normalized=True)[:,:,0,:,:]
+            vy_init = kfilts.spatial_gradient(x_init,order=1,normalized=True)[:,:,1,:,:]
+            gamma_init = torch.ones(batch.input.size()).to(device)
+            beta_init = torch.ones(batch.input.size()).to(device)
+            '''
             kappa_init = torch.ones(batch.input.size()).to(device)*0.1
             tau_init = torch.ones(batch.input.size()).to(device)*1
             m1_init = torch.ones(batch.input.size()).to(device)*0.1
@@ -91,7 +113,45 @@ class GradSolver_Lgv(nn.Module):
             vx_init = torch.zeros(batch.input.size()).to(device)
             vy_init = torch.zeros(batch.input.size()).to(device)
             gamma_init = torch.ones(batch.input.size()).to(device)
-            beta_init = torch.zeros(batch.input.size()).to(device)
+            beta_init = torch.ones(batch.input.size()).to(device)
+            '''
+            """       
+            H = []
+            for k in range(n_t):
+                vx_ = torch.reshape(vx_init[:,k,:,:],(n_b,n_x*n_y))
+                vy_ = torch.reshape(vy_init[:,k,:,:],(n_b,n_x*n_y))
+                vxy = torch.stack([vx_,vy_],dim=2)
+                vxyT = torch.permute(vxy,(0,2,1))
+                gamma_ = torch.reshape(gamma_init[:,k,:,:],(n_b,n_x*n_y))
+                beta_ = torch.reshape(beta_init[:,k,:,:],(n_b,n_x*n_y))
+                H_ = torch.einsum('ij,bk->bijk',
+                              torch.eye(2).to(device),
+                              gamma_)+\
+                 torch.einsum('bk,bijk->bijk',beta_,torch.einsum('bki,bjk->bijk',vxy,vxyT))
+                H.append(H_)
+            H = torch.stack(H,dim=4)
+
+            xr.Dataset(data_vars={'H11':(('time','lat','lon'),np.reshape(H[0,0,0,:,:9].t().detach().cpu(),(9,120,120)))},
+                   coords={'time':np.arange(9),
+                   'lon':np.arange(-66, -54, 0.1),
+                   'lat':np.arange(32, 44, 0.1)}).H11.plot(col='time')
+            plt.show()     
+            xr.Dataset(data_vars={'H12':(('time','lat','lon'),np.reshape(H[0,0,1,:,:9].t().detach().cpu(),(9,120,120)))},
+                   coords={'time':np.arange(9),
+                   'lon':np.arange(-66, -54, 0.1),
+                   'lat':np.arange(32, 44, 0.1)}).H12.plot(col='time')
+            plt.show()   
+            xr.Dataset(data_vars={'H21':(('time','lat','lon'),np.reshape(H[0,1,0,:,:9].t().detach().cpu(),(9,120,120)))},
+                   coords={'time':np.arange(9),
+                   'lon':np.arange(-66, -54, 0.1),
+                   'lat':np.arange(32, 44, 0.1)}).H21.plot(col='time')
+            plt.show()   
+            xr.Dataset(data_vars={'H22':(('time','lat','lon'),np.reshape(H[0,1,1,:,:9].t().detach().cpu(),(9,120,120)))},
+                   coords={'time':np.arange(9),
+                   'lon':np.arange(-66, -54, 0.1),
+                   'lat':np.arange(32, 44, 0.1)}).H22.plot(col='time')
+            plt.show()   
+            """ 
             if x_init is None:
                 x_init = batch.input.nan_to_num().detach()
             state_init =  torch.cat((x_init,
@@ -173,13 +233,11 @@ class GradSolver_Lgv(nn.Module):
             beta = res[:,idx_beta,:,:]
             
             # parameters: gamma > 0
-            gamma = res[:,idx_gamma,:,:]
             gamma =  F.relu(gamma)+.01
             res = torch.index_add(res,1,idx_gamma.to(device),-1*res[:,idx_gamma,:,:])
             res = torch.index_add(res,1,idx_gamma.to(device),gamma)
 
             # parameters: beta > 0
-            beta = res[:,idx_beta,:,:]
             beta =  F.relu(beta)+.01  
             res = torch.index_add(res,1,idx_beta.to(device),-1*res[:,idx_beta,:,:])
             res = torch.index_add(res,1,idx_beta.to(device),beta)             
@@ -269,16 +327,11 @@ class ConvLstmGradModel(nn.Module):
         )
 
         self._state = []
-        self.downsamp = downsamp
         self.down = nn.AvgPool2d(downsamp) if downsamp is not None else nn.Identity()
-        
         self.up = (
-            Upsampler(scale_factor=self.downsamp,
-                     mode='bilinear',
-                     align_corners=False,
-                     antialias=True)
+            nn.UpsamplingBilinear2d(scale_factor=downsamp)
             if downsamp is not None
-            else torch.nn.Identity()
+            else nn.Identity()
         )
 
     def reset_state(self, inp):
@@ -311,5 +364,4 @@ class ConvLstmGradModel(nn.Module):
         self._state = hidden, cell
         out = self.conv_out(hidden)
         out = self.up(out)
-
         return out

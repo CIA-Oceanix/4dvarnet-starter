@@ -30,13 +30,28 @@ class Upsampler(nn.Module):
         return x
 
 class Lit4dVarNet(pl.LightningModule):
-    def __init__(self, solver, solver2, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, n_simu=100, train_init=True, downsamp = None, frcst_lead = None):
+    def __init__(self, solver, solver2, rec_weight, optim_weight1, optim_weight2, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, n_simu=100, train_init=True, downsamp = None, frcst_lead = None, epoch_start_opt2=300):
 
         super().__init__()
         self.solver = solver
         self.solver2 = solver2
 
         self.register_buffer('rec_weight', torch.from_numpy(rec_weight), persistent=persist_rw)
+        self.register_buffer('optim_weight1', torch.from_numpy(optim_weight1), persistent=persist_rw)
+        self.register_buffer('optim_weight2', torch.from_numpy(optim_weight2), persistent=persist_rw)
+
+        # crop_daw for the joint solver of x/theta
+        # mapping: [--,--,x,x,x,x,x,--,--]
+        # forecast: [--,--,--,--,x,x,x,x,x]
+        self.crop_daw = solver.optim_weight1.patch_dims['time']-solver.optim_weight2.patch_dims['time']
+        if self.crop_daw != 0:
+            if self.frcst_lead is not None:
+                self.sel_cropdaw = np.arange(solver.optim_weight1.patch_dims['time']-self.crop_daw-1,solver.optim_weight1.patch_dims['time'])
+            else:
+                self.sel_cropdaw = np.arange(int(self.crop_daw/2),solver.optim_weight1.patch_dims['time']-int(self.crop_daw/2))
+        else:
+            self.sel_cropdaw = np.arange(solver.optim_weight1.patch_dims['time'])
+
         self.test_data = None
         self._norm_stats = norm_stats
         self.opt_fn = opt_fn
@@ -54,15 +69,13 @@ class Lit4dVarNet(pl.LightningModule):
             if downsamp is not None
             else torch.nn.Identity()
         )
-        self.train_init = train_init
+        self.epoch_start_opt2 = epoch_start_opt2
 
         # Cholesky factorization factor
         self.factor = None
 
         # If forecast:
         self.frcst_lead = frcst_lead
-        ckpt = torch.load('/homes/m19beauc/4dvarnet-starter/ckpt/ckptnew_spde_wonll_rzf=2_frcst'+str(self.frcst_lead)+'.pth', map_location=device)
-        self.solver2.load_state_dict(ckpt)
 
     @property
     def norm_stats(self):
@@ -84,11 +97,14 @@ class Lit4dVarNet(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, optimizer_idx):
 
-        if self.current_epoch < 50:
+        if self.current_epoch < self.epoch_start_opt2:
             if optimizer_idx == 1:
                 return None
-        elif optimizer_idx == 0:
-            return None
+        else:
+            if optimizer_idx == 0:
+                return None
+            if optimizer_idx == 1:
+                print("lr", self.lr_schedulers()[1].get_last_lr())
 
         return self.step(batch, "train")[0]
 
@@ -97,10 +113,10 @@ class Lit4dVarNet(pl.LightningModule):
 
     def forward(self, batch):
         out = self.solver2(batch=batch)
-        if self.current_epoch >= 50:
+        if self.current_epoch >= self.epoch_start_opt2:
             # provide mu as coarse version of 4DVarNet outputs
             mean = self.up(self.down(out))
-            out, theta = self.solver(batch=batch,
+            _, theta = self.solver(batch=batch,
                             x_init=out.detach(),
                             mu=mean.detach())
         else:
@@ -112,13 +128,13 @@ class Lit4dVarNet(pl.LightningModule):
             return None, None
 
         loss, out, theta = self.base_step(batch, phase)
-        grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
+        grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.optim_weight)
     
         # prepare initialization of the second solver with classic 4DVarNet
-        if (self.train_init) and (self.current_epoch<50):
+        if self.current_epoch<50:
             prior_cost = self.solver2.prior_cost(self.solver2.init_state(batch, out))
             training_loss = 50*loss  + 1000 * grad_loss + 1.0 * prior_cost
-            print(50*loss  + 1000 * grad_loss)
+            print(50*loss, 1000 * grad_loss)
             self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
             self.log( f"{phase}_prior_loss", prior_cost, prog_bar=True, on_step=False, on_epoch=True)
         # training of the augmented state solver
@@ -134,8 +150,9 @@ class Lit4dVarNet(pl.LightningModule):
                                                  det=True))
             if torch.isnan(nll_loss)==True:
                 return None, None
-            training_loss = 50*loss  + 1000 * grad_loss + nll_loss * 1e-6
-            print(50*loss  + 1000 * grad_loss, nll_loss * 1e-6)
+            #training_loss = 50*loss  + 1000 * grad_loss + nll_loss * 1e-4
+            training_loss = 50*loss + nll_loss * 1e-6
+            print(50*loss, nll_loss * 1e-6)
             self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
             self.log( f"{phase}_nll_loss", nll_loss*1e-6, prog_bar=True, on_step=False, on_epoch=True)
    
@@ -146,7 +163,7 @@ class Lit4dVarNet(pl.LightningModule):
         out, theta = self(batch=batch)
 
         # mse loss
-        loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
+        loss = self.weighted_mse(out - batch.tgt, self.optim_weight)
 
         with torch.no_grad():
             self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
@@ -155,7 +172,7 @@ class Lit4dVarNet(pl.LightningModule):
         return loss, out, theta
 
     def configure_optimizers(self):
-        return self.opt_fn(self)
+        return self.opt_fn(self,epoch_start_opt2=self.epoch_start_opt2)
 
     def test_step(self, batch, batch_idx):
         if batch_idx == 0:
@@ -174,7 +191,7 @@ class Lit4dVarNet(pl.LightningModule):
         batch_ = batch_._replace(tgt=batch_.tgt.to(device))
         
         # 4DVarNets scheme
-        out, theta = self(batch=batch)
+        out, theta = self(batch=batch_)
         n_b, n_t, n_y, n_x = out.shape
         nb_nodes = n_x*n_y
         dx = dy = dt = 1
@@ -308,11 +325,13 @@ class Lit4dVarNet(pl.LightningModule):
     def test_params_quantities(self):
         return ['kappa', 'm1', 'm2', 'H11', 'H12', 'H21', 'H22', 'tau']
 
+    '''
     def on_train_epoch_end(self):
         if self.train_init:
             torch.save(self.solver2.state_dict(),
                        '/homes/m19beauc/4dvarnet-starter/ckpt/ckptnew_spde_wonll_rzf=2_frcst'+str(self.frcst_lead)+'.pth')
-    
+    '''
+
     def on_test_epoch_end(self):
 
         # reconstruct mean

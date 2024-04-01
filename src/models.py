@@ -128,16 +128,11 @@ class Lit4dVarNet(pl.LightningModule):
 
 class Lit4dVarNet_SST(Lit4dVarNet):
 
-    def __init__(self, path_mask, domain_limits, *args, **kwargs):
+    def __init__(self, path_mask, optim_weight, domain_limits, persist_rw=True, *args, **kwargs):
          super().__init__(*args, **kwargs)
          self.domain_limits = domain_limits
-         #self.mask_land = xr.open_dataset(path_mask).sel(**(self.domain_limits or {})).analysed_sst[0]
-         self.mask_land = xr.open_dataset(path_mask).sel(**(self.domain_limits or {})).mask
-
-    def mask(self, var):
-        #mask_3d = np.broadcast_to(np.where(np.isnan(self.mask_land),0,1), var.shape)
-        mask_3d = np.broadcast_to(self.mask_land, var.shape)
-        return np.where(mask_3d,var,np.nan)       
+         self.register_buffer('optim_weight', torch.from_numpy(optim_weight), persistent=persist_rw)
+         self.mask_land = np.isfinite(xr.open_dataset(path_mask).sel(**(self.domain_limits or {})).analysed_sst[0])
 
     def step(self, batch, phase=""):
 
@@ -146,7 +141,7 @@ class Lit4dVarNet_SST(Lit4dVarNet):
 
         loss, out = self.base_step(batch, phase)
         grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt),
-                                      self.rec_weight)
+                                      self.optim_weight)
         prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
         self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
 
@@ -158,19 +153,24 @@ class Lit4dVarNet_SST(Lit4dVarNet):
 
         '''
         # base_step used in train/val only
-        inp, tgt = batch.input.detach().cpu().numpy(), batch.tgt.detach().cpu().numpy()
+        inp, tgt, lon, lat, mask = batch.input.detach().cpu().numpy(), batch.tgt.detach().cpu().numpy(), batch.lat.detach().cpu().numpy(), batch.lon.detach().cpu().numpy(), batch.mask.detach().cpu().numpy()
         import matplotlib.pyplot as plt
-        fig, axs = plt.subplots(1,2,figsize=(20,10))
+        fig, axs = plt.subplots(1,5,figsize=(30,10))
         min, max = np.nanmin(inp[0,3,:,:]), np.nanmax(inp[0,3,:,:])
         im = axs[0].pcolormesh(inp[0,3,:,:],vmin=min, vmax=max)
         im = axs[1].pcolormesh(tgt[0,3,:,:],vmin=min, vmax=max)
+        print(lon.shape)
+        im = axs[2].pcolormesh(lon[0,0,:,:])
+        im = axs[3].pcolormesh(lat[0,0,:,:])
+        im = axs[4].pcolormesh(mask[0,0,:,:])
         fig.subplots_adjust(right=0.8)
         cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
         fig.colorbar(im, cax=cbar_ax)
         plt.show()
         '''
+
         out = self(batch=batch)
-        loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
+        loss = self.weighted_mse(out - batch.tgt, self.optim_weight)
 
         with torch.no_grad():
             self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
@@ -194,17 +194,14 @@ class Lit4dVarNet_SST(Lit4dVarNet):
         ).to_dataset(dim='v0')
 
         # crop (if necessary) 
-        print(self.test_data.lon.data[0],self.test_data.lon.data[-1])
         self.test_data = self.test_data.sel(**(self.domain_limits or {}))
-        print(self.test_data)
         self.mask_land = self.mask_land.sel(**(self.domain_limits or {}))
-        self.mask_land, _ = xr.align(self.mask_land, self.test_data, join="right", fill_value=np.nan)  
-        print(self.mask_land)
         # set NaN according to mask
-        self.test_data = self.test_data.update({'inp':(('time','lat','lon'),self.mask(self.test_data.inp.data)),
-                                                'tgt':(('time','lat','lon'),self.mask(self.test_data.tgt.data)),
-                                                'analysed_sst':(('time','lat','lon'),self.mask(self.test_data.out.data))})
-
+        self.test_data = self.test_data.update({'inp':(('time','lat','lon'),self.test_data.inp.data),
+                                                'tgt':(('time','lat','lon'),self.test_data.tgt.data),
+                                                'analysed_sst':(('time','lat','lon'),self.test_data.out.data)})
+        self.test_data.coords['mask'] = (('lat', 'lon'), self.mask_land.values)
+        self.test_data = self.test_data.where(self.test_data.mask)
 
         metric_data = self.test_data.pipe(self.pre_metric_fn),
         metrics = pd.Series({

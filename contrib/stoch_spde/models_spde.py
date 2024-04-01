@@ -296,15 +296,11 @@ class NLL(torch.nn.Module):
         self.pow = pow        
         self.crop = crop
         self.downsamp = downsamp
-        self.down = torch.nn.AvgPool2d(downsamp) if downsamp is not None else nn.Identity()
+        self.down = nn.AvgPool2d(downsamp) if downsamp is not None else nn.Identity()
         self.up = (
-            #nn.UpsamplingBilinear2d(scale_factor=downsamp)
-            Upsampler(scale_factor=self.downsamp,
-                     mode='bilinear',
-                     align_corners=False,
-                     antialias=True)
+            nn.UpsamplingBilinear2d(scale_factor=downsamp)
             if downsamp is not None
-            else torch.nn.Identity()
+            else nn.Identity()
         )
         
         if crop is not None:
@@ -489,19 +485,9 @@ class NLL(torch.nn.Module):
                 log_det = 0.
                 for j in range(0,len(block_diag[i])):
                     BD = block_diag[i][j].to_dense().to(device)#.type(torch.LongTensor)
-                    chol_block = torch.linalg.cholesky(BD)
-                    '''
-                    info = torch.tensor(1)
-                    k = 0
-                    while (info!=0):          
-                        BD = block_diag[i][j].to_dense().to(device)#.type(torch.LongTensor)
-                        chol_block, info = torch.linalg.cholesky_ex(BD)
-                        pow = -7+k
-                        BD = ((1./2)*(BD+BD.t())).add_(torch.eye(BD.shape[0]).to(device)*(1**pow))
-                        k = k+1
-                        if k>=5:
-                            return torch.tensor([np.nan for _ in range(n_b)])
-                    '''
+                    chol_block, info  = torch.linalg.cholesky_ex(BD)
+                    if info!=0:
+                        return torch.tensor([np.nan for _ in range(n_b)])
                     log_det_block =  2*torch.sum(\
                                          torch.log(\
                                          torch.diagonal(\
@@ -509,38 +495,6 @@ class NLL(torch.nn.Module):
                                          0)\
                                         )\
                                        )
-                    
-                    '''
-                    l = torch.linalg.eigvals(BD)
-                    minl = torch.min(torch.Tensor([i.type(torch.cuda.FloatTensor) for i in l]))
-                    maxl = torch.max(torch.Tensor([i.type(torch.cuda.FloatTensor) for i in l]))
-                    print(minl, maxl, maxl/minl)
-                    '''
-                    '''
-                    import gpytorch
-                    L_block = gpytorch.pivoted_cholesky(BD, rank=BD.shape[0])
-                    print(L_block)
-                    #BD = block_diag[i][j].detach() #+ sparse_eye(BD.shape[0],torch.tensor(0.01))
-                    #chol_block = cholesky_sparse.apply(BD.cpu()).to_dense()
-                    log_det_block =  2*torch.sum(\
-                                         torch.log(\
-                                         torch.diagonal(\
-                                         L_block,
-                                         0)\
-                                        )\
-                                       )
-                    '''
-                    '''
-                    P, L, U = torch.linalg.lu(BD, pivot=True)
-                    nswaps = len(torch.diagonal(P,0)) - torch.sum(torch.diagonal(P,0)) - 1
-                    print(nswaps)
-                    print(torch.sum(torch.log(torch.diagonal(L,0))))
-                    print(torch.sum(torch.log(torch.diagonal(U,0))))
-                    log_det_block = torch.log( (-1)**nswaps) + \
-                                    torch.sum(torch.log(torch.diagonal(L,0)))+ \
-                                    torch.sum(torch.log(torch.diagonal(U,0))) 
-                    print(log_det_block)
-                    '''
                     log_det += log_det_block
                 # log(det(Q^k)) = sum_k=1^p log(det(Q))
                 #for _ in range(2,(2*self.pow)+1):

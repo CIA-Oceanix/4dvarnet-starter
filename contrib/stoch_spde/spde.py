@@ -33,11 +33,11 @@ def pow_diff_operator(A,pow,sparse=False,split=False,n_t=None):
             B = torch.matmul(B,A)
         else:
             if not split:
-                #B = torch.sparse.mm(B,A).coalesce()
-                if (i % 2) != 0:
-                    B = torch.sparse.mm(B,A.t()).coalesce()
-                else:
-                    B = torch.sparse.mm(B,A).coalesce()
+                B = torch.sparse.mm(B,A).coalesce()
+                #if (i % 2) != 0:
+                #    B = torch.sparse.mm(B,A.t()).coalesce()
+                #else:
+                #    B = torch.sparse.mm(B,A).coalesce()
             else:
                 # define sparse observation operator
                 row = []

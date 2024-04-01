@@ -45,7 +45,8 @@ class XrDataset(torch.utils.data.Dataset):
             check_full_scan=False, check_dim_order=False,
             postpro_fn=None,
             resize_factor=1,
-            res=0.05
+            res=0.05,
+            frcst_lead=None
             ):
         """
         da: xarray.DataArray with patch dims at the end in the dim orders
@@ -61,6 +62,7 @@ class XrDataset(torch.utils.data.Dataset):
         self.patch_dims = patch_dims
         self.strides = strides or {}
         self.res = res
+        self.frcst_lead = frcst_lead
 
         # extend self.da if domain larger than NetCDF
         '''
@@ -179,7 +181,7 @@ class XrDataset(torch.utils.data.Dataset):
             return self.postpro_fn(item)
         return item
 
-    def reconstruct(self, batches, weight=None):
+    def reconstruct(self, batches, weight=None, crop=None):
         """
         takes as input a list of np.ndarray of dimensions (b, *, *patch_dims)
         return a stitched xarray.DataArray with the coords of patch_dims
@@ -190,15 +192,22 @@ class XrDataset(torch.utils.data.Dataset):
         """
 
         items = list(itertools.chain(*batches))
-        return self.reconstruct_from_items(items, weight)
+        return self.reconstruct_from_items(items, weight, crop=crop)
 
-    def reconstruct_from_items(self, items, weight=None):
+    def reconstruct_from_items(self, items, weight=None, crop=None):
         if weight is None:
             weight = np.ones(list(self.patch_dims.values()))
         w = xr.DataArray(weight, dims=list(self.patch_dims.keys()))
 
-        coords = self.get_coords()
-
+        if crop is None:
+            coords = self.get_coords()
+        else:
+            if self.frcst_lead is None:
+                coords = [item.isel(time=slice(crop,-crop)) for item in self.get_coords()]
+            else:
+                coords = [item.isel(time=slice(self.patch_dims['time']-(crop+1),
+                                               self.patch_dims['time'])) for item in self.get_coords()]
+                
         new_dims = [f'v{i}' for i in range(len(items[0].shape) - len(coords[0].dims))]
         dims = new_dims + list(coords[0].dims)
 
@@ -271,7 +280,7 @@ class AugmentedDataset(torch.utils.data.Dataset):
                              item.tgt, np.full_like(item.tgt,np.nan)))
 
 class BaseDataModule(pl.LightningDataModule):
-    def __init__(self, input_da, domains, xrds_kw, dl_kw, aug_kw=None, resize_factor=1, res=0.05, norm_stats=None, **kwargs):
+    def __init__(self, input_da, domains, xrds_kw, dl_kw, aug_kw=None, resize_factor=1, res=0.05, frcst_lead=None, norm_stats=None, **kwargs):
         super().__init__()
         self.input_da = input_da
         self.domains = domains
@@ -280,6 +289,7 @@ class BaseDataModule(pl.LightningDataModule):
         self.aug_kw = aug_kw if aug_kw is not None else {}
         self.resize_factor = resize_factor
         self.res = res
+        self.frcst_lead = frcst_lead
         self._norm_stats = norm_stats
 
         self.train_ds = None
@@ -394,7 +404,7 @@ class BaseDataModule(pl.LightningDataModule):
         self.train_ds = XrDataset(
             train_data, **self.xrds_kw, postpro_fn=post_fn_rand,
             resize_factor = self.resize_factor,
-            res = self.res
+            res = self.res, frcst_lead = self.frcst_lead
         )
         if self.aug_kw:
             self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
@@ -402,12 +412,12 @@ class BaseDataModule(pl.LightningDataModule):
         self.val_ds = XrDataset(
             self.input_da.sel(self.domains['val']), **self.xrds_kw, postpro_fn=post_fn,
             resize_factor = self.resize_factor,
-            res =self.res
+            res =self.res, frcst_lead = self.frcst_lead
         )
         self.test_ds = XrDataset(
             self.input_da.sel(self.domains['test']), **self.xrds_kw, postpro_fn=post_fn,
             resize_factor = self.resize_factor,
-            res = self.res
+            res = self.res, frcst_lead = self.frcst_lead
         )
 
     def train_dataloader(self):

@@ -17,7 +17,7 @@ trainer:
     save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 30 #56
+  max_epochs: 53
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
@@ -52,7 +52,7 @@ datamodule:
 
 model:
   _target_: contrib.stoch_spde.lit_model_spde_winit.Lit4dVarNet
-  train_init: False
+  train_init: True
   downsamp: 4
   frcst_lead: 1
   persist_rw: False
@@ -62,7 +62,14 @@ model:
     lr: 1e-3
     T_max: ${trainer.max_epochs}
   rec_weight: 
-    _target_: src.utils.get_triang_time_wei
+    #_target_: src.utils.get_triang_time_wei
+    _target_: src.utils.get_last_time_wei
+    patch_dims: ${datamodule.xrds_kw.patch_dims}
+    crop: {time: 0, lat: 10, lon: 10}
+    offset: 1
+  optim_weight:
+    #_target_: src.utils.get_triang_time_wei
+    _target_: src.utils.get_linear_time_wei
     patch_dims: ${datamodule.xrds_kw.patch_dims}
     crop: {time: 0, lat: 10, lon: 10}
     offset: 1
@@ -139,7 +146,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    ckpt_path: /homes/m19beauc/4dvarnet-starter/ckpt/ckpt_spde_rzf=2_frcst1_lit.pth
+    ckpt_path: /homes/m19beauc/4dvarnet-starter/ckpt/...
 
 defaults:
   - /domain: gf

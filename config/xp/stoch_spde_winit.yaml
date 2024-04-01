@@ -17,7 +17,7 @@ trainer:
     save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 5 #56
+  max_epochs: 53
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
@@ -54,37 +54,48 @@ model:
   _target_: contrib.stoch_spde.lit_model_spde_winit.Lit4dVarNet
   train_init: True
   downsamp: 4
-  frcst_lead: 1
+  frcst_lead: 2
   persist_rw: False
+  epoch_start_opt2: 300
   opt_fn:
     _target_: src.utils.cosanneal_spde_lr_adam_winit
     _partial_: true
     lr: 1e-3
     T_max: ${trainer.max_epochs}
-  rec_weight: 
-    _target_: src.utils.get_triang_time_wei
+  rec_weight:
+    _target_: src.utils.get_last_time_wei
+    patch_dims: { time: 5, lat: 120, lon: 120}
+    crop: {time: 0, lat: 10, lon: 10}
+    offset: 1
+  optim_weight1: 
+    _target_: src.utils.get_linear_time_wei
     patch_dims: ${datamodule.xrds_kw.patch_dims}
+    crop: {time: 0, lat: 10, lon: 10}
+    offset: 1
+  optim_weight2:
+    _target_: src.utils.get_linear_time_wei
+    patch_dims: { time: 5, lat: 120, lon: 120}
     crop: {time: 0, lat: 10, lon: 10}
     offset: 1
   solver: 
     _target_: contrib.stoch_spde.solver.GradSolver_Lgv
     aug_state: True
-    n_step: 10
+    n_step: 5
     lr_grad: 1e-3
     nll: 
       _target_: contrib.stoch_spde.models_spde.NLL
       shape_data: 
-        - ${datamodule.xrds_kw.patch_dims.time}
+        - 5
         - 120
         - 120
       pow: 1
       spde_type: "adv_diff"
       st_lag:
         - 1
-        - 20
-        - 20
+        - 1
+        - 1
       scheme: FUDM1
-      downsamp: 2
+      downsamp: None
     nlpobs: 
       _target_: contrib.stoch_spde.models_spde.NLpObs
     prior_cost: None
@@ -97,12 +108,12 @@ model:
     unet_prior: False
   solver2:
     _target_: src.models.GradSolver
-    n_step: 10
+    n_step: 15
     lr_grad: 1e3
     prior_cost:
       _target_: src.models.BilinAEPriorCost
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 32
+      dim_hidden: 64
       bilin_quad: False
       # bilin_quad: True
       downsamp: 2
@@ -111,7 +122,7 @@ model:
     grad_mod:
       _target_: src.models.ConvLstmGradModel
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 48
+      dim_hidden: 96
   test_metrics: ${metrics.test_metrics}
   pre_metric_fn: 
         _target_: xarray.Dataset.sel
@@ -139,7 +150,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    #ckpt: /homes/m19beauc/4dvarnet-starter/ckpt/ckpt_litmod_spde.pth
+    #ckpt: /homes/m19beauc/4dvarnet-starter/ckpt/ckpt_spde_rzf=2_frcst1_lit.pth
 
 defaults:
   - /domain: gf
