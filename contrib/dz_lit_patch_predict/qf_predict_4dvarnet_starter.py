@@ -32,10 +32,9 @@ params = dict(
 )
 
 def trainer(accelerator, devices, **kwargs):
-    return pl.Trainer(inference_mode=False)#, accelerator=accelerator, devices=devices)
+    return pl.Trainer(inference_mode=False, accelerator=accelerator, devices=devices)
 
 def solver(config_path, ckpt_path, **kwargs):
-    return operator.attrgetter('input')
     import torch
     model = dz_lit_patch_predict.load_from_cfg(
         config_path,
@@ -52,10 +51,8 @@ def patcher(input_path, config_path, strides, input_var, check_full_scan, patch_
             key=patch_dims_key,
             call=False,
         )
-    paths = sorted(Path(input_path).glob('*.nc'))
     patcher = xrpatcher.XRDAPatcher(
-        # da=xr.open_dataset(input_path)[input_var],
-        da=xr.open_mfdataset(paths, combine='nested', concat_dim='time')[input_var],
+        da=xr.open_mfdataset(input_path, combine='nested', concat_dim='time')[input_var],
         patches=patches,
         strides=strides,
         check_full_scan=check_full_scan,
