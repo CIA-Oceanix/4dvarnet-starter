@@ -66,8 +66,8 @@ We build here a stochastic extension of the 4DVarNet framework by replacing the 
 - [Hydra documentation](https://hydra.cc/docs/intro/)
 - [Pytorch lightning documentation](https://pytorch-lightning.readthedocs.io/en/stable/index.html#get-started)
 - 4DVarNet papers:
-        - Beauchamp, M., Desassis, N., Johnson, J. E., Benaichouche, S., Tandeo, P., & Fablet, R. (2024). SPDE priors for uncertainty quantification of end-to-end neural data assimilation schemes. https://arxiv.org/abs/2402.01855
-        - Beauchamp M., Febvre Q., and Fablet R. Ensemble-based 4DvarNet uncertainty quantification for the reconstruction of sea surface height dynamics. Environmental Data Science, 2:e18, 2023a. doi: 10.1017/eds.2023.19.
-        - Beauchamp, M., Febvre Q., Georgenthum H., and Fablet R. 4dvarnet-SSH: End-to-end learning of variational interpolation schemes for nadir and wide-swath satellite altimetry. GeoscientificModel Development, 16(8):2119–2147, 2023b. doi: 10.5194/gmd-16-2119-2023. URL https://gmd.copernicus.org/articles/16/2119/2023/
-	- Fablet, R.; Chapron, B.; Drumetz, L.; Mmin, E.; Pannekoucke, O.; Rousseau, F. Learning Variational Data Assimilation Models and Solvers. Journal of Advances in Modeling Earth Systems n/a (n/a), e2021MS002572. https://doi.org/10.1029/2021MS002572.
+  - Beauchamp, M., Desassis, N., Johnson, J. E., Benaichouche, S., Tandeo, P., & Fablet, R. (2024). SPDE priors for uncertainty quantification of end-to-end neural data assimilation schemes. https://arxiv.org/abs/2402.01855
+  - Beauchamp M., Febvre Q., and Fablet R. Ensemble-based 4DvarNet uncertainty quantification for the reconstruction of sea surface height dynamics. Environmental Data Science, 2:e18, 2023a. doi: 10.1017/eds.2023.19.
+  - Beauchamp, M., Febvre Q., Georgenthum H., and Fablet R. 4dvarnet-SSH: End-to-end learning of variational interpolation schemes for nadir and wide-swath satellite altimetry. GeoscientificModel Development, 16(8):2119–2147, 2023b. doi: 10.5194/gmd-16-2119-2023. URL https://gmd.copernicus.org/articles/16/2119/2023/
+  - Fablet, R.; Chapron, B.; Drumetz, L.; Mmin, E.; Pannekoucke, O.; Rousseau, F. Learning Variational Data Assimilation Models and Solvers. Journal of Advances in Modeling Earth Systems n/a (n/a), e2021MS002572. https://doi.org/10.1029/2021MS002572.
 
