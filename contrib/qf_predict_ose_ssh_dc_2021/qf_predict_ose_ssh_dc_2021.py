@@ -60,12 +60,17 @@ predict_cfg = qf_predict_4dvarnet_starter.recipe(
 import toolz, operator
 merge_cfg = qf_merge_patches.recipe(
     input_directory="data/inference/batches",
-    output_path="data/method_outputs/merged_batches.nc",
-    weight=b(toolz.pipe, b(qf_merge_patches.build_weight,
+    output_dir="data/method_outputs/merged_batches",
+    weight=b(qf_merge_patches.build_weight,
         patch_dims='${params.patching.patch_dims}',
         dim_weights='${params.patching.dim_weights}',
-        ), pb(qf_merge_patches.crop_w, slices='${oc.dict.values: stages._06_predict.crop_save}')),
-    out_coords='${.._05_grid.params.grid}',
+    ),
+    inp_coords='${.._05_grid.params.grid}',
+    out_day="???",
+    out_var="ssh",
+    patches=dict(time=15, lat=240, lon=240),
+    strides='${stages._06_predict.crop_save}',
+    crop_save='${stages._06_predict.crop_save}',
 )
 
 metrics_cfg = dc_ose_2021_pipelines.compute_metrics.recipe(

@@ -69,31 +69,6 @@ def crop_w(weight, slices):
     print(slices)
     return weight[tuple(slices)]
 
-def foo():
-
-    import pandas as pd
-    import numpy as np
-
-    date = pd.to_datetime('2019-03-05')
-
-
-    coords = dict(
-        time = pd.date_range('2018-12-01', '2020-01-31'),
-        lat = np.arange(-90, 90, 0.05),
-        lon = np.arange(-180, 180, 0.05),
-    )
-
-    patch_dims=dict(time=15, lat=240, lon=240)
-    strides=dict(time=7, lat=120, lon=120)
-
-    from collections import OrderedDict
-    import numpy as np
-    import itertools
-
-    point = dict(time=np.nonzero(coords['time'] == (date))[0], lat=0, lon=7199)
-    patches=patch_dims
-    strides = strides
-    da_size = {c: (len(coords[c]) - patches[c]) // strides[c] + 1 for c in coords}
 
 
 def get_indices_for_point(
@@ -118,29 +93,26 @@ def get_indices_for_point(
 
 
 ## PROCESS: Parameterize and implement how to go from input_files to output_files
-def run_one_day(
-    input_directory="data/inferred_batches",
-    output_path="method_outputs/merged_batches.nc",
+def run(
+    input_directory="data/inference/gridded",
+    output_dir="data/inference/merged_patches",
     weight="???",
-    out_coords="???",
-    dims_shape=None,
+    inp_coords="???",
+    out_day="???",
     out_var="ssh",
-    _cround=dict(lat=3, lon=3),
-    da_size='???',
     patches='???',
     strides='???',
-    # dump_every=1000,
+    dims_shape=None,
+    crop_save=None,
+    _cround=dict(lat=3, lon=3),
     _skip_val: bool = False,
 ):
     log.info("Starting")
-    # if not _skip_val:
-    #     input_validation(input_directory=input_directory)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)  # Make output directory
 
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)  # Make output directory
-
-    ## TODO: actual stuff
     for c, nd in _cround.items():
-        out_coords[c] = np.round(out_coords[c], nd)
+        inp_coords[c] = np.round(inp_coords[c], nd)
+    out_coords = dict(time=[out_day], **{c: v for c,v in inp_coords.items() if c!='timte'})
     out_coords = xr.Dataset(coords=out_coords)
     dims_shape = dims_shape or dict(**out_coords.sizes)
 
@@ -150,14 +122,22 @@ def run_one_day(
         dims=list(dims_shape.keys()),
         coords=out_coords.coords,
     )
+    count_da = xr.zeros_like(rec_da)
     log.debug(f"Output dataarray {rec_da}")
 
-    count_da = xr.zeros_like(rec_da)
-    batch_idx = get_indices_for_point(dict(time=np.nonzero(out_coords.time['time'] == (date))[0]))
-    batches = list(Path(input_directory).glob("*.nc"))
 
-    Path(output_path).parent.mkdir(exist_ok=True, parents=True)
-    for i, b in enumerate(tqdm.tqdm(batches)):
+    _patches = {} | patches
+    _inp_coords = {} | inp_coords
+    for co, sli in (crop_save or {}).items():
+        _patches[co]=_patches[co][sli]
+        _inp_coords[co]=_inp_coords[co][sli]
+    da_size = {c: (len(_inp_coords[c]) - _patches[c]) // strides[c] + 1 for c in _inp_coords}
+    point = dict(time=np.nonzero(_inp_coords['time'] == (out_day))[0])
+    items_idxes = get_indices_for_point(point=point, da_size=da_size, patches=_patches, strides=strides)
+    batches = sorted([Path(input_directory) / f"{idx}.nc" for idx in items_idxes])
+
+    log.info(f"{len(batches)} for day {out_day}")
+    for b in batches:
         da = xr.open_dataarray(b)
         da = da.assign_coords(**{c: np.round(da[c].values, nd) for c, nd in _cround.items()})
         w = xr.zeros_like(da) + weight
@@ -168,14 +148,15 @@ def run_one_day(
         count_da.loc[da_co] = count_da.sel(da_co) + w
 
 
-    (rec_da / count_da).to_dataset(name=out_var).to_netcdf(output_path)
+    log.info(f"Done with {out_day}")
+    (rec_da / count_da).to_dataset(name=out_var).to_netcdf(f"{output_dir}/{out_day}.nc")
 
     # if not _skip_val:
     #     output_validation(output_path=output_path)
 
 
 ## PROCESS: Parameterize and implement how to go from input_files to output_files
-def run(
+def _run(
     input_directory="data/inferred_batches",
     output_path="method_outputs/merged_batches.nc",
     weight="???",
