@@ -1,6 +1,7 @@
+import copy
 import logging
 from pathlib import Path
-
+import pandas as pd
 import hydra
 import hydra_zen
 import numpy as np
@@ -91,7 +92,8 @@ def get_indices_for_point(
     }
     return  np.ravel_multi_index([ np.ravel(a) for a in np.meshgrid(*dim_indices.values()) ], tuple(da_size.values()))
 
-
+def sorted_intersect(a1, a2):
+    return sorted(list(set(a1) & set(a2)))
 ## PROCESS: Parameterize and implement how to go from input_files to output_files
 def run(
     input_directory="data/inference/gridded",
@@ -112,7 +114,17 @@ def run(
 
     for c, nd in _cround.items():
         inp_coords[c] = np.round(inp_coords[c], nd)
-    out_coords = dict(time=[out_day], **{c: v for c,v in inp_coords.items() if c!='timte'})
+
+
+    _patches = copy.deepcopy(patches)
+    _inp_coords = copy.deepcopy(inp_coords)
+    for co, sli in (crop_save or {}).items():
+        len_before =  len(_inp_coords[co])
+        _inp_coords[co]=_inp_coords[co][sli]
+        cropped = len_before - len(_inp_coords[co])
+        _patches[co] = _patches[co] - cropped
+
+    out_coords = dict(time=[pd.to_datetime(out_day)], **{c: v for c,v in _inp_coords.items() if c!='time'})
     out_coords = xr.Dataset(coords=out_coords)
     dims_shape = dims_shape or dict(**out_coords.sizes)
 
@@ -126,26 +138,26 @@ def run(
     log.debug(f"Output dataarray {rec_da}")
 
 
-    _patches = {} | patches
-    _inp_coords = {} | inp_coords
-    for co, sli in (crop_save or {}).items():
-        _patches[co]=_patches[co][sli]
-        _inp_coords[co]=_inp_coords[co][sli]
     da_size = {c: (len(_inp_coords[c]) - _patches[c]) // strides[c] + 1 for c in _inp_coords}
     point = dict(time=np.nonzero(_inp_coords['time'] == (out_day))[0])
     items_idxes = get_indices_for_point(point=point, da_size=da_size, patches=_patches, strides=strides)
     batches = sorted([Path(input_directory) / f"{idx}.nc" for idx in items_idxes])
 
-    log.info(f"{len(batches)} for day {out_day}")
+    log.info(f"{len(batches)} batches for day {out_day}")
+    log.debug(f"{batches=}")
     for b in batches:
         da = xr.open_dataarray(b)
         da = da.assign_coords(**{c: np.round(da[c].values, nd) for c, nd in _cround.items()})
-        w = xr.zeros_like(da) + weight
+        _weight = xr.DataArray(weight, dims=patches.keys())
+        if crop_save:
+            _weight = _weight.isel(crop_save)
+        w = xr.zeros_like(da) + _weight.data
         wda = da * w
         coords_labels = set(dims_shape.keys()).intersection(da.coords.dims)
-        da_co = {c: da[c].values for c in coords_labels}
-        rec_da.loc[da_co] = rec_da.sel(da_co) + wda
-        count_da.loc[da_co] = count_da.sel(da_co) + w
+        da_co = {c: sorted_intersect(da[c].values, rec_da[c].values) for c in coords_labels}
+
+        rec_da.loc[da_co] = rec_da.sel(da_co) + wda.sel(da_co)
+        count_da.loc[da_co] = count_da.sel(da_co) + w.sel(da_co)
 
 
     log.info(f"Done with {out_day}")

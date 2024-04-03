@@ -69,7 +69,7 @@ merge_cfg = qf_merge_patches.recipe(
     out_day="???",
     out_var="ssh",
     patches=dict(time=15, lat=240, lon=240),
-    strides='${stages._06_predict.crop_save}',
+    strides='${params.patching.strides}',
     crop_save='${stages._06_predict.crop_save}',
 )
 
@@ -136,3 +136,6 @@ sweep = {'params.sweep': dict(_target_="builtins.str.join", _args_=[',', "${para
 inference_data_pipeline, recipe, params = qf_pipeline.register_pipeline(
     "dc_ose_2021_4dvarnet", stages=stages, params=params, default_sweep=sweep
 )
+
+if __name__ =='__main__':
+    inference_data_pipeline()
