@@ -243,6 +243,20 @@ def load_altimetry_data(path, obs_from_tgt=False):
         .to_array()
     )
 
+def load_altimetry_data_fast(path, obs_from_tgt=False, var_obs="nadir_obs", var_gt='ssh'):
+    
+    ds = xr.merge([
+             xr.open_dataset(path).rename_vars({var_obs:"input"}),
+             xr.open_dataset(path).rename_vars({var_gt:"tgt"})]
+           ,compat='override')[[*src.data.TrainingItem._fields]].transpose('time', 'lat', 'lon')
+    
+    #ds = ds.update({"tgt":(("time","lat","lon"),remove_nan(ds.tgt))})
+
+    if obs_from_tgt:
+        ds = ds.assign(input=ds.tgt.where(np.isfinite(ds.input), np.nan))
+    
+    return ds
+
 def load_altimetry_data_ose(path, obs_from_tgt=False):
     ds =  (
         xr.open_dataset(path)

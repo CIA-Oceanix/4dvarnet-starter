@@ -79,7 +79,11 @@ model:
   rec_weight:
       _target_: src.utils.get_last_time_wei
       patch_dims: ${datamodule.xrds_kw.patch_dims}
-      #crop: {time: 0, lat: 20, lon: 20}
+      crop: {time: 0, lat: 50, lon: 50}
+      offset: 1
+  optim_weight:
+      _target_: src.utils.get_linear_time_wei
+      patch_dims: ${datamodule.xrds_kw.patch_dims}
       crop: {time: 0, lat: 50, lon: 50}
       offset: 1
   solver: 
