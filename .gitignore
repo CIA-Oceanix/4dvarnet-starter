@@ -10,3 +10,5 @@ tmp
 data
 jobs
 Notebook_SDE/natl_gf_w_5nadirs_swot.nc
+src/ose/ssh_alg_h2g_j2g_j2n_j3_s3a_duacs.nc
+src/ose/dt_gulfstream_c2_phy_l3_20161201-20180131_285-315_23-53.nc
