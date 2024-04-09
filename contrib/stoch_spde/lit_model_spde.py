@@ -15,22 +15,8 @@ from torch.utils.dlpack import to_dlpack
 from torch.utils.dlpack import from_dlpack
 from sksparse.cholmod import cholesky
 
-class Upsampler(nn.Module):
-    def __init__(self, scale_factor, mode, align_corners, antialias, **kwargs):
-        super().__init__()
-        self.scale_factor = scale_factor
-        self.mode = mode
-        self.align_corners = align_corners
-        self.antialias = antialias
-
-    def forward(self, x):
-        x = F.interpolate(x, scale_factor=self.scale_factor,
-                          mode=self.mode, align_corners=self.align_corners,
-                          antialias=self.antialias)
-        return x
-
 class Lit4dVarNet(pl.LightningModule):
-    def __init__(self, solver, rec_weight, optim_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, n_simu=100, train_init=True, downsamp = None, frcst_lead = None):
+    def __init__(self, solver, rec_weight, optim_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, train_init=True, n_simu = 100, downsamp = None, frcst_lead = None):
 
         super().__init__()
         self.solver = solver
@@ -43,7 +29,6 @@ class Lit4dVarNet(pl.LightningModule):
         self.opt_fn = opt_fn
         self.metrics = test_metrics or {}
         self.pre_metric_fn = pre_metric_fn or (lambda x: x)
-        self.n_simu = n_simu
 
         self.downsamp = downsamp
         self.down = torch.nn.AvgPool2d(downsamp)
@@ -56,6 +41,8 @@ class Lit4dVarNet(pl.LightningModule):
             else torch.nn.Identity()
         )
         self.train_init = train_init
+
+        self.n_simu = n_simu
 
         # Cholesky factorization factor
         self.factor = None

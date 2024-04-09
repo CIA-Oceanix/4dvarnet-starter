@@ -4,7 +4,7 @@ import random
 torch.set_float32_matmul_precision('high')
 from pytorch_lightning import loggers
 
-def base_test(trainer, dm, lit_mod, ckpt_path):
+def base_test(trainer, dm, lit_mod, ckpt_path=None):
 
     '''
     ckpt = torch.load(ckpt_path)["state_dict"]
