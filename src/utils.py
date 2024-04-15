@@ -296,6 +296,21 @@ def load_altimetry_data_woi(path, obs_from_tgt=False):
         .to_array()
     )
 
+def load_natl_data(
+        path_obs="/DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-7nadirs-2009-2010-1_20.nc",
+        path_gt="/DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-ssh-2009-2010-1_20.nc",
+        obs_var='input',
+        gt_var='ssh',
+        **kwargs
+    ):
+    inp = xr.open_dataset(path_obs)[obs_var]
+    gt = (
+        xr.open_dataset(path_gt)[gt_var]
+        .sel(lat=inp.lat, lon=inp.lon, method="nearest")
+    )
+
+    return xr.Dataset(dict(input=inp, tgt=(gt.dims, gt.values)), inp.coords).transpose('time', 'lat', 'lon')
+
 def load_dc_data(**kwargs):
     path_gt="../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_ssh_y2013.1y.nc",
     path_obs ="NATL60/NATL/data_new/dataset_nadir_0d.nc"

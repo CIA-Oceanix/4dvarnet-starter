@@ -113,6 +113,7 @@ model:
         lon: ${domain.test.lon}
   path_mask: ${paths.oi}
   domain_limits: ${domain.train}
+
 metrics:
   nrmse_scores: {_target_: src.utils.rmse_based_scores_from_ds, _partial_: True}
   psd_scores: {_target_: src.utils.psd_based_scores_from_ds, _partial_: True}
