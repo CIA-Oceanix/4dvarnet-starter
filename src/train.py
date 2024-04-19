@@ -14,7 +14,7 @@ def base_training(trainer, dm, lit_mod, ckpt=None):
         print()
 
     trainer.fit(lit_mod, datamodule=dm, ckpt_path=ckpt)
-    #trainer.test(lit_mod, datamodule=dm, ckpt_path='best')
+    trainer.test(lit_mod, datamodule=dm, ckpt_path='best')
     #trainer.test(lit_mod, datamodule=dm, ckpt_path=ckpt)
 
 def base_testing(trainer, dm, lit_mod, ckpt_path='best'):
@@ -22,7 +22,6 @@ def base_testing(trainer, dm, lit_mod, ckpt_path='best'):
         print()
         print("Logdir:", trainer.logger.log_dir)
         print()
-        
     # Load the model from the specified checkpoint
     if ckpt_path is not None:
         lit_mod = lit_mod.load_from_checkpoint(ckpt_path)
