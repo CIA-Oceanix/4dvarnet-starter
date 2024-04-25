@@ -26,7 +26,7 @@ class Upsampler(torch.nn.Module):
         return x
     
 class GradSolver_Lgv(nn.Module):
-    def __init__(self, nll, nlpobs, prior_cost, obs_cost, grad_mod, n_step,
+    def __init__(self, nll, nlpobs, obs_cost, grad_mod, n_step, prior_cost=None,
                  lr_grad=0.2, exclude_params=False, aug_state=True,  unet_prior=False, **kwargs):
         super().__init__()
         self.nll = nll

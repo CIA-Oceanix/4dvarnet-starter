@@ -86,7 +86,7 @@ def cosanneal_spde_lr_adam_winit(lit_mod, lr, T_max=100, weight_decay=0., epoch_
             ],weight_decay=weight_decay)
     scheduler1 = torch.optim.lr_scheduler.CosineAnnealingLR(opt1, T_max=T_max)
     #scheduler2 = torch.optim.lr_scheduler.CosineAnnealingLR(opt2, T_max=T_max)
-    lambda2 = lambda epoch: 10**float(-( np.max([epoch-epoch_start_opt2,0])//10))
+    lambda2 = lambda epoch: 10**float(-( np.max([epoch-epoch_start_opt2,0])//35))
     scheduler2 = torch.optim.lr_scheduler.LambdaLR(opt2, lr_lambda = lambda2)
     return  [opt1, opt2], [scheduler1, scheduler2]
 

@@ -186,7 +186,8 @@ class XrDataset(torch.utils.data.Dataset):
         if self.postpro_fn is not None:
             return self.postpro_fn(item)
         return item
-
+    
+    
     def reconstruct(self, batches, weight=None, crop=None):
         """
         takes as input a list of np.ndarray of dimensions (b, *, *patch_dims)
@@ -205,13 +206,14 @@ class XrDataset(torch.utils.data.Dataset):
             weight = np.ones(list(self.patch_dims.values()))
         w = xr.DataArray(weight, dims=list(self.patch_dims.keys()))
 
+        
         if crop is None:
             coords = self.get_coords()
         else:
             if self.frcst_lead is None:
                 coords = [item.isel(time=slice(crop,-crop)) for item in self.get_coords()]
             else:
-                coords = [item.isel(time=slice(self.patch_dims['time']-(crop+1),
+                coords = [item.isel(time=slice(crop,
                                                self.patch_dims['time'])) for item in self.get_coords()]
                 
         new_dims = [f'v{i}' for i in range(len(items[0].shape) - len(coords[0].dims))]
@@ -220,7 +222,8 @@ class XrDataset(torch.utils.data.Dataset):
         das = [xr.DataArray(it.numpy(), dims=dims, coords=co.coords)
                for  it, co in zip(items, coords)]
 
-        da_shape = dict(zip(coords[0].dims, self.da.shape[-len(coords[0].dims):]))
+        self_da_shape = tuple(self.da.sizes.values())
+        da_shape = dict(zip(coords[0].dims, self_da_shape[-len(coords[0].dims):]))
         new_shape = dict(zip(new_dims, items[0].shape[:len(new_dims)]))
 
         rec_da = xr.DataArray(

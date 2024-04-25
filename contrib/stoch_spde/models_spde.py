@@ -296,11 +296,11 @@ class NLL(torch.nn.Module):
         self.pow = pow        
         self.crop = crop
         self.downsamp = downsamp
-        self.down = nn.AvgPool2d(downsamp) if downsamp is not None else nn.Identity()
+        self.down = torch.nn.AvgPool2d(downsamp) if downsamp is not None else torch.nn.Identity()
         self.up = (
-            nn.UpsamplingBilinear2d(scale_factor=downsamp)
+            torch.nn.UpsamplingBilinear2d(scale_factor=downsamp)
             if downsamp is not None
-            else nn.Identity()
+            else torch.nn.Identity()
         )
         
         if crop is not None:

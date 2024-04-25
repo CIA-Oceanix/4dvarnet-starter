@@ -14,6 +14,14 @@ from cupyx.scipy.sparse import csc_matrix as cupy_sp_csc_matrix
 from torch.utils.dlpack import to_dlpack
 from torch.utils.dlpack import from_dlpack
 from sksparse.cholmod import cholesky
+import einops
+
+def smooth(field):
+    field = field.data
+    m1 = torch.nn.AvgPool2d((2,2))
+    m2 = torch.nn.Upsample(scale_factor=2, mode='bilinear')
+    field = m2(m1(field))
+    return field
 
 class Upsampler(nn.Module):
     def __init__(self, scale_factor, mode, align_corners, antialias, **kwargs):
@@ -30,7 +38,7 @@ class Upsampler(nn.Module):
         return x
 
 class Lit4dVarNet(pl.LightningModule):
-    def __init__(self, solver, solver2, rec_weight, optim_weight1, optim_weight2, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, n_simu=100, train_init=True, downsamp = None, frcst_lead = None, epoch_start_opt2=300):
+    def __init__(self, solver, solver2, rec_weight, optim_weight1, optim_weight2, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, n_simu=100, downsamp = None, frcst_lead = None, epoch_start_opt2=1000,start_simu_idx=0):
 
         super().__init__()
         self.solver = solver
@@ -40,17 +48,20 @@ class Lit4dVarNet(pl.LightningModule):
         self.register_buffer('optim_weight1', torch.from_numpy(optim_weight1), persistent=persist_rw)
         self.register_buffer('optim_weight2', torch.from_numpy(optim_weight2), persistent=persist_rw)
 
+        # If forecast:
+        self.frcst_lead = frcst_lead
+
         # crop_daw for the joint solver of x/theta
         # mapping: [--,--,x,x,x,x,x,--,--]
         # forecast: [--,--,--,--,x,x,x,x,x]
-        self.crop_daw = solver.optim_weight1.patch_dims['time']-solver.optim_weight2.patch_dims['time']
+        self.crop_daw = optim_weight1.shape[0]-optim_weight2.shape[0]
         if self.crop_daw != 0:
             if self.frcst_lead is not None:
-                self.sel_cropdaw = np.arange(solver.optim_weight1.patch_dims['time']-self.crop_daw-1,solver.optim_weight1.patch_dims['time'])
+                self.sel_crop_daw = np.arange(self.crop_daw,optim_weight1.shape[0])
             else:
-                self.sel_cropdaw = np.arange(int(self.crop_daw/2),solver.optim_weight1.patch_dims['time']-int(self.crop_daw/2))
+                self.sel_crop_daw = np.arange(int(self.crop_daw/2),optim_weight1.shape[0]-int(self.crop_daw/2))
         else:
-            self.sel_cropdaw = np.arange(solver.optim_weight1.patch_dims['time'])
+            self.sel_crop_daw = np.arange(optim_weight1.shape[0])
 
         self.test_data = None
         self._norm_stats = norm_stats
@@ -58,6 +69,7 @@ class Lit4dVarNet(pl.LightningModule):
         self.metrics = test_metrics or {}
         self.pre_metric_fn = pre_metric_fn or (lambda x: x)
         self.n_simu = n_simu
+        self.start_simu_idx = start_simu_idx
 
         self.downsamp = downsamp
         self.down = torch.nn.AvgPool2d(downsamp)
@@ -74,8 +86,6 @@ class Lit4dVarNet(pl.LightningModule):
         # Cholesky factorization factor
         self.factor = None
 
-        # If forecast:
-        self.frcst_lead = frcst_lead
 
     @property
     def norm_stats(self):
@@ -95,6 +105,31 @@ class Lit4dVarNet(pl.LightningModule):
         loss = F.mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
         return loss
 
+    def modify_batch(self,batch):
+        batch_ = batch
+        new_input = (batch_.input).nan_to_num()
+        if (self.frcst_lead is not None) and (self.frcst_lead>0):
+            new_input[:,(-self.frcst_lead):,:,:] = 0.
+        batch_ = batch_._replace(input=new_input.to(device))
+        batch_ = batch_._replace(tgt=batch_.tgt.nan_to_num().to(device))
+        return batch_
+
+    def crop_batch(self, batch):
+        cropped_batch = batch
+        cropped_batch = cropped_batch._replace(input=(cropped_batch.input[:,self.sel_crop_daw,:,:]).nan_to_num().to(device))
+        cropped_batch = cropped_batch._replace(tgt=(cropped_batch.tgt[:,self.sel_crop_daw,:,:]).nan_to_num().to(device))
+        return cropped_batch
+
+    def corrupt_batch(self, batch, out, niter=3):
+        corrupted_batch = batch
+        for _ in range(niter):
+            corrupted_batch = corrupted_batch._replace(tgt=out.clone())
+            mask = (batch.input!=0)
+            out[~mask] = 0.   
+            corrupted_batch = corrupted_batch._replace(input=out.clone())
+            out = self.solver2(corrupted_batch)
+        return out
+
     def training_step(self, batch, batch_idx, optimizer_idx):
 
         if self.current_epoch < self.epoch_start_opt2:
@@ -112,26 +147,32 @@ class Lit4dVarNet(pl.LightningModule):
         return self.step(batch, "val")[0]
 
     def forward(self, batch):
-        out = self.solver2(batch=batch)
+
+        batch_ = self.modify_batch(batch)
+
+        out = self.solver2(batch=batch_)
+        # provide mu as coarse version of 4DVarNet outputs
+        corrupted_out = self.corrupt_batch(batch_, out.clone())
+
         if self.current_epoch >= self.epoch_start_opt2:
-            # provide mu as coarse version of 4DVarNet outputs
-            mean = self.up(self.down(out))
-            _, theta = self.solver(batch=batch,
-                            x_init=out.detach(),
-                            mu=mean.detach())
+            cropped_batch = self.crop_batch(batch_)
+            out, theta = self.solver(batch=cropped_batch, 
+                                x_init=out[:,self.sel_crop_daw,:,:].detach(),
+                                mu=corrupted_out[:,self.sel_crop_daw,:,:].detach())
         else:
             theta = None
-        return out, theta
+        return out, corrupted_out, theta
 
     def step(self, batch, phase=""):
         if batch.tgt.isfinite().float().mean() < 0.9:
             return None, None
 
-        loss, out, theta = self.base_step(batch, phase)
-        grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.optim_weight)
+        batch = self.modify_batch(batch)
+        loss, out, corrupted_out, theta = self.base_step(batch, phase)
     
         # prepare initialization of the second solver with classic 4DVarNet
-        if self.current_epoch<50:
+        if self.current_epoch<self.epoch_start_opt2:
+            grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.optim_weight1)
             prior_cost = self.solver2.prior_cost(self.solver2.init_state(batch, out))
             training_loss = 50*loss  + 1000 * grad_loss + 1.0 * prior_cost
             print(50*loss, 1000 * grad_loss)
@@ -140,36 +181,36 @@ class Lit4dVarNet(pl.LightningModule):
         # training of the augmented state solver
         else:
             if self.solver.aug_state==True:
-                nll_loss = torch.nanmean(self.solver.nll(batch.tgt,
+                nll_loss = torch.nanmean(self.solver.nll(self.crop_batch(batch).tgt,
                                                  theta = theta,
-                                                 mu = self.up(self.down(out)),
+                                                 mu = corrupted_out[:,self.sel_crop_daw,:,:].detach(),
                                                  det=True))
             else:
-                nll_loss = torch.nanmean(self.solver.nll(batch.tgt,
+                nll_loss = torch.nanmean(self.solver.nll(self.crop_batch(batch).tgt,
                                                  theta = solver.nll.encoder(out),
                                                  det=True))
             if torch.isnan(nll_loss)==True:
                 return None, None
-            #training_loss = 50*loss  + 1000 * grad_loss + nll_loss * 1e-4
-            training_loss = 50*loss + nll_loss * 1e-6
-            print(50*loss, nll_loss * 1e-6)
-            self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
+            training_loss = 10*loss + nll_loss * 1e-6
+            print(10*loss, nll_loss * 1e-6)
             self.log( f"{phase}_nll_loss", nll_loss*1e-6, prog_bar=True, on_step=False, on_epoch=True)
    
         return training_loss, out
 
     def base_step(self,batch,phase=""):
 
-        out, theta = self(batch=batch)
-
+        out, corrupted_out, theta = self(batch=batch)
         # mse loss
-        loss = self.weighted_mse(out - batch.tgt, self.optim_weight)
+        if self.current_epoch<self.epoch_start_opt2:
+            loss = self.weighted_mse(out - batch.tgt, self.optim_weight1)
+        else:
+            loss = self.weighted_mse(out - self.crop_batch(batch).tgt, self.optim_weight2)
 
         with torch.no_grad():
             self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
             self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
 
-        return loss, out, theta
+        return loss, out, corrupted_out, theta
 
     def configure_optimizers(self):
         return self.opt_fn(self,epoch_start_opt2=self.epoch_start_opt2)
@@ -183,23 +224,18 @@ class Lit4dVarNet(pl.LightningModule):
         # get norm_stats
         m, s = self.norm_stats
 
-        batch_ = batch    
-        new_input = (batch_.input).nan_to_num()
-        if (self.frcst_lead is not None) and (self.frcst_lead>0): 
-            new_input[:,(-self.frcst_lead):,:,:] = 0.
-        batch_ = batch_._replace(input=new_input.to(device))
-        batch_ = batch_._replace(tgt=batch_.tgt.to(device))
-        
+        batch_ = self.modify_batch(batch)
+
         # 4DVarNets scheme
-        out, theta = self(batch=batch_)
+        out, corrupted_out, theta = self(batch=batch)
         n_b, n_t, n_y, n_x = out.shape
         nb_nodes = n_x*n_y
         dx = dy = dt = 1
  
         self.test_data.append(torch.stack(
             [
-                batch_.input.cpu() * s + m,
-                batch_.tgt.cpu() * s + m,
+                self.crop_batch(batch_).input.cpu() * s + m,
+                self.crop_batch(batch_).tgt.cpu() * s + m,
                 out.squeeze(dim=-1).detach().cpu() * s + m,
             ],
             dim=1,
@@ -211,75 +247,91 @@ class Lit4dVarNet(pl.LightningModule):
                                                              sp_dims=[n_y, n_x])
             
 
-        Q = self.solver.nll.operator_spde(theta[0],theta[1],theta[2],theta[3],
+        if int(batch_idx//self.trainer.num_test_batches)>=self.start_simu_idx:
+            Q = self.solver.nll.operator_spde(theta[0],theta[1],theta[2],theta[3],
                                           store_block_diag=False)
     
-        x_simu = []
-        for ibatch in range(n_b):
-            Q_ = Q[ibatch].detach().cpu()
-            Q_sp = sparse_torch2scipy(Q_)
-            if self.factor is None:
-                self.factor = cholesky(Q_sp,ordering_method='natural')
-            else:
-                self.factor.cholesky_inplace(Q_sp)
-            if self.solver.nll.downsamp is not None:
-                RM = self.factor.apply_P(torch.randn((nb_nodes//(self.solver.nll.downsamp**2))*n_t,self.n_simu))
-            else:
-                RM = self.factor.apply_P(torch.randn(nb_nodes*n_t,self.n_simu))
-            x_simu_ = torch.FloatTensor(self.factor.solve_Lt(RM,
+            x_simu = []
+            for ibatch in range(n_b):
+                Q_ = Q[ibatch].detach().cpu()
+                Q_sp = sparse_torch2scipy(Q_)
+                if self.factor is None:
+                    self.factor = cholesky(Q_sp,ordering_method='natural')
+                else:
+                    self.factor.cholesky_inplace(Q_sp)
+                if self.solver.nll.downsamp is not None:
+                    RM = self.factor.apply_P(torch.randn((nb_nodes//(self.solver.nll.downsamp**2))*n_t,self.n_simu))
+                else:
+                    RM = self.factor.apply_P(torch.randn(nb_nodes*n_t,self.n_simu))
+                x_simu_ = torch.FloatTensor(self.factor.solve_Lt(RM,
                                                         use_LDLt_decomposition=False)).to(device)
-            if self.solver.nll.downsamp is not None:
-                x_simu_ = torch.squeeze(torch.stack([self.solver.nll.up(torch.reshape(x_simu_[:,i], 
+                if self.solver.nll.downsamp is not None:
+                    x_simu_ = torch.squeeze(torch.stack([self.solver.nll.up(torch.reshape(x_simu_[:,i], 
                                                      (1,n_t,
                                                      n_x//self.solver.nll.downsamp,
                                                      n_y//self.solver.nll.downsamp))) for i in range(self.n_simu)],dim=4),
                                          dim=0)
-            else:
-                x_simu_ = torch.reshape(x_simu_,(n_t,n_x,n_y,n_simu))
-            x_simu.append(x_simu_)
-        x_simu = torch.stack(x_simu,dim=0).to(device)
+                else:
+                    x_simu_ = torch.reshape(x_simu_,(n_t,n_x,n_y,self.n_simu))
+                x_simu.append(x_simu_)
+            x_simu = torch.stack(x_simu,dim=0).to(device)
     
-        if self.solver.nll.downsamp is not None:
-            theta[0],theta[1],theta[2],theta[3]  = self.solver.nll.upsamp_params(theta[0],theta[1],theta[2],theta[3] ,
+            if self.solver.nll.downsamp is not None:
+                theta[0],theta[1],theta[2],theta[3]  = self.solver.nll.upsamp_params(theta[0],theta[1],theta[2],theta[3] ,
                                                               sp_dims=[n_y//self.solver.nll.downsamp, 
                                                                        n_x//self.solver.nll.downsamp])
     
-        # interpolate the simulation based on LSTM-self.solver
-        x_simu_cond = []
-        x_simu_itrp = []
-        for i in range(self.n_simu):
-            mean = self.up(self.down(out))
-            # non-conditional simulations = mean + anomaly 
-            inputs_simu = mean + x_simu[:,:,:,:,i]
-            inputs_obs_simu = mean + x_simu[:,:,:,:,i]
-            mask = batch.input.isfinite()
-            inputs_obs_simu[~mask] = 0.
-            # create simu_batch
-            simu_batch = batch
-            simu_batch = simu_batch._replace(input=inputs_obs_simu.nan_to_num())
-            simu_batch = simu_batch._replace(tgt=inputs_simu.nan_to_num())
-            # itrp non-conditional simulations
-            #x_itrp_simu, _ = self(simu_batch)
-            x_itrp_simu = self.solver2(simu_batch)
-            #mean = self.up(self.down(x_itrp_simu))
-            #x_itrp_simu, _ = self.solver(simu_batch,
-            #                             x_init=x_itrp_simu.detach(),
-            #                             mu=mean.detach())
-            x_simu_itrp.append(x_itrp_simu)
-            # conditional simulations
-            x_simu_cond_ = (simu_batch.tgt - x_itrp_simu) + out
-            x_simu_cond.append(x_simu_cond_)
-        x_simu_itrp = torch.stack(x_simu_itrp,dim=4).to(device).detach().cpu()                
-        x_simu_cond = torch.stack(x_simu_cond,dim=4).to(device).detach().cpu()
+            # interpolate the simulation based on LSTM-self.solver
+            x_simu_cond = []
+            x_simu_itrp = []
+            for i in range(self.n_simu):
+                mean = corrupted_out[:,self.sel_crop_daw,:,:]
+                inputs_simu = mean + smooth(x_simu[:,:,:,:,i])
+                inputs_obs_simu = mean + smooth(x_simu[:,:,:,:,i])
+                # increase size of simu batch
+                if self.frcst_lead is not None:
+                    inputs_simu = torch.cat((einops.repeat(inputs_simu[:,0,:,:], 'b y x -> b t y x', t=self.crop_daw),inputs_simu),dim=1)
+                    inputs_obs_simu = torch.cat((einops.repeat(inputs_simu[:,0,:,:], 'b y x -> b t y x', t=self.crop_daw),inputs_obs_simu),dim=1)
+                else:
+                    inputs_simu = torch.cat((einops.repeat(inputs_simu[:,0,:,:], 'b y x -> b t y x', t=int(self.crop_daw//2)),
+                             inputs_simu,
+                             einops.repeat(inputs_simu[:,-1,:,:], 'b y x -> b t y x', t=int(self.crop_daw//2))),dim=1)
+                    inputs_obs_simu = torch.cat((einops.repeat(inputs_simu[:,0,:,:], 'b y x -> b t y x', t=int(self.crop_daw//2)),
+                             inputs_obs_simu,
+                             einops.repeat(inputs_simu[:,-1,:,:], 'b y x -> b t y x', t=int(self.crop_daw//2))),dim=1)
+                mask = (batch_.input!=0)
+                inputs_obs_simu[~mask] = 0.
+                simu_batch = batch_
+                simu_batch = simu_batch._replace(input=inputs_obs_simu)
+                simu_batch = simu_batch._replace(tgt=inputs_simu)
+                # itrp non-conditional simulations
+                #x_itrp_simu, _ = self(simu_batch)
+                x_itrp_simu = self.solver2(simu_batch)
+                x_itrp_simu = x_itrp_simu[:,self.sel_crop_daw,:,:]
+                x_simu_itrp.append(x_itrp_simu)
+                # conditional simulations
+                x_simu_cond_ = (simu_batch.tgt[:,self.sel_crop_daw,:,:] - x_itrp_simu) + out.detach()
+                x_simu_cond.append(x_simu_cond_)
+            x_simu_itrp = torch.stack(x_simu_itrp,dim=4).to(device).detach().cpu()                
+            x_simu_cond = torch.stack(x_simu_cond,dim=4).to(device).detach().cpu()
         
-        self.test_simu.append(torch.stack(
-                [
-                    x_simu.detach().cpu(),
-                    x_simu_itrp,
-                    x_simu_cond * s + m,
-                ],
-                dim=1,
-            ))  
+            self.test_simu.append(torch.stack(
+                    [
+                        x_simu.detach().cpu(),
+                        x_simu_itrp,
+                        x_simu_cond * s + m,
+                    ],
+                    dim=1,
+                ))
+        else:
+            self.test_simu.append(torch.stack(
+            [
+                torch.zeros(n_b, n_t, n_y, n_x, self.n_simu),
+                torch.zeros(n_b, n_t, n_y, n_x, self.n_simu),
+                torch.zeros(n_b, n_t, n_y, n_x, self.n_simu),
+            ],
+            dim=1,
+            ))
         
         # reshape parameters as maps
         kappa = torch.reshape(theta[0],(len(out),1,n_x,n_y,n_t))
@@ -325,23 +377,16 @@ class Lit4dVarNet(pl.LightningModule):
     def test_params_quantities(self):
         return ['kappa', 'm1', 'm2', 'H11', 'H12', 'H21', 'H22', 'tau']
 
-    '''
-    def on_train_epoch_end(self):
-        if self.train_init:
-            torch.save(self.solver2.state_dict(),
-                       '/homes/m19beauc/4dvarnet-starter/ckpt/ckptnew_spde_wonll_rzf=2_frcst'+str(self.frcst_lead)+'.pth')
-    '''
-
     def on_test_epoch_end(self):
 
         # reconstruct mean
         if isinstance(self.trainer.test_dataloaders,list):
             rec_da = self.trainer.test_dataloaders[0].dataset.reconstruct(
-                    self.test_data, self.rec_weight.cpu().numpy()
+                    self.test_data, self.rec_weight.cpu().numpy(), crop = self.crop_daw
             )
         else:
             rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
-                    self.test_data, self.rec_weight.cpu().numpy()
+                    self.test_data, self.rec_weight.cpu().numpy(), crop = self.crop_daw
             )
         self.test_data = rec_da.assign_coords(
                     dict(v0=self.test_quantities)
@@ -350,11 +395,11 @@ class Lit4dVarNet(pl.LightningModule):
         # reconstruct parameters
         if isinstance(self.trainer.test_dataloaders,list):
             rec_params = self.trainer.test_dataloaders[0].dataset.reconstruct(
-                    self.test_params, self.rec_weight.cpu().numpy()
+                    self.test_params, self.rec_weight.cpu().numpy(), crop = self.crop_daw
             )
         else:
             rec_params = self.trainer.test_dataloaders.dataset.reconstruct(
-                        self.test_params, self.rec_weight.cpu().numpy()
+                        self.test_params, self.rec_weight.cpu().numpy(), crop = self.crop_daw
             )
         self.test_params = rec_params.assign_coords(
                     dict(v0=self.test_params_quantities)
@@ -365,11 +410,11 @@ class Lit4dVarNet(pl.LightningModule):
         for i in range(self.n_simu):
             if isinstance(self.trainer.test_dataloaders,list):
                 rec_simu = self.trainer.test_dataloaders[0].dataset.reconstruct(
-                    [ts[:,:,:,:,:,i] for ts in self.test_simu], self.rec_weight.cpu().numpy()
+                    [ts[:,:,:,:,:,i] for ts in self.test_simu], self.rec_weight.cpu().numpy(), crop = self.crop_daw
                 )
             else:
                 rec_simu = self.trainer.test_dataloaders.dataset.reconstruct(
-                    [ts[:,:,:,:,:,i] for ts in self.test_simu], self.rec_weight.cpu().numpy()
+                    [ts[:,:,:,:,:,i] for ts in self.test_simu], self.rec_weight.cpu().numpy(), crop = self.crop_daw
                 )
             rec_da_wsimu.append(rec_simu)
         if len(rec_da_wsimu)>1:
@@ -399,4 +444,17 @@ class Lit4dVarNet(pl.LightningModule):
         if self.logger:
             self.logger.log_metrics(metrics.to_dict())
 
+
+class Lit4dVarNet_wcov(Lit4dVarNet):
+
+    def modify_batch(self,batch):
+        batch_ = batch
+        new_input = (batch_.input).nan_to_num()
+        if (self.frcst_lead is not None) and (self.frcst_lead>0):
+            new_input[:,(-self.frcst_lead):,:,:] = 0.
+        batch_ = batch_._replace(input=new_input.to(device))
+        batch_ = batch_._replace(tgt=batch_.tgt.nan_to_num().to(device))
+        batch_ = batch_._replace(u=batch_.u.nan_to_num().to(device))
+        batch_ = batch_._replace(v=batch_.v.nan_to_num().to(device))
+        return batch_
 

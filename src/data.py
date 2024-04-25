@@ -205,7 +205,7 @@ class XrDataset(torch.utils.data.Dataset):
             if self.frcst_lead is None:
                 coords = [item.isel(time=slice(crop,-crop)) for item in self.get_coords()]
             else:
-                coords = [item.isel(time=slice(self.patch_dims['time']-(crop+1),
+                coords = [item.isel(time=slice(crop,
                                                self.patch_dims['time'])) for item in self.get_coords()]
                 
         new_dims = [f'v{i}' for i in range(len(items[0].shape) - len(coords[0].dims))]

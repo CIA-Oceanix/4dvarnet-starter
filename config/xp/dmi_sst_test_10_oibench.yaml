@@ -1,10 +1,10 @@
 # @package _global_
 
 paths:
-    obs: /DATASET/mbeauchamp/DMI/DMI-L3S_GHRSST-SSTsubskin-night_SST_UHR_NRT-NSEABALTIC_validation_s0.nc
-    tgt: /DATASET/mbeauchamp/DMI/DMI-L3S_GHRSST-SSTsubskin-night_SST_UHR_NRT-NSEABALTIC_validation_s0.nc
-    oi: /DATASET/mbeauchamp/DMI/DMI-L4_GHRSST-SSTfnd-DMI_OI-NSEABALTIC_2021_validation.nc
-    mask: /DATASET/mbeauchamp/DMI/mask.nc
+    obs: /DATASET/mbeauchamp/DMI/validation_dataset/DMI-L3S_GHRSST-SSTsubskin-night_SST_UHR_NRT-NSEABALTIC_validation_s0.nc
+    tgt: /DATASET/mbeauchamp/DMI/validation_dataset/DMI-L3S_GHRSST-SSTsubskin-night_SST_UHR_NRT-NSEABALTIC_validation_s0.nc
+    oi: /DATASET/mbeauchamp/DMI/validation_dataset/DMI-L4_GHRSST-SSTfnd-DMI_OI-NSEABALTIC_2021_validation.nc
+    mask: /DATASET/mbeauchamp/DMI/validation_dataset/mask.nc
 domain: ???
 
 trainer:
@@ -66,6 +66,11 @@ model:
       patch_dims: ${datamodule.xrds_kw.patch_dims}
       crop: {time: 0, lat: 50, lon: 50}
       offset: 1
+  optim_weight:
+      _target_: src.utils.get_linear_time_wei
+      patch_dims: ${datamodule.xrds_kw.patch_dims}
+      crop: {time: 0, lat: 50, lon: 50}
+      offset: 1
   solver: 
     _target_: src.models.GradSolver
     n_step: 10
@@ -91,7 +96,7 @@ model:
         time: {_target_: builtins.slice, _args_: ["2021-01-01", "2021-12-31"]}
         lat: ${domain.test.lat}
         lon: ${domain.test.lon}
-  path_mask: ${paths.mask}
+  path_mask: ${paths.oi}
   domain_limits: ${domain.train}
 
 metrics:
@@ -112,7 +117,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    ckpt_path: /homes/m19beauc/4dvarnet-starter/ckpt/sst_dmi_all_baltic.ckpt
+    ckpt_path: /homes/m19beauc/4dvarnet-starter/ckpt/sst_dmi_baltic_interior_linweight.ckpt
 
 defaults:
   - /domain: baltic_ext

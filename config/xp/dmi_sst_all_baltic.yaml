@@ -1,9 +1,9 @@
 # @package _global_
 
 paths:
-    obs: /DATASET/mbeauchamp/DMI/DMI-L3S_GHRSST-SSTsubskin-night_SST_UHR_NRT-NSEABALTIC.nc
-    tgt: /DATASET/mbeauchamp/DMI/DMI-L3S_GHRSST-SSTsubskin-night_SST_UHR_NRT-NSEABALTIC.nc
-    oi: /DATASET/mbeauchamp/DMI/DMI-L4_GHRSST-SSTfnd-DMI_OI-NSEABALTIC.nc
+    obs: /DATASET/mbeauchamp/DMI/training_dataset/DMI-L3S_GHRSST-SSTsubskin-night_SST_UHR_NRT-NSEABALTIC.nc
+    tgt: /DATASET/mbeauchamp/DMI/training_dataset/DMI-L3S_GHRSST-SSTsubskin-night_SST_UHR_NRT-NSEABALTIC.nc
+    oi: /DATASET/mbeauchamp/DMI/training_dataset/DMI-L4_GHRSST-SSTfnd-DMI_OI-NSEABALTIC.nc
 
 domain: ???
 
@@ -79,6 +79,11 @@ model:
       _target_: src.utils.get_last_time_wei
       patch_dims: ${datamodule.xrds_kw.patch_dims}
       #crop: {time: 0, lat: 20, lon: 20}
+      crop: {time: 0, lat: 50, lon: 50}
+      offset: 1
+  optim_weight:
+      _target_: src.utils.get_linear_time_wei
+      patch_dims: ${datamodule.xrds_kw.patch_dims}
       crop: {time: 0, lat: 50, lon: 50}
       offset: 1
   solver: 

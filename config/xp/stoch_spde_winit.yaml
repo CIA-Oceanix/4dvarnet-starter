@@ -17,7 +17,7 @@ trainer:
     save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 53
+  max_epochs: 1100
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
@@ -27,9 +27,9 @@ trainer:
       filename: '{val_mse:.5f}-{epoch:03d}'
 
 datamodule:
-  _target_: src.data.BaseDataModule
+  _target_: src.data_notebook_fast.BaseDataModule
   input_da: 
-    _target_: src.utils.load_altimetry_data
+    _target_: src.utils.load_altimetry_data_fast
     path: ${paths.natl_4nads_swot_osse}
   domains:
     train:
@@ -39,9 +39,7 @@ datamodule:
     test: 
       time: {_target_: builtins.slice,  _args_: ['2012-10-01', '2012-12-20']}
   xrds_kw:
-    #patch_dims: { time: 15, lat: "$(( 240//${datamodule.resize_factor))", lon: "$(( 240//${datamodule.resize_factor ))"}
-    #strides: { time: 1, lat: "$((200//${datamodule.resize_factor)", lon: "$((200//${datamodule.resize_factor ))"}
-    patch_dims: { time: 9, lat: 120, lon: 120}
+    patch_dims: { time: 15, lat: 120, lon: 120}
     strides: { time: 1, lat: 100, lon: 100}
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 2, num_workers: 1}
@@ -49,14 +47,16 @@ datamodule:
   #  aug_factor: 2
   #  aug_only: True
   resize_factor: 2
+  frcst_lead: 2
+  norm_stats:
+    - 0.31651841229383865
+    - 0.3892599391249885
 
 model:
   _target_: contrib.stoch_spde.lit_model_spde_winit.Lit4dVarNet
-  train_init: True
-  downsamp: 4
-  frcst_lead: 2
+  frcst_lead: ${datamodule.frcst_lead}
   persist_rw: False
-  epoch_start_opt2: 300
+  epoch_start_opt2: 1000
   opt_fn:
     _target_: src.utils.cosanneal_spde_lr_adam_winit
     _partial_: true
@@ -81,7 +81,7 @@ model:
     _target_: contrib.stoch_spde.solver.GradSolver_Lgv
     aug_state: True
     n_step: 5
-    lr_grad: 1e-3
+    lr_grad: 1e3
     nll: 
       _target_: contrib.stoch_spde.models_spde.NLL
       shape_data: 
@@ -95,15 +95,13 @@ model:
         - 1
         - 1
       scheme: FUDM1
-      downsamp: None
     nlpobs: 
       _target_: contrib.stoch_spde.models_spde.NLpObs
-    prior_cost: None
     obs_cost:
       _target_: src.models.BaseObsCost
     grad_mod: 
       _target_: src.models.ConvLstmGradModel
-      dim_in: 81
+      dim_in: 45
       dim_hidden: 244
     unet_prior: False
   solver2:
