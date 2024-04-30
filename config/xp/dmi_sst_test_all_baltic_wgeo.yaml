@@ -1,9 +1,10 @@
 # @package _global_
 
 paths:
-    obs: /DATASET/mbeauchamp/DMI/validation_dataset/DMI-L3S_GHRSST-SSTsubskin-night_SST_UHR_NRT-NSEABALTIC.nc
-    tgt: /DATASET/mbeauchamp/DMI/validation_dataset/DMI-L3S_GHRSST-SSTsubskin-night_SST_UHR_NRT-NSEABALTIC.nc
-    oi: /DATASET/mbeauchamp/DMI/validation_dataset/DMI-L4_GHRSST-SSTfnd-DMI_OI-NSEABALTIC.nc
+    obs: /DATASET/mbeauchamp/DMI/validation_dataset/DMI-L3S_GHRSST-SSTsubskin-night_SST_UHR_NRT-NSEABALTIC_validation_s0.nc
+    tgt: /DATASET/mbeauchamp/DMI/validation_dataset/DMI-L3S_GHRSST-SSTsubskin-night_SST_UHR_NRT-NSEABALTIC_validation_s0.nc
+    oi: /DATASET/mbeauchamp/DMI/validation_dataset/DMI-L4_GHRSST-SSTfnd-DMI_OI-NSEABALTIC_2021_validation.nc
+    mask: /DATASET/mbeauchamp/DMI/validation_dataset/mask.nc
 
 domain: ???
 
@@ -36,7 +37,7 @@ datamodule:
     _target_: contrib.dmi.load_data.load_data_wgeo
     path_obs: ${paths.obs}
     path_tgt: ${paths.tgt}
-    #path_tgt: ${paths.oi}   
+    path_oi: ${paths.oi}   
   domains:
     train:
       time: {_target_: builtins.slice, _args_: ['2019-05-01', '2020-12-31']}
@@ -56,7 +57,7 @@ datamodule:
     #test:
     #  time: {_target_: builtins.slice, _args_: ['2021-01-01', '2021-01-21']}
   xrds_kw:
-    patch_dims: { time: 7, lat: 600, lon: 600}
+    patch_dims: { time: 15, lat: 600, lon: 600}
     strides: { time: 1, lat: 500, lon: 500}
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 4, num_workers: 0}
@@ -88,13 +89,13 @@ model:
       offset: 1
   solver: 
     _target_: contrib.dmi.solver.GradSolver_wgeo
-    n_step: 10
+    n_step: 15
     lr_grad: 1e3
     # lr_grad: 0.2
     prior_cost: 
       _target_: contrib.dmi.solver.BilinAEPriorCost_wgeo
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 32
+      dim_hidden: 64
       bilin_quad: False
       # bilin_quad: True
       # downsamp: 2
@@ -103,7 +104,7 @@ model:
     grad_mod: 
       _target_: src.models.ConvLstmGradModel
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 48
+      dim_hidden: 96
   test_metrics: ${metrics.test_metrics}
   pre_metric_fn: 
         _target_: xarray.Dataset.sel
@@ -132,7 +133,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    ckpt_path: /homes/m19beauc/4dvarnet-starter/ckpt/sst_dmi_all_baltic_wgeo.ckpt
+    ckpt_path: /homes/m19beauc/4dvarnet-starter/ckpt/sst_dmi_all_baltic_wgeo_linweight_dt15.ckpt
 
 defaults:
   - /domain: baltic

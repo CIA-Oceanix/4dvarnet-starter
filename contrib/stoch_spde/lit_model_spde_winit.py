@@ -146,15 +146,14 @@ class Lit4dVarNet(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         return self.step(batch, "val")[0]
 
-    def forward(self, batch):
+    def forward(self, batch, phase=""):
 
         batch_ = self.modify_batch(batch)
-
         out = self.solver2(batch=batch_)
         # provide mu as coarse version of 4DVarNet outputs
         corrupted_out = self.corrupt_batch(batch_, out.clone())
 
-        if self.current_epoch >= self.epoch_start_opt2:
+        if ((self.current_epoch >= self.epoch_start_opt2) or (phase=="test")):
             cropped_batch = self.crop_batch(batch_)
             out, theta = self.solver(batch=cropped_batch, 
                                 x_init=out[:,self.sel_crop_daw,:,:].detach(),
@@ -176,8 +175,11 @@ class Lit4dVarNet(pl.LightningModule):
             prior_cost = self.solver2.prior_cost(self.solver2.init_state(batch, out))
             training_loss = 50*loss  + 1000 * grad_loss + 1.0 * prior_cost
             print(50*loss, 1000 * grad_loss)
-            self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
-            self.log( f"{phase}_prior_loss", prior_cost, prog_bar=True, on_step=False, on_epoch=True)
+            with torch.no_grad():
+                self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
+                self.log( f"{phase}_prior_loss", prior_cost, prog_bar=True, on_step=False, on_epoch=True)
+                self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
+
         # training of the augmented state solver
         else:
             if self.solver.aug_state==True:
@@ -193,13 +195,15 @@ class Lit4dVarNet(pl.LightningModule):
                 return None, None
             training_loss = 10*loss + nll_loss * 1e-6
             print(10*loss, nll_loss * 1e-6)
-            self.log( f"{phase}_nll_loss", nll_loss*1e-6, prog_bar=True, on_step=False, on_epoch=True)
+            with torch.no_grad():
+                self.log( f"{phase}_nll_loss", nll_loss*1e-6, prog_bar=True, on_step=False, on_epoch=True)
+                self.log(f"{phase}_mse", (10000 * loss * self.norm_stats[1]**2) + 1e-3*nll_loss, prog_bar=True, on_step=False, on_epoch=True)
    
         return training_loss, out
 
     def base_step(self,batch,phase=""):
 
-        out, corrupted_out, theta = self(batch=batch)
+        out, corrupted_out, theta = self(batch=batch, phase="")
         # mse loss
         if self.current_epoch<self.epoch_start_opt2:
             loss = self.weighted_mse(out - batch.tgt, self.optim_weight1)
@@ -207,7 +211,7 @@ class Lit4dVarNet(pl.LightningModule):
             loss = self.weighted_mse(out - self.crop_batch(batch).tgt, self.optim_weight2)
 
         with torch.no_grad():
-            self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
+            #self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
             self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
 
         return loss, out, corrupted_out, theta
@@ -215,7 +219,7 @@ class Lit4dVarNet(pl.LightningModule):
     def configure_optimizers(self):
         return self.opt_fn(self,epoch_start_opt2=self.epoch_start_opt2)
 
-    def test_step(self, batch, batch_idx):
+    def test_step(self, batch, batch_idx, phase="test"):
         if batch_idx == 0:
             self.test_data = []
             self.test_params = []
@@ -227,7 +231,7 @@ class Lit4dVarNet(pl.LightningModule):
         batch_ = self.modify_batch(batch)
 
         # 4DVarNets scheme
-        out, corrupted_out, theta = self(batch=batch)
+        out, corrupted_out, theta = self(batch=batch, phase=phase)
         n_b, n_t, n_y, n_x = out.shape
         nb_nodes = n_x*n_y
         dx = dy = dt = 1
@@ -247,7 +251,7 @@ class Lit4dVarNet(pl.LightningModule):
                                                              sp_dims=[n_y, n_x])
             
 
-        if int(batch_idx//self.trainer.num_test_batches)>=self.start_simu_idx:
+        if int(batch_idx//self.trainer.num_test_batches[0])>=self.start_simu_idx:
             Q = self.solver.nll.operator_spde(theta[0],theta[1],theta[2],theta[3],
                                           store_block_diag=False)
     

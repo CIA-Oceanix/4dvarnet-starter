@@ -148,7 +148,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    #ckpt: /homes/m19beauc/4dvarnet-starter/ckpt/ckpt_spde_rzf=2_frcst1_lit.pth
+    ckpt: /homes/m19beauc/4dvarnet-starter/ckpt/ssh_spde_frcst2_4nadirs_swot.ckpt
 
 defaults:
   - /domain: gf

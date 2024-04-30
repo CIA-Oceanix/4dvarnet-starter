@@ -51,7 +51,8 @@ class XrDataset(torch.utils.data.Dataset):
             postpro_fn=None,
             resize_factor=1,
             res=0.05,
-            pad = False
+            pad = False,
+            limit_num_coords=None
             ):
         """
         da: xarray.DataArray with patch dims at the end in the dim orders
@@ -68,6 +69,9 @@ class XrDataset(torch.utils.data.Dataset):
         self.strides = strides or {}
         self.res = res
         self.pad = pad
+        if self.pad==True:
+            self.strides={'time':1,'lon':500,'lat':500}
+        self.limit_num_coords = limit_num_coords
 
         # extend self.da if domain larger than NetCDF
         '''
@@ -165,8 +169,12 @@ class XrDataset(torch.utils.data.Dataset):
         self.return_coords = True
         coords = []
         try:
-            for i in range(len(self)):
-                coords.append(self[i])
+            if self.limit_num_coords is None:
+                for i in range(len(self)):
+                    coords.append(self[i])
+            else:
+                for i in range(self.limit_num_coords):
+                    coords.append(self[i])
         finally:
             self.return_coords = False
             return coords
@@ -205,18 +213,12 @@ class XrDataset(torch.utils.data.Dataset):
             weight = np.ones(list(self.patch_dims.values()))
         w = xr.DataArray(weight, dims=list(self.patch_dims.keys()))
         
-        print(items)
-        print('toto1')
         coords = self.get_coords()
-        print('toto2')
         new_dims = [f'v{i}' for i in range(len(items[0].shape) - len(coords[0].dims))]
-        print('toto3')
         dims = new_dims + list(coords[0].dims)
-        print('toto4')
         das = [xr.DataArray(it.numpy(), dims=dims, coords=co.coords)
                for  it, co in zip(items, coords)]
 
-        print(das[0])
         #da_shape = dict(zip(coords[0].dims, self.da.shape[-len(coords[0].dims):]))
         self.da.dims.values()
         da_shape = dict(zip(coords[0].dims, list(self.da.dims.values())[-len(coords[0].dims):]))
@@ -349,9 +351,9 @@ class BaseDataModule(pl.LightningDataModule):
     def rand_obs(self, gt_item, obs=True):
         obs_mask_item = ~np.isnan(gt_item)
         _obs_item = gt_item
-        dtime = self.xrds_kw.patch_dims.time
-        dlat = self.xrds_kw.patch_dims.lat
-        dlon = self.xrds_kw.patch_dims.lon
+        dtime = self.xrds_kw['patch_dims']['time']
+        dlat = self.xrds_kw['patch_dims']['lat']
+        dlon = self.xrds_kw['patch_dims']['lon']
         for t_ in range(dtime):
             obs_mask_item_t_ = obs_mask_item[t_]
             if np.sum(obs_mask_item_t_)>.25*dlat*dlon:
@@ -376,9 +378,9 @@ class BaseDataModule(pl.LightningDataModule):
         npatch = 500
         obs_mask_item = ~np.isnan(gt_item)
         _obs_item = gt_item
-        dtime = self.xrds_kw.patch_dims.time
-        dlat = self.xrds_kw.patch_dims.lat
-        dlon = self.xrds_kw.patch_dims.lon
+        dtime = self.xrds_kw['patch_dims']['time']
+        dlat = self.xrds_kw['patch_dims']['lat']
+        dlon = self.xrds_kw['patch_dims']['lon']
 
         # define random size of additional wholes
         half_patch_height = np.random.randint(2,10,(dtime,npatch))
@@ -426,7 +428,7 @@ class BaseDataModule(pl.LightningDataModule):
         self.train_ds = XrDataset(
             train_data, **self.xrds_kw, postpro_fn=post_fn_rand,
             resize_factor = self.resize_factor,
-            res = self.res
+            res = self.res, limit_num_coords = 100
         )
         if self.aug_kw:
             self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
@@ -518,7 +520,7 @@ class BaseDataModule_wgeo(BaseDataModule):
         self.train_ds = XrDataset_wgeo(
             train_data, **self.xrds_kw, postpro_fn=post_fn_rand,
             resize_factor = self.resize_factor,
-            res = self.res
+            res = self.res, limit_num_coords = 100
         )
         if self.aug_kw:
             self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
@@ -526,7 +528,7 @@ class BaseDataModule_wgeo(BaseDataModule):
         if isinstance(self.domains['val']['time'], slice):
             self.val_ds = XrDataset_wgeo(
                 self.input_da.sel(self.domains['val']), **self.xrds_kw, postpro_fn=post_fn,
-                resize_factor = self.resize_factor,
+                resize_factor = self.resize_factor, 
                 res =self.res
             )
         else:
@@ -542,7 +544,7 @@ class BaseDataModule_wgeo(BaseDataModule):
         self.test_ds = XrDataset_wgeo(
             self.input_da.sel(self.domains['test']), **self.xrds_kw, postpro_fn=post_fn,
             resize_factor = self.resize_factor,
-            res = self.res,
+            res = self.res, 
             pad = True
         )
 

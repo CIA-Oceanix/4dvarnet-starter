@@ -5,7 +5,6 @@ import logging
 
 from src.ose.mod_write import *
 
-
 def compute_segment_alongtrack(time_alongtrack, 
                                lat_alongtrack, 
                                lon_alongtrack, 

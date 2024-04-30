@@ -135,9 +135,20 @@ def write_timeserie_stat(ssh_alongtrack, ssh_map_interp, time_vector, freq, outp
     mean_rmse = np.ma.mean(np.ma.masked_invalid(rmse_score))
     std_rmse = np.ma.std(np.ma.masked_invalid(rmse_score))
     
+    # mask score if nb obs < nb_min_obs
+    nb_min_obs = 10
+    rmse = np.ma.masked_where(vcount.values < nb_min_obs, rmse)
+    mean_raw_rmse = np.ma.mean(np.ma.masked_invalid(rmse))
+    std_raw_rmse = np.ma.std(np.ma.masked_invalid(rmse))   
+    
     logging.info(' ')
     logging.info(f'  MEAN RMSE Score = {mean_rmse}')
     logging.info(' ')
     logging.info(f'  STD RMSE Score = {std_rmse}')
+    
+    logging.info(' ')
+    logging.info(f'  MEAN RMSE = {mean_raw_rmse}')
+    logging.info(' ')
+    logging.info(f'  STD RMSE = {std_raw_rmse}')
     
     return mean_rmse, std_rmse

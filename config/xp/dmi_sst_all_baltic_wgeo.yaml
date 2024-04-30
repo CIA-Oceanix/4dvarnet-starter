@@ -15,7 +15,7 @@ trainer:
   limit_train_batches: 300.
   limit_val_batches: 20.
   limit_test_batches: 200.
-  accumulate_grad_batches: 8
+  accumulate_grad_batches: 16
   precision: 16
   #gradient_clip_val: 0.5
   logger: 

@@ -176,7 +176,7 @@ class GradSolver_wgeo(GradSolver):
 
     def init_state(self, batch, x_init=None):
         x_init = super().init_state(batch, x_init)
-        coords_mask = torch.stack((batch.lat[:,0], batch.lon[:,0], batch.mask[:,0]), dim=1)
+        coords_mask = torch.stack((batch.lat[:,0], batch.lon[:,0], batch.mask[:,0]), dim=1).to(x_init.device)
         return (x_init, coords_mask)
 
     def solver_step(self, state, batch, step):
