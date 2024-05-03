@@ -1,0 +1,131 @@
+# @package _global_
+
+paths:
+    obs: /DATASET/mbeauchamp/DMI/validation_dataset/DMI-L3S_GHRSST-SSTsubskin-night_SST_UHR_NRT-NSEABALTIC_validation_s0.nc
+    tgt: /DATASET/mbeauchamp/DMI/validation_dataset/DMI-L3S_GHRSST-SSTsubskin-night_SST_UHR_NRT-NSEABALTIC_validation_s0.nc
+    oi: /DATASET/mbeauchamp/DMI/validation_dataset/DMI-L4_GHRSST-SSTfnd-DMI_OI-NSEABALTIC_2021_validation.nc
+    mask: /DATASET/mbeauchamp/DMI/validation_dataset/mask.nc
+domain: ???
+
+trainer:
+  _target_: pytorch_lightning.Trainer
+  inference_mode: False
+  gradient_clip_val: 0.5
+  accelerator: gpu
+  devices: 1
+  logger: 
+    _target_: pytorch_lightning.loggers.CSVLogger
+    save_dir: ${hydra:runtime.output_dir}
+    name: ${hydra:runtime.choices.xp}
+    version: ''
+  max_epochs: 10
+  callbacks:
+    - _target_: src.versioning_cb.VersioningCallback
+    - _target_: pytorch_lightning.callbacks.LearningRateMonitor
+    - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+      monitor: val_mse
+      save_top_k: 3
+      filename: '{val_mse:.5f}-{epoch:03d}'
+
+datamodule:
+  _target_: contrib.dmi.data.BaseDataModule
+  input_da: 
+    _target_: contrib.dmi.load_data.load_data
+    path_obs: ${paths.obs}
+    path_tgt: ${paths.tgt}
+  domains:
+    train:
+      time: {_target_: builtins.slice, _args_: ['2021-01-01', '2021-12-31']}
+    val:
+      time: {_target_: builtins.slice, _args_: ['2021-01-01', '2021-01-10']}
+    test:
+      time: {_target_: builtins.slice, _args_: ['2021-04-15', '2021-06-05']}
+  xrds_kw:
+    patch_dims: { time: 7, lat: 1200, lon: 1300}
+    strides: { time: 1, lat: 1200, lon: 1300}
+    strides_test: {time: 1, lat: 1100, lon: 1100}
+    domain_limits: ${domain.train}
+  dl_kw: {batch_size: 1, num_workers: 0}
+  #aug_kw:
+  #  aug_factor: 1
+  #  aug_only: True
+  res: 0.02
+  pads:
+    - True
+    - True
+    - True
+  norm_stats:
+    - 283.8052
+    - 4.2381434 
+
+
+model:
+  _target_: src.models.Lit4dVarNet_SST
+  persist_rw: False
+  opt_fn:
+    _target_: src.utils.cosanneal_lr_adam
+    _partial_: true
+    lr: 1e-3
+    T_max: ${trainer.max_epochs}
+  rec_weight:
+      _target_: src.utils.get_last_time_wei
+      patch_dims: ${datamodule.xrds_kw.patch_dims}
+      crop: {time: 0, lat: 50, lon: 100}
+      offset: 1
+  optim_weight:
+      _target_: src.utils.get_linear_time_wei
+      patch_dims: ${datamodule.xrds_kw.patch_dims}
+      crop: {time: 0, lat: 50, lon: 100}
+      offset: 1
+  solver: 
+    _target_: src.models.GradSolver
+    n_step: 15
+    lr_grad: 1e3
+    # lr_grad: 0.2
+    prior_cost: 
+      _target_: src.models.BilinAEPriorCost
+      dim_in: ${datamodule.xrds_kw.patch_dims.time}
+      dim_hidden: 64
+      bilin_quad: False
+      # bilin_quad: True
+      # downsamp: 2
+    obs_cost: 
+      _target_: src.models.BaseObsCost
+    grad_mod: 
+      _target_: src.models.ConvLstmGradModel
+      dim_in: ${datamodule.xrds_kw.patch_dims.time}
+      dim_hidden: 96
+  test_metrics: ${metrics.test_metrics}
+  pre_metric_fn: 
+        _target_: xarray.Dataset.sel
+        _partial_: True
+        time: {_target_: builtins.slice, _args_: ["2021-01-01", "2021-12-31"]}
+        lat: ${domain.test.lat}
+        lon: ${domain.test.lon}
+  path_mask: ${paths.oi}
+  domain_limits: ${domain.train}
+
+metrics:
+  nrmse_scores: {_target_: src.utils.rmse_based_scores_from_ds, _partial_: True}
+  psd_scores: {_target_: src.utils.psd_based_scores_from_ds, _partial_: True}
+  get0: {_target_: operator.itemgetter, _args_: [0]}
+  get1: {_target_: operator.itemgetter, _args_: [1]}
+  test_metrics:
+    'mu': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.nrmse_scores}', '${metrics.get0}']}
+    'sig': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.nrmse_scores}', '${metrics.get1}']}
+    'lx': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.psd_scores}', '${metrics.get0}']}
+    'lt': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.psd_scores}', '${metrics.get1}']}
+
+entrypoints:
+  #- _target_: pytorch_lightning.seed_everything
+  #  seed: 333
+  - _target_: src.test.base_test
+    trainer: ${trainer}
+    lit_mod: ${model}
+    dm: ${datamodule}
+    ckpt_path: /homes/m19beauc/4dvarnet-starter/ckpt/sst_dmi_baltic_interior_linweight.ckpt
+
+defaults:
+  - /domain: baltic_ext
+  - _self_
+

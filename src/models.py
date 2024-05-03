@@ -93,7 +93,10 @@ class Lit4dVarNet(pl.LightningModule):
                 out.squeeze(dim=-1).detach().cpu() * s + m,
             ],
             dim=1,
-        ))
+        )) 
+
+        batch = None
+        out = None
 
     @property
     def test_quantities(self):

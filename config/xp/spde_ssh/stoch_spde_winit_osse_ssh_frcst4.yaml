@@ -1,0 +1,156 @@
+# @package _global_
+
+paths:
+    natl_4nads_swot_osse: /DATASET/mbeauchamp/natl_4nadirs_swot.nc
+    natl_6nads_ose: /DATASET/mbeauchamp/natl_ose_6nadirs.nc
+
+domain: ???
+
+trainer:
+  _target_: pytorch_lightning.Trainer
+  inference_mode: False
+  gradient_clip_val: 0.5
+  accelerator: gpu
+  devices: 1
+  logger: 
+    _target_: pytorch_lightning.loggers.CSVLogger
+    save_dir: ${hydra:runtime.output_dir}
+    name: ${hydra:runtime.choices.xp}
+    version: ''
+  max_epochs: 1100
+  callbacks:
+    - _target_: src.versioning_cb.VersioningCallback
+    - _target_: pytorch_lightning.callbacks.LearningRateMonitor
+    - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+      monitor: val_mse
+      save_top_k: 3
+      filename: 'ssh_spde_frcst4_4nadirs_swot_{val_mse:.5f}-{epoch:03d}.ckpt'
+
+datamodule:
+  _target_: src.data_notebook_fast.BaseDataModule
+  input_da: 
+    _target_: src.utils.load_altimetry_data_fast
+    path: ${paths.natl_4nads_swot_osse}
+  domains:
+    train:
+      time: {_target_: builtins.slice, _args_: ['2013-02-24', '2013-09-30']}
+    val: 
+      time: {_target_: builtins.slice, _args_: ['2012-12-15', '2013-02-24']}
+    test: 
+      time: {_target_: builtins.slice,  _args_: ['2012-10-01', '2012-12-20']}
+  xrds_kw:
+    patch_dims: { time: 15, lat: 120, lon: 120}
+    strides: { time: 1, lat: 100, lon: 100}
+    domain_limits: ${domain.train}
+  dl_kw: {batch_size: 2, num_workers: 1}
+  #aug_kw:
+  #  aug_factor: 2
+  #  aug_only: True
+  resize_factor: 2
+  frcst_lead: 4
+  norm_stats:
+    - 0.31651841229383865
+    - 0.3892599391249885
+
+model:
+  _target_: contrib.stoch_spde.lit_model_spde_winit.Lit4dVarNet
+  frcst_lead: ${datamodule.frcst_lead}
+  persist_rw: False
+  epoch_start_opt2: 1000
+  opt_fn:
+    _target_: src.utils.cosanneal_spde_lr_adam_winit
+    _partial_: true
+    lr: 1e-3
+    T_max: ${trainer.max_epochs}
+  rec_weight:
+    _target_: src.utils.get_last_time_wei
+    patch_dims: { time: 5, lat: 120, lon: 120}
+    crop: {time: 0, lat: 10, lon: 10}
+    offset: 1
+  optim_weight1: 
+    _target_: src.utils.get_linear_time_wei
+    patch_dims: ${datamodule.xrds_kw.patch_dims}
+    crop: {time: 0, lat: 10, lon: 10}
+    offset: 1
+  optim_weight2:
+    _target_: src.utils.get_linear_time_wei
+    patch_dims: { time: 5, lat: 120, lon: 120}
+    crop: {time: 0, lat: 10, lon: 10}
+    offset: 1
+  solver: 
+    _target_: contrib.stoch_spde.solver.GradSolver_Lgv
+    aug_state: True
+    n_step: 5
+    lr_grad: 1e3
+    nll: 
+      _target_: contrib.stoch_spde.models_spde.NLL
+      shape_data: 
+        - 5
+        - 120
+        - 120
+      pow: 1
+      spde_type: "adv_diff"
+      st_lag:
+        - 1
+        - 1
+        - 1
+      scheme: FUDM1
+    nlpobs: 
+      _target_: contrib.stoch_spde.models_spde.NLpObs
+    obs_cost:
+      _target_: src.models.BaseObsCost
+    grad_mod: 
+      _target_: src.models.ConvLstmGradModel
+      dim_in: 45
+      dim_hidden: 244
+    unet_prior: False
+  solver2:
+    _target_: src.models.GradSolver
+    n_step: 15
+    lr_grad: 1e3
+    prior_cost:
+      _target_: src.models.BilinAEPriorCost
+      dim_in: ${datamodule.xrds_kw.patch_dims.time}
+      dim_hidden: 64
+      bilin_quad: False
+      # bilin_quad: True
+      downsamp: 2
+    obs_cost:
+      _target_: src.models.BaseObsCost
+    grad_mod:
+      _target_: src.models.ConvLstmGradModel
+      dim_in: ${datamodule.xrds_kw.patch_dims.time}
+      dim_hidden: 96
+  test_metrics: ${metrics.test_metrics}
+  pre_metric_fn: 
+        _target_: xarray.Dataset.sel
+        _partial_: True
+        time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
+        lat: ${domain.test.lat}
+        lon: ${domain.test.lon}
+  n_simu: 100
+  ncfile_name: '4DVarNet_OSSE_SSH_frcst4.nc'
+
+metrics:
+  nrmse_scores: {_target_: src.utils.rmse_based_scores_from_ds, _partial_: True}
+  psd_scores: {_target_: src.utils.psd_based_scores_from_ds, _partial_: True}
+  get0: {_target_: operator.itemgetter, _args_: [0]}
+  get1: {_target_: operator.itemgetter, _args_: [1]}
+  test_metrics:
+    'mu': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.nrmse_scores}', '${metrics.get0}']}
+    'sig': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.nrmse_scores}', '${metrics.get1}']}
+    'lx': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.psd_scores}', '${metrics.get0}']}
+    'lt': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.psd_scores}', '${metrics.get1}']}
+
+entrypoints:
+  #- _target_: pytorch_lightning.seed_everything
+  #  seed: 333
+  - _target_: src.train.base_training
+    trainer: ${trainer}
+    lit_mod: ${model}
+    dm: ${datamodule}
+
+defaults:
+  - /domain: gf
+  - _self_
+

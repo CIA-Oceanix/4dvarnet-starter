@@ -50,7 +50,10 @@ domains = {
     #"baltic_small": dict(lon=[11, 30], lat=[54, 66])
     "baltic_small": dict(lon=[18, 29.999], lat=[54, 65.999]),
     "baltic_small2": dict(lon=[-10, 1.999], lat=[54, 65.999]),
-    "baltic_interior": dict(lon=[8, 30], lat=[54, 66])
+    "baltic_interior": dict(lon=[8, 30], lat=[54, 66]),
+    "baltic_dm1": dict(lon=[8, 30], lat=[53.75, 65.7499]),
+    "baltic_dm2": dict(lon=[14, 26], lat=[53.75, 65.75]),
+    "baltic_dm3": dict(lon=[-2, 10], lat=[50, 61.99])
 }
 
 for n, d in domains.items():

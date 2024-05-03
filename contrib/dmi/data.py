@@ -47,11 +47,13 @@ class XrDataset(torch.utils.data.Dataset):
     """
     def __init__(
             self, da, patch_dims, domain_limits=None, strides=None,
+            strides_test=None,
             check_full_scan=False, check_dim_order=False,
             postpro_fn=None,
             resize_factor=1,
             res=0.05,
             pad = False,
+            stride_test=False,
             limit_num_coords=None
             ):
         """
@@ -67,10 +69,10 @@ class XrDataset(torch.utils.data.Dataset):
         self.da = da.sel(**(domain_limits or {}))
         self.patch_dims = patch_dims
         self.strides = strides or {}
+        if stride_test:
+            self.strides = strides_test or {}
         self.res = res
         self.pad = pad
-        if self.pad==True:
-            self.strides={'time':1,'lon':500,'lat':500}
         self.limit_num_coords = limit_num_coords
 
         # extend self.da if domain larger than NetCDF
@@ -109,8 +111,8 @@ class XrDataset(torch.utils.data.Dataset):
             pad_y = find_pad(self.patch_dims['lat'], self.strides['lat'], ny)
             pad_ = {'lon':(pad_x[0],pad_x[1]),
                 'lat':(pad_y[0],pad_y[1])}
-            self.da = self.da.pad(pad_, mode='reflect') #'constant', constant_values=0)
-            #self.da = self.da.pad(pad_, mode='constant', constant_values=0)
+            #self.da = self.da.pad(pad_, mode='reflect') #'constant', constant_values=0)
+            self.da = self.da.pad(pad_, mode='constant', constant_values=None)
             dx = [pad_ *self.res for pad_ in pad_x]
             dy = [pad_ *self.res for pad_ in pad_y]
             new_lon = np.concatenate((np.linspace(lon_orig[0]-dx[0],lon_orig[0],pad_x[0],endpoint=False),
@@ -130,7 +132,6 @@ class XrDataset(torch.utils.data.Dataset):
             dim: max((da_dims[dim] - patch_dims[dim]) // self.strides.get(dim, 1) + 1, 0)
             for dim in patch_dims
         }
-
 
         if check_full_scan:
             for dim in patch_dims:
@@ -304,7 +305,8 @@ class AugmentedDataset(torch.utils.data.Dataset):
                              item.tgt, np.full_like(item.tgt,np.nan)))
 
 class BaseDataModule(pl.LightningDataModule):
-    def __init__(self, input_da, domains, xrds_kw, dl_kw, aug_kw=None, resize_factor=1, res=0.05, norm_stats=None, **kwargs):
+    def __init__(self, input_da, domains, xrds_kw, dl_kw, aug_kw=None, resize_factor=1, res=0.05, 
+                 pads=[False,False,False], norm_stats=None, **kwargs):
         super().__init__()
         self.input_da = input_da
         self.domains = domains
@@ -313,6 +315,7 @@ class BaseDataModule(pl.LightningDataModule):
         self.aug_kw = aug_kw if aug_kw is not None else {}
         self.resize_factor = resize_factor
         self.res = res
+        self.pads = pads
         self._norm_stats = norm_stats
 
         self.train_ds = None
@@ -428,7 +431,8 @@ class BaseDataModule(pl.LightningDataModule):
         self.train_ds = XrDataset(
             train_data, **self.xrds_kw, postpro_fn=post_fn_rand,
             resize_factor = self.resize_factor,
-            res = self.res, limit_num_coords = 100
+            res = self.res, limit_num_coords = 100,
+            pad=self.pads[0]
         )
         if self.aug_kw:
             self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
@@ -437,7 +441,8 @@ class BaseDataModule(pl.LightningDataModule):
             self.val_ds = XrDataset(
                 self.input_da.sel(self.domains['val']), **self.xrds_kw, postpro_fn=post_fn,
                 resize_factor = self.resize_factor,
-                res =self.res
+                res =self.res,
+                pad=self.pads[1]
             )
         else:
            self.val_ds =ConcatDataset([
@@ -445,7 +450,7 @@ class BaseDataModule(pl.LightningDataModule):
                 self.input_da.sel(**{'time': sl}), 
                 **self.xrds_kw, postpro_fn=post_fn,
                 resize_factor = self.resize_factor,
-                res = self.res,
+                res = self.res, pad=self.pads[1]
               ) for sl in self.domains['val']['time'] ]
             )
 
@@ -453,7 +458,8 @@ class BaseDataModule(pl.LightningDataModule):
             self.input_da.sel(self.domains['test']), **self.xrds_kw, postpro_fn=post_fn,
             resize_factor = self.resize_factor,
             res = self.res,
-            pad = True
+            pad=self.pads[2],
+            stride_test=True
         )
 
     def train_dataloader(self):
@@ -520,7 +526,8 @@ class BaseDataModule_wgeo(BaseDataModule):
         self.train_ds = XrDataset_wgeo(
             train_data, **self.xrds_kw, postpro_fn=post_fn_rand,
             resize_factor = self.resize_factor,
-            res = self.res, limit_num_coords = 100
+            res = self.res, limit_num_coords = 100,
+            pad=self.pads[0]
         )
         if self.aug_kw:
             self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
@@ -529,7 +536,8 @@ class BaseDataModule_wgeo(BaseDataModule):
             self.val_ds = XrDataset_wgeo(
                 self.input_da.sel(self.domains['val']), **self.xrds_kw, postpro_fn=post_fn,
                 resize_factor = self.resize_factor, 
-                res =self.res
+                res =self.res,
+                pad=self.pads[1]
             )
         else:
            self.val_ds =ConcatDataset([
@@ -537,7 +545,8 @@ class BaseDataModule_wgeo(BaseDataModule):
                 self.input_da.sel(**{'time': sl}),
                 **self.xrds_kw, postpro_fn=post_fn,
                 resize_factor = self.resize_factor,
-                res =self.res
+                res =self.res,
+                pad=self.pads[1]
               ) for sl in self.domains['val']['time'] ]
             )
 
@@ -545,7 +554,8 @@ class BaseDataModule_wgeo(BaseDataModule):
             self.input_da.sel(self.domains['test']), **self.xrds_kw, postpro_fn=post_fn,
             resize_factor = self.resize_factor,
             res = self.res, 
-            pad = True
+            pad = self.pads[2],
+            stride_test=True
         )
 
 class ConcatDataModule(BaseDataModule):

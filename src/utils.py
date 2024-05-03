@@ -14,7 +14,22 @@ import pyinterp.backends.xarray
 import src.data
 import xarray as xr
 import matplotlib.pyplot as plt
+from skimage.filters import threshold_otsu
+from skimage.segmentation import clear_border
+from skimage.measure import label, regionprops
+from skimage.morphology import closing, square
+from skimage.color import label2rgb
+from PIL import Image
 
+from src.ose.mod_inout import *
+from src.ose.mod_interp import *
+from src.ose.mod_stats import *
+from src.ose.mod_spectral import *
+from src.ose.mod_plot import *
+from src.ose.utils import *
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 def pipe(inp, fns):
     for f in fns:
@@ -257,24 +272,32 @@ def load_altimetry_data_fast(path, obs_from_tgt=False, var_obs="nadir_obs", var_
     
     return ds
 
-def load_altimetry_data_ose(path, obs_from_tgt=False):
-    ds =  (
-        xr.open_dataset(path)
-        .load()
-        .assign(
-            input=lambda ds: ds.ssh,
-            tgt=lambda ds: ds.ssh,
-        )    
-    )
+def load_altimetry_data_ose(path, obs_from_tgt=False, var_obs="ssh", var_gt='ssh', fast=True):
+
+    if not fast:
+        ds =  (
+            xr.open_dataset(path).load().assign(
+               input=lambda ds: ds.ssh,
+               tgt=lambda ds: ds.ssh,
+            )    
+        )
+
+        return (
+            ds[[*src.data.TrainingItem._fields]]
+            .transpose("time", "lat", "lon")
+            .to_array())
+ 
+    else:
+        ds = xr.merge([
+             xr.open_dataset(path).rename_vars({var_obs:"input"}),
+             xr.open_dataset(path).rename_vars({var_gt:"tgt"})]
+           ,compat='override')[[*src.data.TrainingItem._fields]].transpose('time', 'lat', 'lon')
 
     if obs_from_tgt:
         ds = ds.assign(input=ds.tgt.where(np.isfinite(ds.input), np.nan))
-    
-    return (
-        ds[[*src.data.TrainingItem._fields]]
-        .transpose("time", "lat", "lon")
-        .to_array()
-    )
+
+    return ds
+
 
 def load_altimetry_data_woi(path, obs_from_tgt=False):
     ds =  (
@@ -404,6 +427,143 @@ def psd_based_scores(da_rec, da_ref):
         np.round(shortest_temporal_wavelength_resolved, 3).item(),
     )
 
+def overlay_img(bgfile, fgfile):
+    bg = Image.open(bgfile)  
+    w, h = bg.size
+    y, x = np.mgrid[0:h, 0:w]
+    fg = Image.open(fgfile)
+    fg = fg.resize((w,h)).convert("RGBA")
+    datas = fg.getdata() 
+    newData = [] 
+    for item in datas: 
+        if item[0] == 255 and item[1] == 255 and item[2] == 255:  # finding white colour by its RGB value 
+            # storing a transparent value when we find a black colour 
+            newData.append((255, 255, 255, 0)) 
+        else: 
+            newData.append(item)  # other colours remain unchanged         
+    fg.putdata(newData) 
+    img = Image.alpha_composite(bg,fg)
+    fig, ax = plt.subplots(1, 1)
+    ax.imshow(img)
+    ax.axis('off')
+    plt.savefig(bgfile)
+
+def plot_simu_daw(gt,simu1,simu2,simu3,simu4,simu5,lon,lat,resfile,figsize):
+    crs = ccrs.Orthographic(-30,45)
+    vmax = 1.5
+    vmin = -1.5
+    cm = plt.cm.viridis
+    norm = colors.Normalize(vmin=vmin, vmax=vmax)
+    extent = [np.min(lon),np.max(lon),np.min(lat),np.max(lat)]
+    fig = plt.figure(figsize=(10,10))
+    gs = gridspec.GridSpec(6, 5)
+    
+    gs1 = GridSpec(1, 5, top=0.4)
+    gs2 = GridSpec(5, 5, botton=0.5)
+    gs2.update(wspace=0.05,hspace=0.05)
+    
+    title = ['','','','','','']
+    for k in range(5):
+        ax1 = fig.add_subplot(gs1[0, k], projection=crs)
+        ax2 = fig.add_subplot(gs2[0, k], projection=crs)
+        ax3 = fig.add_subplot(gs2[1, k], projection=crs)
+        ax4 = fig.add_subplot(gs2[2, k], projection=crs)
+        ax5 = fig.add_subplot(gs2[3, k], projection=crs)
+        ax6 = fig.add_subplot(gs2[4, k], projection=crs)
+        plot(ax1, lon, lat, gt[:,:,k].values, title[0], extent=extent, cmap=cm, norm=norm, colorbar=False,fmt=False)
+        plot(ax2, lon, lat, simu1[:,:,k].values, title[1], extent=extent, cmap=cm, norm=norm, colorbar=False,fmt=False)
+        plot(ax3, lon, lat, simu2[:,:,k].values, title[2], extent=extent, cmap=cm, norm=norm, colorbar=False,fmt=False)
+        plot(ax4, lon, lat, simu3[:,:,k].values, title[3], extent=extent, cmap=cm, norm=norm, colorbar=False,fmt=False)
+        plot(ax5, lon, lat, simu4[:,:,k].values, title[4], extent=extent, cmap=cm, norm=norm, colorbar=False,fmt=False)
+        plot(ax6, lon, lat, simu5[:,:,k].values, title[5], extent=extent, cmap=cm, norm=norm, colorbar=False,fmt=False)
+    # Colorbar
+    cbar_ax = fig.add_axes([0.1, 0.05, 0.8, 0.01])
+    sm = plt.cm.ScalarMappable(cmap=cm, norm=norm)
+    sm._A = []
+    cbar = fig.colorbar(sm, cax=cbar_ax, orientation='horizontal', pad=3.0)
+    my_dpi = 96
+    plt.savefig(resfile,bbox_inches="tight",figsize=(w/my_dpi, h/my_dpi), dpi=my_dpi)    # save the figure
+    fig = plt.gcf()
+    plt.close()             # close the figure
+    return fig
+
+def compute_ose_metrics(test_data, alontrack_independent_dataset='/homes/m19beauc/4dvarnet-starter/src/ose/dt_gulfstream_c2_phy_l3_20161201-20180131_285-315_23-53.nc', time_min='2017-01-01', time_max='2017-12-31'):
+ 
+    lon_min = 295.
+    lon_max = 305.
+    lat_min = 33.
+    lat_max = 43.
+    is_circle = False
+
+    # Outputs
+    bin_lat_step = 1.
+    bin_lon_step = 1.
+    bin_time_step = '1D'
+
+    # Spectral parameter
+    # C2 parameter
+    delta_t = 0.9434  # s
+    velocity = 6.77   # km/s
+    delta_x = velocity * delta_t
+    lenght_scale = 1000 # km
+   
+    file= 'file_4dvarnet_for_metrics.nc'
+    test_data = test_data.update({'ssh':(('time','lat','lon'),test_data.out.data)}).to_netcdf(file)
+
+    # independent along-track
+    # Read along-track
+    ds_alongtrack = read_l3_dataset(alontrack_independent_dataset, 
+                                           lon_min=lon_min, 
+                                           lon_max=lon_max, 
+                                           lat_min=lat_min, 
+                                           lat_max=lat_max, 
+                                           time_min=time_min, 
+                                           time_max=time_max)
+
+    res = interp_on_alongtrack(file,
+                              ds_alongtrack,
+                              lon_min=lon_min,
+                              lon_max=lon_max,
+                              lat_min=lat_min,
+                              lat_max=lat_max,
+                              time_min=time_min,
+                              time_max=time_max,
+                              is_circle=is_circle)
+    time_alongtrack, lat_alongtrack, lon_alongtrack, ssh_alongtrack, ssh_interp = res
+    
+ 
+    # Compute spatial and temporal statistics
+    leaderboard_nrmse, leaderboard_nrmse_std = compute_stats(time_alongtrack, 
+                                                         lat_alongtrack, 
+                                                         lon_alongtrack, 
+                                                         ssh_alongtrack, 
+                                                         ssh_interp, 
+                                                         bin_lon_step,
+                                                         bin_lat_step, 
+                                                         bin_time_step,
+                                                         output_filename='/DATASET/mbeauchamp/spa_stat.nc',
+                                                         output_filename_timeseries='/DATASET/mbeauchamp/TS.nc')
+    
+    # Compute spectral scores
+    compute_spectral_scores(time_alongtrack, 
+                        lat_alongtrack, 
+                        lon_alongtrack, 
+                        ssh_alongtrack, 
+                        ssh_interp, 
+                        lenght_scale,
+                        delta_x,
+                        delta_t,
+                        '/DATASET/mbeauchamp/spectrum.nc')    
+    
+    leaderboard_psds_score = -999
+    leaderboard_psds_score = plot_psd_score('/DATASET/mbeauchamp/spectrum.nc')  
+
+    os.remove('/DATASET/mbeauchamp/spa_stat.nc')
+    os.remove('/DATASET/mbeauchamp/spectrum.nc')
+    os.remove('/DATASET/mbeauchamp/TS.nc')
+    os.remove(file)  
+    
+    return leaderboard_nrmse, leaderboard_nrmse_std, int(leaderboard_psds_score)
 
 def diagnostics(lit_mod, test_domain):
     test_data = lit_mod.test_data.sel(test_domain)
@@ -451,6 +611,7 @@ def test_osse(trainer, lit_mod, osse_dm, osse_test_domain, ckpt, diag_data_dir=N
         osse_tdat.to_netcdf(diag_data_dir / "osse_test_data.nc")
 
     return osse_metrics
+
 
 
 def ensemble_metrics(trainer, lit_mod, ckpt_list, dm, save_path):

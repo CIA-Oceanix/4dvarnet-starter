@@ -38,7 +38,7 @@ class Upsampler(nn.Module):
         return x
 
 class Lit4dVarNet(pl.LightningModule):
-    def __init__(self, solver, solver2, rec_weight, optim_weight1, optim_weight2, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, n_simu=100, downsamp = None, frcst_lead = None, epoch_start_opt2=1000,start_simu_idx=0):
+    def __init__(self, solver, solver2, rec_weight, optim_weight1, optim_weight2, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, n_simu=100, downsamp = None, frcst_lead = None, epoch_start_opt2=1000,start_simu_idx=0,ncfile_name='test_data.nc'):
 
         super().__init__()
         self.solver = solver
@@ -82,10 +82,13 @@ class Lit4dVarNet(pl.LightningModule):
             else torch.nn.Identity()
         )
         self.epoch_start_opt2 = epoch_start_opt2
-
+        self.ncfile_name = ncfile_name
         # Cholesky factorization factor
         self.factor = None
 
+        # parameter used for outputs
+        self.use_gt = True
+        self.out_as_first_guess = True
 
     @property
     def norm_stats(self):
@@ -155,9 +158,19 @@ class Lit4dVarNet(pl.LightningModule):
 
         if ((self.current_epoch >= self.epoch_start_opt2) or (phase=="test")):
             cropped_batch = self.crop_batch(batch_)
-            out, theta = self.solver(batch=cropped_batch, 
+            if not self.use_gt:
+                out_spde, theta = self.solver(batch=cropped_batch, 
                                 x_init=out[:,self.sel_crop_daw,:,:].detach(),
                                 mu=corrupted_out[:,self.sel_crop_daw,:,:].detach())
+            else:
+                out_spde, theta = self.solver(batch=cropped_batch,
+                                x_init=batch_.tgt[:,self.sel_crop_daw,:,:].detach(),
+                                mu=out[:,self.sel_crop_daw,:,:].detach())
+                corrupted_out = out
+            if not self.out_as_first_guess:
+                out = out_spde
+            else:
+                out = out[:,self.sel_crop_daw,:,:]
         else:
             theta = None
         return out, corrupted_out, theta
@@ -251,7 +264,12 @@ class Lit4dVarNet(pl.LightningModule):
                                                              sp_dims=[n_y, n_x])
             
 
-        if int(batch_idx//self.trainer.num_test_batches[0])>=self.start_simu_idx:
+        if batch_idx/self.trainer.num_test_batches[0] >=self.start_simu_idx:
+
+            print(batch_idx)
+            print(self.trainer.num_test_batches[0])
+            print(self.start_simu_idx)
+
             Q = self.solver.nll.operator_spde(theta[0],theta[1],theta[2],theta[3],
                                           store_block_diag=False)
     
@@ -318,7 +336,7 @@ class Lit4dVarNet(pl.LightningModule):
                 x_simu_cond.append(x_simu_cond_)
             x_simu_itrp = torch.stack(x_simu_itrp,dim=4).to(device).detach().cpu()                
             x_simu_cond = torch.stack(x_simu_cond,dim=4).to(device).detach().cpu()
-        
+    
             self.test_simu.append(torch.stack(
                     [
                         x_simu.detach().cpu(),
@@ -368,6 +386,16 @@ class Lit4dVarNet(pl.LightningModule):
                 ],
                 dim=1,
             ))  
+
+        out = None
+        x_simu = None
+        x_simu_itrp = None
+        x_simu_cond = None
+        theta = None
+        kappa = None
+        tau = None
+        m = None
+        H = None
 
     @property
     def test_quantities(self):
@@ -435,8 +463,8 @@ class Lit4dVarNet(pl.LightningModule):
                                         self.test_data.sample_xy.std(dim='simu').values)})
 
         if self.logger:
-            self.test_data.to_netcdf(Path(self.logger.log_dir) / 'test_data.nc')
-            print(Path(self.trainer.log_dir) / 'test_data.nc')
+            self.test_data.to_netcdf(Path(self.logger.log_dir) / self.ncfile_name)
+            print(Path(self.trainer.log_dir) / self.ncfile_name)
 
         metric_data = self.test_data.pipe(self.pre_metric_fn)
         metrics = pd.Series({
