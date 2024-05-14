@@ -131,7 +131,7 @@ def mask(da, sampling_rate = 0.1):
 
 def threshold_xarray(da):
     threshold = 1000
-    da = xr.where(da > threshold, 0, da)
+    da = xr.where(da > threshold, 1, da)
     da = xr.where(da <= 0, 0, da)
     return da
 

@@ -22,8 +22,10 @@ class Lit4dVarNet(pl.LightningModule):
         self.norm_type = norm_type
         #self.mask = (torch.rand(1, *input_shape) > self.sampling_rate).to('cuda:0')
         print(sampling_rate)
+        #self.alphaObs    = solver.obs_cost.weight1_torch
+        #self.alphaReg    = solver.prior_cost.weight3_torch
+        #self.alphaGrad   = solver.obs_cost.weight2_torch
 
-    
     @property
     def norm_stats(self):
         if self._norm_stats is not None:
@@ -32,6 +34,30 @@ class Lit4dVarNet(pl.LightningModule):
             return self.trainer.datamodule.norm_stats()
         return (0., 1.)
 
+    @staticmethod
+    def weighted_mse(err, weight):
+        err_w = err * weight[None, ...]
+        non_zeros = (torch.ones_like(err) * weight[None, ...]) == 0.0
+        err_num = err.isfinite() & ~non_zeros
+        if err_num.sum() == 0:
+            return torch.scalar_tensor(1000.0, device=err_num.device).requires_grad_()
+        loss = F.mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
+        return loss
+
+    @staticmethod
+    def weighted_rel_mse(err, tgt, weight):
+        abs_err = torch.abs(err)
+        tgt_5 = torch.full_like(tgt, 5)
+
+        rel_err = abs_err / (torch.maximum(tgt,tgt_5))
+        err_w = rel_err * weight[None, ...]
+        non_zeros = (torch.ones_like(err) * weight[None, ...]) == 0.0
+        err_num = err.isfinite() & ~non_zeros
+        if err_num.sum() == 0:
+            return torch.scalar_tensor(1000.0, device=err_num.device).requires_grad_()
+        loss = F.mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
+        return loss
+    
     @staticmethod
     def weighted_mse(err, weight):
         err_w = err * weight[None, ...]
@@ -98,26 +124,45 @@ class Lit4dVarNet(pl.LightningModule):
             self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
             self.log( f"{phase}_prior_cost", prior_cost, prog_bar=True, on_step=False, on_epoch=True)
         
-            if torch.isnan(prior_cost).any():
-                batch_dim = batch.input.shape[0]
-                for i in range(batch_dim):
-                    batch_id = batch.input[i]
-                    mask = ~torch.isnan(batch_id)
-                    batch_id_no_nan = batch_id[mask]
-                    time_window_normed = torch.norm(batch_id_no_nan[1])
-                    self.log('norm_batch_nan', time_window_normed, on_step=True, on_epoch=True, prog_bar=True)
-                #self.log('loss_nan', prior_cost, on_step=True, on_epoch=True, prog_bar=True)
-                # Optionally, skip the current batch or stop training
-                #return None
-        
-            training_loss = 10 * loss + 20 * prior_cost + 5 * grad_loss
-            # Check for NaN in loss
-            
+            #if torch.isnan(prior_cost).any():
+            #    print('loss is nan')
+            #    batch_dim = batch.input.shape[0]
+            #    for i in range(batch_dim):
+            #        batch_id = batch.input[i]
+            #        mask = ~torch.isnan(batch_id)
+            #        batch_id_no_nan = batch_id[mask]
+            #        time_window_normed = torch.norm(batch_id_no_nan[1])
+            #        self.log('norm_batch_nan', time_window_normed, on_step=True, on_epoch=True, prog_bar=True)
+            #    #self.log('loss_nan', prior_cost, on_step=True, on_epoch=True, prog_bar=True)
+            #    # Optionally, skip the current batch or stop training
+            #    return None, None
+            #if torch.isnan(var_cost).any():
+            #print('loss is nan')
+            #batch_dim = batch.input.shape[0]
+            #for i in range(batch_dim):
+            #    batch_id = batch.input[i]
+            #    mask = ~torch.isnan(batch_id)
+            #    batch_id_no_nan = batch_id[mask]
+            #    time_window_normed = torch.norm(batch_id_no_nan[1])
+            #    self.log('norm_batch_nan', time_window_normed, on_step=True, on_epoch=True, prog_bar=True)
+            #    self.prior_cost.restore_state()
+            #    #self.log('loss_nan', prior_cost, on_step=True, on_epoch=True, prog_bar=True)
+            #    # Optionally, skip the current batch or stop training
+            #    return state
+            #total_weight = self.alphaObs + self.alphaReg + self.alphaGrad
+            #norm_lambda_obs = self.alphaObs / total_weight
+            #norm_lambda_prior = self.alphaReg / total_weight
+            #norm_lambda_grad = self.alphaGrad / total_weight
+
+            weight_obs = self.solver.obs_cost.weight1_torch
+            weight_prior = self.solver.prior_cost.weight3_torch
             self.log('sampling_rate', self.sampling_rate, on_step=False, on_epoch=True)
-            self.log('weight loss', 10., on_step=False, on_epoch=True)
-            self.log('prior cost', 20.,on_step=False, on_epoch=True)
-            self.log('grad loss', 5., on_step=False, on_epoch=True)
+            self.log('weight obs', weight_obs , on_step=False, on_epoch=True)
+            self.log('weight prior', weight_prior,on_step=False, on_epoch=True)
+
+            training_loss = 10 * loss + 20 * prior_cost + 5 * grad_loss
             #training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost
+
             return training_loss, out
         
         else:
@@ -127,8 +172,8 @@ class Lit4dVarNet(pl.LightningModule):
     def base_step(self, batch, phase=""):
         # batch = batch._replace(input = batch.input / torch.bernoulli(torch.full(batch.input.size(), self.sampling_rate)).to('cuda:0'))
         out = self(batch=batch)
+        #loss = self.weighted_rel_mse(out - batch.tgt, batch.tgt, self.rec_weight)
         loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
-
         with torch.no_grad():
             self.log(f"{phase}_mse",  loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
             self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
@@ -199,9 +244,8 @@ class Lit4dVarNet(pl.LightningModule):
             print(Path(self.trainer.log_dir) / 'test_data.nc')
             self.logger.log_metrics(metrics.to_dict())
 
-
 class GradSolver(nn.Module):
-    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.2, **kwargs):
+    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, weight_obs = 1., weight_prior = 1., lr_grad=0.2, **kwargs):
         super().__init__()
         self.prior_cost = prior_cost
         self.obs_cost = obs_cost
@@ -212,6 +256,9 @@ class GradSolver(nn.Module):
 
         self._grad_norm = None
     
+        self.weight_obs_torch = torch.nn.Parameter(torch.tensor(weight_obs), requires_grad = True)
+        self.weight_prior_torch = torch.nn.Parameter(torch.tensor(weight_prior), requires_grad = True)
+
         def _apply_kaiming(module):
             if isinstance(module, torch.nn.Conv2d):
                 torch.nn.init.kaiming_uniform_(module.weight)
@@ -222,7 +269,7 @@ class GradSolver(nn.Module):
 
         self.prior_cost.apply(_apply_kaiming)
         self.grad_mod.apply(_apply_xavier)
-    
+            
     def init_state(self, batch, x_init=None):
         if x_init is not None:
             return x_init
@@ -230,23 +277,24 @@ class GradSolver(nn.Module):
         return batch.input.nan_to_num().detach().requires_grad_(True)
     
     def solver_step(self, state, batch, step):
-        self._previous_prior_cost = self.prior_cost.save_state()
+        #self._previous_prior_cost = self.prior_cost.save_state()
         #self._previous_grad_mod = self.grad_mod.detach()
+        var_cost = self.prior_cost.weight3_torch * self.prior_cost(state) +  self.obs_cost.weight1_torch * self.obs_cost(state, batch)
+        #var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
 
-        var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
-        if torch.isnan(var_cost).any():
-            batch_dim = batch.input.shape[0]
-            for i in range(batch_dim):
-                batch_id = batch.input[i]
-                mask = ~torch.isnan(batch_id)
-                batch_id_no_nan = batch_id[mask]
-                time_window_normed = torch.norm(batch_id_no_nan[1])
-                self.log('norm_batch_nan', time_window_normed, on_step=True, on_epoch=True, prog_bar=True)
-                self.prior_cost.restore_state()
-                #self.log('loss_nan', prior_cost, on_step=True, on_epoch=True, prog_bar=True)
-                # Optionally, skip the current batch or stop training
-                return state
+        #if torch.isnan(var_cost).any():
+        #    batch_dim = batch.input.shape[0]
+        #    for i in range(batch_dim):
+        #        batch_id = batch.input[i]
+        #        mask = ~torch.isnan(batch_id)
+        #        batch_id_no_nan = batch_id[mask]
+        #        time_window_normed = torch.norm(batch_id_no_nan[1])
+        #        #self.log('norm_batch_nan', time_window_normed, on_step=True, on_epoch=True, prog_bar=True)
+        #        self.prior_cost.restore_state()
+        #        #self.log('loss_nan', prior_cost, on_step=True, on_epoch=True, prog_bar=True)
+        #        # Optionally, skip the current batch or stop training
+        #        return state
         gmod = self.grad_mod(grad)
         state_update = (
             1 / (step + 1) * gmod
@@ -327,18 +375,20 @@ class ConvLstmGradModel(nn.Module):
 
 
 class BaseObsCost(nn.Module):
-    def __init__(self, w=1) -> None:
+    def __init__(self, weight1 = 1., w = 1) -> None:
         super().__init__()
         self.w=w
+        self.weight1_torch = torch.nn.Parameter(torch.tensor(weight1), requires_grad = True)
 
     def forward(self, state, batch):
         msk = batch.input.isfinite()
         return self.w * F.mse_loss(state[msk], batch.input.nan_to_num()[msk])
 
 class BilinAEPriorCost(nn.Module):
-    def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None, bilin_quad=True):
+    def __init__(self, dim_in, dim_hidden, kernel_size=3, weight3 = 1., downsamp=None, bilin_quad=True):
         super().__init__()
         self.bilin_quad = bilin_quad
+        self.weight3_torch = torch.nn.Parameter(torch.tensor(weight3), requires_grad = True)
         self.conv_in = nn.Conv2d(
             dim_in, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
         )
