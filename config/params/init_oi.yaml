@@ -1,4 +1,5 @@
-# @package _global_
+# @package _global_
+
 inp_pos:
   train: '/DATASET/envs/oscar/eNATL60_BLB002_ECS_0_1000m_0I_001.nc'
   test: '/DATASET/envs/oscar/NATL60GULF-CJM165_ECS_0_1000m_0I_001.nc'

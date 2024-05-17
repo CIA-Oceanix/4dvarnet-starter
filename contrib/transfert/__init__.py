@@ -3,7 +3,7 @@ import torch
 import xarray as xr
 
 from src.data import AugmentedDataset, BaseDataModule, XrDataset
- 
+
 class TransfertDataModule(BaseDataModule):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

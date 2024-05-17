@@ -3,6 +3,7 @@ import einops
 import functools as ft
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import collections
 import src.data
 import src.models

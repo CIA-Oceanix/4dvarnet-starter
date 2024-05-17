@@ -3,16 +3,15 @@ import einops
 import functools as ft
 import torch
 import torch.nn as nn
-import collections
 import src.data
 import src.models
 import src.utils
 import kornia.filters as kfilts
-import panda as pd
+import pandas as pd
 import tqdm
 import numpy as np
     
-class Lit4dVarNetPos_OI(src.models.Lit4dVarNet):
+class Lit4dVarNet_OI(src.models.Lit4dVarNet):
     def step(self, batch, phase=""):
         if self.training and batch.tgt.isfinite().float().mean() < 0.9:
             return None, None

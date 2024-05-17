@@ -1,0 +1,7 @@
+# @package _global_
+
+trainer:
+  max_epochs: 3
+
+model:
+  _target_: contrib.seg_profil.Lit4dVarNet_Seg
