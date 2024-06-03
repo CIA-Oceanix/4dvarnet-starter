@@ -1,17 +1,17 @@
 # @package _global_
-xpd: ???
+xpd: outputs/2024-05-03/16-21-22 ## outputpath
 
 
-domain: ???
+domain: gf
 xp_overrides: 
   datamodule:
     input_da:
       _target_: src.utils.load_full_natl_data
-      path_obs: ../sla-data-registry/NATL60/NATL/data_new/dataset_nadir_0d.nc
+      path_obs: /DATASET/NATL/natl_gf_w_5nadirs.nc
       obs_var: ssh_mod
       # obs_var: four_nadirs
     xrds_kw: 
-      # strides: {lat: 100, lon: 100}
+      strides: {lat: 100, lon: 100}
       domain_limits: ${domain.train}
   
 trainer: 
@@ -75,6 +75,6 @@ entrypoints:
     test_domains: ${test_domains}
     test_periods: ${test_periods}
 defaults:
-  - /domain: ???
+  - /domain: gf
   - _self_
 

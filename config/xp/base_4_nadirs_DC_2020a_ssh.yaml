@@ -1,7 +1,7 @@
 # @package _global_
 
 paths:
-    natl_gf_5nads: /DATASET/NATL/natl_gf_w_5nadirs.nc
+    natl_gf_5nads: /DATASET/NATL/cal_data_new_errs.nc
     enatl_gf_5nads: ../sla-data-registry/qdata/enatl_wo_tide.nc
 
 domain: ???
@@ -17,7 +17,7 @@ trainer:
     save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 1 #150
+  max_epochs: 200 #150
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
@@ -29,15 +29,20 @@ trainer:
 datamodule:
   _target_: src.data.BaseDataModule
   input_da: 
-    _target_: src.utils.load_altimetry_data
-    path: ${paths.natl_gf_5nads}
+    #_target_: src.utils.load_altimetry_data
+    #path: ${paths.natl_gf_5nads}
+    _target_: src.utils.load_full_natl_data
+    path_obs: "/DATASET/NATL/cal_data_new_errs.nc"
+    path_gt: "/DATASET/NATL/NATL60-CJM165_NATL_ssh_y2013.1y.nc"
+    obs_var: four_nadirs
+    obs_gt: ssh
   domains:
     train:
       time: {_target_: builtins.slice, _args_: ['2013-02-24', '2013-09-30']}
     val: 
       time: {_target_: builtins.slice, _args_: ['2013-01-02', '2013-02-24']}
     test: 
-      time: {_target_: builtins.slice,  _args_: ['2012-10-22', '2012-12-02']}
+      time: {_target_: builtins.slice,  _args_: ['2012-10-01', '2012-12-15']}
   xrds_kw:
     patch_dims: { time: 15, lat: 240, lon: 240}
     strides: { time: 1, lat: 200, lon: 200}

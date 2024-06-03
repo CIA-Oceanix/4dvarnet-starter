@@ -50,6 +50,19 @@ def cosanneal_lr_adam(lit_mod, lr, T_max=100, weight_decay=0.):
         "lr_scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=T_max),
     }
 
+def cosanneal_lr_adam_QG(lit_mod, lr, T_max=100, weight_decay=0.):
+    opt = torch.optim.Adam(
+        [
+            {"params": lit_mod.solver.grad_mod.parameters(), "lr": lr},
+            {"params": lit_mod.solver.obs_cost.parameters(), "lr": lr},
+            #{"params": lit_mod.solver.prior_cost.parameters(), "lr": lr / 2},
+        ], weight_decay=weight_decay
+    )
+    return {
+        "optimizer": opt,
+        "lr_scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=T_max),
+    }
+
 def cosanneal_lr_lion(lit_mod, lr, T_max=100):
     import lion_pytorch
     opt = lion_pytorch.Lion(
@@ -170,14 +183,14 @@ def load_dc_data(**kwargs):
 def load_full_natl_data(
         path_obs="../sla-data-registry/CalData/cal_data_new_errs.nc",
         path_gt="../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_ssh_y2013.1y.nc",
-        obs_var='five_nadirs',
+        obs_var='four_nadirs',
         gt_var='ssh',
         **kwargs
     ):
     inp = xr.open_dataset(path_obs)[obs_var]
     gt = (
         xr.open_dataset(path_gt)[gt_var]
-        # .isel(time=slice(0, -1))
+        .isel(time=slice(0, -1))
         .sel(lat=inp.lat, lon=inp.lon, method="nearest")
     )
 

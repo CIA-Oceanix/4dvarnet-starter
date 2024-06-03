@@ -7,8 +7,9 @@ def base_training(trainer, dm, lit_mod, ckpt=None):
         print("Logdir:", trainer.logger.log_dir)
         print()
 
-    trainer.fit(lit_mod, datamodule=dm, ckpt_path=ckpt)
-    trainer.test(lit_mod, datamodule=dm, ckpt_path='best')
+    #trainer.fit(lit_mod, datamodule=dm, ckpt_path=ckpt)
+    #trainer.test(lit_mod, datamodule=dm, ckpt_path='best')
+    trainer.test(lit_mod, datamodule=dm, ckpt_path='/homes/g24meda/lab/4dvarnet-starter/outputs/2024-05-30/23-05-33/QG_4_nadirs_DC_2020a_ssh/checkpoints/val_mse=127.12732-epoch=016.ckpt')
 
 def multi_dm_training(trainer, dm, lit_mod, test_dm=None, test_fn=None, ckpt=None):
     if trainer.logger is not None:
