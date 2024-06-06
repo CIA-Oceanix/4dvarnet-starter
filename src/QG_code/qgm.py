@@ -113,8 +113,8 @@ class QGFV:
         self.Cl2m = torch.linalg.inv(P.real)
         self.Cm2l = P.real
         self.rossby_radii = self.lambda_sq.squeeze().pow(-0.5)
-        with np.printoptions(precision=1):
-            print(f'Rossby rad.: {self.rossby_radii.cpu().numpy()/1e3} km')
+        #with np.printoptions(precision=1):
+            #print(f'Rossby rad.: {self.rossby_radii.cpu().numpy()/1e3} km')
 
         # For Helmholtz equations
         nx, ny, nl = self.nx, self.ny, self.nl

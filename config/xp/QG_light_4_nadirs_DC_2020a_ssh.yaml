@@ -71,9 +71,11 @@ model:
     lr_grad: 1e3
     # lr_grad: 0.2
     prior_cost: 
-      _target_: src.models.QGCost
+      _target_: src.models.QGCost_light
       nl: 1
       L: 100000
+      nx : ${datamodule.xrds_kw.patch_dims.lat}
+      ny : ${datamodule.xrds_kw.patch_dims.lon}
     obs_cost: 
       _target_: src.models.BaseObsCost
     grad_mod: 
