@@ -1,0 +1,23 @@
+# @package _global_
+xp_overrides:
+  datamodule:
+    patcher_cls: 
+      # _target_: contrib.ortho.OrthoPatcher
+      _partial_: true
+      dense_vars: null
+      # dense_vars: [tgt]
+      sparse_vars: [input, tgt]
+      # sparse_vars: [input]
+      res: 5e3
+      weight: ${rec_weight}
+      cache: False
+      nproc_rec: 1
+      # nproc_rec: 10
+    dl_kw:
+      persistent_workers: false
+      num_workers: 1
+
+overrides_targets:
+  datamodule.patcher_cls: contrib.ortho.OrthoPatcher
+  datamodule.patcher_cls.weight: contrib.multi_domain_diag.get_smooth_spat_rec_weight
+  datamodule.patcher_cls.weight.orig_rec_weight: contrib.multi_domain_diag.load_cfg_from_xp

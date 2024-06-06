@@ -1,0 +1,11 @@
+#@package _global_
+simvp_prior_cost:
+  _target_: contrib.open_stl.PriorWrapper
+  mod: ${simvp.new_model.mod}
+
+model:
+  solver:
+    prior_cost: ${simvp_prior_cost}
+
+defaults:
+  - /params/simvp@simvp

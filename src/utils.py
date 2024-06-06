@@ -11,7 +11,6 @@ import torch
 import pyinterp
 import pyinterp.fill
 import pyinterp.backends.xarray
-import src.data
 import xarray as xr
 import matplotlib.pyplot as plt
 
@@ -157,7 +156,7 @@ def load_altimetry_data(path, obs_from_tgt=False):
         ds = ds.assign(input=ds.tgt.where(np.isfinite(ds.input), np.nan))
 
     return (
-        ds[[*src.data.TrainingItem._fields]]
+        ds[['input', 'tgt']]
         .transpose("time", "lat", "lon")
         .to_array()
     )
@@ -177,7 +176,7 @@ def load_full_natl_data(
     inp = xr.open_dataset(path_obs)[obs_var]
     gt = (
         xr.open_dataset(path_gt)[gt_var]
-        # .isel(time=slice(0, -1))
+        .isel(time=slice(0, -1))
         .sel(lat=inp.lat, lon=inp.lon, method="nearest")
     )
 
