@@ -9,7 +9,7 @@ def load_data(path_obs="/DATASET/mbeauchamp/DMI/DMI-L3S_GHRSST-SSTsubskin-night_
                  input=lambda ds: ds.sea_surface_temperature
              ),
              xr.open_dataset(path_tgt,chunks={'time': 10}).load().assign(
-                 tgt=lambda ds: ds.sea_surface_temperature#analysed_sst
+                 tgt=lambda ds: ds.analysed_sst#sea_surface_temperature
              )]
            ,compat='override')[[*src.data.TrainingItem._fields]].transpose('time', 'lat', 'lon')#.to_array().load()
     return data

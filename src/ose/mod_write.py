@@ -151,4 +151,4 @@ def write_timeserie_stat(ssh_alongtrack, ssh_map_interp, time_vector, freq, outp
     logging.info(' ')
     logging.info(f'  STD RMSE = {std_raw_rmse}')
     
-    return mean_rmse, std_rmse
+    return mean_raw_rmse, std_raw_rmse

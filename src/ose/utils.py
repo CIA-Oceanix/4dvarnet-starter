@@ -2,7 +2,7 @@ import numpy as np
 import xarray as xr
 import matplotlib
 import os
-matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
+#matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm, colors
@@ -43,7 +43,7 @@ def gradient(img, order):
         return sobel_norm
 
 
-def plot(ax, lon, lat, data, title, cmap, norm, extent=[-65, -55, 30, 40], gridded=True, colorbar=True, orientation="horizontal"):
+def plot(ax, lon, lat, data, title, cmap, norm, extent=[-65, -55, 30, 40], gridded=True, colorbar=True, orientation="horizontal", fmt=True):
     ax.set_extent(list(extent))
     if gridded:
         im=ax.pcolormesh(lon, lat, data, cmap=cmap, \
@@ -59,15 +59,14 @@ def plot(ax, lon, lat, data, title, cmap, norm, extent=[-65, -55, 30, 40], gridd
         clb.set_label(title,fontsize = 25)
         clb.ax.tick_params(labelsize = 25)
 
-    ax.add_feature(cfeature.LAND.with_scale('10m'), zorder=100,
-                   edgecolor='k', facecolor='white')
-    gl = ax.gridlines(alpha=0.5, zorder=200,draw_labels=True)
-    gl.xformatter = LONGITUDE_FORMATTER
-    gl.yformatter = LATITUDE_FORMATTER
-    gl.xlabels_bottom = False
-    gl.ylabels_right = False
-    gl.xlabel_style = {'fontsize': 10, 'rotation' : 45}
-    gl.ylabel_style = {'fontsize': 10}
+    if fmt:
+        gl = ax.gridlines(alpha=0.5, zorder=200,draw_labels=True)
+        gl.xformatter = LONGITUDE_FORMATTER
+        gl.yformatter = LATITUDE_FORMATTER
+        gl.xlabels_bottom = False
+        gl.ylabels_right = False
+        gl.xlabel_style = {'fontsize': 10, 'rotation' : 45}
+        gl.ylabel_style = {'fontsize': 10}
 
 def plot_maps(resfile,ds,lon,lat,grad, 
               orthographic, methods, figsize):

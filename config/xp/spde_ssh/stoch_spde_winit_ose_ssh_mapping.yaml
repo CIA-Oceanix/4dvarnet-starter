@@ -47,6 +47,7 @@ datamodule:
   #  aug_factor: 2
   #  aug_only: True
   resize_factor: 2
+  frcst_lead: null
   norm_stats:
     - 0.31651841229383865
     - 0.3892599391249885
@@ -124,7 +125,7 @@ model:
   pre_metric_fn: 
         _target_: xarray.Dataset.sel
         _partial_: True
-        time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
+        time: {_target_: builtins.slice, _args_: ["2017-01-01", "2017-12-31"]}
         lat: ${domain.test.lat}
         lon: ${domain.test.lon}
   n_simu: 100

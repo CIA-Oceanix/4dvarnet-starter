@@ -7,6 +7,7 @@ import functools as ft
 import tqdm
 from collections import namedtuple
 from torch.utils.data import  ConcatDataset
+from random import sample 
 
 TrainingItem = namedtuple('TrainingItem', ['input', 'tgt'])
 
@@ -104,6 +105,9 @@ class XrDataset(torch.utils.data.Dataset):
         lon_orig = self.da.lon.data
         lat_orig = self.da.lat.data
 
+        print(self.da)
+        print('toto')
+
         # pad
         nt, ny, nx = tuple(self.da.sizes[d] for d in ['time', 'lat', 'lon'])
         if self.pad:
@@ -125,6 +129,7 @@ class XrDataset(torch.utils.data.Dataset):
                          lat = np.round(new_lat,2),
                          lon = np.round(new_lon,2)
                        )
+        print(self.da)
 
         #da_dims = dict(zip(self.da.dims, self.da.shape))
         da_dims = dict(zip(self.da.dims.keys(), self.da.dims.values()))
@@ -174,7 +179,7 @@ class XrDataset(torch.utils.data.Dataset):
                 for i in range(len(self)):
                     coords.append(self[i])
             else:
-                for i in range(self.limit_num_coords):
+                for i in sample(range(0,len(self)),self.limit_num_coords):
                     coords.append(self[i])
         finally:
             self.return_coords = False

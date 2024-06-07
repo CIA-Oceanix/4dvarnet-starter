@@ -508,7 +508,8 @@ def compute_ose_metrics(test_data, alontrack_independent_dataset='/homes/m19beau
     lenght_scale = 1000 # km
    
     file= 'file_4dvarnet_for_metrics.nc'
-    test_data = test_data.update({'ssh':(('time','lat','lon'),test_data.out.data)}).to_netcdf(file)
+    test_data = test_data.update({'ssh':(('time','lat','lon'),test_data.out.data)})
+    test_data.to_netcdf(file)
 
     # independent along-track
     # Read along-track

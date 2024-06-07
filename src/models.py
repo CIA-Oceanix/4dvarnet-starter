@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import xarray as xr
+from src.utils import get_last_time_wei, get_linear_time_wei
 
 class Lit4dVarNet(pl.LightningModule):
     def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
@@ -131,11 +132,22 @@ class Lit4dVarNet(pl.LightningModule):
 
 class Lit4dVarNet_SST(Lit4dVarNet):
 
-    def __init__(self, path_mask, optim_weight, domain_limits, persist_rw=True, *args, **kwargs):
+    def __init__(self, path_mask, optim_weight, domain_limits, modify_weights= False, persist_rw=True, *args, **kwargs):
          super().__init__(*args, **kwargs)
+
          self.domain_limits = domain_limits
-         self.register_buffer('optim_weight', torch.from_numpy(optim_weight), persistent=persist_rw)
+         self.strict_loading = False
          self.mask_land = np.isfinite(xr.open_dataset(path_mask).sel(**(self.domain_limits or {})).analysed_sst[0])
+
+         if modify_weights:
+             rec_weight = get_last_time_wei(patch_dims= {'time': 7, 'lat': 110, 'lon': 220},
+                                             crop={'time': 0, 'lat': 0, 'lon': 0},
+                                             offset=1)
+             optim_weight = get_linear_time_wei(patch_dims= { 'time': 7, 'lat': 110, 'lon': 220}, 
+                                             crop={'time': 0, 'lat': 0, 'lon': 0},
+                                             offset=1)
+         #self.register_buffer('rec_weight', torch.from_numpy(rec_weight), persistent=persist_rw)
+         self.register_buffer('optim_weight', torch.from_numpy(optim_weight), persistent=persist_rw)
 
     def step(self, batch, phase=""):
 
@@ -148,8 +160,8 @@ class Lit4dVarNet_SST(Lit4dVarNet):
         prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
         self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
 
-        print(50*loss, 10*prior_cost, 10000*grad_loss)
-        training_loss = 50 * loss + 10 * prior_cost + 10000 * grad_loss 
+        print(50*loss, 10*prior_cost, 1000*grad_loss)
+        training_loss = 50 * loss + 10 * prior_cost + 1000 * grad_loss 
         return training_loss, out
 
     def base_step(self, batch, phase=""):
@@ -183,6 +195,14 @@ class Lit4dVarNet_SST(Lit4dVarNet):
 
     def on_test_epoch_end(self):
 
+        if self.rec_weight.shape[1]!=(self.test_data[0][0][0].shape)[1]:
+            nlat = (self.test_data[0][0][0].shape)[1]
+            nlon = (self.test_data[0][0][0].shape)[2]
+            rec_weight = get_last_time_wei(patch_dims= {'time': 7, 'lat': nlat, 'lon': nlon},
+                                             crop={'time': 0, 'lat': 0, 'lon': 0},
+                                             offset=1)
+            self.rec_weight = torch.from_numpy(rec_weight).to(self.test_data[0].device)
+
         if isinstance(self.trainer.test_dataloaders,list):
             rec_da = self.trainer.test_dataloaders[0].dataset.reconstruct(
                 self.test_data, self.rec_weight.cpu().numpy()
@@ -198,7 +218,12 @@ class Lit4dVarNet_SST(Lit4dVarNet):
 
         # crop (if necessary) 
         self.test_data = self.test_data.sel(**(self.domain_limits or {}))
-        self.mask_land = self.mask_land.sel(**(self.domain_limits or {}))
+        self.mask_land = self.mask_land.sel(**(self.domain_limits or {})) 
+        rzf_mask = True
+        if rzf_mask:
+            self.mask_land = self.mask_land.coarsen(lon=10,boundary='trim').mean(skipna=True).coarsen(lat=10,boundary='trim').mean(skipna=True)
+            self.mask_land = (self.mask_land!=0)
+
         # set NaN according to mask
         self.test_data = self.test_data.update({'inp':(('time','lat','lon'),self.test_data.inp.data),
                                                 'tgt':(('time','lat','lon'),self.test_data.tgt.data),

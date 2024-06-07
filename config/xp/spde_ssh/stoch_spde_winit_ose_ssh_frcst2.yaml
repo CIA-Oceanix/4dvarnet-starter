@@ -37,7 +37,8 @@ datamodule:
     val: 
       time: {_target_: builtins.slice, _args_: ['2017-02-01', '2017-02-28']}
     test: 
-      time: {_target_: builtins.slice,  _args_: ['2016-12-15', '2017-12-31']}
+      #time: {_target_: builtins.slice,  _args_: ['2016-12-15', '2017-12-31']}
+      time: {_target_: builtins.slice,  _args_: ['2016-12-15', '2017-01-15']}
   xrds_kw:
     patch_dims: { time: 15, lat: 120, lon: 120}
     strides: { time: 1, lat: 100, lon: 100}
@@ -125,11 +126,11 @@ model:
   pre_metric_fn: 
         _target_: xarray.Dataset.sel
         _partial_: True
-        time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
+        time: {_target_: builtins.slice, _args_: ["2017-01-01", "2017-12-31"]}
         lat: ${domain.test.lat}
         lon: ${domain.test.lon}
   n_simu: 100
-  start_simu_idx: 0.8
+  start_simu_idx: 1. #0.8
   ncfile_name: '4DVarNet_OSE_SSH_frcst2.nc'
 
 metrics:

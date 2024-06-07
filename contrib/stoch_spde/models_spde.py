@@ -164,9 +164,9 @@ class Prior_SPDE(torch.nn.Module):
                                      kappa)
                 elif self.spde_type=="adv":
                     A = self.fdm(self.n_x,self.n_y,self.dx,self.dy,
-                                     m[batch],
-                                     None,
-                                     kappa)
+                                     m[batch,:,:,k],
+                                     torch.zeros(H[batch,:,:,:,k].shape).to(H.device),#None,
+                                     torch.zeros(kappa[batch,:,:,k].shape).to(kappa.device))#kappa)
                 else:
                     A = DiffOperator_Isotropic(self.n_x,self.n_y,self.dx,self.dy,
                                      kappa)

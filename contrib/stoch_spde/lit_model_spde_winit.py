@@ -163,6 +163,7 @@ class Lit4dVarNet(pl.LightningModule):
                                 x_init=out[:,self.sel_crop_daw,:,:].detach(),
                                 mu=corrupted_out[:,self.sel_crop_daw,:,:].detach())
             else:
+                cropped_batch = cropped_batch._replace(input=cropped_batch.tgt.to(device)) 
                 out_spde, theta = self.solver(batch=cropped_batch,
                                 x_init=batch_.tgt[:,self.sel_crop_daw,:,:].detach(),
                                 mu=out[:,self.sel_crop_daw,:,:].detach())
@@ -198,7 +199,8 @@ class Lit4dVarNet(pl.LightningModule):
             if self.solver.aug_state==True:
                 nll_loss = torch.nanmean(self.solver.nll(self.crop_batch(batch).tgt,
                                                  theta = theta,
-                                                 mu = corrupted_out[:,self.sel_crop_daw,:,:].detach(),
+                                                 #mu = corrupted_out[:,self.sel_crop_daw,:,:].detach(),
+                                                 mu = out.detach(),
                                                  det=True))
             else:
                 nll_loss = torch.nanmean(self.solver.nll(self.crop_batch(batch).tgt,
@@ -265,10 +267,6 @@ class Lit4dVarNet(pl.LightningModule):
             
 
         if batch_idx/self.trainer.num_test_batches[0] >=self.start_simu_idx:
-
-            print(batch_idx)
-            print(self.trainer.num_test_batches[0])
-            print(self.start_simu_idx)
 
             Q = self.solver.nll.operator_spde(theta[0],theta[1],theta[2],theta[3],
                                           store_block_diag=False)
@@ -414,53 +412,65 @@ class Lit4dVarNet(pl.LightningModule):
         # reconstruct mean
         if isinstance(self.trainer.test_dataloaders,list):
             rec_da = self.trainer.test_dataloaders[0].dataset.reconstruct(
-                    self.test_data, self.rec_weight.cpu().numpy(), crop = self.crop_daw
+                self.test_data, self.rec_weight.cpu().numpy(), crop = self.crop_daw
             )
         else:
             rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
-                    self.test_data, self.rec_weight.cpu().numpy(), crop = self.crop_daw
+                self.test_data, self.rec_weight.cpu().numpy(), crop = self.crop_daw
             )
         self.test_data = rec_da.assign_coords(
-                    dict(v0=self.test_quantities)
-                ).to_dataset(dim='v0')
+                        dict(v0=self.test_quantities)
+                    ).to_dataset(dim='v0')
+                          
+        daw = 5
+        rec_params_wdaw = []
+        rec_simu_wdaw = []
+        for i in range(daw):
+            rw = np.zeros(self.rec_weight.cpu().numpy().shape)
+            rw[i,:,:] = 1.
+            # reconstruct parameters
+            if isinstance(self.trainer.test_dataloaders,list):
+                rec_params = self.trainer.test_dataloaders[0].dataset.reconstruct(
+                        self.test_params, rw, crop = self.crop_daw
+                )
+            else:
+                rec_params = self.trainer.test_dataloaders.dataset.reconstruct(
+                            self.test_params, rw, crop = self.crop_daw
+                )
+            rec_params_wdaw.append(rec_params)
+            
+            # reconstruct simulations
+            rec_da_wsimu = []
+            for i in range(self.n_simu):
+                if isinstance(self.trainer.test_dataloaders,list):
+                    rec_simu = self.trainer.test_dataloaders[0].dataset.reconstruct(
+                        [ts[:,:,:,:,:,i] for ts in self.test_simu], rw, crop = self.crop_daw
+                    )
+                else:
+                    rec_simu = self.trainer.test_dataloaders.dataset.reconstruct(
+                        [ts[:,:,:,:,:,i] for ts in self.test_simu], rw, crop = self.crop_daw
+                    )
+                rec_da_wsimu.append(rec_simu)
+            
+            if len(rec_da_wsimu)>1:
+                rec_simu_wdaw.append(xr.concat(rec_da_wsimu, pd.Index(np.arange(self.n_simu), name='simu')))
+            else:
+                rec_simu_wdaw(rec_da_wsimu[0])
 
-        # reconstruct parameters
-        if isinstance(self.trainer.test_dataloaders,list):
-            rec_params = self.trainer.test_dataloaders[0].dataset.reconstruct(
-                    self.test_params, self.rec_weight.cpu().numpy(), crop = self.crop_daw
-            )
-        else:
-            rec_params = self.trainer.test_dataloaders.dataset.reconstruct(
-                        self.test_params, self.rec_weight.cpu().numpy(), crop = self.crop_daw
-            )
-        self.test_params = rec_params.assign_coords(
+        self.test_params = xr.concat(rec_params_wdaw, pd.Index(np.arange(daw), name='daw'))
+        self.test_params = self.test_params.assign_coords(
                     dict(v0=self.test_params_quantities)
                 ).to_dataset(dim='v0')
 
-        # reconstruct simulations
-        rec_da_wsimu = []
-        for i in range(self.n_simu):
-            if isinstance(self.trainer.test_dataloaders,list):
-                rec_simu = self.trainer.test_dataloaders[0].dataset.reconstruct(
-                    [ts[:,:,:,:,:,i] for ts in self.test_simu], self.rec_weight.cpu().numpy(), crop = self.crop_daw
-                )
-            else:
-                rec_simu = self.trainer.test_dataloaders.dataset.reconstruct(
-                    [ts[:,:,:,:,:,i] for ts in self.test_simu], self.rec_weight.cpu().numpy(), crop = self.crop_daw
-                )
-            rec_da_wsimu.append(rec_simu)
-        if len(rec_da_wsimu)>1:
-            self.test_simu = xr.concat(rec_da_wsimu, pd.Index(np.arange(self.n_simu), name='simu'))
-        else:
-            self.test_simu = rec_da_wsimu[0]
-    
+        self.test_simu = xr.concat(rec_simu_wdaw, pd.Index(np.arange(daw), name='daw'))
         self.test_simu = self.test_simu.assign_coords(
-                    dict(v0=self.test_simu_quantities)
-                ).to_dataset(dim='v0')
+                        dict(v0=self.test_simu_quantities)
+                     ).to_dataset(dim='v0')
 
         self.test_data = xr.merge([self.test_data,self.test_simu,self.test_params])
-        self.test_data = self.test_data.update({'std_simu':(('time','lat','lon'),
+        self.test_data = self.test_data.update({'std_simu':(('daw','time','lat','lon'),
                                         self.test_data.sample_xy.std(dim='simu').values)})
+        self.test_data = self.test_data.transpose('time', 'lat', 'lon', 'daw', 'simu')
 
         if self.logger:
             self.test_data.to_netcdf(Path(self.logger.log_dir) / self.ncfile_name)

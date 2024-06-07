@@ -1,9 +1,12 @@
 # @package _global_
 
 paths:
-    obs: /DATASET/mbeauchamp/DMI/training_dataset/DMI-L3S_GHRSST-SSTsubskin-night_SST_UHR_NRT-NSEABALTIC.nc
-    tgt: /DATASET/mbeauchamp/DMI/training_dataset/DMI-L3S_GHRSST-SSTsubskin-night_SST_UHR_NRT-NSEABALTIC.nc
-    oi: /DATASET/mbeauchamp/DMI/training_dataset/DMI-L4_GHRSST-SSTfnd-DMI_OI-NSEABALTIC.nc
+    #src: /gpfsstore/rech/yrf/uba22to/DMI
+    src: /DATASET/mbeauchamp/DMI
+    obs: ${paths.src}/training_dataset/DMI-L3S_GHRSST-SSTsubskin-night_SST_UHR_NRT-NSEABALTIC.nc
+    #tgt: ${paths.src}/training_dataset/DMI-L3S_GHRSST-SSTsubskin-night_SST_UHR_NRT-NSEABALTIC.nc
+    tgt: ${paths.src}/training_dataset/DMI-L4_GHRSST-SSTfnd-DMI_OI-NSEABALTIC.nc
+    oi: ${paths.src}/training_dataset/DMI-L4_GHRSST-SSTfnd-DMI_OI-NSEABALTIC.nc
 
 domain: ???
 
@@ -25,7 +28,7 @@ trainer:
     version: ''
   max_epochs: 150
   callbacks:
-    - _target_: src.versioning_cb.VersioningCallback
+    #- _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
     - _target_: pytorch_lightning.callbacks.ModelCheckpoint
       monitor: val_mse
@@ -57,18 +60,18 @@ datamodule:
     #test:
     #  time: {_target_: builtins.slice, _args_: ['2021-01-01', '2021-01-21']}
   xrds_kw:
-    patch_dims: { time: 7, lat: 1200, lon: 1300}
-    strides: { time: 1, lat: 1100, lon: 1100}
-    strides_test: {'time': 1, 'lat': 1100, 'lon': 1100}
+    patch_dims: { time: 7, lat: 600, lon: 600}
+    strides: { time: 1, lat: 50, lon: 50}
+    strides_test: {time: 1, lat: 500, lon: 500}
     domain_limits: ${domain.train}
-  dl_kw: {batch_size: 1, num_workers: 0}
+  dl_kw: {batch_size: 2, num_workers: 0}
   #aug_kw:
   #  aug_factor: 1
   #  aug_only: True
   res: 0.02
   pads: 
-    - True
-    - True
+    - False
+    - False
     - True
   norm_stats:
     - 283.8052
@@ -86,12 +89,12 @@ model:
       _target_: src.utils.get_last_time_wei
       patch_dims: ${datamodule.xrds_kw.patch_dims}
       #crop: {time: 0, lat: 20, lon: 20}
-      crop: {time: 0, lat: 50, lon: 100}
+      crop: {time: 0, lat: 50, lon: 50}
       offset: 1
   optim_weight:
       _target_: src.utils.get_linear_time_wei
       patch_dims: ${datamodule.xrds_kw.patch_dims}
-      crop: {time: 0, lat: 50, lon: 100}
+      crop: {time: 0, lat: 50, lon: 50}
       offset: 1
   solver: 
     _target_: src.models.GradSolver

@@ -129,6 +129,7 @@ model:
         lat: ${domain.test.lat}
         lon: ${domain.test.lon}
   n_simu: 100
+  #start_simu_idx: 1. #0.8
   ncfile_name: '4DVarNet_OSSE_SSH_frcst2.nc'
 
 metrics:
