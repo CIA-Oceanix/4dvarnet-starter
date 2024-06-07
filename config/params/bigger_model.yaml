@@ -1,6 +1,6 @@
 # @package _global_
 trainer:
-  max_epochs: 600
+  max_epochs: 1200
 
 datamodule:
   aug_kw:

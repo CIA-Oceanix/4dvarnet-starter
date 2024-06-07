@@ -2,7 +2,23 @@
 
 resolution: '1_20'
 entrypoint: train  # 'train' or 'test'
-checkpoint: null
+checkpoint: null #outputs/2024-03-27/17-21-41/sound_base_comfra/checkpoints/val_mse=2199.81333-epoch=242.ckpt 
+
+#outputs/2024-04-16/14-12-35/sound_base_comfra/checkpoints/val_mse=76.07142-epoch=279.ckpt #0.01 4dvar relative error
+#outputs/2024-04-16/14-11-51/sound_base_comfra/checkpoints/val_mse=1407.10178-epoch=300.ckpt  #0.01 4dvar
+
+#outputs/2024-04-04/10-21-05/sound_base_comfra/checkpoints/val_mse=978.39137-epoch=586.ckpt #0.001 4dVar bigger_model z sst acc_grad 2 v2
+#outputs/2024-03-27/17-21-41/sound_base_comfra/checkpoints/val_mse=2199.81333-epoch=242.ckpt #0.001 4dVar bigger_model z acc_grad 2
+#outputs/2024-03-27/17-20-18/sound_base_comfra/checkpoints/val_mse=2378.24678-epoch=101.ckpt # 0.001 Unet z
+#outputs/2024-03-27/16-43-33/sound_base_comfra/checkpoints/val_mse=946.71657-epoch=591.ckpt #0.001 4dVar bigger_model z sst acc_grad 2
+
+#outputs/2024-02-21/18-35-33/sound_base_comfra/checkpoints/val_mse=1454.06590-epoch=213.ckpt # 0.01 Unet z
+#outputs/2024-03-27/13-21-21/sound_base_comfra/checkpoints/val_mse=1569.39409-epoch=161.ckpt #0.01 baseline z acc_grad 2
+#outputs/2024-03-25/22-15-54/sound_base_comfra/checkpoints/val_mse=1708.48381-epoch=274.ckpt #0.01 baseline z acc_grad 8
+
+#outputs/2024-03-20/17-58-39/sound_base_comfra/checkpoints/val_mse=692.42478-epoch=583.ckpt #0.05 4dVar bigger_model z
+#outputs/2024-03-21/09-43-19/sound_base_comfra/checkpoints/val_mse=1285.89242-epoch=592.ckpt #0.01 4dVar bigger_model z acc_grad 8
+#outputs/2024-03-22/15-46-58/sound_base_comfra/checkpoints/val_mse=900.49089-epoch=573.ckpt #0.01 4dVar bigger_model z sst acc_grad 8
 
 #outputs/2024-03-01/09-54-36/sound_base_comfra/checkpoints/val_mse=826.14851-epoch=588.ckpt # #0.01 4dVar bigger_model z sst v3
 
@@ -17,7 +33,6 @@ checkpoint: null
 
 #checkpoint: 
 #outputs/2024-02-19/10-39-31/sound_base_comfra/checkpoints/val_mse=826.88221-epoch=339.ckpt #0.1 z baseline
-#outputs/2024-02-13/14-06-54/sound_base_comfra/checkpoints/val_mse=230.95845-epoch=379.ckpt #1 z
 #outputs/2024-02-13/10-30-53/sound_base_comfra/checkpoints/val_mse=595.82034-epoch=382.ckpt #0.1 z
 #outputs/2024-02-13/18-11-53/sound_base_comfra/checkpoints/val_mse=776.64259-epoch=382.ckpt #0.05 z
 #outputs/2024-02-20/10-23-18/sound_base_comfra/checkpoints/val_mse=547.78453-epoch=390.ckpt  #0.1 z sst
@@ -50,7 +65,7 @@ paths:
     
     tgt_sst:
       train: '/DATASET/eNATL/eNATL60-BLB002-SST-GF-2009-2010-1_20.nc'
-      test: '/DATASET/NATL/NATL60-CJM165_NATL_sst_y2013.1y.nc'
+      test: '/DATASET/NATL/NATL60-CJM165_NATL_GF_sst_y2013.1y.nc'
 
     tgt_ssh:  
       train: /DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-ssh-2009-2010-${resolution}.nc
@@ -67,7 +82,8 @@ trainer:
     save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 600
+  max_epochs: 400
+  accumulate_grad_batches: 2
   callbacks:
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
     - _target_: pytorch_lightning.callbacks.ModelCheckpoint
@@ -88,7 +104,8 @@ datamodule:
   domains:
     train: ${period.train}
     val: ${val_period}
-    test: ${period.test}
+    test:
+      time: {_target_: builtins.slice, _args_: ['2013-06-01', '2013-08-30']}
   xrds_kw:
     patch_dims: { time: 15, lat: 240, lon: 240}
     strides: { time: 1, lat: 200, lon: 200}
@@ -119,12 +136,15 @@ model:
     lr_grad: 1e3
     prior_cost:
       _target_: src.models.BilinAEPriorCost
+      #weight3: 1. 
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
       dim_hidden: 32
       bilin_quad: false
       downsamp: 2
     obs_cost:
       _target_: src.models.BaseObsCost
+      #weight1: 1. 
+      #weight2: 1.
     grad_mod:
       _target_: src.models.ConvLstmGradModel
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
@@ -162,6 +182,6 @@ entrypoints:
 
 defaults:
   - /domain: gf
-  - /period: allyear
+  - /period: midsummer
   # - /period@val_period: midsummer
   - _self_

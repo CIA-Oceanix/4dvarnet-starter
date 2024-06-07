@@ -123,37 +123,6 @@ class Lit4dVarNet(pl.LightningModule):
         
             self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
             self.log( f"{phase}_prior_cost", prior_cost, prog_bar=True, on_step=False, on_epoch=True)
-        
-            #if torch.isnan(prior_cost).any():
-            #    print('loss is nan')
-            #    batch_dim = batch.input.shape[0]
-            #    for i in range(batch_dim):
-            #        batch_id = batch.input[i]
-            #        mask = ~torch.isnan(batch_id)
-            #        batch_id_no_nan = batch_id[mask]
-            #        time_window_normed = torch.norm(batch_id_no_nan[1])
-            #        self.log('norm_batch_nan', time_window_normed, on_step=True, on_epoch=True, prog_bar=True)
-            #    #self.log('loss_nan', prior_cost, on_step=True, on_epoch=True, prog_bar=True)
-            #    # Optionally, skip the current batch or stop training
-            #    return None, None
-            #if torch.isnan(var_cost).any():
-            #print('loss is nan')
-            #batch_dim = batch.input.shape[0]
-            #for i in range(batch_dim):
-            #    batch_id = batch.input[i]
-            #    mask = ~torch.isnan(batch_id)
-            #    batch_id_no_nan = batch_id[mask]
-            #    time_window_normed = torch.norm(batch_id_no_nan[1])
-            #    self.log('norm_batch_nan', time_window_normed, on_step=True, on_epoch=True, prog_bar=True)
-            #    self.prior_cost.restore_state()
-            #    #self.log('loss_nan', prior_cost, on_step=True, on_epoch=True, prog_bar=True)
-            #    # Optionally, skip the current batch or stop training
-            #    return state
-            #total_weight = self.alphaObs + self.alphaReg + self.alphaGrad
-            #norm_lambda_obs = self.alphaObs / total_weight
-            #norm_lambda_prior = self.alphaReg / total_weight
-            #norm_lambda_grad = self.alphaGrad / total_weight
-
             weight_obs = self.solver.obs_cost.weight1_torch
             weight_prior = self.solver.prior_cost.weight3_torch
             self.log('sampling_rate', self.sampling_rate, on_step=False, on_epoch=True)
