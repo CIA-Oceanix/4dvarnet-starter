@@ -185,7 +185,8 @@ class GradSolver_QG(nn.Module):
         if x_init is not None:
             return x_init
 
-        return batch.input.nan_to_num().detach().requires_grad_(True)
+        # return batch.input.nan_to_num().detach().requires_grad_(True)
+        return torch.zeros_like(batch.input).detach().requires_grad_(True)
 
     def solver_step(self, state, batch, step):
         var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
@@ -411,24 +412,57 @@ class LinearCost(nn.Module):
         return F.mse_loss(state, self.forward_linear(state)) 
     
 class QGCost(nn.Module):
-    def __init__(self, nl=1, L=100000) -> None:
+    def __init__(self, nl, L, g_prime, H, f0, beta, tau0, bottom_drag_coef, apply_mask = False) -> None:
         super().__init__()
         self.nl = nl # number of layers of QG model, default = 1
         self.L = L # depth of the layer, default = 100 km ie 100000 m.
+        self.g_prime = g_prime
+        self.H = H
+        self.f0 = f0
+        self.beta = beta 
+        self.tau0 = tau0
+        self.bottom_drag_coef = bottom_drag_coef
+        self.apply_mask = apply_mask
 
     def forward_QG(self, x):
         # take as input (in the case of batch size ==1) a tensor x of size [B=1,D,H,W] with B the size of batch, D the lenght of data assimilation window (typically 15 days), H and W the spatial size
         # return a vector of the same size with x[:,j+1,:,:] = QG(x[:,j,:,:])
 
         ## example for a single prediction x[:,j+1,:,:] = QG(x[:,j,:,:]), will need to make a loop later
-        ssh_0 = x[0][0].T
-        ssh_1 = self.forecast_QG(ssh_0).T       
+        #ssh_0 = x[0][0].T
+        #ssh_1 = self.forecast_QG(ssh_0).T     
+        # return ssh_1  
 
-        return ssh_1
+        # x is of shape [B=1, D=15, H, W]
+        print('new_forward')
+        B, D, H, W = x.shape
+
+        if B != 1:
+            raise Exception("4dvarnet-QG does not handle batch with size > 1. Please set batch size to 1.") 
+
+        # Initialize a tensor to store the forecasts 
+        forecasts = torch.zeros_like(x)
+
+        # Iterate over days of the batch
+        for i in range(2-1): #range(D-1):
+            # Extract the ssh of i-th day
+            ssh_0 = x[0][i].T  # shape [H, W]
+
+            # Perform the QG forecast of the next day
+            ssh_1 = self.forecast_QG(ssh_0).T  
+
+            # Store the forecast
+            forecasts[0][i+1] = ssh_1
+
+        # We can not compute QG forecast for the first day
+        forecasts[0][0] = x[0][0]
+
+        return forecasts[0][:2]
+
     
     def forward(self, state):
-        #return F.mse_loss(state, self.forward_QG(state)) 
-        return F.mse_loss(state[0][0], self.forward_QG(state)) 
+        #return F.mse_loss(state[0][0], self.forward_QG(state)) 
+        return F.mse_loss(state[0][:2], self.forward_QG(state)) 
     
     def forecast_QG(self, ssh_0):
         ## provides the QG forecast of SSH 2D field for day N+1 given SSH field at day N .
@@ -437,44 +471,31 @@ class QGCost(nn.Module):
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             dtype = torch.float64
 
-            # QG paramaters
-            nl = self.nl
-            L = self.L
+            # fill nan with 0
+            #ssh_0 = torch.nan_to_num(ssh_0, nan=0.0)
 
             # grid
             nx = ssh_0.size()[0] - 1
             ny = ssh_0.size()[1] - 1
-            nl = 1
-            L = 100000 # 100km
-            dx = L / nx
-            dy = L / ny
-            xv = torch.linspace(-L/2, L/2, nx+1, dtype=torch.float64, device=device)
-            yv = torch.linspace(-L/2, L/2, ny+1, dtype=torch.float64, device=device)
+            dx = self.L / nx
+            dy = self.L / ny
+            xv = torch.linspace(-self.L/2, self.L/2, nx+1, dtype=torch.float64, device=device)
+            yv = torch.linspace(-self.L/2, self.L/2, ny+1, dtype=torch.float64, device=device)
             x, y = torch.meshgrid(xv, yv, indexing='ij')
 
-            H = torch.zeros(nl,1,1, dtype=dtype, device=device)
-            if nl == 1:
-                H[0,0,0] = 1000.
+            H = torch.zeros(self.nl,1,1, dtype=dtype, device=device)
+            if self.nl == 1:
+                H[0,0,0] = self.H
 
             # gravity
-            g_prime = torch.zeros(nl,1,1, dtype=dtype, device=device)
-            if nl == 1:
-                g_prime[0,0,0] = 10
+            g_prime = torch.zeros(self.nl,1,1, dtype=dtype, device=device)
+            if self.nl == 1:
+                g_prime[0,0,0] = self.g_prime
 
-            ## create rankine vortex
-            # Burger and Rossby numbers, coriolis set with Bu Number
-            Bu = 1
-            Ro = 0.01
-            r0, r1, r2 = 0.1*L, 0.1*L, 0.14*L
-            f0 = torch.sqrt(g_prime[0,0,0] * H[0,0,0] / Bu / r0**2)
-            beta = 0
-            f = f0 + beta * (y - L/2)
+            # Coriolis beta plane
+            f = self.f0 + self.beta * (y - self.L/2)
 
-            # wind forcing, bottom drag
-            tau0 = 0.
-            bottom_drag_coef = 0.
-
-            apply_mask = False # True
+            apply_mask = self.apply_mask
 
             # create rankine vortex in PV
             xc = 0.5 * (xv[1:] + xv[:-1])
@@ -482,23 +503,23 @@ class QGCost(nn.Module):
             x, y = torch.meshgrid(xc, yc, indexing='ij')
             r = torch.sqrt(x**2 + y**2)
             # circular domain mask
-            mask = (r < L/2).type(torch.float64) if apply_mask else torch.ones_like(x)
+            mask = (r < self.L/2).type(torch.float64) if apply_mask else torch.ones_like(x)
 
             param = {
                 'nx': nx,
                 'ny': ny,
-                'nl': nl,
+                'nl': self.nl,
                 'mask': mask,
                 'n_ens': 1,
-                'Lx': L,
-                'Ly': L,
+                'Lx': self.L,
+                'Ly': self.L,
                 'flux_stencil': 5,
                 'H': H,
                 'g_prime': g_prime,
-                'tau0': tau0,
-                'f0': f0,
-                'beta': beta,
-                'bottom_drag_coef': bottom_drag_coef,
+                'tau0': self.tau0,
+                'f0': self.f0,
+                'beta': self.beta,
+                'bottom_drag_coef': self.bottom_drag_coef,
                 'device': device,
                 'dt': 0, # time-step (s)
             }
@@ -506,40 +527,48 @@ class QGCost(nn.Module):
 
             ## initialize psi_0 from ssh map
             g = 10.0 # m/s^2 
-            psi_2d = (g/f0) * ssh_0
+            psi_2d = (g/self.f0) * ssh_0
             qg.psi = psi_2d.unsqueeze(0).unsqueeze(0)
 
             ## initialize q_0 from psi_0
             qg.compute_q_from_psi()
 
-            # set amplitude to have correct Rossby number
+            # compute u_max for CFL
             u, v = qg.grad_perp(qg.psi, qg.dx, qg.dy)
             u_norm_max = max(torch.abs(u).max().item(), torch.abs(v).max().item())
-            factor = Ro * f0 * r0 / u_norm_max
+            
+            ## rescaling factor 
+            factor = torch.tensor(1/4, dtype=dtype, device=device) #(Ro * f0 * r0) / u_norm_max
             qg.psi *= factor
             qg.q *= factor
             u, v = qg.grad_perp(qg.psi, qg.dx, qg.dy)
+            ##
+
             u_max = u.max().cpu().item()
             v_max = v.max().cpu().item()
-            #print(f'u_max {u_max:.2e}, v_max {v_max:.2e}')
+
+            if u_max==0.0 or v_max==0.0:
+                u_max = 4.0
+                v_max = 4.0
+            print(f'u_max {u_max:.2e}, v_max {v_max:.2e}')
 
             # set time step with CFL
-            cfl = 0.5
+            cfl = 1
             dt = cfl * min(dx / u_max, dy / v_max)
             qg.dt = dt
-            #print(f'integration time step : {round(dt)//3600} hour(s), {(round(dt)% 3600) // 60} minute(s), and {(round(dt)% 3600) % 60} second(s). ')
+            print(f'integration time step : {round(dt)//3600} hour(s), {(round(dt)% 3600) // 60} minute(s), and {(round(dt)% 3600) % 60} second(s). ')
 
             # time params
             t = 0
-            #w_0 = qg.laplacian_h(qg.psi, qg.dx, qg.dy).squeeze()
-            # tau = 1. / torch.sqrt(w_0.pow(2).mean()).cpu().item()
-            # print(f'tau = {tau *f0:.2f} f0-1')
-            t_end = round(1 * 86400 ) # 1 day expressed in sec
+            t_end = round(1 * 86400) # 1 day expressed in sec
+
+            ##
             n_steps = int(t_end / dt) + 1 
+
 
             # plot, log, check nans
             freq_plot = int(t_end / 25 / dt) + 1
-            #freq_checknan = 10
+            freq_checknan = 10
             freq_log = int(t_end / 50 / dt) + 1
 
             t0 = time.time()
@@ -547,162 +576,161 @@ class QGCost(nn.Module):
                 qg.step()
                 t += dt
 
-            psi_forecast = qg.psi * (1/factor) # rescale ssh as input
-            ssh_forecast = psi_forecast* (f0/g)
+            ssh_forecast = qg.psi * (self.f0/g) * (1/factor)
             ssh_forecast = ssh_forecast[0][0] # pass from [1,1,240,240] (one layer QG) -> [240,240]
             return ssh_forecast
 
 
 
     
-class QGCost_light(nn.Module):
-    def __init__(self, nl=1, L=100000, nx=None, ny=None) -> None:
-        super().__init__()
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.dtype = torch.float64
+# class QGCost_light(nn.Module):
+#     def __init__(self, nl=1, L=100000, nx=None, ny=None) -> None:
+#         super().__init__()
+#         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+#         self.dtype = torch.float64
 
-        # QG parameters
-        self.nl = nl  # number of layers of QG model, default = 1
-        self.L = L  # depth of the layer, default = 100 km ie 100000 m.
-        self.nx = nx -1 # size of input vector
-        self.ny = ny -1 # size of input vector
-        self.g = 10.0 # m/s^2 , gravity constant
-        self.cfl = 0.5 # self.cfl
-        self.Bu = 1 # Burger number
-        self.Ro = 0.01 # Rosby number
+#         # QG parameters
+#         self.nl = nl  # number of layers of QG model, default = 1
+#         self.L = L  # depth of the layer, default = 100 km ie 100000 m.
+#         self.nx = nx -1 # size of input vector
+#         self.ny = ny -1 # size of input vector
+#         self.g = 10.0 # m/s^2 , gravity constant
+#         self.cfl = 0.5 # self.cfl
+#         self.Bu = 1 # Burger number
+#         self.Ro = 0.01 # Rosby number
     
-        # to be precomputed
-        self.dx = None
-        self.dy = None
-        self.f0 = None
-        self.r0 = None
-        self.qg = None
+#         # to be precomputed
+#         self.dx = None
+#         self.dy = None
+#         self.f0 = None
+#         self.r0 = None
+#         self.qg = None
         
-        # Precompute static values
-        self.precompute_static_values()
+#         # Precompute static values
+#         self.precompute_static_values()
 
-    def precompute_static_values(self):
-        with torch.no_grad():
-            torch.backends.cudnn.deterministic = True
-            device = 'cuda' if torch.cuda.is_available() else 'cpu'
-            dtype = torch.float64
+#     def precompute_static_values(self):
+#         with torch.no_grad():
+#             torch.backends.cudnn.deterministic = True
+#             device = 'cuda' if torch.cuda.is_available() else 'cpu'
+#             dtype = torch.float64
 
-            # QG parameters
-            nl = self.nl
-            L = self.L
+#             # QG parameters
+#             nl = self.nl
+#             L = self.L
 
-            # Grid
-            self.dx = L / self.nx
-            self.dy = L / self.ny
-            xv = torch.linspace(-L/2, L/2, self.nx+1, dtype=torch.float64, device=device)
-            yv = torch.linspace(-L/2, L/2, self.ny+1, dtype=torch.float64, device=device)
-            x, y = torch.meshgrid(xv, yv, indexing='ij')
+#             # Grid
+#             self.dx = L / self.nx
+#             self.dy = L / self.ny
+#             xv = torch.linspace(-L/2, L/2, self.nx+1, dtype=torch.float64, device=device)
+#             yv = torch.linspace(-L/2, L/2, self.ny+1, dtype=torch.float64, device=device)
+#             x, y = torch.meshgrid(xv, yv, indexing='ij')
 
-            H = torch.zeros(nl,1,1, dtype=dtype, device=device)
-            if nl == 1:
-                H[0,0,0] = 1000.
+#             H = torch.zeros(nl,1,1, dtype=dtype, device=device)
+#             if nl == 1:
+#                 H[0,0,0] = 1000.
 
-            # gravity
-            g_prime = torch.zeros(nl,1,1, dtype=dtype, device=device)
-            if nl == 1:
-                g_prime[0,0,0] = 10
+#             # gravity
+#             g_prime = torch.zeros(nl,1,1, dtype=dtype, device=device)
+#             if nl == 1:
+#                 g_prime[0,0,0] = 10
 
-            ## create rankine vortex
-            # Burger and Rossby numbers, coriolis set with Bu Number
-            self.r0, r1, r2 = 0.1*L, 0.1*L, 0.14*L
-            self.f0 = torch.sqrt(g_prime[0,0,0] * H[0,0,0] / self.Bu / self.r0**2)
-            beta = 0
-            f = self.f0 + beta * (y - L/2)
+#             ## create rankine vortex
+#             # Burger and Rossby numbers, coriolis set with Bu Number
+#             self.r0, r1, r2 = 0.1*L, 0.1*L, 0.14*L
+#             self.f0 = torch.sqrt(g_prime[0,0,0] * H[0,0,0] / self.Bu / self.r0**2)
+#             beta = 0
+#             f = self.f0 + beta * (y - L/2)
 
-            # wind forcing, bottom drag
-            tau0 = 0.
-            bottom_drag_coef = 0.
+#             # wind forcing, bottom drag
+#             tau0 = 0.
+#             bottom_drag_coef = 0.
 
-            apply_mask = False # True
+#             apply_mask = False # True
 
-            # create rankine vortex in PV
-            xc = 0.5 * (xv[1:] + xv[:-1])
-            yc = 0.5 * (yv[1:] + yv[:-1])
-            x, y = torch.meshgrid(xc, yc, indexing='ij')
-            r = torch.sqrt(x**2 + y**2)
-            # circular domain mask
-            mask = (r < L/2).type(torch.float64) if apply_mask else torch.ones_like(x)
+#             # create rankine vortex in PV
+#             xc = 0.5 * (xv[1:] + xv[:-1])
+#             yc = 0.5 * (yv[1:] + yv[:-1])
+#             x, y = torch.meshgrid(xc, yc, indexing='ij')
+#             r = torch.sqrt(x**2 + y**2)
+#             # circular domain mask
+#             mask = (r < L/2).type(torch.float64) if apply_mask else torch.ones_like(x)
 
-            param = {
-                'nx': self.nx,
-                'ny': self.ny,
-                'nl': nl,
-                'mask': mask,
-                'n_ens': 1,
-                'Lx': L,
-                'Ly': L,
-                'flux_stencil': 5,
-                'H': H,
-                'g_prime': g_prime,
-                'tau0': tau0,
-                'f0': self.f0,
-                'beta': beta,
-                'bottom_drag_coef': bottom_drag_coef,
-                'device': device,
-                'dt': 0, # time-step (s)
-            }
-            self.qg = QGFV(param)
+#             param = {
+#                 'nx': self.nx,
+#                 'ny': self.ny,
+#                 'nl': nl,
+#                 'mask': mask,
+#                 'n_ens': 1,
+#                 'Lx': L,
+#                 'Ly': L,
+#                 'flux_stencil': 5,
+#                 'H': H,
+#                 'g_prime': g_prime,
+#                 'tau0': tau0,
+#                 'f0': self.f0,
+#                 'beta': beta,
+#                 'bottom_drag_coef': bottom_drag_coef,
+#                 'device': device,
+#                 'dt': 0, # time-step (s)
+#             }
+#             self.qg = QGFV(param)
 
-    def forward_QG(self, x):
-        # take as input (in the case of batch size ==1) a tensor x of size [B=1,D,H,W] with B the size of batch, D the lenght of data assimilation window (typically 15 days), H and W the spatial size
-        # return a vector of the same size with x[:,j+1,:,:] = QG(x[:,j,:,:])
+#     def forward_QG(self, x):
+#         # take as input (in the case of batch size ==1) a tensor x of size [B=1,D,H,W] with B the size of batch, D the lenght of data assimilation window (typically 15 days), H and W the spatial size
+#         # return a vector of the same size with x[:,j+1,:,:] = QG(x[:,j,:,:])
 
-        ## example for a single prediction x[:,j+1,:,:] = QG(x[:,j,:,:]), will need to make a loop later
-        ssh_0 = x[0][0].T
-        ssh_1 = self.forecast_QG(ssh_0).T       
+#         ## example for a single prediction x[:,j+1,:,:] = QG(x[:,j,:,:]), will need to make a loop later
+#         ssh_0 = x[0][0].T
+#         ssh_1 = self.forecast_QG(ssh_0).T       
 
-        return ssh_1
+#         return ssh_1
     
-    def forward(self, state):
-        #return F.mse_loss(state, self.forward_QG(state)) 
-        return F.mse_loss(state[0][0], self.forward_QG(state)) 
+#     def forward(self, state):
+#         #return F.mse_loss(state, self.forward_QG(state)) 
+#         return F.mse_loss(state[0][0], self.forward_QG(state)) 
     
-    def forecast_QG(self, ssh_0):
-        with torch.no_grad():
-            ## initialize psi_0 from ssh map
-            ssh_0 = ssh_0
-            psi_2d = (self.g/self.f0) * ssh_0
-            self.qg.psi = psi_2d.unsqueeze(0).unsqueeze(0)
+#     def forecast_QG(self, ssh_0):
+#         with torch.no_grad():
+#             ## initialize psi_0 from ssh map
+#             ssh_0 = ssh_0
+#             psi_2d = (self.g/self.f0) * ssh_0
+#             self.qg.psi = psi_2d.unsqueeze(0).unsqueeze(0)
 
-            ## initialize q_0 from psi_0
-            self.qg.compute_q_from_psi()
+#             ## initialize q_0 from psi_0
+#             self.qg.compute_q_from_psi()
 
-            # set amplitude to have correct Rossby number
-            u, v = self.qg.grad_perp(self.qg.psi, self.qg.dx, self.qg.dy)
-            u_norm_max = max(torch.abs(u).max().item(), torch.abs(v).max().item())
-            factor = self.Ro * self.f0 * self.r0 / u_norm_max
-            self.qg.psi *= factor
-            self.qg.q *= factor
-            u, v = self.qg.grad_perp(self.qg.psi, self.qg.dx, self.qg.dy)
-            u_max = u.max().cpu().item()
-            v_max = v.max().cpu().item()
-            #print(f'u_max {u_max:.2e}, v_max {v_max:.2e}')
+#             # set amplitude to have correct Rossby number
+#             u, v = self.qg.grad_perp(self.qg.psi, self.qg.dx, self.qg.dy)
+#             u_norm_max = max(torch.abs(u).max().item(), torch.abs(v).max().item())
+#             factor = self.Ro * self.f0 * self.r0 / u_norm_max
+#             self.qg.psi *= factor
+#             self.qg.q *= factor
+#             u, v = self.qg.grad_perp(self.qg.psi, self.qg.dx, self.qg.dy)
+#             u_max = u.max().cpu().item()
+#             v_max = v.max().cpu().item()
+#             #print(f'u_max {u_max:.2e}, v_max {v_max:.2e}')
 
-            # set time step with CFL
-            dt = self.cfl * min(self.dx / u_max, self.dy / v_max)
-            self.qg.dt = dt
-            #print(f'integration time step : {round(dt)//3600} hour(s), {(round(dt)% 3600) // 60} minute(s), and {(round(dt)% 3600) % 60} second(s). ')
+#             # set time step with CFL
+#             dt = self.cfl * min(self.dx / u_max, self.dy / v_max)
+#             self.qg.dt = dt
+#             #print(f'integration time step : {round(dt)//3600} hour(s), {(round(dt)% 3600) // 60} minute(s), and {(round(dt)% 3600) % 60} second(s). ')
 
-            # time params
-            t = 0
-            t_end = round(1 * 86400 ) # 1 day expressed in sec
-            n_steps = int(t_end / dt) + 1 
+#             # time params
+#             t = 0
+#             t_end = round(1 * 86400 ) # 1 day expressed in sec
+#             n_steps = int(t_end / dt) + 1 
 
-            # plot, log, check nans
-            freq_plot = int(t_end / 25 / dt) + 1
-            freq_log = int(t_end / 50 / dt) + 1
+#             # plot, log, check nans
+#             freq_plot = int(t_end / 25 / dt) + 1
+#             freq_log = int(t_end / 50 / dt) + 1
 
-            t0 = time.time()
-            for n in range(1, n_steps+1): #n_steps+1): #100
-                self.qg.step()
-                t += dt
+#             t0 = time.time()
+#             for n in range(1, n_steps+1): #n_steps+1): #100
+#                 self.qg.step()
+#                 t += dt
 
-            psi_forecast = self.qg.psi * (1/factor) # rescale ssh as input
-            ssh_forecast = psi_forecast * (self.f0/self.g)
-            ssh_forecast = ssh_forecast[0][0] # pass from [1,1,240,240] (one layer QG) -> [240,240]
-            return ssh_forecast
+#             psi_forecast = self.qg.psi * (1/factor) # rescale ssh as input
+#             ssh_forecast = psi_forecast * (self.f0/self.g)
+#             ssh_forecast = ssh_forecast[0][0] # pass from [1,1,240,240] (one layer QG) -> [240,240]
+#             return ssh_forecast

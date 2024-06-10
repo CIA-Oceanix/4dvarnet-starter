@@ -34,8 +34,10 @@ datamodule:
     _target_: src.utils.load_full_natl_data
     path_obs: "/DATASET/NATL/cal_data_new_errs.nc"
     path_gt: "/DATASET/NATL/NATL60-CJM165_NATL_ssh_y2013.1y.nc"
+    #path_mdt: '/DATASET/2023_SSH_mapping_train_eNATL60_test_NATL60/NATL60-CJM165/ds_ref_1_20.nc'
     obs_var: four_nadirs
     obs_gt: ssh
+    #obs_mdt: mdt
   domains:
     train:
       time: {_target_: builtins.slice, _args_: ['2013-02-24', '2013-09-30']}
@@ -73,7 +75,15 @@ model:
     prior_cost: 
       _target_: src.models.QGCost
       nl: 1
-      L: 100000
+      L: 1380.0e3 # domain size (m). 12° = 12 * 115 km = 1380e3 m
+      g_prime: 0.025 # gravity
+      H: 400 # layer thickness (m)
+      f0: 9.375e-5 # mean coriolis (s^-1)
+      beta : 1.754e-11 # coriolis gradient (m^-1 s^-1)
+      ## wind forcing 
+      tau0 : 0.
+      bottom_drag_coef : 0.
+      apply_mask : False
     obs_cost: 
       _target_: src.models.BaseObsCost
     grad_mod: 
