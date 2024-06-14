@@ -30,14 +30,12 @@ datamodule:
   _target_: src.data.BaseDataModule
   input_da: 
     #_target_: src.utils.load_altimetry_data
-    #path: ${paths.natl_gf_5nads}
+    path: ${paths.natl_gf_5nads}
     _target_: src.utils.load_full_natl_data
     path_obs: "/DATASET/NATL/cal_data_new_errs.nc"
     path_gt: "/DATASET/NATL/NATL60-CJM165_NATL_ssh_y2013.1y.nc"
-    #path_mdt: '/DATASET/2023_SSH_mapping_train_eNATL60_test_NATL60/NATL60-CJM165/ds_ref_1_20.nc'
     obs_var: four_nadirs
     obs_gt: ssh
-    #obs_mdt: mdt
   domains:
     train:
       time: {_target_: builtins.slice, _args_: ['2013-02-24', '2013-09-30']}
@@ -65,11 +63,12 @@ model:
   rec_weight:
       _target_: src.utils.get_triang_time_wei
       patch_dims: ${datamodule.xrds_kw.patch_dims}
-      crop: {time: 0, lat: 20, lon: 20}
+      crop: {time: 0, lat: 0, lon: 20}
       offset: 1
   solver: 
     _target_: src.models.GradSolver_QG
-    n_step: 5 #10
+    x_init: datamodule.input_da.path_mdt
+    n_step: 5 #5 #10
     lr_grad: 1e3
     # lr_grad: 0.2
     prior_cost: 

@@ -181,15 +181,63 @@ class GradSolver_QG(nn.Module):
 
         self._grad_norm = None
 
+        ### Initialisation of state with MDT ###
+        lon_min = -64 
+        lon_max = -52.
+        lat_max = 44.
+        lat_min = 32.
+        mdt = torch.tensor(xr.open_dataset('/DATASET/2023_SSH_mapping_train_eNATL60_test_NATL60/NATL60-CJM165/ds_ref_1_20.nc')['mdt']
+                .sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).values.astype(np.float32).T)
+        mdt = (mdt - 0.3174050238130743) / 0.3889927646359018
+        mdt_tensor = mdt.to('cuda').unsqueeze(0).unsqueeze(1).repeat(1, 15, 1, 1)
+        self.mdt = torch.nan_to_num(mdt_tensor, nan=0.0)
+
+        ### Initialisation of state with saptially filtered GT data ###
+        # Function to create a Gaussian kernel
+        def gaussian_kernel(size, sigma):
+            x = torch.arange(-size//2 + 1., size//2 + 1.)
+            y = torch.arange(-size//2 + 1., size//2 + 1.)
+            x_grid, y_grid = torch.meshgrid(x, y)
+            kernel = torch.exp(-0.5 * (x_grid**2 + y_grid**2) / sigma**2)
+            kernel = kernel / kernel.sum()
+            return kernel.to('cuda')
+        # Create a Gaussian kernel
+        self.kernel_size = 21
+        self.sigma = 8
+        gaussian_kernel = gaussian_kernel(self.kernel_size, self.sigma)
+        self.gaussian_kernel = gaussian_kernel.view(1, 1, self.kernel_size, self.kernel_size)  # Reshape for 2D convolution
+        self.padding_size = self.kernel_size // 2
+
+    
     def init_state(self, batch, x_init=None):
         if x_init is not None:
             return x_init
 
+        # Replace NaNs in the tensor with 0
+        gt = torch.nan_to_num(batch.tgt, nan=0.0).to('cuda')
+
+        # # Apply Gaussian filter to each 2D slice along dimension 1
+        # smoothed_out_data = torch.empty_like(gt).to('cuda')
+        # for i in range(gt.shape[1]):
+        #     smoothed_out_data[0, i] = F.conv2d(gt[0, i].unsqueeze(0).unsqueeze(0), self.gaussian_kernel, padding=self.kernel_size//2).squeeze()
+
+        # Apply Gaussian filter to each 2D slice along dimension 1
+        smoothed_out_data = torch.empty_like(gt)
+        self.padding_size = self.kernel_size // 2
+        for i in range(gt.shape[1]):
+            # Apply reflection padding before convolution
+            padded_slice = F.pad(gt[0, i].unsqueeze(0).unsqueeze(0), (self.padding_size, self.padding_size, self.padding_size, self.padding_size), mode='reflect')
+            smoothed_out_data[0, i] = F.conv2d(padded_slice, self.gaussian_kernel).squeeze()
+
+
+        return smoothed_out_data.detach().requires_grad_(True)
         # return batch.input.nan_to_num().detach().requires_grad_(True)
-        return torch.zeros_like(batch.input).detach().requires_grad_(True)
+        # return torch.zeros_like(batch.input).detach().requires_grad_(True)
+        # return self.mdt.detach().requires_grad_(True)
+        
 
     def solver_step(self, state, batch, step):
-        var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
+        var_cost = 1. * self.prior_cost(state) + 0. * self.obs_cost(state, batch)
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
 
         gmod = self.grad_mod(grad)
@@ -198,6 +246,23 @@ class GradSolver_QG(nn.Module):
                 + self.lr_grad * (step + 1) / self.n_step * grad
         )
         
+        ## debugging
+        if torch.isnan(state_update).any():
+            print("NaN detected in state_update.")
+            if torch.isnan(state).any():
+                print("NaN detected in state.")
+            else :
+                print("No NaN detected in state.")
+            torch.save(state,'/homes/g24meda/lab/4dvarnet-starter/outputs/reconstructed_state.pt')
+            torch.save(batch.tgt,'/homes/g24meda/lab/4dvarnet-starter/outputs/target.pt')
+
+            if torch.isnan(var_cost).any():
+                print("NaN detected in var_cost.")
+            torch.save(var_cost,'/homes/g24meda/lab/4dvarnet-starter/outputs/var_cost.pt')
+
+            if torch.isnan(grad).any():
+                print("NaN detected in grad.")
+            torch.save(grad,'/homes/g24meda/lab/4dvarnet-starter/outputs/grad.pt')
 
         return state - state_update
 
@@ -205,11 +270,14 @@ class GradSolver_QG(nn.Module):
         with torch.set_grad_enabled(True):
             state = self.init_state(batch)
             self.grad_mod.reset_state(batch.input)
-
+            print('\n### new batch ### \n')
+            i = 0
             for step in range(self.n_step):
+                print('\n## solver iteration n°: '+ str(i) + ' ## \n')
                 state = self.solver_step(state, batch, step=step)
                 if not self.training:
                     state = state.detach().requires_grad_(True)
+                i += 1 
 
             #if not self.training:
                 #state = self.prior_cost.forward_QG(state)
@@ -231,8 +299,8 @@ class GradSolver_Trained_Bilin_Phi(nn.Module):
     def init_state(self, batch, x_init=None):
         if x_init is not None:
             return x_init
-
         return batch.input.nan_to_num().detach().requires_grad_(True)
+    
 
     def solver_step(self, state, batch, step):
         var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
@@ -434,7 +502,7 @@ class QGCost(nn.Module):
         # return ssh_1  
 
         # x is of shape [B=1, D=15, H, W]
-        print('new_forward')
+        #print('new_forward QG')
         B, D, H, W = x.shape
 
         if B != 1:
@@ -444,7 +512,8 @@ class QGCost(nn.Module):
         forecasts = torch.zeros_like(x)
 
         # Iterate over days of the batch
-        for i in range(2-1): #range(D-1):
+        for i in range(D-1): #range(D-1):
+            print('QG forecast between day ' + str(i) + ' and day ' + str(i+1))
             # Extract the ssh of i-th day
             ssh_0 = x[0][i].T  # shape [H, W]
 
@@ -457,12 +526,12 @@ class QGCost(nn.Module):
         # We can not compute QG forecast for the first day
         forecasts[0][0] = x[0][0]
 
-        return forecasts[0][:2]
+        return forecasts[0][1:D]
 
     
     def forward(self, state):
         #return F.mse_loss(state[0][0], self.forward_QG(state)) 
-        return F.mse_loss(state[0][:2], self.forward_QG(state)) 
+        return F.mse_loss(state[0][1:state.shape[1]], self.forward_QG(state)) 
     
     def forecast_QG(self, ssh_0):
         ## provides the QG forecast of SSH 2D field for day N+1 given SSH field at day N .
@@ -473,6 +542,7 @@ class QGCost(nn.Module):
 
             # fill nan with 0
             #ssh_0 = torch.nan_to_num(ssh_0, nan=0.0)
+            #torch.save(ssh_0,'/homes/g24meda/lab/4dvarnet-starter/outputs/ssh_0.pt')
 
             # grid
             nx = ssh_0.size()[0] - 1
@@ -538,10 +608,10 @@ class QGCost(nn.Module):
             u_norm_max = max(torch.abs(u).max().item(), torch.abs(v).max().item())
             
             ## rescaling factor 
-            factor = torch.tensor(1/4, dtype=dtype, device=device) #(Ro * f0 * r0) / u_norm_max
-            qg.psi *= factor
-            qg.q *= factor
-            u, v = qg.grad_perp(qg.psi, qg.dx, qg.dy)
+            #factor = torch.tensor(1/4, dtype=dtype, device=device) #(Ro * f0 * r0) / u_norm_max
+            #qg.psi *= factor
+            #qg.q *= factor
+            #u, v = qg.grad_perp(qg.psi, qg.dx, qg.dy)
             ##
 
             u_max = u.max().cpu().item()
@@ -555,6 +625,20 @@ class QGCost(nn.Module):
             # set time step with CFL
             cfl = 1
             dt = cfl * min(dx / u_max, dy / v_max)
+            
+            ## debugg
+            if np.isnan(dt):
+                print(" dt is nan.")
+                #torch.save(u_max,'/homes/g24meda/lab/4dvarnet-starter/outputs/u_max.pt')
+                #torch.save(v_max,'/homes/g24meda/lab/4dvarnet-starter/outputs/v_max.pt')
+                #torch.save(u,'/homes/g24meda/lab/4dvarnet-starter/outputs/u.pt')
+                #torch.save(v,'/homes/g24meda/lab/4dvarnet-starter/outputs/v.pt')
+                #torch.save(ssh_0,'/homes/g24meda/lab/4dvarnet-starter/outputs/ssh_0.pt')
+    
+
+
+
+
             qg.dt = dt
             print(f'integration time step : {round(dt)//3600} hour(s), {(round(dt)% 3600) // 60} minute(s), and {(round(dt)% 3600) % 60} second(s). ')
 
@@ -575,162 +659,14 @@ class QGCost(nn.Module):
             for n in range(1, n_steps+1): #n_steps+1): #100
                 qg.step()
                 t += dt
+            
+            ## debugging
+            if torch.isnan(qg.q).any():
+                print('NaN found in q')
+            if torch.isnan(qg.psi).any():
+                print('NaN found in psi')
 
-            ssh_forecast = qg.psi * (self.f0/g) * (1/factor)
+            ssh_forecast = qg.psi * (self.f0/g) #* (1/factor)
             ssh_forecast = ssh_forecast[0][0] # pass from [1,1,240,240] (one layer QG) -> [240,240]
             return ssh_forecast
 
-
-
-    
-# class QGCost_light(nn.Module):
-#     def __init__(self, nl=1, L=100000, nx=None, ny=None) -> None:
-#         super().__init__()
-#         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-#         self.dtype = torch.float64
-
-#         # QG parameters
-#         self.nl = nl  # number of layers of QG model, default = 1
-#         self.L = L  # depth of the layer, default = 100 km ie 100000 m.
-#         self.nx = nx -1 # size of input vector
-#         self.ny = ny -1 # size of input vector
-#         self.g = 10.0 # m/s^2 , gravity constant
-#         self.cfl = 0.5 # self.cfl
-#         self.Bu = 1 # Burger number
-#         self.Ro = 0.01 # Rosby number
-    
-#         # to be precomputed
-#         self.dx = None
-#         self.dy = None
-#         self.f0 = None
-#         self.r0 = None
-#         self.qg = None
-        
-#         # Precompute static values
-#         self.precompute_static_values()
-
-#     def precompute_static_values(self):
-#         with torch.no_grad():
-#             torch.backends.cudnn.deterministic = True
-#             device = 'cuda' if torch.cuda.is_available() else 'cpu'
-#             dtype = torch.float64
-
-#             # QG parameters
-#             nl = self.nl
-#             L = self.L
-
-#             # Grid
-#             self.dx = L / self.nx
-#             self.dy = L / self.ny
-#             xv = torch.linspace(-L/2, L/2, self.nx+1, dtype=torch.float64, device=device)
-#             yv = torch.linspace(-L/2, L/2, self.ny+1, dtype=torch.float64, device=device)
-#             x, y = torch.meshgrid(xv, yv, indexing='ij')
-
-#             H = torch.zeros(nl,1,1, dtype=dtype, device=device)
-#             if nl == 1:
-#                 H[0,0,0] = 1000.
-
-#             # gravity
-#             g_prime = torch.zeros(nl,1,1, dtype=dtype, device=device)
-#             if nl == 1:
-#                 g_prime[0,0,0] = 10
-
-#             ## create rankine vortex
-#             # Burger and Rossby numbers, coriolis set with Bu Number
-#             self.r0, r1, r2 = 0.1*L, 0.1*L, 0.14*L
-#             self.f0 = torch.sqrt(g_prime[0,0,0] * H[0,0,0] / self.Bu / self.r0**2)
-#             beta = 0
-#             f = self.f0 + beta * (y - L/2)
-
-#             # wind forcing, bottom drag
-#             tau0 = 0.
-#             bottom_drag_coef = 0.
-
-#             apply_mask = False # True
-
-#             # create rankine vortex in PV
-#             xc = 0.5 * (xv[1:] + xv[:-1])
-#             yc = 0.5 * (yv[1:] + yv[:-1])
-#             x, y = torch.meshgrid(xc, yc, indexing='ij')
-#             r = torch.sqrt(x**2 + y**2)
-#             # circular domain mask
-#             mask = (r < L/2).type(torch.float64) if apply_mask else torch.ones_like(x)
-
-#             param = {
-#                 'nx': self.nx,
-#                 'ny': self.ny,
-#                 'nl': nl,
-#                 'mask': mask,
-#                 'n_ens': 1,
-#                 'Lx': L,
-#                 'Ly': L,
-#                 'flux_stencil': 5,
-#                 'H': H,
-#                 'g_prime': g_prime,
-#                 'tau0': tau0,
-#                 'f0': self.f0,
-#                 'beta': beta,
-#                 'bottom_drag_coef': bottom_drag_coef,
-#                 'device': device,
-#                 'dt': 0, # time-step (s)
-#             }
-#             self.qg = QGFV(param)
-
-#     def forward_QG(self, x):
-#         # take as input (in the case of batch size ==1) a tensor x of size [B=1,D,H,W] with B the size of batch, D the lenght of data assimilation window (typically 15 days), H and W the spatial size
-#         # return a vector of the same size with x[:,j+1,:,:] = QG(x[:,j,:,:])
-
-#         ## example for a single prediction x[:,j+1,:,:] = QG(x[:,j,:,:]), will need to make a loop later
-#         ssh_0 = x[0][0].T
-#         ssh_1 = self.forecast_QG(ssh_0).T       
-
-#         return ssh_1
-    
-#     def forward(self, state):
-#         #return F.mse_loss(state, self.forward_QG(state)) 
-#         return F.mse_loss(state[0][0], self.forward_QG(state)) 
-    
-#     def forecast_QG(self, ssh_0):
-#         with torch.no_grad():
-#             ## initialize psi_0 from ssh map
-#             ssh_0 = ssh_0
-#             psi_2d = (self.g/self.f0) * ssh_0
-#             self.qg.psi = psi_2d.unsqueeze(0).unsqueeze(0)
-
-#             ## initialize q_0 from psi_0
-#             self.qg.compute_q_from_psi()
-
-#             # set amplitude to have correct Rossby number
-#             u, v = self.qg.grad_perp(self.qg.psi, self.qg.dx, self.qg.dy)
-#             u_norm_max = max(torch.abs(u).max().item(), torch.abs(v).max().item())
-#             factor = self.Ro * self.f0 * self.r0 / u_norm_max
-#             self.qg.psi *= factor
-#             self.qg.q *= factor
-#             u, v = self.qg.grad_perp(self.qg.psi, self.qg.dx, self.qg.dy)
-#             u_max = u.max().cpu().item()
-#             v_max = v.max().cpu().item()
-#             #print(f'u_max {u_max:.2e}, v_max {v_max:.2e}')
-
-#             # set time step with CFL
-#             dt = self.cfl * min(self.dx / u_max, self.dy / v_max)
-#             self.qg.dt = dt
-#             #print(f'integration time step : {round(dt)//3600} hour(s), {(round(dt)% 3600) // 60} minute(s), and {(round(dt)% 3600) % 60} second(s). ')
-
-#             # time params
-#             t = 0
-#             t_end = round(1 * 86400 ) # 1 day expressed in sec
-#             n_steps = int(t_end / dt) + 1 
-
-#             # plot, log, check nans
-#             freq_plot = int(t_end / 25 / dt) + 1
-#             freq_log = int(t_end / 50 / dt) + 1
-
-#             t0 = time.time()
-#             for n in range(1, n_steps+1): #n_steps+1): #100
-#                 self.qg.step()
-#                 t += dt
-
-#             psi_forecast = self.qg.psi * (1/factor) # rescale ssh as input
-#             ssh_forecast = psi_forecast * (self.f0/self.g)
-#             ssh_forecast = ssh_forecast[0][0] # pass from [1,1,240,240] (one layer QG) -> [240,240]
-#             return ssh_forecast
