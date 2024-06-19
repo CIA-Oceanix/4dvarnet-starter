@@ -22,6 +22,10 @@ class QGFV:
         self.bottom_drag_coef = param['bottom_drag_coef']
         self.dt = param['dt']
 
+        # Boundary conditions
+        self.fixed_psi_boundary = param.get('fixed_psi_boundary', None)
+        self.fixed_q_boundary = param.get('fixed_q_boundary', None)
+
         # ensemble/device/dtype
         self.n_ens = param['n_ens']
         self.device = param['device']
@@ -222,7 +226,69 @@ class QGFV:
 
         return dpsi, dq
 
+    def apply_boundary_conditions(self):
+        """ Apply fixed boundary conditions for psi and q with smoother transitions using a sigmoid function. """
 
+        def smooth_boundary(field, fixed_boundary):
+            device = field.device
+            nx = field.shape[-2] 
+            ny = field.shape[-1] 
+            L = 1380.0e3 # 12° ie 12 * 115 km #100000 # 100km
+            xv = torch.linspace(-L/2, L/2, nx+1, dtype=torch.float64, device=device)
+            yv = torch.linspace(-L/2, L/2, ny+1, dtype=torch.float64, device=device)
+            xc = 0.5 * (xv[1:] + xv[:-1])
+            yc = 0.5 * (yv[1:] + yv[:-1])
+            x, y = torch.meshgrid(xc, yc, indexing='ij')
+
+            ############### rectangular soft decay mask ##################
+        
+            # Compute distances from the nearest boundary
+            dist_to_left = x - x.min()
+            dist_to_right = x.max() - x
+            dist_to_bottom = y - y.min()
+            dist_to_top = y.max() - y
+
+            # Combine distances to get the distance to the nearest boundary
+            dist_to_boundary = torch.min(torch.min(dist_to_left, dist_to_right), torch.min(dist_to_bottom, dist_to_top))
+
+            # Define the smooth step function
+            soft_step = lambda x: torch.sigmoid(x / 10)
+
+            # Normalize distances to a range that makes the sigmoid function transition appropriately
+            normalized_dist = dist_to_boundary / dist_to_boundary.max() * 100
+
+            # Apply the smooth step function to the normalized distances
+            mask = soft_step(normalized_dist)
+
+            # Ensure the mask has the correct type
+            mask = mask.type(torch.float64)
+            
+            # Apply boundary conditions
+            smoothed_field = (1 - mask) * fixed_boundary + mask * field
+
+            return smoothed_field
+        
+        if self.fixed_psi_boundary is not None and self.fixed_q_boundary is not None:
+            # Apply smooth boundary conditions to self.psi and self.q
+            self.psi = smooth_boundary(self.psi, self.fixed_psi_boundary)
+            self.q = smooth_boundary(self.q, self.fixed_q_boundary)
+
+        
+    #def apply_boundary_conditions(self):
+    #    """ Apply fixed boundary conditions for psi and q with smoother transitions using a sigmoid function. """
+
+    #    def boundary(field, fixed_boundary):
+    #        if fixed_boundary is not None:
+    #            field[..., 0, :] = fixed_boundary[..., 0, :] 
+    #            field[...,-1, :] = fixed_boundary[..., -1,:] 
+    #            field[..., :, 0] = fixed_boundary[..., :, 0] 
+    #            field[..., :,-1] = fixed_boundary[..., :,-1]
+
+    #        return field
+
+    #    self.psi = boundary(self.psi, self.fixed_psi_boundary)
+    #    self.q = boundary(self.q, self.fixed_q_boundary)
+            
     def step(self):
         """ Time itegration with SSP-RK3 scheme."""
         dpsi_0, dq_0 = self.compute_time_derivatives()
@@ -236,3 +302,6 @@ class QGFV:
         dpsi_2, dq_2 = self.compute_time_derivatives()
         self.q += (self.dt/12)*(8*dq_2 - dq_1 - dq_0)
         self.psi += (self.dt/12)*(8*dpsi_2 - dpsi_1 - dpsi_0)
+
+        # Apply boundary conditions
+        self.apply_boundary_conditions()

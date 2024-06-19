@@ -150,8 +150,6 @@ class GradSolver(nn.Module):
             1 / (step + 1) * gmod
                 + self.lr_grad * (step + 1) / self.n_step * grad
         )
-        
-
         return state - state_update
 
     def forward(self, batch):
@@ -167,8 +165,8 @@ class GradSolver(nn.Module):
             if not self.training:
                 state = self.prior_cost.forward_ae(state)
         return state
-
-
+    
+    
 class GradSolver_QG(nn.Module):
     def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.2, **kwargs):
         super().__init__()
@@ -187,7 +185,7 @@ class GradSolver_QG(nn.Module):
         lat_max = 44.
         lat_min = 32.
         mdt = torch.tensor(xr.open_dataset('/DATASET/2023_SSH_mapping_train_eNATL60_test_NATL60/NATL60-CJM165/ds_ref_1_20.nc')['mdt']
-                .sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).values.astype(np.float32).T)
+                .sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).values.astype(np.float32))
         mdt = (mdt - 0.3174050238130743) / 0.3889927646359018
         mdt_tensor = mdt.to('cuda').unsqueeze(0).unsqueeze(1).repeat(1, 15, 1, 1)
         self.mdt = torch.nan_to_num(mdt_tensor, nan=0.0)
@@ -213,31 +211,28 @@ class GradSolver_QG(nn.Module):
         if x_init is not None:
             return x_init
 
-        # Replace NaNs in the tensor with 0
-        gt = torch.nan_to_num(batch.tgt, nan=0.0).to('cuda')
+        # # Replace NaNs in the tensor with 0
+        # gt = torch.nan_to_num(batch.tgt, nan=0.0).to('cuda')
 
         # # Apply Gaussian filter to each 2D slice along dimension 1
-        # smoothed_out_data = torch.empty_like(gt).to('cuda')
+        # smoothed_out_data = torch.empty_like(gt)
+        # self.padding_size = self.kernel_size // 2
         # for i in range(gt.shape[1]):
-        #     smoothed_out_data[0, i] = F.conv2d(gt[0, i].unsqueeze(0).unsqueeze(0), self.gaussian_kernel, padding=self.kernel_size//2).squeeze()
-
-        # Apply Gaussian filter to each 2D slice along dimension 1
-        smoothed_out_data = torch.empty_like(gt)
-        self.padding_size = self.kernel_size // 2
-        for i in range(gt.shape[1]):
-            # Apply reflection padding before convolution
-            padded_slice = F.pad(gt[0, i].unsqueeze(0).unsqueeze(0), (self.padding_size, self.padding_size, self.padding_size, self.padding_size), mode='reflect')
-            smoothed_out_data[0, i] = F.conv2d(padded_slice, self.gaussian_kernel).squeeze()
+        #     # Apply reflection padding before convolution
+        #     padded_slice = F.pad(gt[0, i].unsqueeze(0).unsqueeze(0), (self.padding_size, self.padding_size, self.padding_size, self.padding_size), mode='reflect')
+        #     smoothed_out_data[0, i] = F.conv2d(padded_slice, self.gaussian_kernel).squeeze()
 
 
-        return smoothed_out_data.detach().requires_grad_(True)
+        # return smoothed_out_data.detach().requires_grad_(True)
+    
+
         # return batch.input.nan_to_num().detach().requires_grad_(True)
         # return torch.zeros_like(batch.input).detach().requires_grad_(True)
-        # return self.mdt.detach().requires_grad_(True)
+        return self.mdt.detach().requires_grad_(True)
         
 
     def solver_step(self, state, batch, step):
-        var_cost = 1. * self.prior_cost(state) + 0. * self.obs_cost(state, batch)
+        var_cost = 1 * self.prior_cost(state) + 0. * self.obs_cost(state, batch)
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
 
         gmod = self.grad_mod(grad)
@@ -246,29 +241,33 @@ class GradSolver_QG(nn.Module):
                 + self.lr_grad * (step + 1) / self.n_step * grad
         )
         
+        torch.save(state,'/homes/g24meda/lab/4dvarnet-starter/outputs/reconstructed_state.pt')
+        torch.save(batch.tgt,'/homes/g24meda/lab/4dvarnet-starter/outputs/target.pt')
+        
         ## debugging
-        if torch.isnan(state_update).any():
-            print("NaN detected in state_update.")
-            if torch.isnan(state).any():
-                print("NaN detected in state.")
-            else :
-                print("No NaN detected in state.")
-            torch.save(state,'/homes/g24meda/lab/4dvarnet-starter/outputs/reconstructed_state.pt')
-            torch.save(batch.tgt,'/homes/g24meda/lab/4dvarnet-starter/outputs/target.pt')
+        # if torch.isnan(state_update).any():
+        #     print("NaN detected in state_update.")
+        #     if torch.isnan(state).any():
+        #         print("NaN detected in state.")
+        #     else :
+        #         print("No NaN detected in state.")
+        #     torch.save(state,'/homes/g24meda/lab/4dvarnet-starter/outputs/reconstructed_state.pt')
+        #     torch.save(batch.tgt,'/homes/g24meda/lab/4dvarnet-starter/outputs/target.pt')
 
-            if torch.isnan(var_cost).any():
-                print("NaN detected in var_cost.")
-            torch.save(var_cost,'/homes/g24meda/lab/4dvarnet-starter/outputs/var_cost.pt')
+        #     if torch.isnan(var_cost).any():
+        #         print("NaN detected in var_cost.")
+        #     #torch.save(var_cost,'/homes/g24meda/lab/4dvarnet-starter/outputs/var_cost.pt')
 
-            if torch.isnan(grad).any():
-                print("NaN detected in grad.")
-            torch.save(grad,'/homes/g24meda/lab/4dvarnet-starter/outputs/grad.pt')
+        #     if torch.isnan(grad).any():
+        #         print("NaN detected in grad.")
+        #     torch.save(grad,'/homes/g24meda/lab/4dvarnet-starter/outputs/grad.pt')
 
         return state - state_update
 
     def forward(self, batch):
         with torch.set_grad_enabled(True):
             state = self.init_state(batch)
+            torch.save(state,'/homes/g24meda/lab/4dvarnet-starter/outputs/init_state.pt')
             self.grad_mod.reset_state(batch.input)
             print('\n### new batch ### \n')
             i = 0
@@ -572,8 +571,37 @@ class QGCost(nn.Module):
             yc = 0.5 * (yv[1:] + yv[:-1])
             x, y = torch.meshgrid(xc, yc, indexing='ij')
             r = torch.sqrt(x**2 + y**2)
-            # circular domain mask
-            mask = (r < self.L/2).type(torch.float64) if apply_mask else torch.ones_like(x)
+            
+            mask = torch.ones_like(x, dtype=torch.float64)
+
+            if apply_mask:
+                ############### rectangular mask ##################
+                #mask[0, :] = 0.0  # Mask first row
+                #mask[-1, :] = 0.0  # Mask last row
+                #mask[:, 0] = 0.0  # Mask first column
+                #mask[:, -1] = 0.0  # Mask last column
+
+                ############### rectangular soft decay mask ##################
+                # Compute distances from the nearest boundary
+                dist_to_left = x - x.min()
+                dist_to_right = x.max() - x
+                dist_to_bottom = y - y.min()
+                dist_to_top = y.max() - y
+
+                # Combine distances to get the distance to the nearest boundary
+                dist_to_boundary = torch.min(torch.min(dist_to_left, dist_to_right), torch.min(dist_to_bottom, dist_to_top))
+
+                # Define the smooth step function
+                soft_step = lambda x: torch.sigmoid(x / 10)
+
+                # Normalize distances to a range that makes the sigmoid function transition appropriately
+                normalized_dist = dist_to_boundary / dist_to_boundary.max() * 100
+
+                # Apply the smooth step function to the normalized distances
+                mask = soft_step(normalized_dist)
+
+                # Ensure the mask has the correct type
+                mask = mask.type(torch.float64)
 
             param = {
                 'nx': nx,
@@ -592,6 +620,8 @@ class QGCost(nn.Module):
                 'bottom_drag_coef': self.bottom_drag_coef,
                 'device': device,
                 'dt': 0, # time-step (s)
+                'fixed_psi_boundary' : None,
+                'fixed_q_boundary' : None
             }
             qg = QGFV(param)
 
@@ -602,6 +632,10 @@ class QGCost(nn.Module):
 
             ## initialize q_0 from psi_0
             qg.compute_q_from_psi()
+
+            # Using initial condition at the border as fixed boundaries conditions for the 24h long integration
+            qg.fixed_psi_boundary = qg.psi.clone().detach()
+            qg.fixed_q_boundary = qg.q.clone().detach()
 
             # compute u_max for CFL
             u, v = qg.grad_perp(qg.psi, qg.dx, qg.dy)
@@ -623,22 +657,12 @@ class QGCost(nn.Module):
             print(f'u_max {u_max:.2e}, v_max {v_max:.2e}')
 
             # set time step with CFL
-            cfl = 1
-            dt = cfl * min(dx / u_max, dy / v_max)
-            
+            #cfl = 0.5
+            #dt = cfl * min(dx / u_max, dy / v_max)
+            dt = 60 * 10  # 30 min
             ## debugg
             if np.isnan(dt):
                 print(" dt is nan.")
-                #torch.save(u_max,'/homes/g24meda/lab/4dvarnet-starter/outputs/u_max.pt')
-                #torch.save(v_max,'/homes/g24meda/lab/4dvarnet-starter/outputs/v_max.pt')
-                #torch.save(u,'/homes/g24meda/lab/4dvarnet-starter/outputs/u.pt')
-                #torch.save(v,'/homes/g24meda/lab/4dvarnet-starter/outputs/v.pt')
-                #torch.save(ssh_0,'/homes/g24meda/lab/4dvarnet-starter/outputs/ssh_0.pt')
-    
-
-
-
-
             qg.dt = dt
             print(f'integration time step : {round(dt)//3600} hour(s), {(round(dt)% 3600) // 60} minute(s), and {(round(dt)% 3600) % 60} second(s). ')
 
@@ -663,10 +687,13 @@ class QGCost(nn.Module):
             ## debugging
             if torch.isnan(qg.q).any():
                 print('NaN found in q')
+                
             if torch.isnan(qg.psi).any():
                 print('NaN found in psi')
+                raise ValueError("NaN values found in qg.psi")
 
             ssh_forecast = qg.psi * (self.f0/g) #* (1/factor)
             ssh_forecast = ssh_forecast[0][0] # pass from [1,1,240,240] (one layer QG) -> [240,240]
             return ssh_forecast
+
 

@@ -49,7 +49,7 @@ datamodule:
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 1, num_workers: 1}
   aug_kw:
-    aug_factor: 2
+    aug_factor: 1
     aug_only: True
 
 model:
@@ -82,7 +82,7 @@ model:
       ## wind forcing 
       tau0 : 0.
       bottom_drag_coef : 0.
-      apply_mask : False
+      apply_mask : True
     obs_cost: 
       _target_: src.models.BaseObsCost
     grad_mod: 
@@ -117,6 +117,6 @@ entrypoints:
     dm: ${datamodule}
 
 defaults:
-  - /domain: gf
+  - /domain: gf_bis
   - _self_
 
