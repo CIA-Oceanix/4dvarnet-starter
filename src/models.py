@@ -187,7 +187,7 @@ class GradSolver_QG(nn.Module):
         mdt = torch.tensor(xr.open_dataset('/DATASET/2023_SSH_mapping_train_eNATL60_test_NATL60/NATL60-CJM165/ds_ref_1_20.nc')['mdt']
                 .sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).values.astype(np.float32))
         mdt = (mdt - 0.3174050238130743) / 0.3889927646359018
-        mdt_tensor = mdt.to('cuda').unsqueeze(0).unsqueeze(1).repeat(1, 15, 1, 1)
+        mdt_tensor = mdt.to('cuda').unsqueeze(0).unsqueeze(1).repeat(1, 10, 1, 1)
         self.mdt = torch.nan_to_num(mdt_tensor, nan=0.0)
 
         ### Initialisation of state with saptially filtered GT data ###
@@ -211,34 +211,56 @@ class GradSolver_QG(nn.Module):
         if x_init is not None:
             return x_init
 
-        # # Replace NaNs in the tensor with 0
-        # gt = torch.nan_to_num(batch.tgt, nan=0.0).to('cuda')
+        ### Initialisation of state with MDT ###
+        #return self.mdt.detach().requires_grad_(True)
 
-        # # Apply Gaussian filter to each 2D slice along dimension 1
-        # smoothed_out_data = torch.empty_like(gt)
-        # self.padding_size = self.kernel_size // 2
-        # for i in range(gt.shape[1]):
-        #     # Apply reflection padding before convolution
-        #     padded_slice = F.pad(gt[0, i].unsqueeze(0).unsqueeze(0), (self.padding_size, self.padding_size, self.padding_size, self.padding_size), mode='reflect')
-        #     smoothed_out_data[0, i] = F.conv2d(padded_slice, self.gaussian_kernel).squeeze()
+        ## Initialisation of state with saptially filtered GT data ###
 
+        # Replace NaNs in the tensor with 0
+        gt = torch.nan_to_num(batch.tgt, nan=0.0).to('cuda')
 
-        # return smoothed_out_data.detach().requires_grad_(True)
-    
+        # Apply Gaussian filter to each 2D slice along dimension 1
+        smoothed_out_data = torch.empty_like(gt)
+        self.padding_size = self.kernel_size // 2
+        for i in range(gt.shape[1]):
+            # Apply reflection padding before convolution
+            padded_slice = F.pad(gt[0, i].unsqueeze(0).unsqueeze(0), (self.padding_size, self.padding_size, self.padding_size, self.padding_size), mode='reflect')
+            smoothed_out_data[0, i] = F.conv2d(padded_slice, self.gaussian_kernel).squeeze()
+
+        x_init = smoothed_out_data.detach().requires_grad_(True)
 
         # return batch.input.nan_to_num().detach().requires_grad_(True)
         # return torch.zeros_like(batch.input).detach().requires_grad_(True)
-        return self.mdt.detach().requires_grad_(True)
-        
+
+        #x_init = torch.nan_to_num(batch.tgt, nan=0.0).detach().requires_grad_(True)
+        torch.save(x_init,"/homes/g24meda/lab/4dvarnet-starter/outputs/init_state.pt")
+        torch.save(torch.nan_to_num(batch.tgt, nan=0.0).to('cuda'),"/homes/g24meda/lab/4dvarnet-starter/outputs/gt.pt")
+        return x_init
+    
 
     def solver_step(self, state, batch, step):
-        var_cost = 1 * self.prior_cost(state) + 0. * self.obs_cost(state, batch)
+        ## add regularization 
+        prior_grad = kfilts.spatial_gradient(self.prior_cost.forward_QG(state).unsqueeze(0), normalized=False)
+        # Calculate the L2 norm of the gradient
+        l2_norm_grad = torch.norm(prior_grad, p=2)
+        ##
+        alpha_1 = 1
+        alpha_2 = 1
+        var_cost = alpha_1 * self.prior_cost(state) + alpha_2 * self.obs_cost(state, batch) #+ 0.0001 * l2_norm_grad
+        print('prior cost', alpha_1 * self.prior_cost(state))
+        print('obs cost', alpha_2 *self.obs_cost(state, batch))
+        print('grad prior norm', l2_norm_grad)
+
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
 
         gmod = self.grad_mod(grad)
+        # state_update = (
+        #     1 / (step + 1) * gmod
+        #         + self.lr_grad * (step + 1) / self.n_step * grad
+        # )
+
         state_update = (
-            1 / (step + 1) * gmod
-                + self.lr_grad * (step + 1) / self.n_step * grad
+            self.lr_grad * grad #* (step + 1) / self.n_step * grad
         )
         
         torch.save(state,'/homes/g24meda/lab/4dvarnet-starter/outputs/reconstructed_state.pt')
@@ -267,9 +289,9 @@ class GradSolver_QG(nn.Module):
     def forward(self, batch):
         with torch.set_grad_enabled(True):
             state = self.init_state(batch)
-            torch.save(state,'/homes/g24meda/lab/4dvarnet-starter/outputs/init_state.pt')
+            #torch.save(state,'/homes/g24meda/lab/4dvarnet-starter/outputs/init_state.pt')
             self.grad_mod.reset_state(batch.input)
-            print('\n### new batch ### \n')
+            print('\n'+'### new batch ###'+ '\n')
             i = 0
             for step in range(self.n_step):
                 print('\n## solver iteration n°: '+ str(i) + ' ## \n')
@@ -393,7 +415,12 @@ class BaseObsCost(nn.Module):
 
     def forward(self, state, batch):
         msk = batch.input.isfinite()
+        torch.save(state,'/homes/g24meda/lab/4dvarnet-starter/outputs/state_obs_cost.pt')
+        torch.save(batch.input.nan_to_num(),'/homes/g24meda/lab/4dvarnet-starter/outputs/gt_obs_cost.pt')
+        torch.save(state[msk],'/homes/g24meda/lab/4dvarnet-starter/outputs/masked_state_obs_cost.pt')
+        torch.save(batch.input.nan_to_num()[msk],'/homes/g24meda/lab/4dvarnet-starter/outputs/masked_gt_obs_cost.pt')
         return self.w * F.mse_loss(state[msk], batch.input.nan_to_num()[msk])
+    
 
 
 class BilinAEPriorCost(nn.Module):
@@ -478,222 +505,121 @@ class LinearCost(nn.Module):
     def forward(self, state):
         return F.mse_loss(state, self.forward_linear(state)) 
     
+
+
 class QGCost(nn.Module):
-    def __init__(self, nl, L, g_prime, H, f0, beta, tau0, bottom_drag_coef, apply_mask = False) -> None:
+    def __init__(self, nl, L, g_prime, H, f0, beta, tau0, bottom_drag_coef, x_dim, y_dim, apply_mask=False) -> None:
         super().__init__()
-        self.nl = nl # number of layers of QG model, default = 1
-        self.L = L # depth of the layer, default = 100 km ie 100000 m.
-        self.g_prime = g_prime
-        self.H = H
-        self.f0 = f0
-        self.beta = beta 
-        self.tau0 = tau0
-        self.bottom_drag_coef = bottom_drag_coef
-        self.apply_mask = apply_mask
+
+        print('initialisation of QG')
+        ## QGCost class attributes
+        self.dtype = torch.float64
+        self.g = 10.0  # m/s^2
+        dt = 60 *10 #60 * 40  # integration time step : 10 min
+        self.t_end = round(1 * 86400)  # time of intergation for each QG forecast : 1 day expressed in sec
+
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        nx = x_dim - 1
+        ny = y_dim - 1
+        # dx = L / nx
+        # dy = L / ny
+        xv = torch.linspace(-L / 2, L / 2, nx+1 , dtype=self.dtype, device=device)
+        yv = torch.linspace(-L / 2, L / 2, ny+1, dtype=self.dtype, device=device)
+        x, y = torch.meshgrid(xv, yv, indexing='ij')
+
+        H_tensor = torch.zeros(nl, 1, 1, dtype=self.dtype, device=device)
+        if nl == 1:
+            H_tensor[0, 0, 0] = H
+
+        g_prime_tensor = torch.zeros(nl, 1, 1, dtype=self.dtype, device=device)
+        if nl == 1:
+            g_prime_tensor[0, 0, 0] = g_prime
+
+        f = f0 + beta * (y - L / 2)
+
+        # create rankine vortex in PV
+        xc = 0.5 * (xv[1:] + xv[:-1])
+        yc = 0.5 * (yv[1:] + yv[:-1])
+        x, y = torch.meshgrid(xc, yc, indexing='ij')
+        r = torch.sqrt(x**2 + y**2)
+
+        mask = torch.ones_like(x, dtype=torch.float64)
+        if apply_mask:
+            dist_to_left = x - x.min()
+            dist_to_right = x.max() - x
+            dist_to_bottom = y - y.min()
+            dist_to_top = y.max() - y
+            dist_to_boundary = torch.min(torch.min(dist_to_left, dist_to_right), torch.min(dist_to_bottom, dist_to_top))
+            soft_step = lambda x: torch.sigmoid(x / 10)
+            normalized_dist = dist_to_boundary / dist_to_boundary.max() * 100
+            self.mask = soft_step(normalized_dist).type(torch.float64)
+
+
+        param = {
+        'nx': x_dim - 1,
+        'ny': y_dim - 1,
+        'nl': nl,
+        'mask': mask,
+        'n_ens': 1,
+        'Lx': L,
+        'Ly': L,
+        'flux_stencil': 5,
+        'H': H_tensor,
+        'g_prime': g_prime_tensor,
+        'tau0': tau0,
+        'f0': f0,
+        'beta': beta,
+        'bottom_drag_coef': bottom_drag_coef,
+        'device': device,
+        'dt': dt,
+        'fixed_psi_boundary': None,
+        'fixed_q_boundary': None
+        }
+        
+        self.qg = QGFV(param)
 
     def forward_QG(self, x):
-        # take as input (in the case of batch size ==1) a tensor x of size [B=1,D,H,W] with B the size of batch, D the lenght of data assimilation window (typically 15 days), H and W the spatial size
-        # return a vector of the same size with x[:,j+1,:,:] = QG(x[:,j,:,:])
-
-        ## example for a single prediction x[:,j+1,:,:] = QG(x[:,j,:,:]), will need to make a loop later
-        #ssh_0 = x[0][0].T
-        #ssh_1 = self.forecast_QG(ssh_0).T     
-        # return ssh_1  
-
-        # x is of shape [B=1, D=15, H, W]
-        #print('new_forward QG')
         B, D, H, W = x.shape
-
         if B != 1:
-            raise Exception("4dvarnet-QG does not handle batch with size > 1. Please set batch size to 1.") 
-
-        # Initialize a tensor to store the forecasts 
+            raise Exception("4dvarnet-QG does not handle batch with size > 1. Please set batch size to 1.")
+        
         forecasts = torch.zeros_like(x)
+        for i in range(D - 1):
+            ssh_0 = x[0][i].T
+            ssh_1 = self.forecast_QG(ssh_0).T
+            forecasts[0][i + 1] = ssh_1
 
-        # Iterate over days of the batch
-        for i in range(D-1): #range(D-1):
-            print('QG forecast between day ' + str(i) + ' and day ' + str(i+1))
-            # Extract the ssh of i-th day
-            ssh_0 = x[0][i].T  # shape [H, W]
-
-            # Perform the QG forecast of the next day
-            ssh_1 = self.forecast_QG(ssh_0).T  
-
-            # Store the forecast
-            forecasts[0][i+1] = ssh_1
-
-        # We can not compute QG forecast for the first day
         forecasts[0][0] = x[0][0]
+        return forecasts[0][:]
 
-        return forecasts[0][1:D]
-
-    
     def forward(self, state):
-        #return F.mse_loss(state[0][0], self.forward_QG(state)) 
-        return F.mse_loss(state[0][1:state.shape[1]], self.forward_QG(state)) 
-    
+        return F.mse_loss(state[0][1:], self.forward_QG(state)[1:])
+
     def forecast_QG(self, ssh_0):
-        ## provides the QG forecast of SSH 2D field for day N+1 given SSH field at day N .
         with torch.no_grad():
             torch.backends.cudnn.deterministic = True
-            device = 'cuda' if torch.cuda.is_available() else 'cpu'
-            dtype = torch.float64
 
-            # fill nan with 0
-            #ssh_0 = torch.nan_to_num(ssh_0, nan=0.0)
-            #torch.save(ssh_0,'/homes/g24meda/lab/4dvarnet-starter/outputs/ssh_0.pt')
+            # initialize psi_0 with ssh_0 input
+            psi_2d = (self.g / self.qg.f0) * ssh_0
+            self.qg.psi = psi_2d.unsqueeze(0).unsqueeze(0)
+            self.qg.compute_q_from_psi()
+            self.qg.fixed_psi_boundary = self.qg.psi.clone().detach()
+            self.qg.fixed_q_boundary = self.qg.q.clone().detach()
 
-            # grid
-            nx = ssh_0.size()[0] - 1
-            ny = ssh_0.size()[1] - 1
-            dx = self.L / nx
-            dy = self.L / ny
-            xv = torch.linspace(-self.L/2, self.L/2, nx+1, dtype=torch.float64, device=device)
-            yv = torch.linspace(-self.L/2, self.L/2, ny+1, dtype=torch.float64, device=device)
-            x, y = torch.meshgrid(xv, yv, indexing='ij')
-
-            H = torch.zeros(self.nl,1,1, dtype=dtype, device=device)
-            if self.nl == 1:
-                H[0,0,0] = self.H
-
-            # gravity
-            g_prime = torch.zeros(self.nl,1,1, dtype=dtype, device=device)
-            if self.nl == 1:
-                g_prime[0,0,0] = self.g_prime
-
-            # Coriolis beta plane
-            f = self.f0 + self.beta * (y - self.L/2)
-
-            apply_mask = self.apply_mask
-
-            # create rankine vortex in PV
-            xc = 0.5 * (xv[1:] + xv[:-1])
-            yc = 0.5 * (yv[1:] + yv[:-1])
-            x, y = torch.meshgrid(xc, yc, indexing='ij')
-            r = torch.sqrt(x**2 + y**2)
-            
-            mask = torch.ones_like(x, dtype=torch.float64)
-
-            if apply_mask:
-                ############### rectangular mask ##################
-                #mask[0, :] = 0.0  # Mask first row
-                #mask[-1, :] = 0.0  # Mask last row
-                #mask[:, 0] = 0.0  # Mask first column
-                #mask[:, -1] = 0.0  # Mask last column
-
-                ############### rectangular soft decay mask ##################
-                # Compute distances from the nearest boundary
-                dist_to_left = x - x.min()
-                dist_to_right = x.max() - x
-                dist_to_bottom = y - y.min()
-                dist_to_top = y.max() - y
-
-                # Combine distances to get the distance to the nearest boundary
-                dist_to_boundary = torch.min(torch.min(dist_to_left, dist_to_right), torch.min(dist_to_bottom, dist_to_top))
-
-                # Define the smooth step function
-                soft_step = lambda x: torch.sigmoid(x / 10)
-
-                # Normalize distances to a range that makes the sigmoid function transition appropriately
-                normalized_dist = dist_to_boundary / dist_to_boundary.max() * 100
-
-                # Apply the smooth step function to the normalized distances
-                mask = soft_step(normalized_dist)
-
-                # Ensure the mask has the correct type
-                mask = mask.type(torch.float64)
-
-            param = {
-                'nx': nx,
-                'ny': ny,
-                'nl': self.nl,
-                'mask': mask,
-                'n_ens': 1,
-                'Lx': self.L,
-                'Ly': self.L,
-                'flux_stencil': 5,
-                'H': H,
-                'g_prime': g_prime,
-                'tau0': self.tau0,
-                'f0': self.f0,
-                'beta': self.beta,
-                'bottom_drag_coef': self.bottom_drag_coef,
-                'device': device,
-                'dt': 0, # time-step (s)
-                'fixed_psi_boundary' : None,
-                'fixed_q_boundary' : None
-            }
-            qg = QGFV(param)
-
-            ## initialize psi_0 from ssh map
-            g = 10.0 # m/s^2 
-            psi_2d = (g/self.f0) * ssh_0
-            qg.psi = psi_2d.unsqueeze(0).unsqueeze(0)
-
-            ## initialize q_0 from psi_0
-            qg.compute_q_from_psi()
-
-            # Using initial condition at the border as fixed boundaries conditions for the 24h long integration
-            qg.fixed_psi_boundary = qg.psi.clone().detach()
-            qg.fixed_q_boundary = qg.q.clone().detach()
-
-            # compute u_max for CFL
-            u, v = qg.grad_perp(qg.psi, qg.dx, qg.dy)
-            u_norm_max = max(torch.abs(u).max().item(), torch.abs(v).max().item())
-            
-            ## rescaling factor 
-            #factor = torch.tensor(1/4, dtype=dtype, device=device) #(Ro * f0 * r0) / u_norm_max
-            #qg.psi *= factor
-            #qg.q *= factor
-            #u, v = qg.grad_perp(qg.psi, qg.dx, qg.dy)
-            ##
-
-            u_max = u.max().cpu().item()
-            v_max = v.max().cpu().item()
-
-            if u_max==0.0 or v_max==0.0:
-                u_max = 4.0
-                v_max = 4.0
-            print(f'u_max {u_max:.2e}, v_max {v_max:.2e}')
-
-            # set time step with CFL
-            #cfl = 0.5
-            #dt = cfl * min(dx / u_max, dy / v_max)
-            dt = 60 * 10  # 30 min
-            ## debugg
-            if np.isnan(dt):
-                print(" dt is nan.")
-            qg.dt = dt
-            print(f'integration time step : {round(dt)//3600} hour(s), {(round(dt)% 3600) // 60} minute(s), and {(round(dt)% 3600) % 60} second(s). ')
-
-            # time params
             t = 0
-            t_end = round(1 * 86400) # 1 day expressed in sec
+            n_steps = int(self.t_end / self.qg.dt) + 1
 
-            ##
-            n_steps = int(t_end / dt) + 1 
+            for n in range(1, n_steps + 1):
+                self.qg.step()
+                t += self.qg.dt
 
-
-            # plot, log, check nans
-            freq_plot = int(t_end / 25 / dt) + 1
-            freq_checknan = 10
-            freq_log = int(t_end / 50 / dt) + 1
-
-            t0 = time.time()
-            for n in range(1, n_steps+1): #n_steps+1): #100
-                qg.step()
-                t += dt
-            
-            ## debugging
-            if torch.isnan(qg.q).any():
+            if torch.isnan(self.qg.q).any():
                 print('NaN found in q')
-                
-            if torch.isnan(qg.psi).any():
+
+            if torch.isnan(self.qg.psi).any():
                 print('NaN found in psi')
                 raise ValueError("NaN values found in qg.psi")
 
-            ssh_forecast = qg.psi * (self.f0/g) #* (1/factor)
-            ssh_forecast = ssh_forecast[0][0] # pass from [1,1,240,240] (one layer QG) -> [240,240]
+            ssh_forecast = self.qg.psi * (self.qg.f0 / self.g)
+            ssh_forecast = ssh_forecast[0][0]
             return ssh_forecast
-
-

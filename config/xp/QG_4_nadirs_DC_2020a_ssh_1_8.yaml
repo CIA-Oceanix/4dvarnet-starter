@@ -29,23 +29,22 @@ trainer:
 datamodule:
   _target_: src.data.BaseDataModule
   input_da: 
-    #_target_: src.utils.load_altimetry_data
     path: ${paths.natl_gf_5nads}
-    _target_: src.utils.load_full_natl_data
-    path_obs: "/DATASET/NATL/cal_data_new_errs.nc"
-    path_gt: "/DATASET/NATL/NATL60-CJM165_NATL_ssh_y2013.1y.nc"
-    obs_var: four_nadirs
+    _target_: src.utils.load_full_enatl_data
+    path_obs: "/DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-7nadirs-2009-2010-1_8.nc"
+    path_gt: "/DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-ssh-2009-2010-1_8.nc"
+    obs_var: input
     obs_gt: ssh
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2013-03-01', '2013-03-15']} # {_target_: builtins.slice, _args_: ['2013-02-24', '2013-09-30']}
+      time: {_target_: builtins.slice, _args_: ['2009-07-02', '2009-07-20']}
     val: 
-      time: {_target_: builtins.slice, _args_: ['2013-01-02', '2013-02-24']}
+      time: {_target_: builtins.slice, _args_: ['2010-04-01', '2010-04-20']}
     test: 
-      time: {_target_: builtins.slice,  _args_: ['2012-10-01', '2012-12-15']}
+      time: {_target_: builtins.slice,  _args_: ['2010-06-01', '2010-06-30']}
   xrds_kw:
-    patch_dims: { time: 15, lat: 240, lon: 240}
-    strides: { time: 1, lat: 200, lon: 200}
+    patch_dims: { time: 10, lat: 113, lon: 113}
+    strides: { time: 1, lat: 90, lon: 90}
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 1, num_workers: 1}
   aug_kw:
@@ -68,8 +67,8 @@ model:
   solver: 
     _target_: src.models.GradSolver_QG
     x_init: datamodule.input_da.path_mdt
-    n_step: 100 #5 #5 #10
-    lr_grad: 1e5 #1e3
+    n_step: 5 #5 #10
+    lr_grad: 1e3
     # lr_grad: 0.2
     prior_cost: 
       _target_: src.models.QGCost
@@ -119,6 +118,6 @@ entrypoints:
     dm: ${datamodule}
 
 defaults:
-  - /domain: gf_bis
+  - /domain: gf_bis_big
   - _self_
 

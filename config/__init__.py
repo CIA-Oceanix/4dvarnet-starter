@@ -38,6 +38,7 @@ domains = {
     "osmosis": dict(lon=[-22.5, -10.5], lat=[44, 56]),
     "gf": dict(lon=[-66, -54], lat=[32, 44]),
     "gf_bis": dict(lon=[-64, -52], lat=[32, 44]),
+    "gf_bis_big": dict(lon=[-64, -50], lat=[30, 44]),
     "fgf": dict(lon=[-66, -54], lat=[33, 45]),
     "2gf": dict(lon=[-71., -49.], lat=[32, 44]),
     "4gf": dict(lon=[-71., -29.], lat=[32, 44]),

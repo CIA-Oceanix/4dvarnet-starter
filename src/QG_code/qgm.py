@@ -133,6 +133,7 @@ class QGFV:
             self.cap_matrices = compute_capacitance_matrices(
                 self.helmholtz_dst, self.masks.psi_irrbound_xids,
                 self.masks.psi_irrbound_yids)
+            
             sol = solve_helmholtz_dst_cmm(
                     (cst*self.masks.psi)[...,1:-1,1:-1],
                     self.helmholtz_dst, self.cap_matrices,
