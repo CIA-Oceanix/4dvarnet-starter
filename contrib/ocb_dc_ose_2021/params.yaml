@@ -1,0 +1,4 @@
+method: test_forecast_ose_2022
+resolution: 0.083
+cfg_path: 4dvarnet-starter-glorys12/outputs/2024-06-20/15-16-55/.hydra/config.yaml
+ckpt_path: repos/4dvarnet-starter-glorys12/outputs/2024-06-20/15-16-55/base_forecast_glorys12_10y/checkpoints/val_mse=26.93737-epoch=018.ckpt
