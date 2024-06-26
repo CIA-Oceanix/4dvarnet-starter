@@ -12,6 +12,9 @@ import pyinterp.backends.xarray
 import src.data
 import xarray as xr
 import matplotlib.pyplot as plt
+import pickle
+from scipy.interpolate import interpn
+import cv2
 
 
 def pipe(inp, fns):
@@ -184,6 +187,85 @@ def load_altimetry_data(path, obs_from_tgt=False):
         .to_array()
     )
 
+def load_ose_data(path):
+    ds = (
+        xr.open_dataset(path)
+        .load()
+        .assign(
+            input=lambda ds: ds.ssh,
+            tgt=lambda ds: ds.ssh,
+        )
+    )
+
+    return (
+        ds[[*src.data.TrainingItem._fields]]
+        .transpose("time", "lat", "lon")
+        .to_array()
+    )
+
+def load_altimetry_data(path, obs_from_tgt=False):
+    ds = (
+        xr.open_dataset(path)
+        # .assign(ssh=lambda ds: ds.ssh.coarsen(lon=2, lat=2).mean().interp(lat=ds.lat, lon=ds.lon))
+        .load()
+        .assign(
+            input=lambda ds: ds.nadir_obs,
+            tgt=lambda ds: remove_nan(ds.ssh),
+        )
+    )
+
+    if obs_from_tgt:
+        ds = ds.assign(input=ds.tgt.where(np.isfinite(ds.input), np.nan))
+
+    return (
+        ds[[*src.data.TrainingItem._fields]]
+        .transpose("time", "lat", "lon")
+        .to_array()
+    )
+
+
+def mask_input(da, mask_list):
+    i = np.random.randint(0, len(mask_list))
+    mask = mask_list[i]
+    da = np.where(np.isfinite(mask), da, np.empty_like(da).fill(np.nan)).astype(np.float32)
+    return da
+
+def open_glorys12_data(path, masks_path, domain, variables="zos"):
+
+    print("OPENING mask list")
+    with open(masks_path, 'rb') as masks_file:
+        mask_list = pickle.load(masks_file)
+    mask_list = np.array(mask_list)
+    print("done.")
+
+    print("LOADING input data")
+    ds =  (
+        xr.open_dataset(path).rename({'latitude':'lat', 'longitude':'lon'})
+        .sel(domain)
+        .load()
+        .assign(
+            input = lambda ds: ds[variables],
+            tgt= lambda ds: remove_nan(ds[variables]),
+        )
+    )
+
+    print("done.")
+    print("MASKING input data")
+    ds= ds.assign(
+        input=xr.apply_ufunc(mask_input, ds.input, input_core_dims=[['lat', 'lon']], output_core_dims=[['lat', 'lon']], kwargs={"mask_list": mask_list}, dask="allowed", vectorize=True)
+        )
+
+    print("done.")
+    
+    ds = (
+        ds[[*src.data.TrainingItem._fields]]
+        .transpose("time", "lat", "lon")
+        .to_array()
+    )
+
+    print(ds.sizes)
+
+    return ds
 
 def load_dc_data(**kwargs):
     path_gt = "../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_ssh_y2013.1y.nc",
@@ -221,7 +303,7 @@ def psd_based_scores_from_ds(ds, ref_variable='tgt', study_variable='out'):
         return [np.nan, np.nan]
 
 
-def rmse_based_scores(da_rec, da_ref):
+def rmse_based_scores(da_ref, da_rec):
     rmse_t = (
         1.0
         - (((da_rec - da_ref) ** 2).mean(dim=("lon", "lat"))) ** 0.5
@@ -242,7 +324,7 @@ def rmse_based_scores(da_rec, da_ref):
     )
 
 
-def psd_based_scores(da_rec, da_ref):
+def psd_based_scores(da_ref, da_rec):
     err = da_rec - da_ref
     err["time"] = (err.time - err.time[0]) / np.timedelta64(1, "D")
     signal = da_ref
@@ -406,3 +488,43 @@ def load_cfg(xp_dir):
         return None, None
 
     return cfg, OmegaConf.select(hydra_cfg, "runtime.choices.xp")
+
+def regrid_interp(out, regrid_sizes):
+
+    out = out.detach().cpu().numpy()
+    out_size = out.shape
+    out_grid_sizes = out_size[-2:]
+    max_i = out_size[0]
+    max_j = out_size[1]
+    out_regrid_sizes = regrid_sizes[1]
+
+    x_grid = np.arange(0, out_grid_sizes[0], step=1)
+    y_grid = np.arange(0, out_grid_sizes[1], step=1)
+
+    x_regrid = np.linspace(start=0, stop=out_grid_sizes[0]-1, num=out_regrid_sizes[0])
+    y_regrid = np.linspace(start=0, stop=out_grid_sizes[1]-1, num=out_regrid_sizes[1])
+
+    interp_grid_x = np.empty((len(x_regrid) *  len(y_regrid)))
+    interp_grid_y = np.empty((len(x_regrid) *  len(y_regrid)))
+    
+    for x in range(len(x_regrid)):
+        for y in range(len(y_regrid)):
+            interp_grid_x[x*len(x_regrid) + y] = x_regrid[x]
+            interp_grid_y[x*len(x_regrid) + y] = y_regrid[y]
+
+    regrid_interp_out = torch.Tensor(size=[max_i, max_j, *out_regrid_sizes])
+
+    for i in range(max_i):
+        for j in range(max_j):
+            new_mat = interpn(points=(x_grid, y_grid), values=out[i,j,:,:], xi=(interp_grid_x, interp_grid_y), method='cubic')
+            new_mat = np.reshape(new_mat, (out_regrid_sizes[0], out_regrid_sizes[1]))
+            regrid_interp_out[i,j,:,:] = torch.tensor(new_mat)
+
+    return regrid_interp_out.cuda()
+
+def interp_sat_rmse(da_out, da_ref):
+    times = da_ref.time.values.astype(str)
+    times = list(map(lambda x: x[:10], times))
+
+    for i, time in enumerate(times):
+        pass

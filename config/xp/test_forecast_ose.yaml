@@ -1,26 +1,18 @@
 # @package _global_
-xpd: ???
-
+xpd: outputs/2024-06-20/15-16-55/
 
 xp_overrides:
-  datamodule:
-    input_da:
-      _target_: src.utils.load_altimetry_data
-      path: /DATASET/NATL/natl_w_7nadirs.nc
-    domains:
-      train:
-        time: {_target_: builtins.slice, _args_: ['2013-02-24', '2013-09-30']}
-      val:
-        time: {_target_: builtins.slice, _args_: ['2012-12-15', '2013-02-24']}
-      test:  # WARN: test period on all natl dataset, use with training on enatl or ose
-        time: {_target_: builtins.slice, _args_: ['2012-10-01', '2013-09-30']}
 
 trainer:
   _target_: pytorch_lightning.Trainer
   inference_mode: False
   accelerator: gpu
   devices: 1
-  logger: False
+  logger: 
+    _target_: pytorch_lightning.loggers.CSVLogger
+    save_dir: ${hydra:runtime.output_dir}
+    name: ${hydra:runtime.choices.xp}
+    version: ''
 
 lit_mod:
   _target_: contrib.multi_domain_diag.load_cfg_from_xp
