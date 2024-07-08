@@ -31,15 +31,15 @@ def read_l3_dataset(file,
     Return:
         ds (xarray.Dataset) -- Dataset with the data.
     """
-    ds = xr.open_dataset(file)
-    ds = ds.sel(time=slice(time_min, time_max))
-    ds = ds.where((ds["lat"] >= lat_min) & (ds["lat"] <= lat_max))
-    ds = ds.where((ds["lon"] >= lon_min % 360.) &
-                  (ds["lon"] <= lon_max % 360.))
+    ds = xr.load_dataset(file)
+    ds = ds.sel(time=slice(time_min, time_max), drop=True)
+    ds = ds.where((ds["lat"] >= lat_min) & (ds["lat"] <= lat_max),
+                  drop=True)
+    ds = ds.where((ds["lon"] >= lon_min) &
+                  (ds["lon"] <= lon_max),
+                  drop=True)
     if centered:
         ds = ds - ds.mean(skipna=True)
-
-    print("len of time in alongtrack ds: {}".format(len(ds.time.values)))
     return ds
 
 
@@ -71,17 +71,17 @@ def read_l4_dataset(list_of_file,
         grid (pyinterp.Grid3D) -- Interpolated data from netcdf on a regular grid.
     """
 
-    ds = xr.open_mfdataset(list_of_file,
-                           concat_dim='time',
-                           combine='nested',
-                           parallel=True)
+    # from open_mfdataset to open_dataset -> no concat
+    ds = xr.load_dataset(list_of_file)
     ds = ds.sel(time=slice(time_min, time_max), drop=True)
     ds = ds.where(
-        (ds["lon"] % 360. >= lon_min) & (ds["lon"] % 360. <= lon_max),
+        (ds["lon"] >= lon_min) & (ds["lon"] <= lon_max),
         drop=True)
     ds = ds.where((ds["lat"] >= lat_min) & (ds["lat"] <= lat_max), drop=True)
 
-    x_axis = pyinterp.Axis(ds["lon"][:].values % 360., is_circle=is_circle)
+    #print('l4 dataset time dim len: {}'.format(ds.time.values.shape))
+
+    x_axis = pyinterp.Axis(ds["lon"][:].values, is_circle=is_circle)
     y_axis = pyinterp.Axis(ds["lat"][:].values)
     z_axis = pyinterp.TemporalAxis(ds["time"][:].values)
 
@@ -154,10 +154,12 @@ def interp_on_alongtrack(gridded_dataset,
 
     """ssh_alongtrack = (ds_alongtrack["sla_unfiltered"] + ds_alongtrack["mdt"] -
                       ds_alongtrack["lwe"]).values"""
-    ssh_alongtrack = (ds_alongtrack["ssh"]).values
+    ssh_alongtrack = ds_alongtrack["ssh"].values
     lon_alongtrack = ds_alongtrack["lon"].values
     lat_alongtrack = ds_alongtrack["lat"].values
     time_alongtrack = ds_alongtrack["time"].values
+
+    #print('time along track len before masking: {}'.format(time_alongtrack.shape))
 
     # get and apply mask from map_interp & alongtrack on each dataset
     msk1 = np.ma.masked_invalid(ssh_alongtrack).mask
@@ -175,6 +177,8 @@ def interp_on_alongtrack(gridded_dataset,
                        & (lon_alongtrack <= lon_max - 0.25)
                        & (lat_alongtrack >= lat_min + 0.25)
                        & (lat_alongtrack <= lat_max - 0.25))[0]
+    
+    #print('time alongtrack len after masking: {}'.format(time_alongtrack[indices].shape))
 
     return time_alongtrack[indices], lat_alongtrack[indices], lon_alongtrack[
         indices], ssh_alongtrack[indices], ssh_map_interp[indices]
@@ -207,11 +211,14 @@ def write_stat(nc, group_name, binning):
 def write_timeserie_stat(ssh_alongtrack, ssh_map_interp, time_vector, freq,
                          output_filename):
 
+    #print(len(time_vector))
+
     diff = ssh_alongtrack - ssh_map_interp
     # convert data vector and time vector into xarray.Dataarray
     da = xr.DataArray(diff, coords=[time_vector], dims="time")
 
-    print("len of time in da: {}".format(len(da.time.values)))
+    #print("len of time in da: {}".format(len(da.time.values)))
+
     # resample
     da_resample = da.resample(time=freq)
 
@@ -505,7 +512,7 @@ def compute_spectral_scores(time_alongtrack,
     ds.to_netcdf(output_filename)
 
 
-def plot_psd_score(filename):
+def plot_psd_score(filename, plot=False):
 
     def find_wavelength_05_crossing(filename):
 
@@ -523,44 +530,45 @@ def plot_psd_score(filename):
 
     resolved_scale = find_wavelength_05_crossing(filename)
 
-    plt.figure(figsize=(10, 5))
-    ax = plt.subplot(121)
-    ax.invert_xaxis()
-    plt.plot((1./ds.wavenumber), ds.psd_ref, label='reference', color='k')
-    plt.plot((1./ds.wavenumber), ds.psd_study, label='reconstruction', color='lime')
-    plt.xlabel('wavelength [km]')
-    plt.ylabel('Power Spectral Density [m$^{2}$/cy/km]')
-    plt.xscale('log')
-    plt.yscale('log')
-    plt.legend(loc='best')
-    plt.grid(which='both')
+    if plot:
+        plt.figure(figsize=(10, 5))
+        ax = plt.subplot(121)
+        ax.invert_xaxis()
+        plt.plot((1./ds.wavenumber), ds.psd_ref, label='reference', color='k')
+        plt.plot((1./ds.wavenumber), ds.psd_study, label='reconstruction', color='lime')
+        plt.xlabel('wavelength [km]')
+        plt.ylabel('Power Spectral Density [m$^{2}$/cy/km]')
+        plt.xscale('log')
+        plt.yscale('log')
+        plt.legend(loc='best')
+        plt.grid(which='both')
 
-    ax = plt.subplot(122)
-    ax.invert_xaxis()
-    plt.plot((1./ds.wavenumber), (1. - ds.psd_diff/ds.psd_ref), color='k', lw=2)
-    plt.xlabel('wavelength [km]')
-    plt.ylabel('PSD Score [1. - PSD$_{err}$/PSD$_{ref}$]')
-    plt.xscale('log')
-    plt.hlines(y=0.5,
-               xmin=np.ma.min(np.ma.masked_invalid(1./ds.wavenumber)),
-               xmax=np.ma.max(np.ma.masked_invalid(1./ds.wavenumber)),
-               color='r',
-               lw=0.5,
-               ls='--')
-    plt.vlines(x=resolved_scale, ymin=0, ymax=1, lw=0.5, color='g')
-    ax.fill_betweenx((1. - ds.psd_diff/ds.psd_ref),
-                     resolved_scale,
-                     np.ma.max(np.ma.masked_invalid(1./ds.wavenumber)),
-                     color='green',
-                     alpha=0.3,
-                     label=rf'resolved scales \n $\lambda$ > {int(resolved_scale)}km')
-    plt.legend(loc='best')
-    plt.grid(which='both')
+        ax = plt.subplot(122)
+        ax.invert_xaxis()
+        plt.plot((1./ds.wavenumber), (1. - ds.psd_diff/ds.psd_ref), color='k', lw=2)
+        plt.xlabel('wavelength [km]')
+        plt.ylabel('PSD Score [1. - PSD$_{err}$/PSD$_{ref}$]')
+        plt.xscale('log')
+        plt.hlines(y=0.5,
+                xmin=np.ma.min(np.ma.masked_invalid(1./ds.wavenumber)),
+                xmax=np.ma.max(np.ma.masked_invalid(1./ds.wavenumber)),
+                color='r',
+                lw=0.5,
+                ls='--')
+        plt.vlines(x=resolved_scale, ymin=0, ymax=1, lw=0.5, color='g')
+        ax.fill_betweenx((1. - ds.psd_diff/ds.psd_ref),
+                        resolved_scale,
+                        np.ma.max(np.ma.masked_invalid(1./ds.wavenumber)),
+                        color='green',
+                        alpha=0.3,
+                        label=rf'resolved scales \n $\lambda$ > {int(resolved_scale)}km')
+        plt.legend(loc='best')
+        plt.grid(which='both')
 
-    logging.info(' ')
-    logging.info(f'  Minimum spatial scale resolved = {int(resolved_scale)}km')
+        logging.info(' ')
+        logging.info(f'  Minimum spatial scale resolved = {int(resolved_scale)}km')
 
-    plt.show()
+        plt.show()
 
     return resolved_scale
 
@@ -570,7 +578,8 @@ def eval_ose(path_alongtrack,
              var_name="out",
              time_min='2017-01-01',
              time_max='2017-12-31',
-             centered=False):
+             centered=False,
+             plot_scores=False):
     """
     Compute the metrics for a given dataset based on L3 alongtrack observation data.
     Input:
@@ -592,8 +601,8 @@ def eval_ose(path_alongtrack,
                              centered = False)
     """
     # Study area
-    lon_min = 295.
-    lon_max = 305.
+    lon_min = -65.
+    lon_max = -55.
     lat_min = 33.
     lat_max = 43.
     is_circle = False
@@ -619,6 +628,8 @@ def eval_ose(path_alongtrack,
     # Read L3 datasets
     ds_alongtrack = read_l3_dataset(path_alongtrack, lon_min, lon_max, lat_min,
                                     lat_max, time_min, time_max, centered)
+    
+    #print('ds alongtrack time dim len: {}'.format(ds_alongtrack.time.values.shape))
 
     # Read reconstructed datasets and interpolate onto alongtrack positions
     time_alongtrack, lat_alongtrack, lon_alongtrack, ssh_alongtrack, ssh_map_interp = interp_on_alongtrack(
@@ -644,7 +655,7 @@ def eval_ose(path_alongtrack,
         compute_spectral_scores(time_alongtrack, lat_alongtrack, lon_alongtrack, ssh_alongtrack,
                                 ssh_map_interp, lenght_scale, delta_x, delta_t, "spectrum.nc")
         learderboard_psds_score = -999
-        learderboard_psds_score = plot_psd_score("spectrum.nc")
+        learderboard_psds_score = plot_psd_score("spectrum.nc", plot=plot_scores)
     except OverflowError:
         learderboard_psds_score = np.nan
 
