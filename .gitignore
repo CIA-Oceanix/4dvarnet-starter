@@ -10,3 +10,5 @@ data
 jobs
 **/*egg-info
 results
+rec_dir
+!reproduce_glorys_ose_results.ipynb
