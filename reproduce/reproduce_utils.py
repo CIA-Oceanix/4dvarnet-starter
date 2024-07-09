@@ -694,7 +694,7 @@ def eval_ose(path_alongtrack,
     return leaderboard_nrmse, int(learderboard_psds_score)
 
 # plot results
-def plot_results(RMSE_array):
+def plot_results(RMSE_array, save_name=None):
     x_7days = range(7)
     x_8days = range(-1, 7)
     x_glo_persistence = range(5)
@@ -738,49 +738,44 @@ def plot_results(RMSE_array):
             label="4DVarNet",
             color='blue')
     ax.plot(x_7days,
-            y_4dvarnet_persistence[1:],
-            label="4DVarNet persistence",
-            color='blue',
-            linestyle='dashdot')
-    ax.plot(x_7days,
             RMSE_array,
-            label="4DVarNet GLORYS persistence",
-            color='red',
-            linestyle='dashdot')
-    ax.plot(x_7days,
+            label="4DVarNet trained on GLORYS",
+            color='red',)
+    """ax.plot(x_7days,
             y_4dvarnet_mapping * np.ones_like(x_7days),
             label="4DVarNet mapping",
             color='blue',
-            linestyle='dashed')
-    """ax.plot(x_7days,
+            linestyle='dashed')"""
+    ax.plot(x_7days,
             y_glo[:7],
             label="Glo",
             color='green')
-    ax.plot(x_glo_persistence,
+    """ax.plot(x_glo_persistence,
             y_glo_persistence,
             label="Glo persistence",
             color='green',
-            linestyle='dashdot')
+            linestyle='dashdot')"""
     ax.plot(x_7days,
             y_glorys * np.ones_like(x_7days),
             label="Glorys",
             color='green',
-            linestyle='dashed')"""
-    ax.plot(x_7days,
-            y_oi * np.ones_like(x_7days),
-            label="OI mapping",
-            color='orange',
             linestyle='dashed')
     ax.plot(x_7days,
+            y_oi * np.ones_like(x_7days),
+            label="Duacs mapping",
+            color='orange',
+            linestyle='dashed')
+    """ax.plot(x_7days,
             y_duacs_persistence[1:],
             label="Duacs persistence",
             color='orange',
-            linestyle='dashdot')
+            linestyle='dashdot')"""
 
     plt.xlabel("Day of prediction")
     plt.ylabel("Average nRMSE score")
     plt.grid(alpha=.3)
 
     ax.legend(bbox_to_anchor=(1.04, 0.5), loc='center left', borderaxespad=0)
-    #plt.savefig("plot_ose_comp.png", bbox_inches="tight")
+    if save_name is not None:
+        plt.savefig(save_name, bbox_inches="tight")
     plt.close
