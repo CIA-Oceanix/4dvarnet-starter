@@ -56,20 +56,20 @@ datamodule:
       time:
         _target_: builtins.slice
         _args_:
-        - '2017-01-01'
-        - '2017-01-02'
+        - '2023-01-01'
+        - '2023-01-02'
     val:
       time:
         _target_: builtins.slice
         _args_:
-        - '2017-01-01'
-        - '2017-01-02'
+        - '2023-01-01'
+        - '2023-01-02'
     test:
       time:
         _target_: builtins.slice
         _args_:
-        - '2017-01-10'
-        - '2017-12-20'
+        - '2023-01-10'
+        - '2023-12-20'
   xrds_kw:
     patch_dims:
       time: 29
@@ -123,8 +123,8 @@ model:
     time:
       _target_: builtins.slice
       _args_:
-      - '2017-01-25'
-      - '2017-12-05'
+      - '2023-01-25'
+      - '2023-12-05'
     lat: ${domain.test.lat}
     lon: ${domain.test.lon}
 metrics:
