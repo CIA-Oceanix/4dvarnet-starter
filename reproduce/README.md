@@ -2,6 +2,16 @@
 
 This folder contains functions used in the two notebooks situated at the root of this github that can be used to reproduce testing results on OSE NRT (Near Real Time) data.
 
+### dependencies
+
+run these commands:
+
+```
+conda install pyinterp
+pip install copernicusmarine
+pip install "git+https://github.com/jejjohnson/ocn-tools.git"
+```
+
 ## 1st step: Downloading and Pre-Processing OSE data:
 
 Use [the data pipeline notebook](../ose_data_pipeline.ipynb) in order to **download** and **pre-process** your desired data.
