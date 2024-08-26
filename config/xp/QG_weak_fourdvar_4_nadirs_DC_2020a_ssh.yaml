@@ -38,11 +38,11 @@ datamodule:
     obs_gt: ssh
   domains:
     # train:
-    #   time: {_target_: builtins.slice, _args_: ['2012-11-01', '2012-11-15']}  #['2012-10-01', '2012-10-15']} 
+    #   time: {_target_: builtins.slice, _args_: ['2013-03-01', '2013-03-15']}  #{_target_: builtins.slice, _args_: ['2013-03-01', '2013-03-15']} # {_target_: builtins.slice, _args_: ['2013-02-24', '2013-09-30']}
     # val: 
-    #   time: {_target_: builtins.slice, _args_: ['2012-11-01', '2012-11-15']}
+    #   time: {_target_: builtins.slice, _args_: ['2013-01-02', '2013-02-24']}
     # test: 
-    #   time: {_target_: builtins.slice,  _args_: ['2012-11-01', '2012-11-15']}
+    #   time: {_target_: builtins.slice,  _args_: ['2012-10-01', '2012-12-15']}
     train:
       time: {_target_: builtins.slice, _args_: ['2013-03-01', '2013-03-20']} 
     val: 
@@ -74,17 +74,17 @@ model:
   solver: 
     _target_: src.models.GradSolver_QG
     x_init: datamodule.input_da.path_mdt
-    n_step: 20 #20 #5 #5 #10
-    lr_mod: 0.1 # 0.1
-    lr_grad: 100 #1000 # 1e3 #1e3
-    save_debugg_path : '/homes/g24meda/lab/4dvarnet-starter/outputs/lrgmod_01_lrgrad_100_nstep_20_sigma2_kernelsize21_alpha1_1_alpha2_05_avgpool2_dt10min/'
+    n_step: 50 #5 #5 #10
+    lr_mod: 0.01 #1
+    lr_grad: 1e2 #1e3
+    save_debugg_path : '/homes/g24meda/lab/4dvarnet-starter/outputs/one_forecast_lrgmod_001_lrgrad_100_nstep_50_sigma2_kernelsize21_alpha1_150_alpha2_5/'
+    # lr_grad: 0.2
     prior_cost: 
-      _target_: src.models.QGCost_new
+      _target_: src.models.QGCost_weak_fourdvar
       domain_limits: ${domain.train} # limits in lon, lat (degrees)
       res: 0.05 # resolution (degrees)
-      avg_pool : 2 #2 #None
-      dt: 600 #600 # 120 #300 # Integration time step (sec) : 3 minutes
-      tint: 86400 # Integration time (sec) : 1 day
+      dt: 240 #240  # Integration time step (sec) : 10 minutes
+      nb_days_int: ${datamodule.xrds_kw.patch_dims.time} # number of days of integration (batch lenght)
       SSH:  # Mask for SSH
       c: 2.7 # phase velocity (m/s)
       g: 9.81 # m/s^2
@@ -96,7 +96,7 @@ model:
     grad_mod: 
       _target_: src.models.ConvLstmGradModel
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 24 #96 #24 #48
+      dim_hidden: 48
   test_metrics: ${metrics.test_metrics}
   pre_metric_fn: 
         _target_: xarray.Dataset.sel

@@ -77,9 +77,15 @@ model:
     n_step: 20 #20 #5 #5 #10
     lr_mod: 0.1 # 0.1
     lr_grad: 100 #1000 # 1e3 #1e3
-    save_debugg_path : '/homes/g24meda/lab/4dvarnet-starter/outputs/lrgmod_01_lrgrad_100_nstep_20_sigma2_kernelsize21_alpha1_1_alpha2_05_avgpool2_dt10min/'
+    save_debugg_path : '/homes/g24meda/lab/4dvarnet-starter/outputs/QG_and_bilin_lrgmod_01_lrgrad_100_nstep_20_sigma2_kernelsize21_alpha1_1_alpha2_05_avgpool2_dt10min/'
     prior_cost: 
-      _target_: src.models.QGCost_new
+      _target_: src.models.QGCost_and_bilin 
+      # bilin cost parameters
+      dim_in: ${datamodule.xrds_kw.patch_dims.time}
+      dim_hidden: 32 #32
+      bilin_quad: False
+      downsamp: 2
+      # Qg cost parameters
       domain_limits: ${domain.train} # limits in lon, lat (degrees)
       res: 0.05 # resolution (degrees)
       avg_pool : 2 #2 #None
@@ -96,7 +102,7 @@ model:
     grad_mod: 
       _target_: src.models.ConvLstmGradModel
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 24 #96 #24 #48
+      dim_hidden: 48 #48 #96 #24 #48
   test_metrics: ${metrics.test_metrics}
   pre_metric_fn: 
         _target_: xarray.Dataset.sel

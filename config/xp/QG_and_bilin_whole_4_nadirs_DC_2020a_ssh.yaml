@@ -17,7 +17,7 @@ trainer:
     save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 10 #150
+  max_epochs: 100 #150
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
@@ -37,8 +37,14 @@ datamodule:
     obs_var: four_nadirs
     obs_gt: ssh
   domains:
+    # train:
+    #   time: {_target_: builtins.slice, _args_: ['2012-11-01', '2012-11-15']}  #['2012-10-01', '2012-10-15']} 
+    # val: 
+    #   time: {_target_: builtins.slice, _args_: ['2012-11-01', '2012-11-15']}
+    # test: 
+    #   time: {_target_: builtins.slice,  _args_: ['2012-11-01', '2012-11-15']}
     train:
-      time: {_target_: builtins.slice, _args_: ['2013-03-01', '2013-03-15']} # {_target_: builtins.slice, _args_: ['2013-02-24', '2013-09-30']}
+      time: {_target_: builtins.slice, _args_: ['2013-02-24', '2013-09-30']}
     val: 
       time: {_target_: builtins.slice, _args_: ['2013-01-02', '2013-02-24']}
     test: 
@@ -49,7 +55,7 @@ datamodule:
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 1, num_workers: 1}
   aug_kw:
-    aug_factor: 1
+    aug_factor: 3
     aug_only: True
 
 model:
@@ -68,29 +74,35 @@ model:
   solver: 
     _target_: src.models.GradSolver_QG
     x_init: datamodule.input_da.path_mdt
-    n_step: 100 #5 #5 #10
-    lr_grad: 1e5 #1e3
-    # lr_grad: 0.2
+    n_step: 20 #20 #5 #5 #10
+    lr_mod: 0.1 # 0.1
+    lr_grad: 100 #1000 # 1e3 #1e3
+    save_debugg_path : '/homes/g24meda/lab/4dvarnet-starter/outputs/QG_and_bilin_whole_lrgmod_01_lrgrad_100_nstep_20_sigma2_kernelsize21_alpha1_1_alpha2_05_avgpool2_dt10min_aug3/'
     prior_cost: 
-      _target_: src.models.QGCost
-      nl: 1
-      L: 1380.0e3 # domain size (m). 12° = 12 * 115 km = 1380e3 m
-      g_prime: 0.025 # gravity
-      H: 400 # layer thickness (m)
-      f0: 9.375e-5 # mean coriolis (s^-1)
-      beta : 1.754e-11 # coriolis gradient (m^-1 s^-1)
-      ## wind forcing 
-      tau0 : 0.
-      bottom_drag_coef : 0.
-      x_dim : ${datamodule.xrds_kw.patch_dims.lon}
-      y_dim : ${datamodule.xrds_kw.patch_dims.lat}
-      apply_mask : True
+      _target_: src.models.QGCost_and_bilin 
+      # bilin cost parameters
+      dim_in: ${datamodule.xrds_kw.patch_dims.time}
+      dim_hidden: 32 #32
+      bilin_quad: False
+      downsamp: 2
+      # Qg cost parameters
+      domain_limits: ${domain.train} # limits in lon, lat (degrees)
+      res: 0.05 # resolution (degrees)
+      avg_pool : 2 #2 #None
+      dt: 500 #600 # 120 #300 # Integration time step (sec) : 3 minutes
+      tint: 86400 # Integration time (sec) : 1 day
+      SSH:  # Mask for SSH
+      c: 2.7 # phase velocity (m/s)
+      g: 9.81 # m/s^2
+      f: # Coriolis freq, if not provided computed from c and g 
+      Kdiffus: # diffusion coefficient
+      device: 'cuda'
     obs_cost: 
       _target_: src.models.BaseObsCost
     grad_mod: 
       _target_: src.models.ConvLstmGradModel
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 48
+      dim_hidden: 48 #48 #96 #24 #48
   test_metrics: ${metrics.test_metrics}
   pre_metric_fn: 
         _target_: xarray.Dataset.sel
