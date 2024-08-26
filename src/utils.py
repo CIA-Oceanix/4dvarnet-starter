@@ -100,6 +100,9 @@ def remove_nan(da):
     )[1]
     return da
 
+def fill_nan(da):
+    return da.fillna(0)
+
 
 def get_constant_crop(patch_dims, crop, dim_order=["time", "lat", "lon"]):
     patch_weight = np.zeros([patch_dims[d] for d in dim_order], dtype="float32")
@@ -230,40 +233,52 @@ def mask_input(da, mask_list):
     da = np.where(np.isfinite(mask), da, np.empty_like(da).fill(np.nan)).astype(np.float32)
     return da
 
-def open_glorys12_data(path, masks_path, domain, variables="zos"):
-
-    print("OPENING mask list")
-    with open(masks_path, 'rb') as masks_file:
-        mask_list = pickle.load(masks_file)
-    mask_list = np.array(mask_list)
-    print("done.")
+def open_glorys12_data(path, masks_path, domain, variables="zos", masking=True, test_cut=None, add_mask=False):
 
     print("LOADING input data")
     ds =  (
-        xr.open_dataset(path).rename({'latitude':'lat', 'longitude':'lon'})
-        .sel(domain)
+        xr.open_dataset(path)
+    )
+    
+    if 'latitude' in list(ds.dims):
+        ds = ds.rename({'latitude':'lat', 'longitude':'lon'})
+
+
+    if test_cut is not None:
+        ds = ds.sel(time=test_cut)
+
+    ds = (
+        ds
         .load()
         .assign(
             input = lambda ds: ds[variables],
-            tgt= lambda ds: remove_nan(ds[variables]),
+            tgt= lambda ds: ds[variables],
+            mask= lambda ds: ds[variables]
         )
     )
-
     print("done.")
-    print("MASKING input data")
-    ds= ds.assign(
-        input=xr.apply_ufunc(mask_input, ds.input, input_core_dims=[['lat', 'lon']], output_core_dims=[['lat', 'lon']], kwargs={"mask_list": mask_list}, dask="allowed", vectorize=True)
-        )
 
-    print("done.")
+    if masking:
+        print("OPENING mask list")
+        with open(masks_path, 'rb') as masks_file:
+            mask_list = pickle.load(masks_file)
+        mask_list = np.array(mask_list)
+        print("done.")
+
+        print("MASKING input data")
+        ds= ds.assign(
+            input=xr.apply_ufunc(mask_input, ds.input, input_core_dims=[['lat', 'lon']], output_core_dims=[['lat', 'lon']], kwargs={"mask_list": mask_list}, dask="allowed", vectorize=True)
+            )
+        print("done.")
     
+    ds = ds.sel(domain)
     ds = (
-        ds[[*src.data.TrainingItem._fields]]
+        ds[[*src.data.TrainingItemMask._fields]]
         .transpose("time", "lat", "lon")
         .to_array()
     )
 
-    print(ds.sizes)
+    print('dataset sizes: {}'.format(ds.sizes))
 
     return ds
 

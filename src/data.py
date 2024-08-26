@@ -9,6 +9,7 @@ import time
 import cv2
 
 TrainingItem = namedtuple('TrainingItem', ['input', 'tgt'])
+TrainingItemMask = namedtuple('TrainingItemMask', ['input', 'tgt', 'mask'])
 TrainingItemRegrid = namedtuple('TrainingItem', ['input', 'tgt', 'original_input'])
 
 
@@ -84,6 +85,10 @@ class XrDataset(torch.utils.data.Dataset):
                         patch_dims {list(patch_dims)}
                         """
                     )
+        
+        print('dataset patch sizes: {}'.format(self.ds_size))
+        print('dataset sizes: {}'.format(self.da.sizes))
+        print('dataset length: {}'.format(len(self)))
 
     def __len__(self):
         size = 1
@@ -115,7 +120,7 @@ class XrDataset(torch.utils.data.Dataset):
         item = self.da.isel(**sl)
 
         if self.return_coords:
-            return item.coords.to_dataset()[list(self.patch_dims)]
+            return item.coords.to_dataset().drop_vars('depth')[list(self.patch_dims)]
 
         item = item.data.astype(np.float32)
         if self.postpro_fn is not None:
@@ -413,9 +418,10 @@ class BaseDataModule(pl.LightningDataModule):
         def normalize(item): return (item - m) / s
         
         return ft.partial(ft.reduce, lambda i, f: f(i), [
-            TrainingItem._make,
+            TrainingItemMask._make,
             lambda item: item._replace(tgt=normalize(item.tgt)),
             lambda item: item._replace(input=normalize(item.input)),
+            lambda item: item._replace(mask=np.full_like(item.tgt, True))
         ])
 
     def setup(self, stage='test'):
@@ -470,6 +476,7 @@ class BaseDataModuleRegrid(BaseDataModule):
             TrainingItem._make,
             lambda item: item._replace(tgt=normalize(item.tgt)),
             lambda item: item._replace(input=normalize(item.input)),
+            lambda item: item._replace(mask=~np.isnan(item.tgt)),
         ])
     
     def get_1_12_input(self, nadir_obs, target, new_size):

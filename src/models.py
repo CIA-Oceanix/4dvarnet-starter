@@ -6,12 +6,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from src.data import TrainingItemMask
 
 from src.utils import regrid_interp
 
 
 class Lit4dVarNet(pl.LightningModule):
-    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, test_regrid=None):
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, test_regrid=None, loss_masking=True):
         super().__init__()
         self.solver = solver
         self.register_buffer('rec_weight', torch.from_numpy(rec_weight), persistent=persist_rw)
@@ -23,6 +24,7 @@ class Lit4dVarNet(pl.LightningModule):
         self.test_regrid = test_regrid
         if test_regrid is not None:
             self.len_dims_regrid = len(test_regrid[0])
+        self.loss_masking = loss_masking
 
     @property
     def norm_stats(self):
@@ -33,15 +35,15 @@ class Lit4dVarNet(pl.LightningModule):
         return (0., 1.)
 
     @staticmethod
-    def weighted_mse(err, weight):
+    def weighted_mse(err, weight, mask):
         err_w = err * weight[None, ...]
         non_zeros = (torch.ones_like(err) * weight[None, ...]) == 0.0
-        err_num = err.isfinite() & ~non_zeros
+        err_num = err.isfinite() & ~non_zeros & mask.type(torch.bool)
         if err_num.sum() == 0:
             return torch.scalar_tensor(1000.0, device=err_num.device).requires_grad_()
         loss = F.mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
         return loss
-
+    
     def training_step(self, batch, batch_idx):
         return self.step(batch, "train")[0]
 
@@ -58,12 +60,12 @@ class Lit4dVarNet(pl.LightningModule):
         return reverse_regrid_out
 
     def step(self, batch, phase=""):
-        if self.training and batch.tgt.isfinite().float().mean() < 0.9:
+        if self.training and batch.tgt.isfinite().float().mean() < 0.9 or batch.mask.float().mean() < 0.1:
             return None, None
 
         loss, out = self.base_step(batch, phase)
-        grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
-        prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
+        grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight, batch.mask)
+        prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out), batch.mask)
         self.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
 
         training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost
@@ -71,7 +73,8 @@ class Lit4dVarNet(pl.LightningModule):
 
     def base_step(self, batch, phase=""):
         out = self(batch=batch)
-        loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
+
+        loss = self.weighted_mse(out - batch.tgt, self.rec_weight, batch.mask)
 
         with torch.no_grad():
             self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
@@ -162,32 +165,31 @@ class Lit4dVarNetForecast(Lit4dVarNet):
     persist_rw: if True: rec_weight saved alongside parameters
     """
 
-    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, test_regrid=None):
-        super().__init__(solver, rec_weight, opt_fn, test_metrics, pre_metric_fn, norm_stats, persist_rw, test_regrid)
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, test_regrid=None, loss_masking=True):
+        super().__init__(solver, rec_weight, opt_fn, test_metrics, pre_metric_fn, norm_stats, persist_rw, test_regrid, loss_masking)
 
     @staticmethod
-    def mask_batch(batch):
+    def mask_batch(batch, loss_masking):
         new_input = batch.input
         dims = new_input.size()
         new_input[:, dims[1]//2:, :, :] = 0.
         mask_batch = batch._replace(input=new_input)
         mask_batch = batch._replace(input=(batch.input).nan_to_num())
+        if loss_masking:
+            mask_batch = batch._replace(mask=~torch.isnan(batch.tgt).type(torch.bool))
         mask_batch = batch._replace(tgt=(batch.tgt).nan_to_num())
         return mask_batch
 
     def training_step(self, batch, batch_idx):
-        mask_batch = self.mask_batch(batch)
+        mask_batch = self.mask_batch(batch, self.loss_masking)
         return super().training_step(mask_batch, batch_idx)
 
     def validation_step(self, batch, batch_idx):
-        mask_batch = self.mask_batch(batch)
+        mask_batch = self.mask_batch(batch, self.loss_masking)
         return super().validation_step(mask_batch, batch_idx)
 
     def test_step(self, batch, batch_idx):
-        if self.test_regrid is not None:
-            mask_batch = (self.mask_batch(batch[0]), batch[1])
-        else:
-            mask_batch = self.mask_batch(batch)
+        mask_batch = self.mask_batch(batch, self.loss_masking)
         super().test_step(mask_batch, batch_idx)
 
     def on_test_epoch_end(self):
@@ -246,7 +248,7 @@ class GradSolver(nn.Module):
         return batch.input.nan_to_num().detach().requires_grad_(True)
 
     def solver_step(self, state, batch, step):
-        var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
+        var_cost = self.prior_cost(state, batch.mask) + self.obs_cost(state, batch)
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
 
         gmod = self.grad_mod(grad)
@@ -353,7 +355,7 @@ class BaseObsCost(nn.Module):
         self.w = w
 
     def forward(self, state, batch):
-        msk = batch.input.isfinite()
+        msk = batch.input.isfinite() & batch.mask.type(torch.bool)
         return self.w * F.mse_loss(state[msk], batch.input.nan_to_num()[msk])
 
 
@@ -401,5 +403,6 @@ class BilinAEPriorCost(nn.Module):
         x = self.up(x)
         return x
 
-    def forward(self, state):
-        return F.mse_loss(state, self.forward_ae(state))
+    def forward(self, state, mask):
+        mask = mask.type(torch.bool)
+        return F.mse_loss(state[mask], self.forward_ae(state)[mask])
