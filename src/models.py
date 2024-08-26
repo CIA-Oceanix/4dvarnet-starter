@@ -63,11 +63,6 @@ class Lit4dVarNet(pl.LightningModule):
         grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
         prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
         self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
-
-        #training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost
-
-        # prior_cost_bis =  F.mse_loss(batch.tgt, self.solver.prior_cost.forward_QG(out))
-        # training_loss = 50 * loss + 1000 * grad_loss + 100.0 * prior_cost + 100.0 * prior_cost_bis
         training_loss = 50.0 * loss + 1000.0 * grad_loss + 1.0 * prior_cost
         return training_loss, out
 
@@ -222,7 +217,9 @@ class GradSolver(nn.Module):
 #         self.obs_cost_values_current = []
 #         self.var_cost_values_current = []
 
-#         self.save_debugg_path = save_debugg_path
+#         if not os.path.exists(save_debugg_path):
+        #     os.makedirs(save_debugg_path)
+        # self.save_debugg_path = save_debugg_path
     
 #     def init_state(self, batch, x_init=None):
 #         if x_init is not None:
@@ -416,16 +413,25 @@ class GradSolver_QG(nn.Module):
         self.obs_cost_values_current = []
         self.var_cost_values_current = []
 
+        if not os.path.exists(save_debugg_path):
+            os.makedirs(save_debugg_path)
         self.save_debugg_path = save_debugg_path
-    
+        
+
     def init_state(self, batch, x_init=None):
         if x_init is not None:
             return x_init
 
-        ## Initialisation of state with MDT ###
+        # ==============================================
+        #      Initialisation of state with MDT
+        # ==============================================
+
         x_init = self.mdt.detach().requires_grad_(True)
 
-        # # Initialisation of state with spatially filtered GT data ###
+        # ===============================================================
+        #      Initialisation of state with spatially filtered GT data
+        # ===============================================================
+
         # Replace NaNs in the tensor with 0
         # gt = torch.nan_to_num(batch.tgt, nan=0.0).to('cuda')
         # # Apply Gaussian filter to each 2D slice along dimension 1
@@ -437,22 +443,24 @@ class GradSolver_QG(nn.Module):
         #     smoothed_out_data[0, i] = F.conv2d(padded_slice, self.gaussian_kernel).squeeze()
         # x_init = smoothed_out_data.detach().requires_grad_(True)
 
-        ### Initialisation of state with target ###
-        #x_init = batch.tgt.detach().requires_grad_(True)
+        # ==============================================
+        #      Initialisation of state with obs 
+        # ==============================================
 
-        ## Initialisation of state with obs ###
-        #x_init = batch.input.nan_to_num().detach().requires_grad_(True) 
+        # x_init = batch.input.nan_to_num().detach().requires_grad_(True) 
         
         torch.save(x_init, self.save_debugg_path + 'init_state.pt')
         return x_init
-        # return batch.input.nan_to_num().detach().requires_grad_(True)
-        # return torch.zeros_like(batch.input).detach().requires_grad_(True)
     
 
     def solver_step(self, state, batch, step):      
-        alpha_1 = 1.0 #150.0 #1.0 
-        alpha_2 = 0.5 #5.0 #0.5
+        alpha_1 = 1.0  
+        alpha_2 = 0.5 
         var_cost = alpha_1 * self.prior_cost(state) + alpha_2 * self.obs_cost(state, batch) 
+
+        # ==============================================
+        #     Monitoring of the variationnal costs
+        # ==============================================
 
         # Store costs for all batches
         prior_cost_value = alpha_1 * self.prior_cost(state).item()
@@ -512,8 +520,10 @@ class GradSolver_QG(nn.Module):
                 + self.lr_grad * (step + 1) / self.n_step * grad
         )
 
-        ### Apply gaussian kernel to the update ##
-        
+        # ==============================================
+        #      Apply gaussian kernel to the update 
+        # ==============================================
+
         def gaussian_kernel_update(size: int, sigma: float):
             """Create a 2D Gaussian kernel."""
             x = torch.arange(-size // 2 + 1, size // 2 + 1, dtype=torch.float32)
@@ -540,12 +550,12 @@ class GradSolver_QG(nn.Module):
             
             return smoothed_tensor
 
-        kernel_size = 21  # Taille du noyau
-        sigma = 2.0 #2.0       # Écart-type
+        # Initialize the gaussian kernel
+        kernel_size = 21  
+        sigma = 2.0 
 
+        # Apply it to the update
         smoothed_update = apply_gaussian_smoothing(state_update, kernel_size, sigma)
-
-
 
         print('gmod coeff', self.lr_mod * 1 / (step + 1))
         print('norm of gmod update', torch.norm(self.lr_mod * 1 / (step + 1) * gmod, p=2))
@@ -554,17 +564,14 @@ class GradSolver_QG(nn.Module):
 
         torch.save(state, self.save_debugg_path + 'state.pt')
         torch.save(state_update, self.save_debugg_path + 'state_update.pt')
-        # torch.save(resized_update, self.save_debugg_path + 'resized_update.pt')
         torch.save(smoothed_update, self.save_debugg_path + 'smoothed_update.pt')
         torch.save(batch.tgt, self.save_debugg_path + 'target.pt')
         
         # debugging
         if torch.isnan(state_update).any():
-            #torch.save(state, self.save_debugg_path + 'state.pt')
-            #torch.save(batch.tgt, self.save_debugg_path + 'target.pt')
             raise ValueError("NaN detected in state_update, saving last clean state")
-      
-        return state - smoothed_update #resized_update # state_update
+        
+        return state - smoothed_update
 
     def forward(self, batch):
         with torch.set_grad_enabled(True):
@@ -650,6 +657,10 @@ class BaseObsCost(nn.Module):
         return self.w * F.mse_loss(state[msk], batch.input.nan_to_num()[msk])
 
 
+# ======================================================================
+#     BilinAE Prior Cost : classic prior cost in 4dvarnet-starter conf 
+# ======================================================================
+
 class BilinAEPriorCost(nn.Module):
     def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None, bilin_quad=True):
         super().__init__()
@@ -692,24 +703,14 @@ class BilinAEPriorCost(nn.Module):
             torch.cat([self.bilin_1(x), nonlin], dim=1)
         )
         x = self.up(x)
-        save_debugg_path = '/homes/g24meda/lab/4dvarnet-starter/outputs/base_debugg/'
-        torch.save(x, save_debugg_path + 'qg_forwarded_state.pt')
         return x
 
     def forward(self, state):
         return F.mse_loss(state, self.forward_ae(state)) 
 
-class LinearCost(nn.Module):
-    def __init__(self, a=1, b=0) -> None:
-        super().__init__()
-        self.a = a
-        self.b = b
-
-    def forward_linear(self, x):
-        return self.a * x + self.b
-    
-    def forward(self, state):
-        return F.mse_loss(state, self.forward_linear(state)) 
+# ==================================================
+#     Identity Prior Cost : prior phi is identity 
+# ==================================================
 
 class Cost_Id(nn.Module):
     def __init__(self) -> None:
@@ -720,126 +721,11 @@ class Cost_Id(nn.Module):
     
     def forward(self, state):
         return F.mse_loss(state, self.forward_id(state)) 
-
-
-# class QGCost_mqgeometry(nn.Module):
-### QG code is based on hiry, L., Li, L., Roullet, G., and Mémin, E.: MQGeometry-1.0: a multi-layer quasi-geostrophic solver on non-rectangular geometries, Geosci. Model Dev., 17, 1749–1764, https://doi.org/10.5194/gmd-17-1749-2024, 2024. 
-#     def __init__(self, nl, L, g_prime, H, f0, beta, tau0, bottom_drag_coef, x_dim, y_dim, apply_mask=False) -> None:
-#         super().__init__()
-
-#         print('initialisation of QG')
-#         ## QGCost class attributes
-#         self.dtype = torch.float64
-#         self.g = 10.0  # m/s^2
-#         dt = 60 *10 #60 * 40  # integration time step : 10 min
-#         self.t_end = round(1 * 86400)  # time of intergation for each QG forecast : 1 day expressed in sec
-
-#         device = 'cuda' if torch.cuda.is_available() else 'cpu'
-#         nx = x_dim - 1
-#         ny = y_dim - 1
-#         # dx = L / nx
-#         # dy = L / ny
-#         xv = torch.linspace(-L / 2, L / 2, nx+1 , dtype=self.dtype, device=device)
-#         yv = torch.linspace(-L / 2, L / 2, ny+1, dtype=self.dtype, device=device)
-#         x, y = torch.meshgrid(xv, yv, indexing='ij')
-
-#         H_tensor = torch.zeros(nl, 1, 1, dtype=self.dtype, device=device)
-#         if nl == 1:
-#             H_tensor[0, 0, 0] = H
-
-#         g_prime_tensor = torch.zeros(nl, 1, 1, dtype=self.dtype, device=device)
-#         if nl == 1:
-#             g_prime_tensor[0, 0, 0] = g_prime
-
-#         f = f0 + beta * (y - L / 2)
-
-#         # create rankine vortex in PV
-#         xc = 0.5 * (xv[1:] + xv[:-1])
-#         yc = 0.5 * (yv[1:] + yv[:-1])
-#         x, y = torch.meshgrid(xc, yc, indexing='ij')
-#         r = torch.sqrt(x**2 + y**2)
-
-#         mask = torch.ones_like(x, dtype=torch.float64)
-#         if apply_mask:
-#             dist_to_left = x - x.min()
-#             dist_to_right = x.max() - x
-#             dist_to_bottom = y - y.min()
-#             dist_to_top = y.max() - y
-#             dist_to_boundary = torch.min(torch.min(dist_to_left, dist_to_right), torch.min(dist_to_bottom, dist_to_top))
-#             soft_step = lambda x: torch.sigmoid(x / 10)
-#             normalized_dist = dist_to_boundary / dist_to_boundary.max() * 100
-#             self.mask = soft_step(normalized_dist).type(torch.float64)
-
-
-#         param = {
-#         'nx': x_dim - 1,
-#         'ny': y_dim - 1,
-#         'nl': nl,
-#         'mask': mask,
-#         'n_ens': 1,
-#         'Lx': L,
-#         'Ly': L,
-#         'flux_stencil': 5,
-#         'H': H_tensor,
-#         'g_prime': g_prime_tensor,
-#         'tau0': tau0,
-#         'f0': f0,
-#         'beta': beta,
-#         'bottom_drag_coef': bottom_drag_coef,
-#         'device': device,
-#         'dt': dt,
-#         'fixed_psi_boundary': None,
-#         'fixed_q_boundary': None
-#         }
         
-#         self.qg = QGFV(param)
 
-#     def forward_QG(self, x):
-#         B, D, H, W = x.shape
-#         if B != 1:
-#             raise Exception("4dvarnet-QG does not handle batch with size > 1. Please set batch size to 1.")
-        
-#         forecasts = torch.zeros_like(x)
-#         for i in range(D - 1):
-#             ssh_0 = x[0][i].T
-#             ssh_1 = self.forecast_QG(ssh_0).T
-#             forecasts[0][i + 1] = ssh_1
-
-#         forecasts[0][0] = x[0][0]
-#         return forecasts[0][:]
-
-#     def forward(self, state):
-#         return F.mse_loss(state[0][1:], self.forward_QG(state)[1:])
-
-#     def forecast_QG(self, ssh_0):
-#         with torch.no_grad():
-#             torch.backends.cudnn.deterministic = True
-
-#             # initialize psi_0 with ssh_0 input
-#             psi_2d = (self.g / self.qg.f0) * ssh_0
-#             self.qg.psi = psi_2d.unsqueeze(0).unsqueeze(0)
-#             self.qg.compute_q_from_psi()
-#             self.qg.fixed_psi_boundary = self.qg.psi.clone().detach()
-#             self.qg.fixed_q_boundary = self.qg.q.clone().detach()
-
-#             t = 0
-#             n_steps = int(self.t_end / self.qg.dt) + 1
-
-#             for n in range(1, n_steps + 1):
-#                 self.qg.step()
-#                 t += self.qg.dt
-
-#             if torch.isnan(self.qg.q).any():
-#                 print('NaN found in q')
-
-#             if torch.isnan(self.qg.psi).any():
-#                 print('NaN found in psi')
-#                 raise ValueError("NaN values found in qg.psi")
-
-#             ssh_forecast = self.qg.psi * (self.qg.f0 / self.g)
-#             ssh_forecast = ssh_forecast[0][0]
-#             return ssh_forecast
-        
+# ==============================================
+#     Usefull functions to run the QG model 
+# ==============================================
 
 def gaspari_cohn(r, c):
     """
@@ -907,12 +793,33 @@ def inverse_elliptic_dst(f, operator_dst):
     return dstI2D(dstI2D(f) / operator_dst)
 
 
+# ======================================================================================
+#    QG Prior Cost : new cost integrating the QG model
+# ======================================================================================
+# Description:
+#    The QG Prior Cost represents a new prior cost that integrates
+#    the Quasi-Geostrophic (QG) model.
+#
+# Formula:
+#    |x - phi_qg(x)|
+#
+# Details:
+#    - phi_qg(x) corresponds to N independent forward integrations
+#      of the QG model over a time span of 1 day each.
+#    - N is typically 15, representing a temporal batch size of 15 days.
+#    - Each integration has a time step of typiccaly < 10 minutes.
+#    - Specifically:
+#        phi_qg(x)(t+1) = forward_qg(x(t))
+#        ie phi_qg : x -> [forward_qg(x(0)),forward_qg(x(1)), .. , forward_qg(x(N-1))]
+#    - Here, forward_qg(x(t)) denotes the result of a 1-day forward integration
+#      of the QG model starting from day t to day t+1.
+# =======================================================================================
+
 class QGCost_new(nn.Module):
-    def __init__(self, domain_limits=None, res=0.05, avg_pool = None, dt=None, tint=86400, SSH=None, c=None, g=9.81, f=None, Kdiffus=None, device='cuda') -> None:
+    def __init__(self, domain_limits=None, res=0.05, avg_pool = None, dt=None, tint=86400, SSH=None, c=None, g=9.81, f=None, Kdiffus=None, device='cuda', save_debugg_path = '/homes/g24meda/lab/4dvarnet-starter/outputs/') -> None:
         super().__init__()
         print('initialisation of QG')
         
-
         # Integration time (1 day)
         self.tint = tint
 
@@ -1021,6 +928,9 @@ class QGCost_new(nn.Module):
 
         # Diffusion coefficient 
         self.Kdiffus = Kdiffus
+        
+        # Phi_qg(x) monitoring
+        self.save_debugg_path = save_debugg_path
 
     def h2uv(self, h):
         """ SSH to U,V
@@ -1160,12 +1070,12 @@ class QGCost_new(nn.Module):
 
     def forward_QG(self, h0, save = True):
         """
-        Forward model time integration
+        Forward model time integration.
 
         Args:
-            h0: Tensor of initial SSH field with shape (B, D, ny, nx) with B=1 (batch size =1), D = 15 typically
+            h0: Tensor of initial SSH field with shape (B, D, ny, nx) with B=1 (batch size must be 1!), D = 15 typically
         Returns:
-            h1: Tensor of final SSH given by N independant QG integration of 24 hours, with shape (D, ny, nx).
+            h1: Tensor of final SSH given by D independant QG integrations of 24 hours, with shape (D, ny, nx).
         """
         with torch.no_grad():
             h0 = h0[0]
@@ -1192,14 +1102,11 @@ class QGCost_new(nn.Module):
                 h1, q1 = self.step(h1, q1, hb, qb)
                 if save and _ in ns_hourly:
                     ssh_hourly_forecasts.append(h1)
-            if save:
-                pass
-                #torch.save(torch.stack(ssh_hourly_forecasts),self.save_debugg_path + 'hourly_qg_forecasts.pt')
-            save_debugg_path =  '/homes/g24meda/lab/4dvarnet-starter/outputs/whole_lrgmod_01_lrgrad_100_nstep_20_sigma2_kernelsize21_alpha1_1_alpha2_05_avgpool2_dt10min_dimhidd48_augdata3/'
-            torch.save(h1.unsqueeze(0), save_debugg_path + 'qg_forwarded_state.pt')
-            #torch.save(h0.unsqueeze(0), self.save_debugg_path + 'state.pt')
+            #save_debugg_path =  '/homes/g24meda/lab/4dvarnet-starter/outputs/whole_lrgmod_01_lrgrad_100_nstep_20_sigma2_kernelsize21_alpha1_1_alpha2_05_avgpool2_dt10min_dimhidd48_augdata3/'
+
+            # Phi_qg(x) monitoring
+            torch.save(h1.unsqueeze(0), self.save_debugg_path + 'qg_forwarded_state.pt')
             if torch.isnan(h1).any():
-                #print("NaN detected in h1, saving last clean state, and forwarded state")
                 raise ValueError("NaN detected in h1, saving last clean state, and forwarded state")
             
             if self.avg_pool is not None:
@@ -1211,13 +1118,30 @@ class QGCost_new(nn.Module):
         return F.mse_loss(state[0][1:], self.forward_QG(state)[:-1])
 
 
+# ===========================================================================
+#    QG and bilin Prior Cost : phi_qg + phi_bilin
+# ===========================================================================
+# Description:
+#    The QGCost_and_bilin cost represents a prior cost function that is
+#    the sum of two prior costs : the classical trainable bilinear cost
+#    and the newly introduced QG cost. The billinear cost is thus aimed
+#    at learning the residu of the QG cost, allowing the 4dvarnet framework
+#    to explore solutions that are a bit further away from the physics 
+#    prescribed by the QG model.
+#
+# Formula:
+#    |x - phi(x)|, where phi(x) = phi_qg(x) + phi_bilin(x)
+# ===========================================================================
 
 class QGCost_and_bilin(nn.Module):
-    def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None, bilin_quad = True, domain_limits=None, res=0.05, avg_pool = None, dt=None, tint=86400, SSH=None, c=None, g=9.81, f=None, Kdiffus=None, device='cuda') -> None:
+    def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None, bilin_quad = True, domain_limits=None, res=0.05, avg_pool = None, dt=None, tint=86400, SSH=None, c=None, g=9.81, f=None, Kdiffus=None, device='cuda', save_debugg_path = '/homes/g24meda/lab/4dvarnet-starter/outputs/') -> None:
         super().__init__()
         print('initialisation of QG and bilinear cost')
         
-        ######## Initialisation of bilinear cost ########
+        # ==============================================
+        #           Initialisation of bilinear cost
+        # ==============================================
+
         self.bilin_quad = bilin_quad
         self.conv_in = nn.Conv2d(
             dim_in, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
@@ -1247,7 +1171,10 @@ class QGCost_and_bilin(nn.Module):
             else nn.Identity()
         )
 
-        ######## Initialisation of QG cost ########
+        # ==============================================
+        #           Initialisation of QG cost
+        # ==============================================
+        
         # Integration time (1 day)
         self.tint = tint
 
@@ -1495,12 +1422,12 @@ class QGCost_and_bilin(nn.Module):
 
     def forward_QG(self, h0, save = True):
         """
-        Forward model time integration
+        Forward QG model integration
 
         Args:
             h0: Tensor of initial SSH field with shape (B, D, ny, nx) with B=1 (batch size =1), D = 15 typically
         Returns:
-            h1: Tensor of final SSH given by N independant QG integration of 24 hours, with shape (D, ny, nx).
+            h1: Tensor of final SSH given by D independant QG integrations of 24 hours, with shape (D, ny, nx).
         """
         with torch.no_grad():
             h0 = h0[0]
@@ -1551,8 +1478,6 @@ class QGCost_and_bilin(nn.Module):
             torch.cat([self.bilin_1(x), nonlin], dim=1)
         )
         x = self.up(x)
-        #save_debugg_path = '/homes/g24meda/lab/4dvarnet-starter/outputs/QG_and_bilin_lrgmod_01_lrgrad_100_nstep_20_sigma2_kernelsize21_alpha1_1_alpha2_05_avgpool2_dt10min/'
-        #torch.save(x, save_debugg_path + 'qg_forwarded_state.pt')
         return x
 
     def forward(self, state):
@@ -1566,10 +1491,31 @@ class QGCost_and_bilin(nn.Module):
             
     
 
+# ==============================================================================================
+#    QG weak fourdvar Cost : prior cost integrating the QG model under weak 4dvar formulation
+# ==============================================================================================
+# Description:
+#    The QG weak fourdvar Cost represents a prior cost that integrates
+#    the Quasi-Geostrophic (QG) model, but relates to weak 4dvar formulation.
+#    We proceed to only one forward integration of QG model over N = 15 days, given the
+#    state at day 0. 
+#
+# Formula:
+#    |x - phi_qg_weak(x)|
+#
+# Details:
+#    - phi_qg_weak(x) corresponds to one forward integration
+#      of the QG model over a time span of N = 15 days (batch lenght).
+#    - The integration has a time step typically < 10 minutes.
+#    - Specifically:
+#        phi_qg_weak(x)(t) = forward_qg(x(0),t) with forward_qg(x(0),t) beeing the forward integration 
+#        of QG over t days starting from state at day 0.
+#        ie phi_qg_weak : x -> [forward_qg(x(0),0),forward_qg(x(0),1), .. , forward_qg(x(0),N-1)]
+# ================================================================================================
 
-class QGCost_weak_fourdvar(nn.Module):
-    ## this QG code implementation relates to 'weak 4dvar' ie only one QG forecast of N (the lenght of Data assimilation window, typically 15) days, given ssh at day 0. 
-    def __init__(self, domain_limits=None, res=0.05, dt=None, nb_days_int=None, SSH=None, c=None, g=9.81, f=None, Kdiffus=None, device='cuda') -> None:
+
+class QGCost_weak_fourdvar(nn.Module): 
+    def __init__(self, domain_limits=None, res=0.05, dt=None, nb_days_int=None, SSH=None, c=None, g=9.81, f=None, Kdiffus=None, device='cuda', save_debugg_path = '/homes/g24meda/lab/4dvarnet-starter/outputs/') -> None:
         super().__init__()
         print('initialisation of QG')
         
@@ -1815,12 +1761,12 @@ class QGCost_weak_fourdvar(nn.Module):
 
     def forward_QG(self, h0, save = False):
         """
-        Forward model time integration
+        Forward QG model integration
 
         Args:
             h0: Tensor of initial SSH field with shape (B, D, ny, nx) with B=1 (batch size =1), D = 15 typically
         Returns:
-            h1: Tensor of final SSH given by one single QG integration over D days nitialized with SSH at D = 0, with shape (D, ny, nx).
+            h1: Tensor of final SSH given by one single QG integration over D days initialized with SSH at D = 0, with shape (D, ny, nx).
         """
         with torch.no_grad():
             h0 = h0[0][0].unsqueeze(0)
