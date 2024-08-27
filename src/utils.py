@@ -233,7 +233,7 @@ def mask_input(da, mask_list):
     da = np.where(np.isfinite(mask), da, np.empty_like(da).fill(np.nan)).astype(np.float32)
     return da
 
-def open_glorys12_data(path, masks_path, domain, variables="zos", masking=True, test_cut=None, add_mask=False):
+def open_glorys12_data(path, masks_path, domain, variables="zos", masking=True, test_cut=None):
 
     print("LOADING input data")
     ds =  (

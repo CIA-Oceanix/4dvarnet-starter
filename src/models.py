@@ -38,7 +38,15 @@ class Lit4dVarNet(pl.LightningModule):
     def weighted_mse(err, weight, mask):
         err_w = err * weight[None, ...]
         non_zeros = (torch.ones_like(err) * weight[None, ...]) == 0.0
-        err_num = err.isfinite() & ~non_zeros & mask.type(torch.bool)
+        err_num = err.isfinite() & ~non_zeros & mask
+        '''if err.isfinite().float().mean() != 1.:
+            print('err not entirely finite')
+            print(err.isfinite().float().mean())
+        if mask.float().mean() !=1.:
+            print('err not entirely finite')
+            print(err.isfinite().float().mean())
+        if not torch.equal(err.isfinite() & ~non_zeros, err.isfinite() & ~non_zeros & mask):
+            print('mask changed mse')'''
         if err_num.sum() == 0:
             return torch.scalar_tensor(1000.0, device=err_num.device).requires_grad_()
         loss = F.mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
@@ -60,7 +68,7 @@ class Lit4dVarNet(pl.LightningModule):
         return reverse_regrid_out
 
     def step(self, batch, phase=""):
-        if self.training and batch.tgt.isfinite().float().mean() < 0.9 or batch.mask.float().mean() < 0.1:
+        if self.training and (batch.tgt.isfinite().float().mean() < 0.9 or batch.mask.float().mean() < 0.1):
             return None, None
 
         loss, out = self.base_step(batch, phase)
@@ -163,6 +171,8 @@ class Lit4dVarNetForecast(Lit4dVarNet):
     pre_metric_fn: preprocessing functions to apply to the reconstruction
     norm_stats: normalisation stats of data
     persist_rw: if True: rec_weight saved alongside parameters
+    test_regrid: [[original size], [regrided size]]: will regrid observations for test time only
+    loss_masking: will mask nan values present in the target for loss and gradient computations
     """
 
     def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, test_regrid=None, loss_masking=True):
@@ -174,10 +184,12 @@ class Lit4dVarNetForecast(Lit4dVarNet):
         dims = new_input.size()
         new_input[:, dims[1]//2:, :, :] = 0.
         mask_batch = batch._replace(input=new_input)
-        mask_batch = batch._replace(input=(batch.input).nan_to_num())
+        mask_batch = mask_batch._replace(input=(batch.input).nan_to_num())
         if loss_masking:
-            mask_batch = batch._replace(mask=~torch.isnan(batch.tgt).type(torch.bool))
-        mask_batch = batch._replace(tgt=(batch.tgt).nan_to_num())
+            mask_batch = mask_batch._replace(mask=(batch.tgt).isfinite().clone().type(torch.bool))
+        else:
+            mask_batch = mask_batch._replace(mask=torch.full_like(batch.tgt, True).type(torch.bool))
+        mask_batch = mask_batch._replace(tgt=(batch.tgt).nan_to_num())
         return mask_batch
 
     def training_step(self, batch, batch_idx):
@@ -355,7 +367,7 @@ class BaseObsCost(nn.Module):
         self.w = w
 
     def forward(self, state, batch):
-        msk = batch.input.isfinite() & batch.mask.type(torch.bool)
+        msk = batch.input.isfinite() & batch.mask
         return self.w * F.mse_loss(state[msk], batch.input.nan_to_num()[msk])
 
 
@@ -404,5 +416,5 @@ class BilinAEPriorCost(nn.Module):
         return x
 
     def forward(self, state, mask):
-        mask = mask.type(torch.bool)
+        mask = mask
         return F.mse_loss(state[mask], self.forward_ae(state)[mask])
