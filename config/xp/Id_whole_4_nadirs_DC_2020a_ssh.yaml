@@ -72,26 +72,14 @@ model:
       crop: {time: 0, lat: 0, lon: 20}
       offset: 1
   solver: 
-    _target_: src.models.GradSolver_QG
+    _target_: src.models.GradSolver_Id
     x_init: datamodule.input_da.path_mdt
     n_step: 20 #20 #5 #5 #10
     lr_mod: 0.1 # 0.1
     lr_grad: 100 #1000 # 1e3 #1e3
-    save_debugg_path : '/homes/g24meda/lab/4dvarnet-starter/outputs/all_year_qg_lrgmod_01_lrgrad_100_nstep_20_sigma2_kernelsize21_alpha1_1_alpha2_05_avgpool2_dt8min_dimhidd48_augdata1/' # _dimhidd48_augdata3/'
+    save_debugg_path : '/homes/g24meda/lab/4dvarnet-starter/outputs/all_year_Id_lrgmod_01_lrgrad_100_nstep_20_sigma2_kernelsize21_alpha1_1_alpha2_05_avgpool2_dimhidd48_augdata1/'
     prior_cost: 
-      _target_: src.models.QGCost_new
-      domain_limits: ${domain.train} # limits in lon, lat (degrees)
-      res: 0.05 # resolution (degrees)
-      avg_pool : 2 #2 #None
-      dt: 480 #600 # 120 #300 # Integration time step (sec) : 3 minutes
-      tint: 86400 # Integration time (sec) : 1 day
-      SSH:  # Mask for SSH
-      c: 2.7 # phase velocity (m/s)
-      g: 9.81 # m/s^2
-      f: # Coriolis freq, if not provided computed from c and g 
-      Kdiffus: # diffusion coefficient
-      device: 'cuda'
-      save_debugg_path : ${model.solver.save_debugg_path}
+      _target_: src.models.Cost_Id
     obs_cost: 
       _target_: src.models.BaseObsCost
     grad_mod: 
