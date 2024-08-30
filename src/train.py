@@ -7,7 +7,7 @@ def base_training(trainer, dm, lit_mod, ckpt=None):
         print("Logdir:", trainer.logger.log_dir)
         print()
 
-    #ckpt = '/homes/g24meda/lab/4dvarnet-starter/outputs/all_year_Id_lrgmod_01_lrgrad_100_nstep_20_sigma2_kernelsize21_alpha1_1_alpha2_05_avgpool2_dimhidd48_augdata1/17-27-06/Id_whole_4_nadirs_DC_2020a_ssh/checkpoints/val_mse=7.06618-epoch=010.ckpt'
+    #ckpt = '/homes/g24meda/lab/4dvarnet-starter/outputs/finals_QG_15days_lrgmod_01_lrgrad_100_nstep_20_sigma2_kernelsize21_alpha1_1_alpha2_05_avgpool2_dt15min_dimhidd48_onoffnormalization/21-02-00/QG_new_4_nadirs_DC_2020a_ssh/checkpoints/val_mse=10.12982-epoch=015.ckpt'
     trainer.fit(lit_mod, datamodule=dm, ckpt_path=ckpt)
     trainer.test(lit_mod, datamodule=dm, ckpt_path='best')
     #trainer.test(lit_mod, datamodule=dm, ckpt_path='/homes/g24meda/lab/4dvarnet-starter/outputs/Id_lrgmod_01_lrgrad_100_nstep_20_sigma2_kernelsize21_alpha1_1_alpha2_05_avgpool2_dt10min/11-28-12/Id_4_nadirs_DC_2020a_ssh/checkpoints/val_mse=7.58272-epoch=094.ckpt')

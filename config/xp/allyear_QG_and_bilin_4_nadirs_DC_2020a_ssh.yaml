@@ -77,7 +77,7 @@ model:
     n_step: 20 #20 #5 #5 #10
     lr_mod: 0.1 # 0.1
     lr_grad: 100 #1000 # 1e3 #1e3
-    save_debugg_path : '/homes/g24meda/lab/4dvarnet-starter/outputs/all_year_qg_and_bilin_lrgmod_01_lrgrad_100_nstep_20_sigma2_kernelsize21_alpha1_1_alpha2_05_avgpool2_dt8min_dimhidd48_dimbilin32_augdata1/'
+    save_debugg_path : '/homes/g24meda/lab/4dvarnet-starter/outputs/QG_and_bilin_15days_lrgmod_01_lrgrad_100_nstep_20_sigma2_kernelsize21_alpha1_1_alpha2_05_avgpool2_dt15min_dimhidd48_nonormalization/'
     prior_cost: 
       _target_: src.models.QGCost_and_bilin 
       # bilin cost parameters
@@ -89,7 +89,7 @@ model:
       domain_limits: ${domain.train} # limits in lon, lat (degrees)
       res: 0.05 # resolution (degrees)
       avg_pool : 2 #2 #None
-      dt: 480 #600 # 120 #300 # Integration time step (sec) : 3 minutes
+      dt: 900 #600 # 120 #300 # Integration time step (sec) : 3 minutes
       tint: 86400 # Integration time (sec) : 1 day
       SSH:  # Mask for SSH
       c: 2.7 # phase velocity (m/s)

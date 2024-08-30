@@ -167,7 +167,7 @@ class GradSolver(nn.Module):
         return state
 
 class GradSolver_Id(nn.Module):
-    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_mod,lr_grad=0.2, save_debugg_path = '/homes/g24meda/lab/4dvarnet-starter/outputs/', **kwargs):
+    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_mod,lr_grad=0.2, save_debugg_path = None , **kwargs):
         super().__init__()
         self.prior_cost = prior_cost
         self.obs_cost = obs_cost
@@ -206,21 +206,21 @@ class GradSolver_Id(nn.Module):
         self.gaussian_kernel = gaussian_kernel.view(1, 1, self.kernel_size, self.kernel_size)  # Reshape for 2D convolution
         self.padding_size = self.kernel_size // 2
 
-
         # monitor the variationnal cost
-        self.prior_cost_values = []
-        self.obs_cost_values = []
-        self.var_cost_values = []
-        self.background_values = []
-
-        self.prior_cost_values_current = []
-        self.obs_cost_values_current = []
-        self.var_cost_values_current = []
-
-        if not os.path.exists(save_debugg_path):
-            os.makedirs(save_debugg_path)
         self.save_debugg_path = save_debugg_path
-    
+        if self.save_debugg_path is not None:
+            self.prior_cost_values = []
+            self.obs_cost_values = []
+            self.var_cost_values = []
+            self.background_values = []
+
+            self.prior_cost_values_current = []
+            self.obs_cost_values_current = []
+            self.var_cost_values_current = []
+
+            if not os.path.exists(self.save_debugg_path):
+                os.makedirs(self.save_debugg_path)
+                
     def init_state(self, batch, x_init=None):
         if x_init is not None:
             return x_init
@@ -228,7 +228,8 @@ class GradSolver_Id(nn.Module):
         ## Initialisation of state with MDT ###
         x_init = self.mdt.detach().requires_grad_(True)
         
-        #torch.save(x_init, self.save_debugg_path + 'init_state.pt')
+        if self.save_debugg_path is not None:
+            torch.save(x_init, self.save_debugg_path + 'init_state.pt')
         return x_init
     
 
@@ -247,43 +248,42 @@ class GradSolver_Id(nn.Module):
         self.var_cost_values.append(var_cost_value)
 
         # Store costs for current batch
-        if step == 0:
-            self.prior_cost_values_current = []
-            self.obs_cost_values_current = []
-            self.var_cost_values_current = []
-        self.prior_cost_values_current.append(prior_cost_value)
-        self.obs_cost_values_current.append(obs_cost_value)
-        self.var_cost_values_current.append(var_cost_value)
+        if self.save_debugg_path is not None:
+            if step == 0:
+                self.prior_cost_values_current = []
+                self.obs_cost_values_current = []
+                self.var_cost_values_current = []
+            self.prior_cost_values_current.append(prior_cost_value)
+            self.obs_cost_values_current.append(obs_cost_value)
+            self.var_cost_values_current.append(var_cost_value)
+            # Save figure of costs curves
+            #if step % 1 == 0:
+            if step == (self.n_step - 1):
+                # Store costs for all batches
+                plt.figure(figsize=(10, 5))
+                plt.plot(self.prior_cost_values, label='Prior Cost')
+                plt.plot(self.obs_cost_values, label='Observation Cost')
+                plt.plot(self.var_cost_values, label='Total Cost')
+                plt.xlabel('Solver iteration')
+                plt.ylabel('Cost')
+                plt.title('Costs evolution')
+                plt.legend()
+                plt.grid(True)
+                plt.savefig(self.save_debugg_path + 'var_costs_all_batches.png')
+                plt.close()
 
-
-        # Save figure of costs curves
-        #if step % 1 == 0:
-        if step == (self.n_step - 1):
-            # Store costs for all batches
-            plt.figure(figsize=(10, 5))
-            plt.plot(self.prior_cost_values, label='Prior Cost')
-            plt.plot(self.obs_cost_values, label='Observation Cost')
-            plt.plot(self.var_cost_values, label='Total Cost')
-            plt.xlabel('Solver iteration')
-            plt.ylabel('Cost')
-            plt.title('Costs evolution')
-            plt.legend()
-            plt.grid(True)
-            plt.savefig(self.save_debugg_path + 'var_costs_all_batches.png')
-            plt.close()
-
-            # Store costs for current batch
-            plt.figure(figsize=(10, 5))
-            plt.plot(self.prior_cost_values_current, label='Prior Cost')
-            plt.plot(self.obs_cost_values_current, label='Observation Cost')
-            plt.plot(self.var_cost_values_current, label='Total Cost')
-            plt.xlabel('Solver iteration')
-            plt.ylabel('Cost')
-            plt.title('Costs evolution')
-            plt.legend()
-            plt.grid(True)
-            plt.savefig(self.save_debugg_path + 'var_costs_current_batch.png')
-            plt.close()
+                # Store costs for current batch
+                plt.figure(figsize=(10, 5))
+                plt.plot(self.prior_cost_values_current, label='Prior Cost')
+                plt.plot(self.obs_cost_values_current, label='Observation Cost')
+                plt.plot(self.var_cost_values_current, label='Total Cost')
+                plt.xlabel('Solver iteration')
+                plt.ylabel('Cost')
+                plt.title('Costs evolution')
+                plt.legend()
+                plt.grid(True)
+                plt.savefig(self.save_debugg_path + 'var_costs_current_batch.png')
+                plt.close()
 
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
 
@@ -327,21 +327,22 @@ class GradSolver_Id(nn.Module):
 
         smoothed_update = apply_gaussian_smoothing(state_update, kernel_size, sigma)
 
-        print('gmod coeff', self.lr_mod * 1 / (step + 1))
-        print('norm of gmod update', torch.norm(self.lr_mod * 1 / (step + 1) * gmod, p=2))
-        print('grad coeff', self.lr_grad * (step + 1) / self.n_step)
-        print('norm of grad update', torch.norm(self.lr_grad *(step + 1) / self.n_step * grad, p=2))
+        if self.save_debugg_path is not None:
+            print('gmod coeff', self.lr_mod * 1 / (step + 1))
+            print('norm of gmod update', torch.norm(self.lr_mod * 1 / (step + 1) * gmod, p=2))
+            print('grad coeff', self.lr_grad * (step + 1) / self.n_step)
+            print('norm of grad update', torch.norm(self.lr_grad *(step + 1) / self.n_step * grad, p=2))
 
-        # torch.save(state, self.save_debugg_path + 'state.pt')
-        # torch.save(state_update, self.save_debugg_path + 'state_update.pt')
-        # torch.save(smoothed_update, self.save_debugg_path + 'smoothed_update.pt')
-        # torch.save(batch.tgt, self.save_debugg_path + 'target.pt')
+            torch.save(state, self.save_debugg_path + 'state.pt')
+            torch.save(state_update, self.save_debugg_path + 'state_update.pt')
+            torch.save(smoothed_update, self.save_debugg_path + 'smoothed_update.pt')
+            torch.save(batch.tgt, self.save_debugg_path + 'target.pt')
         
         # debugging
         if torch.isnan(state_update).any():
             raise ValueError("NaN detected in state_update, saving last clean state")
       
-        return state - smoothed_update #resized_update # state_update
+        return state - smoothed_update # state_update
 
     def forward(self, batch):
         with torch.set_grad_enabled(True):
@@ -349,7 +350,8 @@ class GradSolver_Id(nn.Module):
             self.grad_mod.reset_state(batch.input)
             print('\n'+'### new batch ###'+ '\n')
             for step in range(self.n_step):
-                print('\n## solver iteration n°: '+ str(step) + ' ## \n')
+                if self.save_debugg_path is not None:
+                    print('\n## solver iteration n°: '+ str(step) + ' ## \n')
                 state = self.solver_step(state, batch, step=step)
 
                 if not self.training:
@@ -361,7 +363,7 @@ class GradSolver_Id(nn.Module):
     
     
 class GradSolver_QG(nn.Module):
-    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_mod,lr_grad=0.2, save_debugg_path = '/homes/g24meda/lab/4dvarnet-starter/outputs/', **kwargs):
+    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_mod,lr_grad=0.2, save_debugg_path = None,**kwargs):
         super().__init__()
         self.prior_cost = prior_cost
         self.obs_cost = obs_cost
@@ -389,19 +391,19 @@ class GradSolver_QG(nn.Module):
         # ==============================================
         #     Monitoring of the variationnal costs
         # ==============================================
-        self.prior_cost_values = []
-        self.obs_cost_values = []
-        self.var_cost_values = []
-        self.background_values = []
-
-        self.prior_cost_values_current = []
-        self.obs_cost_values_current = []
-        self.var_cost_values_current = []
-
-        if not os.path.exists(save_debugg_path):
-            os.makedirs(save_debugg_path)
         self.save_debugg_path = save_debugg_path
-        
+        if self.save_debugg_path is not None:
+            self.prior_cost_values = []
+            self.obs_cost_values = []
+            self.var_cost_values = []
+            self.background_values = []
+
+            self.prior_cost_values_current = []
+            self.obs_cost_values_current = []
+            self.var_cost_values_current = []
+
+            if not os.path.exists(self.save_debugg_path):
+                os.makedirs(self.save_debugg_path)
 
     def init_state(self, batch, x_init=None):
         if x_init is not None:
@@ -410,16 +412,15 @@ class GradSolver_QG(nn.Module):
         # ==============================================
         #      Initialisation of state with MDT
         # ==============================================
-
         x_init = self.mdt.detach().requires_grad_(True)
 
         # ==============================================
         #      Initialisation of state with obs 
         # ==============================================
-
         # x_init = batch.input.nan_to_num().detach().requires_grad_(True) 
         
-        #torch.save(x_init, self.save_debugg_path + 'init_state.pt')
+        if self.save_debugg_path is not None:
+            torch.save(x_init, self.save_debugg_path + 'init_state.pt')
         return x_init
     
 
@@ -432,51 +433,52 @@ class GradSolver_QG(nn.Module):
         #     Monitoring of the variationnal costs
         # ==============================================
 
-        # # Store costs for all batches
-        # prior_cost_value = alpha_1 * self.prior_cost(state).item()
-        # obs_cost_value = alpha_2 * self.obs_cost(state, batch).item()
-        # var_cost_value = var_cost.item()
-        # self.prior_cost_values.append(prior_cost_value)
-        # self.obs_cost_values.append(obs_cost_value)
-        # self.var_cost_values.append(var_cost_value)
+        if self.save_debugg_path is not None:
+            # Store costs for all batches
+            prior_cost_value = alpha_1 * self.prior_cost(state).item()
+            obs_cost_value = alpha_2 * self.obs_cost(state, batch).item()
+            var_cost_value = var_cost.item()
+            self.prior_cost_values.append(prior_cost_value)
+            self.obs_cost_values.append(obs_cost_value)
+            self.var_cost_values.append(var_cost_value)
 
-        # # Store costs for current batch
-        # if step == 0:
-        #     self.prior_cost_values_current = []
-        #     self.obs_cost_values_current = []
-        #     self.var_cost_values_current = []
-        # self.prior_cost_values_current.append(prior_cost_value)
-        # self.obs_cost_values_current.append(obs_cost_value)
-        # self.var_cost_values_current.append(var_cost_value)
+            # Store costs for current batch
+            if step == 0:
+                self.prior_cost_values_current = []
+                self.obs_cost_values_current = []
+                self.var_cost_values_current = []
+            self.prior_cost_values_current.append(prior_cost_value)
+            self.obs_cost_values_current.append(obs_cost_value)
+            self.var_cost_values_current.append(var_cost_value)
 
 
-        # # Save figure of costs curves
-        # if step == (self.n_step - 1):
-        #     # Store costs for all batches
-        #     plt.figure(figsize=(10, 5))
-        #     plt.plot(self.prior_cost_values, label='Prior Cost')
-        #     plt.plot(self.obs_cost_values, label='Observation Cost')
-        #     plt.plot(self.var_cost_values, label='Total Cost')
-        #     plt.xlabel('Solver iteration')
-        #     plt.ylabel('Cost')
-        #     plt.title('Costs evolution')
-        #     plt.legend()
-        #     plt.grid(True)
-        #     plt.savefig(self.save_debugg_path + 'var_costs_all_batches.png')
-        #     plt.close()
+            # Save figure of costs curves
+            if step == (self.n_step - 1):
+                # Store costs for all batches
+                plt.figure(figsize=(10, 5))
+                plt.plot(self.prior_cost_values, label='Prior Cost')
+                plt.plot(self.obs_cost_values, label='Observation Cost')
+                plt.plot(self.var_cost_values, label='Total Cost')
+                plt.xlabel('Solver iteration')
+                plt.ylabel('Cost')
+                plt.title('Costs evolution')
+                plt.legend()
+                plt.grid(True)
+                plt.savefig(self.save_debugg_path + 'var_costs_all_batches.png')
+                plt.close()
 
-        #     # Store costs for current batch
-        #     plt.figure(figsize=(10, 5))
-        #     plt.plot(self.prior_cost_values_current, label='Prior Cost')
-        #     plt.plot(self.obs_cost_values_current, label='Observation Cost')
-        #     plt.plot(self.var_cost_values_current, label='Total Cost')
-        #     plt.xlabel('Solver iteration')
-        #     plt.ylabel('Cost')
-        #     plt.title('Costs evolution')
-        #     plt.legend()
-        #     plt.grid(True)
-        #     plt.savefig(self.save_debugg_path + 'var_costs_current_batch.png')
-        #     plt.close()
+                # Store costs for current batch
+                plt.figure(figsize=(10, 5))
+                plt.plot(self.prior_cost_values_current, label='Prior Cost')
+                plt.plot(self.obs_cost_values_current, label='Observation Cost')
+                plt.plot(self.var_cost_values_current, label='Total Cost')
+                plt.xlabel('Solver iteration')
+                plt.ylabel('Cost')
+                plt.title('Costs evolution')
+                plt.legend()
+                plt.grid(True)
+                plt.savefig(self.save_debugg_path + 'var_costs_current_batch.png')
+                plt.close()
 
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
 
@@ -527,15 +529,16 @@ class GradSolver_QG(nn.Module):
         # Apply it to the update
         smoothed_update = apply_gaussian_smoothing(state_update, kernel_size, sigma)
 
-        # print('gmod coeff', self.lr_mod * 1 / (step + 1))
-        # print('norm of gmod update', torch.norm(self.lr_mod * 1 / (step + 1) * gmod, p=2))
-        # print('grad coeff', self.lr_grad * (step + 1) / self.n_step)
-        # print('norm of grad update', torch.norm(self.lr_grad *(step + 1) / self.n_step * grad, p=2))
+        if self.save_debugg_path is not None:
+            print('gmod coeff', self.lr_mod * 1 / (step + 1))
+            print('norm of gmod update', torch.norm(self.lr_mod * 1 / (step + 1) * gmod, p=2))
+            print('grad coeff', self.lr_grad * (step + 1) / self.n_step)
+            print('norm of grad update', torch.norm(self.lr_grad *(step + 1) / self.n_step * grad, p=2))
 
-        # torch.save(state, self.save_debugg_path + 'state.pt')
-        # torch.save(state_update, self.save_debugg_path + 'state_update.pt')
-        # torch.save(smoothed_update, self.save_debugg_path + 'smoothed_update.pt')
-        # torch.save(batch.tgt, self.save_debugg_path + 'target.pt')
+            torch.save(state, self.save_debugg_path + 'state.pt')
+            torch.save(state_update, self.save_debugg_path + 'state_update.pt')
+            torch.save(smoothed_update, self.save_debugg_path + 'smoothed_update.pt')
+            torch.save(batch.tgt, self.save_debugg_path + 'target.pt')
         
         # debugging
         if torch.isnan(state_update).any():
@@ -549,7 +552,8 @@ class GradSolver_QG(nn.Module):
             self.grad_mod.reset_state(batch.input)
             print('\n'+'### new batch ###'+ '\n')
             for step in range(self.n_step):
-                #print('\n## solver iteration n°: '+ str(step) + ' ## \n')
+                if self.save_debugg_path is not None:
+                    print('\n## solver iteration n°: '+ str(step) + ' ## \n')
                 state = self.solver_step(state, batch, step=step)
 
                 if not self.training:
@@ -558,240 +562,6 @@ class GradSolver_QG(nn.Module):
             if not self.training:
                 state = self.prior_cost.forward_QG(state).unsqueeze(0)
         return state
-
-
-    
-class debugg_GradSolver_QG(nn.Module):
-    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_mod,lr_grad=0.2, save_debugg_path = '/homes/g24meda/lab/4dvarnet-starter/outputs/', **kwargs):
-        super().__init__()
-        self.prior_cost = prior_cost
-        self.obs_cost = obs_cost
-        self.grad_mod = grad_mod
-
-        self.n_step = n_step
-        self.lr_mod = lr_mod
-        self.lr_grad = lr_grad
-
-        self._grad_norm = None
-
-        ### Initialisation of state with MDT ###
-        lon_min = -64 
-        lon_max = -52.
-        lat_max = 44.
-        lat_min = 32.
-        mdt = torch.tensor(xr.open_dataset('/DATASET/2023_SSH_mapping_train_eNATL60_test_NATL60/NATL60-CJM165/ds_ref_1_20.nc')['mdt']
-                .sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).values.astype(np.float32))
-        mdt = (mdt - 0.3174050238130743) / 0.3889927646359018
-        mdt_tensor = mdt.to('cuda').unsqueeze(0).unsqueeze(1).repeat(1, 15, 1, 1)
-        self.mdt = torch.nan_to_num(mdt_tensor, nan=0.0)
-
-        ### Initialisation of state with saptially filtered GT data ###
-        # Function to create a Gaussian kernel
-        def gaussian_kernel(size, sigma):
-            x = torch.arange(-size//2 + 1., size//2 + 1.)
-            y = torch.arange(-size//2 + 1., size//2 + 1.)
-            x_grid, y_grid = torch.meshgrid(x, y)
-            kernel = torch.exp(-0.5 * (x_grid**2 + y_grid**2) / sigma**2)
-            kernel = kernel / kernel.sum()
-            return kernel.to('cuda')
-        # Create a Gaussian kernel
-        self.kernel_size = 21
-        self.sigma = 8
-        gaussian_kernel = gaussian_kernel(self.kernel_size, self.sigma)
-        self.gaussian_kernel = gaussian_kernel.view(1, 1, self.kernel_size, self.kernel_size)  # Reshape for 2D convolution
-        self.padding_size = self.kernel_size // 2
-
-
-        # monitor the variationnal cost
-        self.prior_cost_values = []
-        self.obs_cost_values = []
-        self.var_cost_values = []
-        self.background_values = []
-
-        self.prior_cost_values_current = []
-        self.obs_cost_values_current = []
-        self.var_cost_values_current = []
-
-        if not os.path.exists(save_debugg_path):
-            os.makedirs(save_debugg_path)
-        self.save_debugg_path = save_debugg_path
-        
-
-    def init_state(self, batch, x_init=None):
-        if x_init is not None:
-            return x_init
-
-        # ==============================================
-        #      Initialisation of state with MDT
-        # ==============================================
-
-        # x_init = self.mdt.detach().requires_grad_(True)
-
-        # ===============================================================
-        #      Initialisation of state with spatially filtered GT data
-        # ===============================================================
-
-        # Replace NaNs in the tensor with 0
-        # gt = torch.nan_to_num(batch.tgt, nan=0.0).to('cuda')
-        # # Apply Gaussian filter to each 2D slice along dimension 1
-        # smoothed_out_data = torch.empty_like(gt)
-        # self.padding_size = self.kernel_size // 2
-        # for i in range(gt.shape[1]):
-        #     # Apply reflection padding before convolution
-        #     padded_slice = F.pad(gt[0, i].unsqueeze(0).unsqueeze(0), (self.padding_size, self.padding_size, self.padding_size, self.padding_size), mode='reflect')
-        #     smoothed_out_data[0, i] = F.conv2d(padded_slice, self.gaussian_kernel).squeeze()
-        # x_init = smoothed_out_data.detach().requires_grad_(True)
-
-        # ==============================================
-        #      Initialisation of state with obs 
-        # ==============================================
-
-        # x_init = batch.input.nan_to_num().detach().requires_grad_(True) 
-        
-
-        x_init = batch.tgt.nan_to_num().detach().requires_grad_(True)
-        torch.save(x_init, self.save_debugg_path + 'init_state.pt')
-        return x_init
-        
-    
-
-    def solver_step(self, state, batch, step):      
-        alpha_1 = 1.0  
-        alpha_2 = 0.5 
-        var_cost = alpha_1 * self.prior_cost(state) + alpha_2 * self.obs_cost(state, batch) 
-
-        # ==============================================
-        #     Monitoring of the variationnal costs
-        # ==============================================
-
-        # # Store costs for all batches
-        # prior_cost_value = alpha_1 * self.prior_cost(state).item()
-        # obs_cost_value = alpha_2 * self.obs_cost(state, batch).item()
-        # var_cost_value = var_cost.item()
-        # self.prior_cost_values.append(prior_cost_value)
-        # self.obs_cost_values.append(obs_cost_value)
-        # self.var_cost_values.append(var_cost_value)
-
-        # # Store costs for current batch
-        # if step == 0:
-        #     self.prior_cost_values_current = []
-        #     self.obs_cost_values_current = []
-        #     self.var_cost_values_current = []
-        # self.prior_cost_values_current.append(prior_cost_value)
-        # self.obs_cost_values_current.append(obs_cost_value)
-        # self.var_cost_values_current.append(var_cost_value)
-
-
-        # # Save figure of costs curves
-        # if step == (self.n_step - 1):
-        #     # Store costs for all batches
-        #     plt.figure(figsize=(10, 5))
-        #     plt.plot(self.prior_cost_values, label='Prior Cost')
-        #     plt.plot(self.obs_cost_values, label='Observation Cost')
-        #     plt.plot(self.var_cost_values, label='Total Cost')
-        #     plt.xlabel('Solver iteration')
-        #     plt.ylabel('Cost')
-        #     plt.title('Costs evolution')
-        #     plt.legend()
-        #     plt.grid(True)
-        #     plt.savefig(self.save_debugg_path + 'var_costs_all_batches.png')
-        #     plt.close()
-
-        #     # Store costs for current batch
-        #     plt.figure(figsize=(10, 5))
-        #     plt.plot(self.prior_cost_values_current, label='Prior Cost')
-        #     plt.plot(self.obs_cost_values_current, label='Observation Cost')
-        #     plt.plot(self.var_cost_values_current, label='Total Cost')
-        #     plt.xlabel('Solver iteration')
-        #     plt.ylabel('Cost')
-        #     plt.title('Costs evolution')
-        #     plt.legend()
-        #     plt.grid(True)
-        #     plt.savefig(self.save_debugg_path + 'var_costs_current_batch.png')
-        #     plt.close()
-
-        grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
-
-        gmod = self.grad_mod(grad)
-        # state_update = (
-        #     1 / (step + 1) * gmod
-        #         + self.lr_grad * (step + 1) / self.n_step * grad
-        # )
-        state_update = (
-            self.lr_mod * 1 / (step + 1) * gmod
-                + self.lr_grad * (step + 1) / self.n_step * grad
-        )
-
-        # ==============================================
-        #      Apply gaussian kernel to the update 
-        # ==============================================
-
-        def gaussian_kernel_update(size: int, sigma: float):
-            """Create a 2D Gaussian kernel."""
-            x = torch.arange(-size // 2 + 1, size // 2 + 1, dtype=torch.float32)
-            y = torch.arange(-size // 2 + 1, size // 2 + 1, dtype=torch.float32)
-            xx, yy = torch.meshgrid(x, y)
-            kernel = torch.exp(-(xx**2 + yy**2) / (2 * sigma**2))
-            kernel = kernel / kernel.sum()
-            return kernel
-
-        def apply_gaussian_smoothing(tensor: torch.Tensor, kernel_size: int, sigma: float):
-            """Apply Gaussian smoothing to the last two dimensions of a 4D tensor."""
-            N, C, H, W = tensor.shape
-            
-            # Create Gaussian kernel
-            kernel = gaussian_kernel_update(kernel_size, sigma)
-            kernel = kernel.view(1, 1, kernel_size, kernel_size).to(tensor.device)
-            
-            # Duplicate the kernel for each channel
-            kernel = kernel.repeat(C, 1, 1, 1)
-            
-            # Apply the Gaussian kernel to each channel
-            padding = kernel_size // 2
-            smoothed_tensor = F.conv2d(tensor, kernel, padding=padding, groups=C)
-            
-            return smoothed_tensor
-
-        # Initialize the gaussian kernel
-        kernel_size = 21  
-        sigma = 2.0 
-
-        # Apply it to the update
-        smoothed_update = apply_gaussian_smoothing(state_update, kernel_size, sigma)
-
-        # print('gmod coeff', self.lr_mod * 1 / (step + 1))
-        # print('norm of gmod update', torch.norm(self.lr_mod * 1 / (step + 1) * gmod, p=2))
-        # print('grad coeff', self.lr_grad * (step + 1) / self.n_step)
-        # print('norm of grad update', torch.norm(self.lr_grad *(step + 1) / self.n_step * grad, p=2))
-
-        torch.save(state, self.save_debugg_path + 'state.pt')
-        # torch.save(state_update, self.save_debugg_path + 'state_update.pt')
-        # torch.save(smoothed_update, self.save_debugg_path + 'smoothed_update.pt')
-        torch.save(batch.tgt, self.save_debugg_path + 'target.pt')
-        
-        # debugging
-        if torch.isnan(state_update).any():
-            raise ValueError("NaN detected in state_update, saving last clean state")
-        
-        return state - smoothed_update
-
-    def forward(self, batch):
-        with torch.set_grad_enabled(True):
-            state = self.init_state(batch)
-            self.grad_mod.reset_state(batch.input)
-            print('\n'+'### new batch ###'+ '\n')
-            for step in range(self.n_step):
-                print('\n## solver iteration n°: '+ str(step) + ' ## \n')
-                state = self.solver_step(state, batch, step=step)
-                raise ValueError("stop")
-
-                if not self.training:
-                    state = state.detach().requires_grad_(True)
-
-            if not self.training:
-                state = self.prior_cost.forward_QG(state).unsqueeze(0)
-        return state
-
 
 class ConvLstmGradModel(nn.Module):
     def __init__(self, dim_in, dim_hidden, kernel_size=3, dropout=0.1, downsamp=None):
@@ -1023,14 +793,19 @@ class QGCost_new(nn.Module):
     ###########################################################################
     #                             Initialization                              #
     ###########################################################################
-    def __init__(self, domain_limits=None, res=0.05, avg_pool = None, dt=None, tint=None, SSH=None, c=None, g=9.81, f=None, Kdiffus=None, device='cpu',save_debugg_path = '/homes/g24meda/lab/4dvarnet-starter/outputs/'):
+    def __init__(self, domain_limits=None, res=0.05, avg_pool = None, dt=None, tint=None, SSH=None, c=None, g=9.81, f=None, Kdiffus=None, device='cpu',save_debugg_path = None, mean=None, std=None):
         super().__init__()
         print('initialisation of QG')
+        
+        # average pooling before QG forward (reduce dx and dt => computation time)
+        self.avg_pool = avg_pool
+        if self.avg_pool is not None:
+            res = res * self.avg_pool
         
         # Coordinates
         lon = torch.arange(domain_limits['lon'].start, domain_limits['lon'].stop , res, dtype=torch.float64)
         lat = torch.arange(domain_limits['lat'].start, domain_limits['lat'].stop , res, dtype=torch.float64)
-        
+
         if len(lon.shape)==1:
             lon,lat = torch.meshgrid(lon,lat) 
         dx,dy = lonlat2dxdy(lon,lat)
@@ -1133,6 +908,10 @@ class QGCost_new(nn.Module):
 
         # save debugg_path
         self.save_debugg_path = save_debugg_path
+
+        # unormalization
+        self.mean = mean
+        self.std = std
 
     def h2uv(self, h):
         """ SSH to U,V
@@ -1283,9 +1062,23 @@ class QGCost_new(nn.Module):
         Returns:
             h1: Tensor of final SSH field with shape (N, ny, nx)
         """
+
         h0 = h0[0]
+
+        ## unormalized the data for QG model ##
+        if self.mean is not None and self.std is not None:
+            h0 = h0 * self.std + self.mean
+         
+
+        if self.avg_pool is not None:
+            avg_pool = nn.AvgPool2d(kernel_size=2, stride=2)
+            # Apply the average pooling to each of the 15 slices along the 0th dimension
+            h0_init_shape = h0.shape[1:]
+            h0 = avg_pool(h0)
+            
         if hb is None:
             hb = h0.clone()
+
         q0 = self.h2pv(h0, hb)
         qb = self.h2pv(hb, hb)
 
@@ -1294,8 +1087,18 @@ class QGCost_new(nn.Module):
         q1 = q0.clone()
         for _ in range(nstep):
             h1, q1 = self.step(h1, q1, hb, qb)
-        torch.save(h1.unsqueeze(0), self.save_debugg_path + 'qg_forwarded_state.pt')
+
+        if self.avg_pool is not None:
+                h1 = F.interpolate(h1.unsqueeze(0), size = h0_init_shape, mode='bilinear', align_corners=False).squeeze(0)
+
+        ## renormalized the data for QG model ##
+        if self.mean is not None and self.std is not None:
+            h1 = (h1 - self.mean) / self.std 
+
+        if self.save_debugg_path is not None:
+            torch.save(h1.unsqueeze(0), self.save_debugg_path + 'qg_forwarded_state.pt')
         return h1
+        
     
     def forward(self, state):
         return F.mse_loss(state[0][1:], self.forward_QG(state)[:-1])
@@ -1318,7 +1121,7 @@ class QGCost_new(nn.Module):
 # ===========================================================================
 
 class QGCost_and_bilin(nn.Module):
-    def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None, bilin_quad = True, domain_limits=None, res=0.05, avg_pool = None, dt=None, tint=86400, SSH=None, c=None, g=9.81, f=None, Kdiffus=None, device='cuda', save_debugg_path = '/homes/g24meda/lab/4dvarnet-starter/outputs/') -> None:
+    def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None, bilin_quad = True, domain_limits=None, res=0.05, avg_pool = None, dt=None, tint=86400, SSH=None, c=None, g=9.81, f=None, Kdiffus=None, device='cuda', save_debugg_path = None) -> None:
         super().__init__()
         print('initialisation of QG and bilinear cost')
         
@@ -1359,23 +1162,20 @@ class QGCost_and_bilin(nn.Module):
         #           Initialisation of QG cost
         # ==============================================
         
-        # Integration time (1 day)
-        self.tint = tint
-
-        # Divide the grid resolution by the average pooling factor
+        # average pooling before QG forward (reduce dx and dt => computation time)
         self.avg_pool = avg_pool
-        if avg_pool is not None:
-            res = res * avg_pool
-
+        if self.avg_pool is not None:
+            res = res * self.avg_pool
+        
         # Coordinates
         lon = torch.arange(domain_limits['lon'].start, domain_limits['lon'].stop , res, dtype=torch.float64)
         lat = torch.arange(domain_limits['lat'].start, domain_limits['lat'].stop , res, dtype=torch.float64)
-        #print('lon ', lon)
+
         if len(lon.shape)==1:
-            lon,lat = torch.meshgrid(lon,lat)
+            lon,lat = torch.meshgrid(lon,lat) 
         dx,dy = lonlat2dxdy(lon,lat)
 
-        # Grid shape
+        # Grid shapeet y
         ny, nx = dx.shape
         self.nx = nx
         self.ny = ny
@@ -1384,13 +1184,16 @@ class QGCost_and_bilin(nn.Module):
         dx = dy = (torch.nanmean(dx) + torch.nanmean(dy)) / 2
         self.dx = dx
         self.dy = dy
-
+        
         # Time step
         self.dt = dt
+        
+        # Integration time (1 day)
+        self.tint = tint
 
         # Gravity
         self.g = torch.tensor(g).to(device=device, dtype=torch.float)
-        
+
         # Coriolis
         if hasattr(f, "__len__"):
             self.f = (torch.nanmean(torch.tensor(f)) * torch.ones((self.ny, self.nx)))
@@ -1467,6 +1270,9 @@ class QGCost_and_bilin(nn.Module):
 
         # Diffusion coefficient 
         self.Kdiffus = Kdiffus
+
+        # save debugg_path
+        self.save_debugg_path = save_debugg_path
 
     def h2uv(self, h):
         """ SSH to U,V
@@ -1638,9 +1444,9 @@ class QGCost_and_bilin(nn.Module):
                 h1, q1 = self.step(h1, q1, hb, qb)
                 if save and _ in ns_hourly:
                     ssh_hourly_forecasts.append(h1)
-            if save:
-                pass
-            #torch.save(h1.unsqueeze(0), save_debugg_path + 'qg_forwarded_state.pt')
+
+            if self.save_debugg_path is not None:
+                torch.save(h1.unsqueeze(0), self.save_debugg_path + 'qg_forwarded_state.pt')
             if torch.isnan(h1).any():
                 raise ValueError("NaN detected in h1, saving last clean state, and forwarded state")
             
@@ -1694,7 +1500,7 @@ class QGCost_and_bilin(nn.Module):
 
 
 class QGCost_weak_fourdvar(nn.Module): 
-    def __init__(self, domain_limits=None, res=0.05, dt=None, nb_days_int=None, SSH=None, c=None, g=9.81, f=None, Kdiffus=None, device='cuda', save_debugg_path = '/homes/g24meda/lab/4dvarnet-starter/outputs/') -> None:
+    def __init__(self, domain_limits=None, res=0.05, dt=None, nb_days_int=None, SSH=None, c=None, g=9.81, f=None, Kdiffus=None, device='cuda', save_debugg_path = None) -> None:
         super().__init__()
         print('initialisation of QG')
         
@@ -1966,8 +1772,9 @@ class QGCost_weak_fourdvar(nn.Module):
                 if _ in ns_daily:
                     ssh_daily_forecasts.append(h1[0])
             stacked_ssh = torch.stack(ssh_daily_forecasts, dim=0)
-            save_debugg_path =  '/homes/g24meda/lab/4dvarnet-starter/outputs/lrgmod_01_lrgrad_100_nstep_100_sigma2_kernelsize21_alpha1_15_alpha2_05/'
-            #torch.save(stacked_ssh.unsqueeze(0), save_debugg_path + 'qg_forwarded_state.pt')
+            
+            if self.save_debugg_path is not None:
+                torch.save(stacked_ssh.unsqueeze(0), self.save_debugg_path + 'qg_forwarded_state.pt')
             return stacked_ssh
 
     def forward(self, state):

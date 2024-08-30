@@ -195,6 +195,26 @@ def load_full_natl_data(
     )
     return xr.Dataset(dict(input=inp, tgt=(gt.dims, gt.values)), inp.coords).to_array().sortby('variable')
 
+
+def load_natl_data_challenge_2020a(
+        path_obs=None,
+        path_gt=None,
+        obs_var='four_nadirs',
+        gt_var='ssh',
+        **kwargs
+    ):
+    # inp = xr.open_dataset(path_obs)[obs_var]
+    # gt = (
+    #     xr.open_dataset(path_gt)[gt_var]
+    #     .isel(time=slice(0, -1))
+    #     .sel(lat=inp.lat, lon=inp.lon, method="nearest")
+    # )
+    ds = xr.open_dataset(path_gt)
+    gt = ds[gt_var]
+    inp = gt.copy()
+    return xr.Dataset(dict(input=inp, tgt=(gt.dims, gt.values)), inp.coords).to_array().sortby('variable')
+
+
 def load_full_enatl_data(
         path_obs = "/DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-7nadirs-2009-2010-1_8.nc",
         path_gt = "/DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-ssh-2009-2010-1_8.nc",

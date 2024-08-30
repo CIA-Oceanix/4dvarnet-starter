@@ -230,6 +230,7 @@ class BaseDataModule(pl.LightningDataModule):
     def train_mean_std(self, variable='tgt'):
         train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {})).sel(self.domains['train'])
         return train_data.sel(variable=variable).pipe(lambda da: (da.mean().values.item(), da.std().values.item()))
+        #return (0, 1)
 
     def post_fn(self):
         m, s = self.norm_stats()
