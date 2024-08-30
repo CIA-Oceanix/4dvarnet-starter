@@ -79,11 +79,11 @@ model:
     lr_grad: 100 #1000 # 1e3 #1e3
     save_debugg_path : #'/homes/g24meda/lab/4dvarnet-starter/outputs//homes/g24meda/lab/4dvarnet-starter/outputs/QG_allyear_lrgmod_01_lrgrad_100_nstep_20_sigma2_kernelsize21_alpha1_1_alpha2_05_avgpool2_dt15min_dimhidd48_nonormalization/' # _dimhidd48_augdata3/'
     prior_cost: 
-      _target_: src.models.QGCost_new
+      _target_: src.models.QGCost
       domain_limits: ${domain.train} # limits in lon, lat (degrees)
       res: 0.05 # resolution (degrees)
       avg_pool : 2 #2 #None
-      dt: 2400 #900 #600 # 120 #300 # Integration time step (sec) : 3 minutes
+      dt: 1400 #900 #600 # 120 #300 # Integration time step (sec) : 3 minutes
       tint: 86400 # Integration time (sec) : 1 day
       SSH:  # Mask for SSH
       c: 2.7 # phase velocity (m/s)

@@ -48,7 +48,7 @@ datamodule:
     val: 
       time: {_target_: builtins.slice, _args_: ['2013-03-01', '2013-03-20']}
     test: 
-      time: {_target_: builtins.slice,  _args_: ['2013-03-01', '2013-03-20']}
+      time: {_target_: builtins.slice,  _args_: ['2013-03-01', '2013-03-15']}
   xrds_kw:
     patch_dims: { time: 15, lat: 240, lon: 240}
     strides: { time: 1, lat: 200, lon: 200}
@@ -72,20 +72,34 @@ model:
       crop: {time: 0, lat: 0, lon: 20}
       offset: 1
   solver: 
-    _target_: src.models.GradSolver_Id
+    _target_: src.models.GradSolver_QG
     x_init: datamodule.input_da.path_mdt
     n_step: 20 #20 #5 #5 #10
     lr_mod: 0.1 # 0.1
     lr_grad: 100 #1000 # 1e3 #1e3
-    save_debugg_path : '/homes/g24meda/lab/4dvarnet-starter/outputs/Id_lrgmod_01_lrgrad_100_nstep_20_sigma2_kernelsize21_alpha1_1_alpha2_05_avgpool2_dt10min/'
+    save_debugg_path : #'/homes/g24meda/lab/4dvarnet-starter/outputs/QG_15days_lrgmod_01_lrgrad_100_nstep_20_sigma2_kernelsize21_alpha1_1_alpha2_05_avgpool2_dt15min_dimhidd48_nonormalization/'
     prior_cost: 
-      _target_: src.models.Cost_Id
+      _target_: src.models.QGCost
+      domain_limits: ${domain.train} # limits in lon, lat (degrees)
+      res: 0.05 # resolution (degrees)
+      avg_pool : 2 #2 #None
+      dt: 900 #600 # 120 #300 # Integration time step (sec) : 3 minutes
+      tint: 86400 # Integration time (sec) : 1 day
+      SSH:  # Mask for SSH
+      c: 2.7 # phase velocity (m/s)
+      g: 9.81 # m/s^2
+      f: # Coriolis freq, if not provided computed from c and g 
+      Kdiffus: # diffusion coefficient
+      device: 'cuda'
+      save_debugg_path : ${model.solver.save_debugg_path}
+      mean: 0.24419054247227379
+      std: 0.33066573356061957
     obs_cost: 
       _target_: src.models.BaseObsCost
     grad_mod: 
       _target_: src.models.ConvLstmGradModel
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 24 #96 #24 #48
+      dim_hidden: 48 #96 #24 #48
   test_metrics: ${metrics.test_metrics}
   pre_metric_fn: 
         _target_: xarray.Dataset.sel
