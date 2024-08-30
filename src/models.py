@@ -357,8 +357,8 @@ class GradSolver(nn.Module):
 #             if not self.training:
 #                 state = self.prior_cost.forward_id(state)
 #         return state
-    
-    
+
+  
 class GradSolver_QG(nn.Module):
     def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_mod,lr_grad=0.2, save_debugg_path = None,**kwargs):
         super().__init__()
@@ -401,7 +401,37 @@ class GradSolver_QG(nn.Module):
 
             if not os.path.exists(self.save_debugg_path):
                 os.makedirs(self.save_debugg_path)
+        
+        # ==============================================
+        #      Initialize Gaussian kernel
+        # ==============================================
+        self.kernel_size = 21  
+        self.sigma = 2.0 
+        self.kernel = self.gaussian_kernel_update(self.kernel_size, self.sigma)
 
+    def gaussian_kernel_update(self, size: int, sigma: float):
+        """Create a 2D Gaussian kernel."""
+        x = torch.arange(-size // 2 + 1, size // 2 + 1, dtype=torch.float32)
+        y = torch.arange(-size // 2 + 1, size // 2 + 1, dtype=torch.float32)
+        xx, yy = torch.meshgrid(x, y)
+        kernel = torch.exp(-(xx**2 + yy**2) / (2 * sigma**2))
+        kernel = kernel / kernel.sum()
+        return kernel
+
+    def apply_gaussian_smoothing(self, tensor: torch.Tensor):
+        """Apply Gaussian smoothing to the last two dimensions of a 4D tensor."""
+        N, C, H, W = tensor.shape
+
+        # Prepare the kernel for convolution
+        kernel = self.kernel.view(1, 1, self.kernel_size, self.kernel_size).to(tensor.device)
+        kernel = kernel.repeat(C, 1, 1, 1)
+
+        # Apply the Gaussian kernel to each channel
+        padding = self.kernel_size // 2
+        smoothed_tensor = F.conv2d(tensor, kernel, padding=padding, groups=C)
+
+        return smoothed_tensor
+    
     def init_state(self, batch, x_init=None):
         if x_init is not None:
             return x_init
@@ -493,38 +523,7 @@ class GradSolver_QG(nn.Module):
         #      Apply gaussian kernel to the update 
         # ==============================================
 
-        def gaussian_kernel_update(size: int, sigma: float):
-            """Create a 2D Gaussian kernel."""
-            x = torch.arange(-size // 2 + 1, size // 2 + 1, dtype=torch.float32)
-            y = torch.arange(-size // 2 + 1, size // 2 + 1, dtype=torch.float32)
-            xx, yy = torch.meshgrid(x, y)
-            kernel = torch.exp(-(xx**2 + yy**2) / (2 * sigma**2))
-            kernel = kernel / kernel.sum()
-            return kernel
-
-        def apply_gaussian_smoothing(tensor: torch.Tensor, kernel_size: int, sigma: float):
-            """Apply Gaussian smoothing to the last two dimensions of a 4D tensor."""
-            N, C, H, W = tensor.shape
-            
-            # Create Gaussian kernel
-            kernel = gaussian_kernel_update(kernel_size, sigma)
-            kernel = kernel.view(1, 1, kernel_size, kernel_size).to(tensor.device)
-            
-            # Duplicate the kernel for each channel
-            kernel = kernel.repeat(C, 1, 1, 1)
-            
-            # Apply the Gaussian kernel to each channel
-            padding = kernel_size // 2
-            smoothed_tensor = F.conv2d(tensor, kernel, padding=padding, groups=C)
-            
-            return smoothed_tensor
-
-        # Initialize the gaussian kernel
-        kernel_size = 21  
-        sigma = 2.0 
-
-        # Apply it to the update
-        smoothed_update = apply_gaussian_smoothing(state_update, kernel_size, sigma)
+        smoothed_update = self.apply_gaussian_smoothing(state_update)
 
         if self.save_debugg_path is not None:
             print('gmod coeff', self.lr_mod * 1 / (step + 1))
@@ -559,6 +558,7 @@ class GradSolver_QG(nn.Module):
             if not self.training:
                 state = self.prior_cost.forward_QG(state).unsqueeze(0)
         return state
+    
 
 class ConvLstmGradModel(nn.Module):
     def __init__(self, dim_in, dim_hidden, kernel_size=3, dropout=0.1, downsamp=None):
