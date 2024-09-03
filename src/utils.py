@@ -133,7 +133,7 @@ def get_triang_time_wei(patch_dims, offset=0, **crop_kw):
     )
 
 
-def get_forecast_wei(patch_dims, **crop_kw):
+def get_forecast_wei(patch_dims, flat_end=False, exponential_ascension=False, **crop_kw):
     """
     return weight for forecast reconstruction:
     patch_dims: dimension of the patches used
@@ -144,8 +144,8 @@ def get_forecast_wei(patch_dims, **crop_kw):
     """
     pw = get_constant_crop(patch_dims, **crop_kw)
     time_patch_weight = np.concatenate(
-        (np.linspace(0, 1, (patch_dims['time'] - 1) // 2),
-         np.linspace(1, 0.5, 7),
+        (np.power(np.linspace(0, 1, (patch_dims['time'] - 1) // 2), 2 if exponential_ascension else 1),
+         np.linspace(1, 1, 7) if flat_end else np.linspace(1, 0.5, 7),
          np.zeros((patch_dims['time'] + 1) // 2 - 7)),
         axis=0)
     final_patch_weight = time_patch_weight[:, None, None] * pw
@@ -197,11 +197,44 @@ def load_ose_data(path):
         .assign(
             input=lambda ds: ds.ssh,
             tgt=lambda ds: ds.ssh,
+            mask=lambda ds: ds.ssh,
         )
     )
 
     return (
-        ds[[*src.data.TrainingItem._fields]]
+        ds[[*src.data.TrainingItemMask._fields]]
+        .transpose("time", "lat", "lon")
+        .to_array()
+    )
+
+def load_ose_data_with_tgt_mask(path, tgt_path, variable='zos', test_cut=None):
+
+    ds_mask =  (
+        xr.open_dataset(tgt_path).drop_vars('depth')
+    )
+
+    ds = xr.open_dataset(path)
+
+    if 'latitude' in list(ds_mask.dims):
+        ds_mask = ds_mask.rename({'latitude':'lat', 'longitude':'lon'})
+
+    ds_mask = ds_mask.sel(time='2020-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords)
+    #if test_cut is not None:
+        #ds = ds.sel(time=test_cut).load()
+
+    print('ds_s loaded')
+
+    ds = (
+        ds
+        .assign(
+            input=ds.ssh,
+            tgt=ds_mask,
+            mask=ds_mask,
+        )
+    )
+
+    return (
+        ds[[*src.data.TrainingItemMask._fields]]
         .transpose("time", "lat", "lon")
         .to_array()
     )
@@ -236,8 +269,9 @@ def mask_input(da, mask_list):
 def open_glorys12_data(path, masks_path, domain, variables="zos", masking=True, test_cut=None):
 
     print("LOADING input data")
+    # DROPPING DEPTH !!
     ds =  (
-        xr.open_dataset(path)
+        xr.open_dataset(path).drop_vars('depth')
     )
     
     if 'latitude' in list(ds.dims):
@@ -277,8 +311,6 @@ def open_glorys12_data(path, masks_path, domain, variables="zos", masking=True, 
         .transpose("time", "lat", "lon")
         .to_array()
     )
-
-    print('dataset sizes: {}'.format(ds.sizes))
 
     return ds
 

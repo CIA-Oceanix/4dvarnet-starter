@@ -23,7 +23,7 @@ def reconstruct_from_config(config, your_rec_dir, best_ckpt_path):
         inference_mode= False,
         accelerator='gpu',
         devices= 1,
-        logger = pytorch_lightning.loggers.CSVLogger(save_dir= your_rec_dir, name= "reproduce")
+        logger = pytorch_lightning.loggers.CSVLogger(save_dir= '/DATASET/GLORYS12/outputs/'+your_rec_dir, name= "reproduce")
         )
 
     lit_mod = call_cfg_key(config, 'model')
@@ -189,7 +189,6 @@ def interp_on_alongtrack(gridded_dataset,
     lat_alongtrack = ds_alongtrack["lat"].values
     time_alongtrack = ds_alongtrack["time"].values
 
-    #print('time along track len before masking: {}'.format(time_alongtrack.shape))
 
     # get and apply mask from map_interp & alongtrack on each dataset
     msk1 = np.ma.masked_invalid(ssh_alongtrack).mask
@@ -608,6 +607,10 @@ def eval_ose(path_alongtrack,
              var_name="out",
              time_min='2017-01-01',
              time_max='2017-12-31',
+             lon_min = -65.,
+             lon_max = -55.,
+             lat_min = 33.,
+             lat_max = 43.,
              centered=False,
              plot_scores=False):
     """
@@ -631,10 +634,10 @@ def eval_ose(path_alongtrack,
                              centered = False)
     """
     # Study area
-    lon_min = -65.
-    lon_max = -55.
-    lat_min = 33.
-    lat_max = 43.
+    #lon_min = -65.
+    #lon_max = -55.
+    #lat_min = 33.
+    #lat_max = 43.
     is_circle = False
 
     # Outputs
@@ -659,7 +662,6 @@ def eval_ose(path_alongtrack,
     ds_alongtrack = read_l3_dataset(path_alongtrack, lon_min, lon_max, lat_min,
                                     lat_max, time_min, time_max, centered)
     
-    #print('ds alongtrack time dim len: {}'.format(ds_alongtrack.time.values.shape))
 
     # Read reconstructed datasets and interpolate onto alongtrack positions
     time_alongtrack, lat_alongtrack, lon_alongtrack, ssh_alongtrack, ssh_map_interp = interp_on_alongtrack(
@@ -686,15 +688,20 @@ def eval_ose(path_alongtrack,
                                 ssh_map_interp, lenght_scale, delta_x, delta_t, "spectrum.nc")
         learderboard_psds_score = -999
         learderboard_psds_score = plot_psd_score("spectrum.nc", plot=plot_scores)
+        print(learderboard_psds_score)
     except OverflowError:
         learderboard_psds_score = np.nan
+        print('overflow: {}'.format(learderboard_psds_score))
 
     os.remove("spectrum.nc")
 
-    return leaderboard_nrmse, int(learderboard_psds_score)
+    # WARNING: LEADERBOARD PSD SHOULS BE CAST TO INT
 
+    return leaderboard_nrmse, learderboard_psds_score
+
+from matplotlib import ticker
 # plot results
-def plot_results(RMSE_array, save_name=None):
+def plot_results(RMSE_array, save_name=None, plot_baked=True, vmin=None, vmax=None, name=None):
     x_7days = range(7)
     x_8days = range(-1, 7)
     x_glo_persistence = range(5)
@@ -734,46 +741,53 @@ def plot_results(RMSE_array, save_name=None):
     ax = plt.subplot(111)
 
     ax.plot(x_7days,
-            y_4dvarnet[13:],
-            label="4DVarNet",
-            color='blue')
-    ax.plot(x_7days,
             RMSE_array,
-            label="4DVarNet trained on GLORYS",
+            label="4DVarNet trained on GLORYS" if name is None else name,
             color='red',)
-    """ax.plot(x_7days,
-            y_4dvarnet_mapping * np.ones_like(x_7days),
-            label="4DVarNet mapping",
-            color='blue',
-            linestyle='dashed')"""
-    ax.plot(x_7days,
-            y_glo[:7],
-            label="Glo",
-            color='green')
-    """ax.plot(x_glo_persistence,
-            y_glo_persistence,
-            label="Glo persistence",
-            color='green',
-            linestyle='dashdot')"""
-    ax.plot(x_7days,
-            y_glorys * np.ones_like(x_7days),
-            label="Glorys",
-            color='green',
-            linestyle='dashed')
-    ax.plot(x_7days,
-            y_oi * np.ones_like(x_7days),
-            label="Duacs mapping",
-            color='orange',
-            linestyle='dashed')
-    """ax.plot(x_7days,
-            y_duacs_persistence[1:],
-            label="Duacs persistence",
-            color='orange',
-            linestyle='dashdot')"""
+    
+    if plot_baked:
+        ax.plot(x_7days,
+                y_4dvarnet[13:],
+                label="4DVarNet",
+                color='blue')
+        """ax.plot(x_7days,
+                y_4dvarnet_mapping * np.ones_like(x_7days),
+                label="4DVarNet mapping",
+                color='blue',
+                linestyle='dashed')"""
+        ax.plot(x_7days,
+                y_glo[:7],
+                label="Glo",
+                color='green')
+        """ax.plot(x_glo_persistence,
+                y_glo_persistence,
+                label="Glo persistence",
+                color='green',
+                linestyle='dashdot')"""
+        ax.plot(x_7days,
+                y_glorys * np.ones_like(x_7days),
+                label="Glorys",
+                color='green',
+                linestyle='dashed')
+        ax.plot(x_7days,
+                y_oi * np.ones_like(x_7days),
+                label="Duacs mapping",
+                color='orange',
+                linestyle='dashed')
+        """ax.plot(x_7days,
+                y_duacs_persistence[1:],
+                label="Duacs persistence",
+                color='orange',
+                linestyle='dashdot')"""
 
+
+    ax.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
     plt.xlabel("Day of prediction")
     plt.ylabel("Average nRMSE score")
     plt.grid(alpha=.3)
+
+    if vmin is not None and vmax is not None:
+        ax.set_ylim([vmin, vmax])
 
     ax.legend(bbox_to_anchor=(1.04, 0.5), loc='center left', borderaxespad=0)
     if save_name is not None:

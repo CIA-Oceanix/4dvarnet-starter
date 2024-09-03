@@ -7,6 +7,7 @@ import functools as ft
 from collections import namedtuple
 import time
 import cv2
+from tqdm import tqdm
 
 TrainingItem = namedtuple('TrainingItem', ['input', 'tgt'])
 TrainingItemMask = namedtuple('TrainingItemMask', ['input', 'tgt', 'mask'])
@@ -53,17 +54,31 @@ class XrDataset(torch.utils.data.Dataset):
         self.return_coords = False
         self.postpro_fn = postpro_fn
         self.da = da.sel(**(domain_limits or {}))
+        self.domain_limits = domain_limits
         self.patch_dims = patch_dims
         self.strides = strides or {}
         da_dims = dict(zip(self.da.dims, self.da.shape))
-        self.ds_size = {
-            dim: max((da_dims[dim] - patch_dims[dim]) // self.strides.get(dim, 1) + 1, 0)
-            for dim in patch_dims
-        }
+        self.da_dims = da_dims
+        self.define_ds_size(da_dims, patch_dims, self.strides)
         self.test_regrid = test_regrid
 
-        if check_full_scan:
-            for dim in patch_dims:
+        self.check_full_scan(check_full_scan, da_dims)
+        self.check_dim_order(check_dim_order)
+        
+        print('dataset patch sizes: {}'.format(self.ds_size))
+        print('dataset sizes: {}'.format(self.da.sizes))
+        print('dataset length: {}'.format(len(self)))
+        print('-'*40)
+
+    def define_ds_size(self, da_dims, patch_dims, strides):
+        self.ds_size = {
+            dim: max((da_dims[dim] - patch_dims[dim]) // strides.get(dim, 1) + 1, 0)
+            for dim in patch_dims
+        }
+
+    def check_full_scan(self, check, da_dims):
+        if check:
+            for dim in self.patch_dims:
                 if (da_dims[dim] - self.patch_dims[dim]) % self.strides.get(dim, 1) != 0:
                     raise IncompleteScanConfiguration(
                         f"""
@@ -74,21 +89,18 @@ class XrDataset(torch.utils.data.Dataset):
                         [shape - patch_size] should be divisible by stride
                         """
                     )
-
-        if check_dim_order:
-            for dim in patch_dims:
-                if not '#'.join(da.dims).endswith('#'.join(list(patch_dims))):
-                    raise DangerousDimOrdering(
-                        f"""
-                        input dataarray's dims should end with patch_dims
-                        dataarray's dim {da.dims}:
-                        patch_dims {list(patch_dims)}
-                        """
-                    )
-        
-        print('dataset patch sizes: {}'.format(self.ds_size))
-        print('dataset sizes: {}'.format(self.da.sizes))
-        print('dataset length: {}'.format(len(self)))
+            
+    def check_dim_order(self, check):
+        if check:
+            for dim in self.patch_dims:
+                    if not '#'.join(self.da.dims).endswith('#'.join(list(self.patch_dims))):
+                        raise DangerousDimOrdering(
+                            f"""
+                            input dataarray's dims should end with patch_dims
+                            dataarray's dim {self.da.dims}:
+                            patch_dims {list(self.patch_dims)}
+                            """
+                        )
 
     def __len__(self):
         size = 1
@@ -120,7 +132,7 @@ class XrDataset(torch.utils.data.Dataset):
         item = self.da.isel(**sl)
 
         if self.return_coords:
-            return item.coords.to_dataset().drop_vars('depth')[list(self.patch_dims)]
+            return item.coords.to_dataset()[list(self.patch_dims)]
 
         item = item.data.astype(np.float32)
         if self.postpro_fn is not None:
@@ -140,16 +152,33 @@ class XrDataset(torch.utils.data.Dataset):
 
         items = list(itertools.chain(*batches))
         return self.reconstruct_from_items(items, weight)
+    
+    def rec_crop_valid(self, da, coords):
+        da_slice = {}
+        for dim in da.dims:
+            if dim in coords.dims:
+                da_slice[dim] = slice(0,coords.sizes[dim])
+        return da.isel(da_slice)
 
     def reconstruct_from_items(self, items, weight=None):
         if weight is None:
+            print('WEIGHT IS NONE ---------------------')
             weight = np.ones(list(self.patch_dims.values()))
         w = xr.DataArray(weight, dims=list(self.patch_dims.keys()))
 
         coords = self.get_coords()
-
+        
         new_dims = [f'v{i}' for i in range(len(items[0].shape) - len(coords[0].dims))]
         dims = new_dims + list(coords[0].dims)
+
+        for idx in range(len(items)):
+            it_slice = []
+            for i_dim, dim in enumerate(dims):
+                if dim in coords[0].dims:
+                    it_slice.append(slice(0,coords[idx].sizes[dim]))
+                else:
+                    it_slice.append(slice(None))
+            items[idx] = items[idx][it_slice]
 
         das = [xr.DataArray(it.numpy(), dims=dims, coords=co.coords)
                for it, co in zip(items, coords)]
@@ -165,10 +194,60 @@ class XrDataset(torch.utils.data.Dataset):
         count_da = xr.zeros_like(rec_da)
 
         for da in das:
-            rec_da.loc[da.coords] = rec_da.sel(da.coords) + da * w
-            count_da.loc[da.coords] = count_da.sel(da.coords) + w
+            rec_da.loc[da.coords] = rec_da.sel(da.coords) + da.sel(da.coords) * self.rec_crop_valid(w, da.coords)
+            count_da.loc[da.coords] = count_da.sel(da.coords) + self.rec_crop_valid(w, da.coords)
 
         return rec_da / count_da
+    
+class XrDatasetMovingPatch(XrDataset):
+    
+    def __init__(self, *args, rand=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.rand = rand
+
+    def define_ds_size(self, da_dims, patch_dims, strides):
+        ds_size = {}
+        patch_offset = {}
+        for dim in patch_dims:
+            dim_size = (da_dims[dim] - patch_dims[dim]) // strides.get(dim, 1) + 1
+            patch_offset[dim] = (da_dims[dim] - patch_dims[dim]) % strides.get(dim, 1)
+            if patch_offset[dim] != 0:
+                dim_size += 1
+            ds_size[dim] = max(dim_size, 0)
+        self.ds_size = ds_size
+        self.patch_offset = patch_offset
+
+
+    def __getitem__(self, item):
+        sl = {
+            dim: slice(self.strides.get(dim, 1) * idx,
+                       self.strides.get(dim, 1) * idx + self.patch_dims[dim])
+            for dim, idx in zip(self.ds_size.keys(),
+                                np.unravel_index(item, tuple(self.ds_size.values())))
+        }
+
+        # moving patch
+        ds_overflow = {}
+        for dim in ['lat', 'lon']:
+            patch_offset = self.get_patch_offset(dim)
+            sl[dim] = slice(sl[dim].start + patch_offset, sl[dim].stop + patch_offset)
+            ds_overflow[dim] = sl[dim].stop - self.da_dims[dim]
+            sl[dim] = slice(min(sl[dim].start, self.da_dims[dim]), min(sl[dim].stop, self.da_dims[dim]))
+
+        item = self.da.isel(**sl)
+        if self.return_coords:
+            return item.coords.to_dataset()[list(self.patch_dims)]
+        item = item.pad({dim: (0, dim_overflow if dim_overflow>0 else 0) for dim, dim_overflow in ds_overflow.items()}, mode='constant', constant_values=np.nan)
+
+
+        item = item.data.astype(np.float32)
+        if self.postpro_fn is not None:
+            item = self.postpro_fn(item)
+
+        return item
+    
+    def get_patch_offset(self, dim):
+        return np.random.randint(0, self.patch_offset[dim]) if self.rand else 0
 
 class XrDatasetRegrid(torch.utils.data.Dataset):
     """
@@ -401,7 +480,6 @@ class BaseDataModule(pl.LightningDataModule):
         self.test_ds = None
         self._post_fn = None
         self.test_regrid = test_regrid
-        print('test_regrid: {}'.format(test_regrid))
 
     def norm_stats(self):
         if self._norm_stats is None:
@@ -577,3 +655,24 @@ class RandValDataModule(BaseDataModule):
             self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
 
         self.test_ds = XrDataset(self.input_da.sel(self.domains['test']), **self.xrds_kw, postpro_fn=post_fn,)
+
+class MovingPatchDataModule(BaseDataModule):
+    def __init__(self, *args, rec_crop=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.rec_crop = rec_crop
+
+    def setup(self, stage='test'):
+        train_data = self.input_da.sel(self.domains['train'])
+        post_fn = self.post_fn()
+        self.train_ds = XrDatasetMovingPatch(
+            train_data, **self.xrds_kw, postpro_fn=post_fn, test_regrid=self.test_regrid, rand=True
+        )
+        if self.aug_kw:
+            self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
+
+        self.val_ds = XrDatasetMovingPatch(
+            self.input_da.sel(self.domains['val']), **self.xrds_kw, postpro_fn=post_fn, test_regrid=self.test_regrid, rand=False
+        )
+        self.test_ds = XrDatasetMovingPatch(
+            self.input_da.sel(self.domains['test']), **self.xrds_kw, postpro_fn=post_fn, test_regrid=self.test_regrid, rand=False
+        )

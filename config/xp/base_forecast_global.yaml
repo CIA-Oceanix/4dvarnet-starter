@@ -66,13 +66,14 @@ datamodule:
     test: 
       time: {_target_: builtins.slice,  _args_: ['2020-11-25', '2020-12-31']}
   xrds_kw:
-    patch_dims: { time: 29, lat: 49, lon: 57}
-    strides: { time: 1, lat: 45, lon: 53}
+    patch_dims: { time: 29, lat: 48, lon: 48}
+    strides: { time: 1, lat: 40, lon: 40}
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 64, num_workers: 32}
   aug_kw:
     aug_factor: 2
     aug_only: True
+  rec_crop:: {time: 0, lat: 4, lon: 4}
 
 model:
   _target_: src.models.Lit4dVarNetForecast

@@ -11,24 +11,24 @@ domain:
     lat:
       _target_: builtins.slice
       _args_:
-      - -80
-      - 90
+      - 31
+      - 43
     lon:
       _target_: builtins.slice
       _args_:
-      - -180
-      - 180
+      - -66
+      - -54
   test:
     lat:
       _target_: builtins.slice
       _args_:
-      - -79
-      - 89
+      - 32
+      - 42
     lon:
       _target_: builtins.slice
       _args_:
-      - -179
-      - 179
+      - -65
+      - -55
 
 trainer:
   _target_: pytorch_lightning.Trainer
@@ -38,7 +38,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: ${hydra:runtime.output_dir}
+    save_dir: /DATASET/GLORYS/outputs/training_end
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 350
@@ -66,13 +66,14 @@ datamodule:
     test: 
       time: {_target_: builtins.slice,  _args_: ['2020-11-25', '2020-12-31']}
   xrds_kw:
-    patch_dims: { time: 29, lat: 49, lon: 57}
-    strides: { time: 1, lat: 45, lon: 53}
+    patch_dims: { time: 29, lat: 48, lon: 48}
+    strides: { time: 1, lat: 40, lon: 40}
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 64, num_workers: 32}
   aug_kw:
     aug_factor: 2
     aug_only: True
+  rec_crop:: {time: 0, lat: 4, lon: 4}
 
 model:
   _target_: src.models.Lit4dVarNetForecast

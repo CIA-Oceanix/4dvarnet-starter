@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from src.data import TrainingItemMask
+from tqdm import tqdm
 
 from src.utils import regrid_interp
 
@@ -175,21 +176,23 @@ class Lit4dVarNetForecast(Lit4dVarNet):
     loss_masking: will mask nan values present in the target for loss and gradient computations
     """
 
-    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, test_regrid=None, loss_masking=True):
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, test_regrid=None, loss_masking=True, output_only_forecast=True):
         super().__init__(solver, rec_weight, opt_fn, test_metrics, pre_metric_fn, norm_stats, persist_rw, test_regrid, loss_masking)
+        self.output_only_forecast=output_only_forecast
 
     @staticmethod
     def mask_batch(batch, loss_masking):
+
+        # temporal masking
         new_input = batch.input
         dims = new_input.size()
-        new_input[:, dims[1]//2:, :, :] = 0.
-        mask_batch = batch._replace(input=new_input)
-        mask_batch = mask_batch._replace(input=(batch.input).nan_to_num())
-        if loss_masking:
-            mask_batch = mask_batch._replace(mask=(batch.tgt).isfinite().clone().type(torch.bool))
-        else:
-            mask_batch = mask_batch._replace(mask=torch.full_like(batch.tgt, True).type(torch.bool))
-        mask_batch = mask_batch._replace(tgt=(batch.tgt).nan_to_num())
+        new_input[:, dims[1]//2:, :, :] = float('nan')
+
+        # batch.mask
+        new_mask = (batch.tgt).isfinite() if loss_masking else torch.full_like(batch.tgt, True).type(torch.bool)
+
+        mask_batch = batch._replace(input=new_input, mask=new_mask)
+
         return mask_batch
 
     def training_step(self, batch, batch_idx):
@@ -208,10 +211,12 @@ class Lit4dVarNetForecast(Lit4dVarNet):
         dims = self.rec_weight.size()
         dT = dims[0]
         metrics = []
-        for i in range(-((dT - 1) // 2 - 1), 7):
+        output_start = 0 if self.output_only_forecast else -((dT - 1) // 2 - 1)
+        for i in tqdm(range(output_start, 8)):
             forecast_weight = np.concatenate(
                 (np.zeros((dT // 2 + i, dims[1], dims[2])),
-                 np.ones((1, dims[1], dims[2])),
+                 # using rec_weight to crop results accordingly
+                 np.expand_dims(self.rec_weight.cpu().numpy()[dT//2], axis=0),
                  np.zeros((dT // 2 - i, dims[1], dims[2]))),
                 axis=0)
             rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
@@ -237,7 +242,7 @@ class Lit4dVarNetForecast(Lit4dVarNet):
             })
             metrics.append(metrics_leadtime)
 
-        print(pd.DataFrame(metrics, range(-((dT - 1) // 2 - 1), 7)).T.to_markdown())
+        print(pd.DataFrame(metrics, range(output_start, 8)).T.to_markdown())
 
 
 

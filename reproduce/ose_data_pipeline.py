@@ -35,6 +35,7 @@ def download_copernicus_data_for_sat(
     regex: str = None,
     copernicus_dataset_id="cmems_obs-sl_glo_phy-ssh_nrt_{}-l3-duacs_PT1S",
     _skip_val: bool = False,
+    **dl_kwargs
     ):
     print("Starting")
 
@@ -70,6 +71,7 @@ def download_copernicus_data_for_sat(
         output_directory=download_dir,
         force_download=True,
         overwrite_output_data=True,
+        **dl_kwargs
         # sync=True, # use exit(1) and kill pipeline
     )
 
