@@ -136,8 +136,8 @@ class Lit4dVarNetForecast(Lit4dVarNet):
         dims = new_input.size()
         new_input[:, dims[1]//2:, :, :] = 0.
         mask_batch = batch._replace(input=new_input)
-        mask_batch = batch._replace(input=(batch.input).nan_to_num())
-        mask_batch = batch._replace(tgt=(batch.tgt).nan_to_num())
+        mask_batch = mask_batch._replace(input=(batch.input).nan_to_num())
+        mask_batch = mask_batch._replace(tgt=(batch.tgt).nan_to_num())
         return mask_batch
 
     def training_step(self, batch, batch_idx):
