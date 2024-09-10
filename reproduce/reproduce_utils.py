@@ -207,7 +207,7 @@ def interp_on_alongtrack(gridded_dataset,
                        & (lat_alongtrack >= lat_min + 0.25)
                        & (lat_alongtrack <= lat_max - 0.25))[0]
     
-    #print('time alongtrack len after masking: {}'.format(time_alongtrack[indices].shape))
+    print('time alongtrack len after masking: {}'.format(time_alongtrack[indices].shape))
 
     return time_alongtrack[indices], lat_alongtrack[indices], lon_alongtrack[
         indices], ssh_alongtrack[indices], ssh_map_interp[indices]
@@ -548,7 +548,7 @@ def plot_psd_score(filename, plot=False):
         ds = xr.open_dataset(filename)
         y = 1./ds.wavenumber
         x = (1. - ds.psd_diff/ds.psd_ref)
-        f = interpolate.interp1d(x, y)
+        f = interpolate.interp1d(x, y, bounds_error=False)
 
         xnew = 0.5
         ynew = f(xnew)
@@ -688,7 +688,6 @@ def eval_ose(path_alongtrack,
                                 ssh_map_interp, lenght_scale, delta_x, delta_t, "spectrum.nc")
         learderboard_psds_score = -999
         learderboard_psds_score = plot_psd_score("spectrum.nc", plot=plot_scores)
-        print(learderboard_psds_score)
     except OverflowError:
         learderboard_psds_score = np.nan
         print('overflow: {}'.format(learderboard_psds_score))

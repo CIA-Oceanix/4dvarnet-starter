@@ -53,7 +53,7 @@ trainer:
       filename: '{val_mse:.5f}-{epoch:03d}'
 
 datamodule:
-  _target_: src.data.MovingPatchDataModule
+  _target_: src.data.BaseDataModule
   input_da:
     _target_: src.utils.load_ose_data_with_tgt_mask
     path: ${paths.ose_6_sats}

@@ -6,14 +6,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from src.data import TrainingItemMask
 from tqdm import tqdm
-
-from src.utils import regrid_interp
 
 
 class Lit4dVarNet(pl.LightningModule):
-    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, test_regrid=None, loss_masking=True):
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, grad_masking=True):
         super().__init__()
         self.solver = solver
         self.register_buffer('rec_weight', torch.from_numpy(rec_weight), persistent=persist_rw)
@@ -22,10 +19,7 @@ class Lit4dVarNet(pl.LightningModule):
         self.opt_fn = opt_fn
         self.metrics = test_metrics or {}
         self.pre_metric_fn = pre_metric_fn or (lambda x: x)
-        self.test_regrid = test_regrid
-        if test_regrid is not None:
-            self.len_dims_regrid = len(test_regrid[0])
-        self.loss_masking = loss_masking
+        self.grad_masking = grad_masking
 
     @property
     def norm_stats(self):
@@ -40,14 +34,6 @@ class Lit4dVarNet(pl.LightningModule):
         err_w = err * weight[None, ...]
         non_zeros = (torch.ones_like(err) * weight[None, ...]) == 0.0
         err_num = err.isfinite() & ~non_zeros & mask
-        '''if err.isfinite().float().mean() != 1.:
-            print('err not entirely finite')
-            print(err.isfinite().float().mean())
-        if mask.float().mean() !=1.:
-            print('err not entirely finite')
-            print(err.isfinite().float().mean())
-        if not torch.equal(err.isfinite() & ~non_zeros, err.isfinite() & ~non_zeros & mask):
-            print('mask changed mse')'''
         if err_num.sum() == 0:
             return torch.scalar_tensor(1000.0, device=err_num.device).requires_grad_()
         loss = F.mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
@@ -61,15 +47,9 @@ class Lit4dVarNet(pl.LightningModule):
 
     def forward(self, batch):
         return self.solver(batch)
-    
-    def regrid_forward(self, batch):
-
-        regrid_out = self(batch)
-        reverse_regrid_out = regrid_interp(regrid_out, self.test_regrid)
-        return reverse_regrid_out
 
     def step(self, batch, phase=""):
-        if self.training and (batch.tgt.isfinite().float().mean() < 0.9 or batch.mask.float().mean() < 0.1):
+        if self.training and (batch.tgt.isfinite().float().mean() < 0.1 or batch.mask.float().mean() < 0.1):
             return None, None
 
         loss, out = self.base_step(batch, phase)
@@ -95,10 +75,6 @@ class Lit4dVarNet(pl.LightningModule):
         return self.opt_fn(self)
 
     def test_step(self, batch, batch_idx):
-
-        if self.test_regrid is not None:
-            return self.test_step_regrid(batch, batch_idx)
-        
         if batch_idx == 0:
             self.test_data = []
         out = self(batch=batch)
@@ -108,25 +84,6 @@ class Lit4dVarNet(pl.LightningModule):
             [
                 batch.input.cpu() * s + m,
                 batch.tgt.cpu() * s + m,
-                out.squeeze(dim=-1).detach().cpu() * s + m,
-            ],
-            dim=1,
-        ))
-
-    def test_step_regrid(self, batch, batch_idx):
-
-        batch, original_batch = batch
-        if batch_idx == 0:
-            self.test_data = []
-
-        m, s = self.norm_stats
-
-        out = self.regrid_forward(batch=batch)
-
-        self.test_data.append(torch.stack(
-            [
-                original_batch.input.cpu(),
-                original_batch.tgt.cpu(),
                 out.squeeze(dim=-1).detach().cpu() * s + m,
             ],
             dim=1,
@@ -172,47 +129,51 @@ class Lit4dVarNetForecast(Lit4dVarNet):
     pre_metric_fn: preprocessing functions to apply to the reconstruction
     norm_stats: normalisation stats of data
     persist_rw: if True: rec_weight saved alongside parameters
-    test_regrid: [[original size], [regrided size]]: will regrid observations for test time only
-    loss_masking: will mask nan values present in the target for loss and gradient computations
+    grad_masking: will mask nan values present in the target for loss and gradient computations
+    output_only_forecast: if True, for test_dataloader will reconstruct and evaluate only for leadtimes from present and onwards
     """
 
-    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, test_regrid=None, loss_masking=True, output_only_forecast=True):
-        super().__init__(solver, rec_weight, opt_fn, test_metrics, pre_metric_fn, norm_stats, persist_rw, test_regrid, loss_masking)
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, grad_masking=True, output_only_forecast=False):
+        super().__init__(solver, rec_weight, opt_fn, test_metrics, pre_metric_fn, norm_stats, persist_rw, grad_masking)
         self.output_only_forecast=output_only_forecast
 
     @staticmethod
-    def mask_batch(batch, loss_masking):
+    def mask_batch(batch, grad_masking):
 
         # temporal masking
         new_input = batch.input
         dims = new_input.size()
-        new_input[:, dims[1]//2:, :, :] = float('nan')
-
+        # input
+        new_input[:, dims[1]//2:, :, :] = np.nan
+        #target
+        #new_target = batch.tgt.nan_to_num()
         # batch.mask
-        new_mask = (batch.tgt).isfinite() if loss_masking else torch.full_like(batch.tgt, True).type(torch.bool)
+        new_mask = (batch.tgt).isfinite() if grad_masking else torch.full_like(batch.tgt, True).type(torch.bool)
 
-        mask_batch = batch._replace(input=new_input, mask=new_mask)
+        mask_batch = batch._replace(input=new_input,
+                                    #tgt=new_target,
+                                    mask=new_mask)
 
         return mask_batch
 
     def training_step(self, batch, batch_idx):
-        mask_batch = self.mask_batch(batch, self.loss_masking)
+        mask_batch = self.mask_batch(batch, self.grad_masking)
         return super().training_step(mask_batch, batch_idx)
 
     def validation_step(self, batch, batch_idx):
-        mask_batch = self.mask_batch(batch, self.loss_masking)
+        mask_batch = self.mask_batch(batch, self.grad_masking)
         return super().validation_step(mask_batch, batch_idx)
 
     def test_step(self, batch, batch_idx):
-        mask_batch = self.mask_batch(batch, self.loss_masking)
+        mask_batch = self.mask_batch(batch, self.grad_masking)
         super().test_step(mask_batch, batch_idx)
 
     def on_test_epoch_end(self):
         dims = self.rec_weight.size()
         dT = dims[0]
         metrics = []
-        output_start = 0 if self.output_only_forecast else -((dT - 1) // 2 - 1)
-        for i in tqdm(range(output_start, 8)):
+        output_start = 0 if self.output_only_forecast else -((dT - 1) // 2)
+        for i in tqdm(range(output_start, 7)):
             forecast_weight = np.concatenate(
                 (np.zeros((dT // 2 + i, dims[1], dims[2])),
                  # using rec_weight to crop results accordingly
@@ -231,8 +192,8 @@ class Lit4dVarNetForecast(Lit4dVarNet):
             ).to_dataset(dim='v0')
 
             if self.logger:
-                test_data_leadtime.to_netcdf(Path(self.logger.log_dir) / f'test_data_{i+(dT-1)//2-1}.nc')
-                print(Path(self.trainer.log_dir) / f'test_data_{i+(dT-1)//2-1}.nc')
+                test_data_leadtime.to_netcdf(Path(self.logger.log_dir) / f'test_data_{i+(dT-1)//2}.nc')
+                print(Path(self.trainer.log_dir) / f'test_data_{i+(dT-1)//2}.nc')
                 
 
             metric_data = test_data_leadtime.pipe(self.pre_metric_fn)
@@ -242,7 +203,7 @@ class Lit4dVarNetForecast(Lit4dVarNet):
             })
             metrics.append(metrics_leadtime)
 
-        print(pd.DataFrame(metrics, range(output_start, 8)).T.to_markdown())
+        print(pd.DataFrame(metrics, range(output_start, 7)).T.to_markdown())
 
 
 
@@ -372,7 +333,7 @@ class BaseObsCost(nn.Module):
         self.w = w
 
     def forward(self, state, batch):
-        msk = batch.input.isfinite() & batch.mask
+        msk = batch.input.isfinite()
         return self.w * F.mse_loss(state[msk], batch.input.nan_to_num()[msk])
 
 

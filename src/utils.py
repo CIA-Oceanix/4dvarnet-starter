@@ -219,8 +219,6 @@ def load_ose_data_with_tgt_mask(path, tgt_path, variable='zos', test_cut=None):
         ds_mask = ds_mask.rename({'latitude':'lat', 'longitude':'lon'})
 
     ds_mask = ds_mask.sel(time='2020-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords)
-    #if test_cut is not None:
-        #ds = ds.sel(time=test_cut).load()
 
     print('ds_s loaded')
 
@@ -338,19 +336,19 @@ def load_full_natl_data(
 
 def rmse_based_scores_from_ds(ds, ref_variable='tgt', study_variable='out'):
     try:
-        return rmse_based_scores(ds[ref_variable], ds[study_variable])[2:]
+        return rmse_based_scores(ds[study_variable], ds[ref_variable])[2:]
     except Exception:
         return [np.nan, np.nan]
 
 
 def psd_based_scores_from_ds(ds, ref_variable='tgt', study_variable='out'):
     try:
-        return psd_based_scores(ds[ref_variable], ds[study_variable])[1:]
+        return psd_based_scores(ds[study_variable], ds[ref_variable])[1:]
     except Exception:
         return [np.nan, np.nan]
 
 
-def rmse_based_scores(da_ref, da_rec):
+def rmse_based_scores(da_rec, da_ref):
     rmse_t = (
         1.0
         - (((da_rec - da_ref) ** 2).mean(dim=("lon", "lat"))) ** 0.5
@@ -371,7 +369,7 @@ def rmse_based_scores(da_ref, da_rec):
     )
 
 
-def psd_based_scores(da_ref, da_rec):
+def psd_based_scores(da_rec, da_ref):
     err = da_rec - da_ref
     err["time"] = (err.time - err.time[0]) / np.timedelta64(1, "D")
     signal = da_ref
@@ -535,43 +533,3 @@ def load_cfg(xp_dir):
         return None, None
 
     return cfg, OmegaConf.select(hydra_cfg, "runtime.choices.xp")
-
-def regrid_interp(out, regrid_sizes):
-
-    out = out.detach().cpu().numpy()
-    out_size = out.shape
-    out_grid_sizes = out_size[-2:]
-    max_i = out_size[0]
-    max_j = out_size[1]
-    out_regrid_sizes = regrid_sizes[1]
-
-    x_grid = np.arange(0, out_grid_sizes[0], step=1)
-    y_grid = np.arange(0, out_grid_sizes[1], step=1)
-
-    x_regrid = np.linspace(start=0, stop=out_grid_sizes[0]-1, num=out_regrid_sizes[0])
-    y_regrid = np.linspace(start=0, stop=out_grid_sizes[1]-1, num=out_regrid_sizes[1])
-
-    interp_grid_x = np.empty((len(x_regrid) *  len(y_regrid)))
-    interp_grid_y = np.empty((len(x_regrid) *  len(y_regrid)))
-    
-    for x in range(len(x_regrid)):
-        for y in range(len(y_regrid)):
-            interp_grid_x[x*len(x_regrid) + y] = x_regrid[x]
-            interp_grid_y[x*len(x_regrid) + y] = y_regrid[y]
-
-    regrid_interp_out = torch.Tensor(size=[max_i, max_j, *out_regrid_sizes])
-
-    for i in range(max_i):
-        for j in range(max_j):
-            new_mat = interpn(points=(x_grid, y_grid), values=out[i,j,:,:], xi=(interp_grid_x, interp_grid_y), method='cubic')
-            new_mat = np.reshape(new_mat, (out_regrid_sizes[0], out_regrid_sizes[1]))
-            regrid_interp_out[i,j,:,:] = torch.tensor(new_mat)
-
-    return regrid_interp_out.cuda()
-
-def interp_sat_rmse(da_out, da_ref):
-    times = da_ref.time.values.astype(str)
-    times = list(map(lambda x: x[:10], times))
-
-    for i, time in enumerate(times):
-        pass
