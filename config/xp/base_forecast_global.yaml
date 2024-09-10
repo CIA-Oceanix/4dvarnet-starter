@@ -1,8 +1,6 @@
 # @package _global_
 
 paths:
-    natl_gf_5nads: data/natl_gf_w_5nadirs.nc
-    enatl_gf_5nads: data/enatl_wo_tide.nc
     masks_path: /DATASET/GLORYS12/global_obs_6sats_masks_2022.pickle
     glorys12_data: /DATASET/GLORYS12/reanalysis/glorys12_2020_4th.nc
 
@@ -52,9 +50,9 @@ trainer:
       filename: '{val_mse:.5f}-{epoch:03d}'
 
 datamodule:
-  _target_: src.data.BaseDataModule
+  _target_: contrib.moving_patches.movpatch_data.MovingPatchDataModule
   input_da: 
-    _target_: src.utils.open_glorys12_data
+    _target_: contrib.data_loading.data.open_glorys12_data
     path: ${paths.glorys12_data}
     masks_path: ${paths.masks_path}
     domain: ${domain.train}
@@ -69,14 +67,13 @@ datamodule:
     patch_dims: { time: 29, lat: 48, lon: 48}
     strides: { time: 1, lat: 40, lon: 40}
     domain_limits: ${domain.train}
-  dl_kw: {batch_size: 64, num_workers: 32}
+  dl_kw: {batch_size: 64, num_workers: 4}
   aug_kw:
     aug_factor: 2
     aug_only: True
-  rec_crop:: {time: 0, lat: 4, lon: 4}
 
 model:
-  _target_: src.models.Lit4dVarNetForecast
+  _target_: contrib.forecast_plus.models.Plus4dVarNetForecast
   persist_rw: False
   opt_fn:
     _target_: src.utils.cosanneal_lr_adam
@@ -87,6 +84,9 @@ model:
     _target_: src.utils.get_forecast_wei
     patch_dims: ${datamodule.xrds_kw.patch_dims}
     crop: {time: 0, lat: 4, lon: 4}
+  rec_weight_fn:
+    _target_: contrib.forecast_weights.forecast_weights_reconstruction
+    _partial_: True
   solver:
     _target_: src.models.GradSolverZero
     n_step: 10
@@ -109,7 +109,7 @@ model:
   pre_metric_fn:
         _target_: xarray.Dataset.sel
         _partial_: True
-        time: {_target_: builtins.slice, _args_: ["2020-11-26", "2020-12-29"]}
+        time: {_target_: builtins.slice, _args_: ["2020-11-25", "2020-12-31"]}
         lat: ${domain.test.lat}
         lon: ${domain.test.lon}
 

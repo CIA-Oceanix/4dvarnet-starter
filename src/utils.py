@@ -12,9 +12,6 @@ import pyinterp.backends.xarray
 import src.data
 import xarray as xr
 import matplotlib.pyplot as plt
-import pickle
-from scipy.interpolate import interpn
-import cv2
 
 
 def pipe(inp, fns):
@@ -186,6 +183,7 @@ def load_altimetry_data(path, obs_from_tgt=False):
         .transpose("time", "lat", "lon")
         .to_array()
     )
+
 
 def load_dc_data(**kwargs):
     path_gt = "../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_ssh_y2013.1y.nc",

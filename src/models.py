@@ -6,7 +6,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from tqdm import tqdm
 
 
 class Lit4dVarNet(pl.LightningModule):
@@ -164,11 +163,10 @@ class Lit4dVarNetForecast(Lit4dVarNet):
         dT = dims[0]
         metrics = []
         output_start = 0 if self.output_only_forecast else -((dT - 1) // 2)
-        for i in tqdm(range(output_start, 7)):
+        for i in range(output_start, 7):
             forecast_weight = np.concatenate(
                 (np.zeros((dT // 2 + i, dims[1], dims[2])),
-                 # using rec_weight to crop results accordingly
-                 np.expand_dims(self.rec_weight.cpu().numpy()[dT//2], axis=0),
+                 np.ones((1, dims[1], dims[2])),
                  np.zeros((dT // 2 - i, dims[1], dims[2]))),
                 axis=0)
             rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
