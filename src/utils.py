@@ -100,9 +100,6 @@ def remove_nan(da):
     )[1]
     return da
 
-def fill_nan(da):
-    return da.fillna(0)
-
 
 def get_constant_crop(patch_dims, crop, dim_order=["time", "lat", "lon"]):
     patch_weight = np.zeros([patch_dims[d] for d in dim_order], dtype="float32")
@@ -133,7 +130,7 @@ def get_triang_time_wei(patch_dims, offset=0, **crop_kw):
     )
 
 
-def get_forecast_wei(patch_dims, flat_end=False, exponential_ascension=False, **crop_kw):
+def get_forecast_wei(patch_dims, **crop_kw):
     """
     return weight for forecast reconstruction:
     patch_dims: dimension of the patches used
@@ -144,8 +141,8 @@ def get_forecast_wei(patch_dims, flat_end=False, exponential_ascension=False, **
     """
     pw = get_constant_crop(patch_dims, **crop_kw)
     time_patch_weight = np.concatenate(
-        (np.power(np.linspace(0, 1, (patch_dims['time'] - 1) // 2), 2 if exponential_ascension else 1),
-         np.linspace(1, 1, 7) if flat_end else np.linspace(1, 0.5, 7),
+        (np.linspace(0, 1, (patch_dims['time'] - 1) // 2),
+         np.linspace(1, 0.5, 7),
          np.zeros((patch_dims['time'] + 1) // 2 - 7)),
         axis=0)
     final_patch_weight = time_patch_weight[:, None, None] * pw
@@ -189,128 +186,6 @@ def load_altimetry_data(path, obs_from_tgt=False):
         .transpose("time", "lat", "lon")
         .to_array()
     )
-
-def load_ose_data(path):
-    ds = (
-        xr.open_dataset(path)
-        .load()
-        .assign(
-            input=lambda ds: ds.ssh,
-            tgt=lambda ds: ds.ssh,
-            mask=lambda ds: ds.ssh,
-        )
-    )
-
-    return (
-        ds[[*src.data.TrainingItemMask._fields]]
-        .transpose("time", "lat", "lon")
-        .to_array()
-    )
-
-def load_ose_data_with_tgt_mask(path, tgt_path, variable='zos', test_cut=None):
-
-    ds_mask =  (
-        xr.open_dataset(tgt_path).drop_vars('depth')
-    )
-
-    ds = xr.open_dataset(path)
-
-    if 'latitude' in list(ds_mask.dims):
-        ds_mask = ds_mask.rename({'latitude':'lat', 'longitude':'lon'})
-
-    ds_mask = ds_mask.sel(time='2020-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords)
-
-    print('ds_s loaded')
-
-    ds = (
-        ds
-        .assign(
-            input=ds.ssh,
-            tgt=ds_mask,
-            mask=ds_mask,
-        )
-    )
-
-    return (
-        ds[[*src.data.TrainingItemMask._fields]]
-        .transpose("time", "lat", "lon")
-        .to_array()
-    )
-
-def load_altimetry_data(path, obs_from_tgt=False):
-    ds = (
-        xr.open_dataset(path)
-        # .assign(ssh=lambda ds: ds.ssh.coarsen(lon=2, lat=2).mean().interp(lat=ds.lat, lon=ds.lon))
-        .load()
-        .assign(
-            input=lambda ds: ds.nadir_obs,
-            tgt=lambda ds: remove_nan(ds.ssh),
-        )
-    )
-
-    if obs_from_tgt:
-        ds = ds.assign(input=ds.tgt.where(np.isfinite(ds.input), np.nan))
-
-    return (
-        ds[[*src.data.TrainingItem._fields]]
-        .transpose("time", "lat", "lon")
-        .to_array()
-    )
-
-
-def mask_input(da, mask_list):
-    i = np.random.randint(0, len(mask_list))
-    mask = mask_list[i]
-    da = np.where(np.isfinite(mask), da, np.empty_like(da).fill(np.nan)).astype(np.float32)
-    return da
-
-def open_glorys12_data(path, masks_path, domain, variables="zos", masking=True, test_cut=None):
-
-    print("LOADING input data")
-    # DROPPING DEPTH !!
-    ds =  (
-        xr.open_dataset(path).drop_vars('depth')
-    )
-    
-    if 'latitude' in list(ds.dims):
-        ds = ds.rename({'latitude':'lat', 'longitude':'lon'})
-
-
-    if test_cut is not None:
-        ds = ds.sel(time=test_cut)
-
-    ds = (
-        ds
-        .load()
-        .assign(
-            input = lambda ds: ds[variables],
-            tgt= lambda ds: ds[variables],
-            mask= lambda ds: ds[variables]
-        )
-    )
-    print("done.")
-
-    if masking:
-        print("OPENING mask list")
-        with open(masks_path, 'rb') as masks_file:
-            mask_list = pickle.load(masks_file)
-        mask_list = np.array(mask_list)
-        print("done.")
-
-        print("MASKING input data")
-        ds= ds.assign(
-            input=xr.apply_ufunc(mask_input, ds.input, input_core_dims=[['lat', 'lon']], output_core_dims=[['lat', 'lon']], kwargs={"mask_list": mask_list}, dask="allowed", vectorize=True)
-            )
-        print("done.")
-    
-    ds = ds.sel(domain)
-    ds = (
-        ds[[*src.data.TrainingItemMask._fields]]
-        .transpose("time", "lat", "lon")
-        .to_array()
-    )
-
-    return ds
 
 def load_dc_data(**kwargs):
     path_gt = "../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_ssh_y2013.1y.nc",

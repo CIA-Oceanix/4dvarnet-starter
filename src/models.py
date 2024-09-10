@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 
 class Lit4dVarNet(pl.LightningModule):
-    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, grad_masking=True):
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
         super().__init__()
         self.solver = solver
         self.register_buffer('rec_weight', torch.from_numpy(rec_weight), persistent=persist_rw)
@@ -19,7 +19,6 @@ class Lit4dVarNet(pl.LightningModule):
         self.opt_fn = opt_fn
         self.metrics = test_metrics or {}
         self.pre_metric_fn = pre_metric_fn or (lambda x: x)
-        self.grad_masking = grad_masking
 
     @property
     def norm_stats(self):
@@ -30,15 +29,15 @@ class Lit4dVarNet(pl.LightningModule):
         return (0., 1.)
 
     @staticmethod
-    def weighted_mse(err, weight, mask):
+    def weighted_mse(err, weight):
         err_w = err * weight[None, ...]
         non_zeros = (torch.ones_like(err) * weight[None, ...]) == 0.0
-        err_num = err.isfinite() & ~non_zeros & mask
+        err_num = err.isfinite() & ~non_zeros
         if err_num.sum() == 0:
             return torch.scalar_tensor(1000.0, device=err_num.device).requires_grad_()
         loss = F.mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
         return loss
-    
+
     def training_step(self, batch, batch_idx):
         return self.step(batch, "train")[0]
 
@@ -49,12 +48,12 @@ class Lit4dVarNet(pl.LightningModule):
         return self.solver(batch)
 
     def step(self, batch, phase=""):
-        if self.training and (batch.tgt.isfinite().float().mean() < 0.1 or batch.mask.float().mean() < 0.1):
+        if self.training and batch.tgt.isfinite().float().mean() < 0.1:
             return None, None
 
         loss, out = self.base_step(batch, phase)
-        grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight, batch.mask)
-        prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out), batch.mask)
+        grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
+        prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
         self.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
 
         training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost
@@ -63,7 +62,7 @@ class Lit4dVarNet(pl.LightningModule):
     def base_step(self, batch, phase=""):
         out = self(batch=batch)
 
-        loss = self.weighted_mse(out - batch.tgt, self.rec_weight, batch.mask)
+        loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
 
         with torch.no_grad():
             self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
@@ -129,43 +128,35 @@ class Lit4dVarNetForecast(Lit4dVarNet):
     pre_metric_fn: preprocessing functions to apply to the reconstruction
     norm_stats: normalisation stats of data
     persist_rw: if True: rec_weight saved alongside parameters
-    grad_masking: will mask nan values present in the target for loss and gradient computations
     output_only_forecast: if True, for test_dataloader will reconstruct and evaluate only for leadtimes from present and onwards
     """
 
-    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, grad_masking=True, output_only_forecast=False):
-        super().__init__(solver, rec_weight, opt_fn, test_metrics, pre_metric_fn, norm_stats, persist_rw, grad_masking)
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, output_only_forecast=False):
+        super().__init__(solver, rec_weight, opt_fn, test_metrics, pre_metric_fn, norm_stats, persist_rw)
         self.output_only_forecast=output_only_forecast
 
     @staticmethod
-    def mask_batch(batch, grad_masking):
+    def mask_batch(batch):
 
         # temporal masking
         new_input = batch.input
         dims = new_input.size()
-        # input
         new_input[:, dims[1]//2:, :, :] = np.nan
-        #target
-        #new_target = batch.tgt.nan_to_num()
-        # batch.mask
-        new_mask = (batch.tgt).isfinite() if grad_masking else torch.full_like(batch.tgt, True).type(torch.bool)
 
-        mask_batch = batch._replace(input=new_input,
-                                    #tgt=new_target,
-                                    mask=new_mask)
+        mask_batch = batch._replace(input=new_input)
 
         return mask_batch
 
     def training_step(self, batch, batch_idx):
-        mask_batch = self.mask_batch(batch, self.grad_masking)
+        mask_batch = self.mask_batch(batch)
         return super().training_step(mask_batch, batch_idx)
 
     def validation_step(self, batch, batch_idx):
-        mask_batch = self.mask_batch(batch, self.grad_masking)
+        mask_batch = self.mask_batch(batch)
         return super().validation_step(mask_batch, batch_idx)
 
     def test_step(self, batch, batch_idx):
-        mask_batch = self.mask_batch(batch, self.grad_masking)
+        mask_batch = self.mask_batch(batch)
         super().test_step(mask_batch, batch_idx)
 
     def on_test_epoch_end(self):
@@ -226,7 +217,7 @@ class GradSolver(nn.Module):
         return batch.input.nan_to_num().detach().requires_grad_(True)
 
     def solver_step(self, state, batch, step):
-        var_cost = self.prior_cost(state, batch.mask) + self.obs_cost(state, batch)
+        var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
 
         gmod = self.grad_mod(grad)
@@ -381,6 +372,5 @@ class BilinAEPriorCost(nn.Module):
         x = self.up(x)
         return x
 
-    def forward(self, state, mask):
-        mask = mask
-        return F.mse_loss(state[mask], self.forward_ae(state)[mask])
+    def forward(self, state):
+        return F.mse_loss(state, self.forward_ae(state))
