@@ -47,7 +47,7 @@ class Lit4dVarNet(pl.LightningModule):
         return self.solver(batch)
 
     def step(self, batch, phase=""):
-        if self.training and batch.tgt.isfinite().float().mean() < 0.9:
+        if self.training and batch.tgt.isfinite().float().mean() < 0.1:
             return None, None
 
         loss, out = self.base_step(batch, phase)
@@ -60,6 +60,7 @@ class Lit4dVarNet(pl.LightningModule):
 
     def base_step(self, batch, phase=""):
         out = self(batch=batch)
+
         loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
 
         with torch.no_grad():
@@ -92,7 +93,8 @@ class Lit4dVarNet(pl.LightningModule):
 
     def on_test_epoch_end(self):
         rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
-            self.test_data, self.rec_weight.cpu().numpy()
+            self.test_data,
+            self.rec_weight.cpu().numpy()
         )
 
         if isinstance(rec_da, list):
@@ -125,17 +127,23 @@ class Lit4dVarNetForecast(Lit4dVarNet):
     pre_metric_fn: preprocessing functions to apply to the reconstruction
     norm_stats: normalisation stats of data
     persist_rw: if True: rec_weight saved alongside parameters
+    output_only_forecast: if True, for test_dataloader will reconstruct and evaluate only for leadtimes from present and onwards
     """
 
-    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, output_only_forecast=False):
         super().__init__(solver, rec_weight, opt_fn, test_metrics, pre_metric_fn, norm_stats, persist_rw)
+        self.output_only_forecast=output_only_forecast
 
     @staticmethod
     def mask_batch(batch):
+
+        # temporal masking
         new_input = batch.input
         dims = new_input.size()
         new_input[:, dims[1]//2:, :, :] = np.nan
+
         mask_batch = batch._replace(input=new_input)
+
         return mask_batch
 
     def training_step(self, batch, batch_idx):
@@ -154,7 +162,8 @@ class Lit4dVarNetForecast(Lit4dVarNet):
         dims = self.rec_weight.size()
         dT = dims[0]
         metrics = []
-        for i in range(-((dT - 1) // 2 - 1), 7):
+        output_start = 0 if self.output_only_forecast else -((dT - 1) // 2)
+        for i in range(output_start, 7):
             forecast_weight = np.concatenate(
                 (np.zeros((dT // 2 + i, dims[1], dims[2])),
                  np.ones((1, dims[1], dims[2])),
@@ -172,8 +181,9 @@ class Lit4dVarNetForecast(Lit4dVarNet):
             ).to_dataset(dim='v0')
 
             if self.logger:
-                test_data_leadtime.to_netcdf(Path(self.logger.log_dir) / f'test_data_{i+(dT-1)//2-1}.nc')
-                print(Path(self.trainer.log_dir) / f'test_data_{i+(dT-1)//2-1}.nc')
+                test_data_leadtime.to_netcdf(Path(self.logger.log_dir) / f'test_data_{i+(dT-1)//2}.nc')
+                print(Path(self.trainer.log_dir) / f'test_data_{i+(dT-1)//2}.nc')
+                
 
             metric_data = test_data_leadtime.pipe(self.pre_metric_fn)
             metrics_leadtime = pd.Series({
@@ -182,7 +192,8 @@ class Lit4dVarNetForecast(Lit4dVarNet):
             })
             metrics.append(metrics_leadtime)
 
-        print(pd.DataFrame(metrics, range(-((dT - 1) // 2 - 1), 7)).T.to_markdown())
+        print(pd.DataFrame(metrics, range(output_start, 7)).T.to_markdown())
+
 
 
 class GradSolver(nn.Module):

@@ -2,9 +2,34 @@
 
 paths:
     natl_gf_5nads: data/natl_gf_w_5nadirs.nc
-    enatl_gf_5nads: ../sla-data-registry/qdata/enatl_wo_tide.nc
+    enatl_gf_5nads: data/enatl_wo_tide.nc
+    masks_path: /DATASET/GLORYS12/global_obs_6sats_masks_2022.pickle
+    glorys12_data: /DATASET/GLORYS12/reanalysis/glorys12_2020_4th.nc
+    ose_6_sats: /DATASET/GLORYS12/reanalysis/glorys12_2020_4th.nc
 
-domain: ???
+domain:
+  train:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - -80
+      - 90
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -180
+      - 180
+  test:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - -79
+      - 89
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -179
+      - 179
 
 trainer:
   _target_: pytorch_lightning.Trainer
@@ -12,12 +37,13 @@ trainer:
   gradient_clip_val: 0.5
   accelerator: gpu
   devices: 1
-  logger: 
+  logger:
     _target_: pytorch_lightning.loggers.CSVLogger
     save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 300
+  max_epochs: 350
+  limit_train_batches: 102
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
@@ -27,28 +53,31 @@ trainer:
       filename: '{val_mse:.5f}-{epoch:03d}'
 
 datamodule:
-  _target_: src.data.BaseDataModule
-  input_da: 
-    _target_: src.utils.load_altimetry_data
-    path: ${paths.natl_gf_5nads}
+  _target_: src.data.MovingPatchDataModule
+  input_da:
+    _target_: src.utils.load_ose_data_with_tgt_mask
+    path: ${paths.ose_6_sats}
+    tgt_path: ${paths.glorys12_data}
+    test_cut: ${datamodule.domains.test.time}
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2013-02-24', '2013-09-30']}
+      time: {_target_: builtins.slice, _args_: ['2020-01-01', '2020-10-17']}
     val: 
-      time: {_target_: builtins.slice, _args_: ['2012-12-15', '2013-02-24']}
+      time: {_target_: builtins.slice, _args_: ['2020-10-18', '2020-11-24']}
     test: 
-      time: {_target_: builtins.slice,  _args_: ['2012-10-01', '2012-12-20']}
+      time: {_target_: builtins.slice,  _args_: ['2020-11-25', '2020-12-31']}
   xrds_kw:
-    patch_dims: { time: 15, lat: 240, lon: 240}
-    strides: { time: 1, lat: 200, lon: 200}
+    patch_dims: { time: 29, lat: 48, lon: 48}
+    strides: { time: 1, lat: 40, lon: 40}
     domain_limits: ${domain.train}
-  dl_kw: {batch_size: 4, num_workers: 1}
+  dl_kw: {batch_size: 64, num_workers: 32}
   aug_kw:
     aug_factor: 2
     aug_only: True
+  rec_crop:: {time: 0, lat: 4, lon: 4}
 
 model:
-  _target_: src.models.Lit4dVarNet
+  _target_: src.models.Lit4dVarNetForecast
   persist_rw: False
   opt_fn:
     _target_: src.utils.cosanneal_lr_adam
@@ -56,35 +85,36 @@ model:
     lr: 1e-3
     T_max: ${trainer.max_epochs}
   rec_weight:
-      _target_: src.utils.get_triang_time_wei
-      patch_dims: ${datamodule.xrds_kw.patch_dims}
-      crop: {time: 0, lat: 20, lon: 20}
-      offset: 1
-  solver: 
-    _target_: src.models.GradSolver
+    _target_: src.utils.get_forecast_wei
+    patch_dims: ${datamodule.xrds_kw.patch_dims}
+    crop: {time: 0, lat: 4, lon: 4}
+  solver:
+    _target_: src.models.GradSolverZero
     n_step: 10
     lr_grad: 1e3
     # lr_grad: 0.2
-    prior_cost: 
+    prior_cost:
       _target_: src.models.BilinAEPriorCost
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 32
+      dim_hidden: 64
       bilin_quad: False
       # bilin_quad: True
-      downsamp: 2
-    obs_cost: 
+      #downsamp: 2
+    obs_cost:
       _target_: src.models.BaseObsCost
-    grad_mod: 
+    grad_mod:
       _target_: src.models.ConvLstmGradModel
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 48
+      dim_hidden: 96
   test_metrics: ${metrics.test_metrics}
-  pre_metric_fn: 
+  pre_metric_fn:
         _target_: xarray.Dataset.sel
         _partial_: True
-        time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
+        time: {_target_: builtins.slice, _args_: ["2020-11-26", "2020-12-29"]}
         lat: ${domain.test.lat}
         lon: ${domain.test.lon}
+  grad_masking: true
+  output_only_forecast: true
 
 metrics:
   nrmse_scores: {_target_: src.utils.rmse_based_scores_from_ds, _partial_: True}
@@ -106,6 +136,5 @@ entrypoints:
     dm: ${datamodule}
 
 defaults:
-  - /domain: gf
   - _self_
 

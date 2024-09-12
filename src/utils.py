@@ -209,14 +209,14 @@ def load_full_natl_data(
 
 def rmse_based_scores_from_ds(ds, ref_variable='tgt', study_variable='out'):
     try:
-        return rmse_based_scores(ds[ref_variable], ds[study_variable])[2:]
+        return rmse_based_scores(ds[study_variable], ds[ref_variable])[2:]
     except Exception:
         return [np.nan, np.nan]
 
 
 def psd_based_scores_from_ds(ds, ref_variable='tgt', study_variable='out'):
     try:
-        return psd_based_scores(ds[ref_variable], ds[study_variable])[1:]
+        return psd_based_scores(ds[study_variable], ds[ref_variable])[1:]
     except Exception:
         return [np.nan, np.nan]
 

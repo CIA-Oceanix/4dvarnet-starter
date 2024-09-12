@@ -5,6 +5,7 @@ import xarray as xr
 import itertools
 import functools as ft
 from collections import namedtuple
+from tqdm import tqdm
 
 TrainingItem = namedtuple('TrainingItem', ['input', 'tgt'])
 
@@ -36,8 +37,9 @@ class XrDataset(torch.utils.data.Dataset):
     def __init__(
             self, da, patch_dims, domain_limits=None, strides=None,
             check_full_scan=False, check_dim_order=False,
-            postpro_fn=None
-    ):
+            postpro_fn=None,
+            verbose=False
+        ):
         """
         da: xarray.DataArray with patch dims at the end in the dim orders
         patch_dims: dict of da dimension to size of a patch
@@ -52,13 +54,27 @@ class XrDataset(torch.utils.data.Dataset):
         self.patch_dims = patch_dims
         self.strides = strides or {}
         da_dims = dict(zip(self.da.dims, self.da.shape))
+        self.da_dims = da_dims
+
+        self.define_ds_size(da_dims, patch_dims, self.strides)
+        self.check_full_scan(check_full_scan, da_dims)
+        self.check_dim_order(check_dim_order)
+        
+        if verbose:
+            print('dataset sizes: {}'.format(dict(self.da.sizes)))
+            print('patches per dim: {}'.format(self.ds_size))
+            print('dataset length: {}'.format(len(self)))
+            print('-'*60)
+
+    def define_ds_size(self, da_dims, patch_dims, strides):
         self.ds_size = {
-            dim: max((da_dims[dim] - patch_dims[dim]) // self.strides.get(dim, 1) + 1, 0)
+            dim: max((da_dims[dim] - patch_dims[dim]) // strides.get(dim, 1) + 1, 0)
             for dim in patch_dims
         }
 
-        if check_full_scan:
-            for dim in patch_dims:
+    def check_full_scan(self, check, da_dims):
+        if check:
+            for dim in self.patch_dims:
                 if (da_dims[dim] - self.patch_dims[dim]) % self.strides.get(dim, 1) != 0:
                     raise IncompleteScanConfiguration(
                         f"""
@@ -69,17 +85,18 @@ class XrDataset(torch.utils.data.Dataset):
                         [shape - patch_size] should be divisible by stride
                         """
                     )
-
-        if check_dim_order:
-            for dim in patch_dims:
-                if not '#'.join(da.dims).endswith('#'.join(list(patch_dims))):
-                    raise DangerousDimOrdering(
-                        f"""
-                        input dataarray's dims should end with patch_dims
-                        dataarray's dim {da.dims}:
-                        patch_dims {list(patch_dims)}
-                        """
-                    )
+            
+    def check_dim_order(self, check):
+        if check:
+            for dim in self.patch_dims:
+                    if not '#'.join(self.da.dims).endswith('#'.join(list(self.patch_dims))):
+                        raise DangerousDimOrdering(
+                            f"""
+                            input dataarray's dims should end with patch_dims
+                            dataarray's dim {self.da.dims}:
+                            patch_dims {list(self.patch_dims)}
+                            """
+                        )
 
     def __len__(self):
         size = 1
@@ -115,7 +132,8 @@ class XrDataset(torch.utils.data.Dataset):
 
         item = item.data.astype(np.float32)
         if self.postpro_fn is not None:
-            return self.postpro_fn(item)
+            item = self.postpro_fn(item)
+
         return item
 
     def reconstruct(self, batches, weight=None):
@@ -123,7 +141,7 @@ class XrDataset(torch.utils.data.Dataset):
         takes as input a list of np.ndarray of dimensions (b, *, *patch_dims)
         return a stitched xarray.DataArray with the coords of patch_dims
 
-    batches: list of torch tensor correspondin to batches without shuffle
+        batches: list of torch tensor correspondin to batches without shuffle
         weight: tensor of size patch_dims corresponding to the weight of a prediction depending on the position on the patch (default to ones everywhere)
         overlapping patches will be averaged with weighting
         """
@@ -241,6 +259,7 @@ class BaseDataModule(pl.LightningDataModule):
     def post_fn(self):
         m, s = self.norm_stats()
         def normalize(item): return (item - m) / s
+        
         return ft.partial(ft.reduce, lambda i, f: f(i), [
             TrainingItem._make,
             lambda item: item._replace(tgt=normalize(item.tgt)),
