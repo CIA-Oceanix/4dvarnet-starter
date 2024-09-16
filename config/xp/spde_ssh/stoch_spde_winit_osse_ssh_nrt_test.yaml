@@ -1,8 +1,8 @@
 # @package _global_
 
 paths:
-    natl_4nads_swot_osse: /DATASET/mbeauchamp/natl_4nadirs_swot.nc
-    natl_6nads_ose: /DATASET/mbeauchamp/natl_ose_6nadirs.nc
+    natl_4nads_swot_osse: /DATASET/mbeauchamp/IMT/data/natl_4nadirs_swot.nc
+    natl_6nads_ose: /DATASET/mbeauchamp/IMT/data/natl_ose_6nadirs.nc
 
 domain: ???
 
@@ -129,6 +129,7 @@ model:
         lat: ${domain.test.lat}
         lon: ${domain.test.lon}
   n_simu: 100
+  start_simu_idx: 0.
   ncfile_name: '4DVarNet_OSSE_SSH_nrt.nc'
 
 metrics:

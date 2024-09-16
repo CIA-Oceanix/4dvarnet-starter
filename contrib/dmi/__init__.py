@@ -1,6 +1,7 @@
 from hydra.core.config_store import ConfigStore
 import datetime
 import pandas as pd
+import contrib.dmi.data
 
 cs = ConfigStore().instance()
 

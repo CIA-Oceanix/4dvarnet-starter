@@ -1,8 +1,8 @@
 # @package _global_
 
 paths:
-    natl_4nads_swot_osse: /DATASET/mbeauchamp/natl_4nadirs_swot.nc
-    natl_6nads_ose: /DATASET/mbeauchamp/natl_ose_6nadirs.nc
+    natl_4nads_swot_osse: /DATASET/mbeauchamp/IMT/data/natl_4nadirs_swot.nc
+    natl_6nads_ose: /DATASET/mbeauchamp/IMT/data/natl_ose_6nadirs.nc
 
 domain: ???
 
@@ -39,7 +39,7 @@ datamodule:
     test: 
       time: {_target_: builtins.slice,  _args_: ['2016-12-15', '2017-12-31']}
   xrds_kw:
-    patch_dims: { time: 15, lat: 120, lon: 120}
+    patch_dims: { time: 9, lat: 120, lon: 120}
     strides: { time: 1, lat: 100, lon: 100}
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 2, num_workers: 1}
@@ -129,6 +129,7 @@ model:
         lat: ${domain.test.lat}
         lon: ${domain.test.lon}
   n_simu: 100
+  use_gt: False
   start_simu_idx: 0.8
   ncfile_name: '4DVarNet_OSE_SSH_frcst4.nc'
 

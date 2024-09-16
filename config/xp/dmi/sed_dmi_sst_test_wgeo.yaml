@@ -7,6 +7,8 @@ paths:
     tgt: ${paths.src}/validation_dataset/DMI-L3S_GHRSST-SSTsubskin-night_SST_UHR_NRT-NSEABALTIC_validation_s0.nc
     oi: ${paths.src}/validation_dataset/DMI-L4_GHRSST-SSTfnd-DMI_OI-NSEABALTIC_2021_validation.nc
     mask: ${paths.src}/validation_dataset/mask.nc
+    topo: ${paths.src}/validation_dataset/DMI-TOPO_NSEABALTIC.nc
+    fg_std: ${paths.src}/validation_dataset/DMI-FGSTD_NSEABALTIC.nc
 
 domain: ???
 
@@ -37,6 +39,8 @@ datamodule:
     path_obs: ${paths.obs}
     path_tgt: ${paths.tgt}
     path_oi: ${paths.oi}
+    path_topo: ${paths.topo}
+    path_fgstd: ${paths.fg_std}
   domains:
     train:
       time: {_target_: builtins.slice, _args_: ['2021-01-01', '2021-12-31']}
@@ -61,7 +65,6 @@ datamodule:
   norm_stats:
     - 283.8052
     - 4.2381434 
-
 
 model:
   _target_: src.models.Lit4dVarNet_SST

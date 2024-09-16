@@ -8,6 +8,8 @@ import tqdm
 from collections import namedtuple
 
 TrainingItem = namedtuple('TrainingItem', ['input', 'tgt'])
+TrainingItem_ssh = namedtuple('TrainingItem_ssh', ['input_ssh', 'tgt_ssh'])
+TrainingItem_sst = namedtuple('TrainingItem_sst', ['input_sst', 'tgt_sst'])
 
 class IncompleteScanConfiguration(Exception):
     pass

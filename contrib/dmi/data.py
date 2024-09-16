@@ -11,8 +11,16 @@ from random import sample
 
 TrainingItem = namedtuple('TrainingItem', ['input', 'tgt'])
 
+TrainingItem_wcoarse = namedtuple(
+    'TrainingItem_wcoarse', ['input', 'tgt', 'coarse']
+)
+
 TrainingItem_wgeo = namedtuple(
-    'TrainingItem_wgeo', ['input', 'tgt', 'lat', 'lon', 'mask']
+    'TrainingItem_wgeo', ['input', 'tgt', 'lat', 'lon', 'mask', 'topo', 'fg_std']
+)
+
+TrainingItem_wcoarse_wgeo = namedtuple(
+    'TrainingItem_wgeo', ['input', 'tgt', 'coarse', 'lat', 'lon', 'mask', 'topo', 'fg_std']
 )
 
 class IncompleteScanConfiguration(Exception):
@@ -105,9 +113,6 @@ class XrDataset(torch.utils.data.Dataset):
         lon_orig = self.da.lon.data
         lat_orig = self.da.lat.data
 
-        print(self.da)
-        print('toto')
-
         # pad
         nt, ny, nx = tuple(self.da.sizes[d] for d in ['time', 'lat', 'lon'])
         if self.pad:
@@ -129,7 +134,6 @@ class XrDataset(torch.utils.data.Dataset):
                          lat = np.round(new_lat,2),
                          lon = np.round(new_lon,2)
                        )
-        print(self.da)
 
         #da_dims = dict(zip(self.da.dims, self.da.shape))
         da_dims = dict(zip(self.da.dims.keys(), self.da.dims.values()))
@@ -242,23 +246,6 @@ class XrDataset(torch.utils.data.Dataset):
             count_da.loc[da.coords] = count_da.sel(da.coords) + w
 
         return rec_da / count_da
-
-class XrDataset_wgeo(XrDataset):
-    def __getitem__(self, item):
-        sl = {
-                dim: slice(self.strides.get(dim, 1) * idx,
-                           self.strides.get(dim, 1) * idx + self.patch_dims[dim])
-                for dim, idx in zip(self.ds_size.keys(),
-                                    np.unravel_index(item, tuple(self.ds_size.values())))
-                }
-        item =  self.da.isel(**sl).to_array()#.sortby('variable')
-        if self.return_coords:
-            return item.coords.to_dataset()[list(self.patch_dims)]
-
-        item = item.data.astype(np.float32)
-        if self.postpro_fn is not None:
-            return self.postpro_fn(item)
-        return item
 
 class XrConcatDataset(torch.utils.data.ConcatDataset):
     """
@@ -476,19 +463,48 @@ class BaseDataModule(pl.LightningDataModule):
     def test_dataloader(self):
         return torch.utils.data.DataLoader(self.test_ds, shuffle=False, **self.dl_kw)
 
+class BaseDataModule_wcoarse(BaseDataModule):
+
+    def post_fn(self):
+        m, s = self.norm_stats()
+        normalize = lambda item: (item - m) / s
+        return ft.partial(ft.reduce,lambda i, f: f(i), [
+            TrainingItem_wcoarse._make,
+            lambda item: item._replace(input=normalize(item.input)),
+            lambda item: item._replace(coarse=item.coarse),
+            lambda item: item._replace(tgt=normalize(item.tgt)),
+        ])
+
+    def post_fn_rand(self):
+        m, s = self.norm_stats()
+        normalize = lambda item: (item - m) / s
+        return ft.partial(ft.reduce,lambda i, f: f(i), [
+            TrainingItem_wcoarse._make,
+            lambda item: item._replace(input=normalize(self.rand_obs(item.input))),
+            lambda item: item._replace(coarse=item.coarse),
+            lambda item: item._replace(tgt=normalize(item.tgt)),
+        ])
+
 class BaseDataModule_wgeo(BaseDataModule):
 
-    def get_train_range(self, v):
+    def get_train_range(self, v, minmax=False):
         train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {})).sel(
             self.domains['train']
         )
-        return train_data[v].min().values.item(), train_data[v].max().values.item()
+        if minmax:
+            return train_data[v].min().values.item(), train_data[v].max().values.item()
+        else:
+            return train_data[v].mean().values.item(), train_data[v].std().values.item()
 
     def post_fn(self):
         normalize = lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1]
-        lat_r = self.get_train_range('lat')
-        lon_r = self.get_train_range('lon')
+        lat_r = self.get_train_range('lat', minmax=True)
+        lon_r = self.get_train_range('lon', minmax=True)
         minmax_scale = lambda l, r: 2 * (l - r[0]) / (r[1] - r[0]) - 1.
+        m_topo, std_topo = self.get_train_range('topo')
+        normalize_topo = lambda item: (item - m_topo) / std_topo
+        m_fgstd, std_fgstd = self.get_train_range('fg_std')
+        normalize_fgstd = lambda item: (item - m_fgstd) / std_fgstd
         return ft.partial(
             ft.reduce,
             lambda i, f: f(i),
@@ -497,17 +513,22 @@ class BaseDataModule_wgeo(BaseDataModule):
                 lambda item: item._replace(input=normalize(item.input)),
                 lambda item: item._replace(tgt=normalize(item.tgt)),
                 lambda item: item._replace(lat=minmax_scale(np.expand_dims(item.lat[0], axis=0), lat_r)),
-
                 lambda item: item._replace(lon=minmax_scale(np.expand_dims(item.lon[0], axis=0), lon_r)),
                 lambda item: item._replace(mask=np.expand_dims(item.mask[0], axis=0)),
+                lambda item: item._replace(topo=normalize_topo(np.expand_dims(item.topo[0], axis=0))),
+                lambda item: item._replace(fg_std=normalize_fgstd(np.expand_dims(item.fg_std[0], axis=0)))
             ],
         )
 
     def post_fn_rand(self):
         normalize = lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1]
-        lat_r = self.get_train_range('lat')
-        lon_r = self.get_train_range('lon')
+        lat_r = self.get_train_range('lat', minmax=True)
+        lon_r = self.get_train_range('lon', minmax=True)
         minmax_scale = lambda l, r: 2 * (l - r[0]) / (r[1] - r[0]) - 1.
+        m_topo, std_topo = self.get_train_range('topo')
+        normalize_topo = lambda item: (item - m_topo) / std_topo
+        m_fgstd, std_fgstd = self.get_train_range('fg_std')
+        normalize_fgstd = lambda item: (item - m_fgstd) / std_fgstd
         return ft.partial(
             ft.reduce,
             lambda i, f: f(i),
@@ -518,49 +539,70 @@ class BaseDataModule_wgeo(BaseDataModule):
                 lambda item: item._replace(lat=minmax_scale(np.expand_dims(item.lat[0], axis=0), lat_r)),
                 lambda item: item._replace(lon=minmax_scale(np.expand_dims(item.lon[0], axis=0), lon_r)),
                 lambda item: item._replace(mask=np.expand_dims(item.mask[0], axis=0)),
+                lambda item: item._replace(topo=normalize_topo(np.expand_dims(item.topo[0], axis=0))),
+                lambda item: item._replace(fg_std=normalize_fgstd(np.expand_dims(item.fg_std[0], axis=0)))
             ],
         )
 
-    def setup(self, stage='test'):
+class BaseDataModule_wcoarse_wgeo(BaseDataModule):
 
-        train_data = self.input_da.sel(self.domains['train'])
-        post_fn = self.post_fn()
-        post_fn_rand = self.post_fn_rand()
-        #post_fn_rand = self.post_fn()
-
-        self.train_ds = XrDataset_wgeo(
-            train_data, **self.xrds_kw, postpro_fn=post_fn_rand,
-            resize_factor = self.resize_factor,
-            res = self.res, limit_num_coords = 100,
-            pad=self.pads[0]
+    def get_train_range(self, v, minmax=False):
+        train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {})).sel(
+            self.domains['train']
         )
-        if self.aug_kw:
-            self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
-
-        if isinstance(self.domains['val']['time'], slice):
-            self.val_ds = XrDataset_wgeo(
-                self.input_da.sel(self.domains['val']), **self.xrds_kw, postpro_fn=post_fn,
-                resize_factor = self.resize_factor, 
-                res =self.res,
-                pad=self.pads[1]
-            )
+        if minmax:
+            return train_data[v].min().values.item(), train_data[v].max().values.item()
         else:
-           self.val_ds =ConcatDataset([
-              XrDataset_wgeo(
-                self.input_da.sel(**{'time': sl}),
-                **self.xrds_kw, postpro_fn=post_fn,
-                resize_factor = self.resize_factor,
-                res =self.res,
-                pad=self.pads[1]
-              ) for sl in self.domains['val']['time'] ]
-            )
+            return train_data[v].mean().values.item(), train_data[v].std().values.item()
 
-        self.test_ds = XrDataset_wgeo(
-            self.input_da.sel(self.domains['test']), **self.xrds_kw, postpro_fn=post_fn,
-            resize_factor = self.resize_factor,
-            res = self.res, 
-            pad = self.pads[2],
-            stride_test=True
+    def post_fn(self):
+        normalize = lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1]
+        lat_r = self.get_train_range('lat', minmax=True)
+        lon_r = self.get_train_range('lon', minmax=True)
+        minmax_scale = lambda l, r: 2 * (l - r[0]) / (r[1] - r[0]) - 1.
+        m_topo, std_topo = self.get_train_range('topo')
+        normalize_topo = lambda item: (item - m_topo) / std_topo
+        m_fgstd, std_fgstd = self.get_train_range('fg_std')
+        normalize_fgstd = lambda item: (item - m_fgstd) / std_fgstd
+        return ft.partial(
+            ft.reduce,
+            lambda i, f: f(i),
+            [
+                TrainingItem_wcoarse_wgeo._make,
+                lambda item: item._replace(input=normalize(item.input)),
+                lambda item: item._replace(coarse=item.coarse),
+                lambda item: item._replace(tgt=normalize(item.tgt)),
+                lambda item: item._replace(lat=minmax_scale(np.expand_dims(item.lat[0], axis=0), lat_r)),
+                lambda item: item._replace(lon=minmax_scale(np.expand_dims(item.lon[0], axis=0), lon_r)),
+                lambda item: item._replace(mask=np.expand_dims(item.mask[0], axis=0)),
+                lambda item: item._replace(topo=normalize_topo(np.expand_dims(item.topo[0], axis=0))),
+                lambda item: item._replace(fg_std=normalize_fgstd(np.expand_dims(item.fg_std[0], axis=0)))
+            ],
+        )
+
+    def post_fn_rand(self):
+        normalize = lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1]
+        lat_r = self.get_train_range('lat', minmax=True)
+        lon_r = self.get_train_range('lon', minmax=True)
+        minmax_scale = lambda l, r: 2 * (l - r[0]) / (r[1] - r[0]) - 1.
+        m_topo, std_topo = self.get_train_range('topo')
+        normalize_topo = lambda item: (item - m_topo) / std_topo
+        m_fgstd, std_fgstd = self.get_train_range('fg_std')
+        normalize_fgstd = lambda item: (item - m_fgstd) / std_fgstd
+        return ft.partial(
+            ft.reduce,
+            lambda i, f: f(i),
+            [
+                TrainingItem_wcoarse_wgeo._make,
+                lambda item: item._replace(input=normalize(self.rand_obs(item.input,obs=True))),
+                lambda item: item._replace(coarse=item.coarse),
+                lambda item: item._replace(tgt=normalize(item.tgt)),
+                lambda item: item._replace(lat=minmax_scale(np.expand_dims(item.lat[0], axis=0), lat_r)),
+                lambda item: item._replace(lon=minmax_scale(np.expand_dims(item.lon[0], axis=0), lon_r)),
+                lambda item: item._replace(mask=np.expand_dims(item.mask[0], axis=0)),
+                lambda item: item._replace(topo=normalize_topo(np.expand_dims(item.topo[0], axis=0))),
+                lambda item: item._replace(fg_std=normalize_fgstd(np.expand_dims(item.fg_std[0], axis=0)))
+            ],
         )
 
 class ConcatDataModule(BaseDataModule):

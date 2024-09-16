@@ -69,7 +69,7 @@ class Encoder(torch.nn.Module):
 
 class Prior_SPDE(torch.nn.Module):
 
-    def __init__(self, shape_data, st_lag, trainable_lag=False, pow=1, spde_type="adv_diff", scheme="FDM"):
+    def __init__(self, shape_data, st_lag, trainable_lag=False, pow=1, spde_type="adv_diff", scheme="FDM", colored_noise=False):
 
         super(Prior_SPDE, self).__init__()
         self.n_t, self.n_y, self.n_x = shape_data
@@ -89,6 +89,7 @@ class Prior_SPDE(torch.nn.Module):
         self.nu = int(self.alpha -1)
         self.spde_type = spde_type
         self.scheme = scheme
+        self.colored_noise = colored_noise
         
     def custom_sigmoid(self,min,max):
         add_const = min/(max-min)
@@ -111,8 +112,8 @@ class Prior_SPDE(torch.nn.Module):
                  m,
                  H,
                  tau,
-                 colored_noise=False,
-                 store_block_diag=False):
+                 store_block_diag=False,
+                 return_noise=False):
 
         n_b = H.shape[0]
 
@@ -126,15 +127,10 @@ class Prior_SPDE(torch.nn.Module):
                                           [torch.stack(self.n_t*[torch.tensor(tau)])]\
                                           )]\
                               ).to(device)
-            
-        # initialize Qs (noise precision matrix)
-        if colored_noise==False:
-            Qs = sparse_eye(self.nb_nodes) 
-        else:
-            Qs = sparse_eye(self.nb_nodes) 
         
         # initialize outputs    
         Q = list()
+        Qs = list()
         if store_block_diag==True:
             block_diag=list()
             
@@ -143,10 +139,27 @@ class Prior_SPDE(torch.nn.Module):
         if self.scheme=="FUDM1":
             self.fdm = DiffOperator_FUDM1   
         if self.scheme=="FUDM3":
-            self.fdm = DiffOperator_FUDM3   
-         
+            self.fdm = DiffOperator_FUDM3     
+        
         for batch in range(n_b):
-
+  
+            # initialize Qs (noise precision matrix)
+            Qsb = list()
+            for k in range(self.n_t):
+                if self.colored_noise==False:
+                    Qs_ = sparse_eye(self.nb_nodes) 
+                else:
+                    if self.spde_type!="adv":
+                        Qs_ = sparse_eye(self.nb_nodes)
+                    else:
+                        Qs_ = self.fdm(self.n_x,self.n_y,self.dx,self.dy,
+                                  None,
+                                  H[batch,:,:,:,k],
+                                  kappa[batch,:,:,k])
+                        Qs_ = pow_diff_operator(Qs_.to(device),2,split=False,sparse=True)
+                        Qs_ = spspmm(Qs_.t(),Qs_)
+                Qsb.append(Qs_)  
+            
             # Build model evolution and noise effects operator
             inv_M = list() # linear model evolution matrix (inverse)
             inv_S = list() # T*Tt with T the noise effect matrix (inverse) 
@@ -180,7 +193,7 @@ class Prior_SPDE(torch.nn.Module):
                 if k==0:
                     inv_tau_0 = sparse_eye(self.nb_nodes,(1./tau[batch,:,0])*torch.sqrt(self.dt))
                     Qs_tilde0 = spspmm(spspmm(inv_tau_0.t(),
-                                              Qs),
+                                              Qsb[0]),
                                        inv_tau_0)
                     Q0 = (self.dx*self.dy)*spspmm(spspmm(B.t(),
                                                          Qs_tilde0),
@@ -193,7 +206,7 @@ class Prior_SPDE(torch.nn.Module):
                 else:
                     inv_tau_k = sparse_eye(self.nb_nodes,(1./tau[batch,:,k])*torch.sqrt(self.dt))
                     Qs_tilde = spspmm(spspmm(inv_tau_k.t(),
-                                             Qs),
+                                             Qsb[k]),
                                       inv_tau_k)
                     Q_k = (self.dx*self.dy)*spspmm(spspmm(B.t(),
                                                          Qs_tilde),
@@ -211,6 +224,7 @@ class Prior_SPDE(torch.nn.Module):
                 l.insert(0,inv_S0)
 
                 block_diag.append(l)
+                
                     
             # Build the global precision matrix
             row = torch.tensor([]).to(device)
@@ -219,7 +233,7 @@ class Prior_SPDE(torch.nn.Module):
              
             # first line 
             inv_tau = sparse_eye(self.nb_nodes,(1./tau[batch,:,1])*torch.sqrt(self.dt))
-            Qs_tilde = spspmm(spspmm(inv_tau.t(),Qs),inv_tau)
+            Qs_tilde = spspmm(spspmm(inv_tau.t(),Qsb[0]),inv_tau)
             row, col, val = self.stack_indices(inv_S0+Qs_tilde,
                                           0,0, 
                                           row,col,val) 
@@ -229,9 +243,9 @@ class Prior_SPDE(torch.nn.Module):
             # loop 
             for i in np.arange(1,self.n_t-1): 
                 inv_tau_1 = sparse_eye(self.nb_nodes,(1./tau[batch,:,i])*torch.sqrt(self.dt)) 
-                Qs_tilde1 = spspmm(spspmm(inv_tau_1.t(),Qs),inv_tau_1) 
+                Qs_tilde1 = spspmm(spspmm(inv_tau_1.t(),Qsb[i]),inv_tau_1) 
                 inv_tau_2 = sparse_eye(self.nb_nodes,(1./tau[batch,:,i+1])*torch.sqrt(self.dt))
-                Qs_tilde2 = spspmm(spspmm(inv_tau_2.t(),Qs),inv_tau_2) 
+                Qs_tilde2 = spspmm(spspmm(inv_tau_2.t(),Qsb[i+1]),inv_tau_2) 
                 row, col, val = self.stack_indices(-1.*spspmm(inv_M[i-1].t(),Qs_tilde1), 
                                               i*self.nb_nodes,(i-1)*self.nb_nodes, 
                                               row,col,val) 
@@ -243,7 +257,7 @@ class Prior_SPDE(torch.nn.Module):
                                               row,col,val) 
             # last line 
             inv_tau = sparse_eye(self.nb_nodes,(1./tau[batch,:,self.n_t-1])*torch.sqrt(self.dt))
-            Qs_tilde = spspmm(spspmm(inv_tau.t(),Qs),inv_tau) 
+            Qs_tilde = spspmm(spspmm(inv_tau.t(),Qsb[self.n_t-1]),inv_tau) 
             row, col, val = self.stack_indices(-1.*spspmm(inv_M[self.n_t-2].t(),Qs_tilde), 
                                           (self.n_t-1)*self.nb_nodes,(self.n_t-2)*self.nb_nodes, 
                                           row,col,val) 
@@ -262,29 +276,33 @@ class Prior_SPDE(torch.nn.Module):
             
             # add batch
             Q.append(Qg)
+            Qs.append(Qsb)
 
         if store_block_diag==True:
             # Q has size #batch*(nt*nbnodes)*(nt*nbnodes)
             # block_diag is list of size #batch
-            return Q, block_diag
+            if return_noise:
+                return Q, block_diag, Qs
+            else:
+                return Q, block_diag
         else:
-            return Q
+            if return_noise:
+                return Q, Qs
+            else:
+                return Q
 
     def forward(self,
                 kappa,
                 m,
                 H,
                 tau,
-                store_block_diag=False):
+                store_block_diag=False,
+                return_noise=False):
 
-        if store_block_diag==False:
-            Q = self.create_Q(kappa, m, H, tau,
-                          store_block_diag=store_block_diag)
-            return Q
-        else:
-            Q, block_diag = self.create_Q(kappa, m, H, tau,
-                            store_block_diag=store_block_diag)
-            return Q, block_diag
+        res = self.create_Q(kappa, m, H, tau,
+                          store_block_diag=store_block_diag,
+                          return_noise=return_noise)
+        return res
 
 class NLL(torch.nn.Module):
 

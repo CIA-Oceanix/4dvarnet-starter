@@ -171,24 +171,27 @@ class BilinAEPriorCost(nn.Module):
         else:
             return F.mse_loss(state[:,:self.nt,:,:], self.forward_ae(state)[:,:self.nt,:,:])
 
-
 class GradSolver_wgeo(GradSolver):
 
     def init_state(self, batch, x_init=None):
         x_init = super().init_state(batch, x_init)
-        coords_mask = torch.stack((batch.lat[:,0], batch.lon[:,0], batch.mask[:,0]), dim=1).to(x_init.device)
-        return (x_init, coords_mask)
+        coords_cov = torch.stack((batch.lat[:,0].nan_to_num(), 
+                                  batch.lon[:,0].nan_to_num(), 
+                                  batch.mask[:,0].nan_to_num(),
+                                  batch.topo[:,0].nan_to_num(), 
+                                  batch.fg_std[:,0].nan_to_num()), dim=1).to(x_init.device)
+        return (x_init, coords_cov)
 
     def solver_step(self, state, batch, step):
         var_cost = self.prior_cost(state) + self.obs_cost(state[0], batch)
-        x, coords_mask = state
+        x, coords_cov = state
         grad = torch.autograd.grad(var_cost, x, create_graph=True)[0]
 
         x_update = (
             1 / (step + 1) * self.grad_mod(grad)
             + self.lr_grad * (step + 1) / self.n_step * grad
         )
-        state = (x - x_update, coords_mask)
+        state = (x - x_update, coords_cov)
         return state
 
     def forward(self, batch):
@@ -205,14 +208,13 @@ class GradSolver_wgeo(GradSolver):
                 state = [self.prior_cost.forward_ae(state), state[1]]
         return state[0]
 
-
 class BilinAEPriorCost_wgeo(nn.Module):
     def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None, bilin_quad=True, nt=None):
         super().__init__()
         self.nt = nt
         self.bilin_quad = bilin_quad
         self.conv_in = nn.Conv2d(
-            dim_in+3, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
+            dim_in+5, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
         )
         self.conv_hidden = nn.Conv2d(
             dim_hidden, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2
@@ -244,8 +246,8 @@ class BilinAEPriorCost_wgeo(nn.Module):
 
     def forward_ae(self, state):
         x = self.down(state[0])
-        coords_mask = self.down2(state[1])
-        x = self.conv_in(torch.cat((x,coords_mask),dim=1))
+        coords_cov = self.down2(state[1])
+        x = self.conv_in(torch.cat((x,coords_cov),dim=1))
         x = self.conv_hidden(F.relu(x))
 
         nonlin = self.bilin_21(x)**2 if self.bilin_quad else (self.bilin_21(x) * self.bilin_22(x))

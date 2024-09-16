@@ -1,8 +1,8 @@
 # @package _global_
 
 paths:
-    natl_4nads_swot_osse: /DATASET/mbeauchamp/natl_4nadirs_swot.nc
-    natl_6nads_ose: /DATASET/mbeauchamp/natl_ose_6nadirs.nc
+    natl_4nads_swot_osse: /DATASET/mbeauchamp/IMT/data/natl_4nadirs_swot.nc
+    natl_6nads_ose: /DATASET/mbeauchamp/IMT/data/natl_ose_6nadirs.nc
 
 domain: ???
 
@@ -17,7 +17,7 @@ trainer:
     save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 600
+  max_epochs: 1100
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
@@ -57,17 +57,16 @@ model:
   _target_: contrib.stoch_spde.lit_model_spde_winit.Lit4dVarNet
   frcst_lead: ${datamodule.frcst_lead}
   persist_rw: False
-  epoch_start_opt2: 500
+  epoch_start_opt2: 1000
   opt_fn:
     _target_: src.utils.cosanneal_spde_lr_adam_winit
     _partial_: true
     lr: 1e-3
     T_max: ${trainer.max_epochs}
   rec_weight:
-    _target_: src.utils.get_triang_time_wei
+    _target_: src.utils.get_center_time_wei
     patch_dims: { time: 5, lat: 120, lon: 120}
     crop: {time: 0, lat: 10, lon: 10}
-    offset: 1
   optim_weight1: 
     _target_: src.utils.get_triang_time_wei
     patch_dims: ${datamodule.xrds_kw.patch_dims}
@@ -130,6 +129,7 @@ model:
         lat: ${domain.test.lat}
         lon: ${domain.test.lon}
   n_simu: 100
+  start_simu_idx: 0.
   ncfile_name: '4DVarNet_OSSE_SSH_mapping.nc'
 
 metrics:
@@ -150,7 +150,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    ckpt: /homes/m19beauc/4dvarnet-starter/ckpt/ssh_spde_mapping_4nadirs_swot.ckpt
+    #ckpt: /homes/m19beauc/4dvarnet-starter/ckpt/ssh_spde_mapping_4nadirs_swot.ckpt
 
 defaults:
   - /domain: gf

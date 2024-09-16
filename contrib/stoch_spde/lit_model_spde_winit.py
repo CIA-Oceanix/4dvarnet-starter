@@ -38,7 +38,7 @@ class Upsampler(nn.Module):
         return x
 
 class Lit4dVarNet(pl.LightningModule):
-    def __init__(self, solver, solver2, rec_weight, optim_weight1, optim_weight2, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, n_simu=100, downsamp = None, frcst_lead = None, epoch_start_opt2=1000,start_simu_idx=0,ncfile_name='test_data.nc'):
+    def __init__(self, solver, solver2, rec_weight, optim_weight1, optim_weight2, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, n_simu=100, downsamp = None, frcst_lead = None, use_gt = True, out_as_first_guess=True, smooth_wprior=False, epoch_start_opt2=1000,start_simu_idx=0,ncfile_name='test_data.nc'):
 
         super().__init__()
         self.solver = solver
@@ -87,8 +87,9 @@ class Lit4dVarNet(pl.LightningModule):
         self.factor = None
 
         # parameter used for outputs
-        self.use_gt = True
-        self.out_as_first_guess = True
+        self.use_gt = use_gt
+        self.out_as_first_guess = out_as_first_guess
+        self.smooth_wprior = smooth_wprior
 
     @property
     def norm_stats(self):
@@ -153,6 +154,8 @@ class Lit4dVarNet(pl.LightningModule):
 
         batch_ = self.modify_batch(batch)
         out = self.solver2(batch=batch_)
+        if self.smooth_wprior:
+            out = self.solver2.prior_cost.forward_ae(out)
         # provide mu as coarse version of 4DVarNet outputs
         corrupted_out = self.corrupt_batch(batch_, out.clone())
 
@@ -199,8 +202,7 @@ class Lit4dVarNet(pl.LightningModule):
             if self.solver.aug_state==True:
                 nll_loss = torch.nanmean(self.solver.nll(self.crop_batch(batch).tgt,
                                                  theta = theta,
-                                                 #mu = corrupted_out[:,self.sel_crop_daw,:,:].detach(),
-                                                 mu = out.detach(),
+                                                 mu = corrupted_out[:,self.sel_crop_daw,:,:].detach(),
                                                  det=True))
             else:
                 nll_loss = torch.nanmean(self.solver.nll(self.crop_batch(batch).tgt,
@@ -418,16 +420,27 @@ class Lit4dVarNet(pl.LightningModule):
             rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
                 self.test_data, self.rec_weight.cpu().numpy(), crop = self.crop_daw
             )
+
+        print(self.test_data[0].shape)
+
         self.test_data = rec_da.assign_coords(
                         dict(v0=self.test_quantities)
                     ).to_dataset(dim='v0')
+
+        print(self.test_data)
+
                           
         daw = 5
         rec_params_wdaw = []
         rec_simu_wdaw = []
         for i in range(daw):
             rw = np.zeros(self.rec_weight.cpu().numpy().shape)
-            rw[i,:,:] = 1.
+            if self.frcst_lead is None:
+                rw[i] = self.rec_weight.cpu().numpy()[2]
+            else:
+                rw[i] = self.rec_weight.cpu().numpy()[-1]
+            print('toto')
+            print(rw.shape)
             # reconstruct parameters
             if isinstance(self.trainer.test_dataloaders,list):
                 rec_params = self.trainer.test_dataloaders[0].dataset.reconstruct(
@@ -438,6 +451,7 @@ class Lit4dVarNet(pl.LightningModule):
                             self.test_params, rw, crop = self.crop_daw
                 )
             rec_params_wdaw.append(rec_params)
+            print(rec_params)
             
             # reconstruct simulations
             rec_da_wsimu = []

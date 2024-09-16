@@ -7,7 +7,6 @@ import einops
 import contrib.lorenz63
 
 
-
 class RearrangedBilinAEPriorCost(src.models.BilinAEPriorCost):
     """
     Wrapper around the base prior cost that allows for reshaping of the input batch
@@ -62,8 +61,6 @@ class RearrangedConvLstmGradModel(src.models.ConvLstmGradModel):
         x = super().forward(x)
         x = einops.rearrange(x, self.rearrange_aft)
         return x
-
-
 
 class LitLorenz(src.models.Lit4dVarNet):
     def step(self, batch, phase="", opt_idx=None):

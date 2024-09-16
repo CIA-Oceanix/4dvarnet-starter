@@ -1,10 +1,10 @@
 # @package _global_
 
 paths:
-    natl_4nads_swot_osse: /DATASET/mbeauchamp/natl_4nadirs_swot.nc
+    natl_4nads_swot_osse: /DATASET/mbeauchamp/IMT/data/natl_4nadirs_swot.nc
     natl_u: /DATASET/NATL/wind/NATL60-ERAint-u10m-2012-2013-1_20.nc
     natl_v: /DATASET/NATL/wind/NATL60-ERAint-v10m-2012-2013-1_20.nc
-    natl_6nads_ose: /DATASET/mbeauchamp/natl_ose_6nadirs.nc
+    natl_6nads_ose: /DATASET/mbeauchamp/IMT/data/natl_ose_6nadirs.nc
 
 domain: ???
 
@@ -27,7 +27,7 @@ trainer:
       monitor: val_mse
       save_top_k: 3
       save_last: True
-      filename: '{val_mse:.5f}-{epoch:03d}'
+      filename: 'ssh_spde_uv_frcst2_4nadirs_swot_{val_mse:.5f}-{epoch:03d}'
 
 datamodule:
   _target_: contrib.stoch_spde.data_wcov.BaseDataModule_wcov
@@ -56,7 +56,7 @@ datamodule:
     test: 
       time: {_target_: builtins.slice,  _args_: ['2012-10-01', '2012-12-20']}
   xrds_kw:
-    patch_dims: { time: 15, lat: 120, lon: 120}
+    patch_dims: { time: 9, lat: 120, lon: 120}
     strides: { time: 1, lat: 100, lon: 100}
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 2, num_workers: 1}
@@ -144,6 +144,8 @@ model:
         lat: ${domain.test.lat}
         lon: ${domain.test.lon}
   n_simu: 100
+  start_simu_idx: 0.
+  ncfile_name: '4DVarNet_OSSE_SSH_uv_frcst2.nc'
 
 metrics:
   nrmse_scores: {_target_: src.utils.rmse_based_scores_from_ds, _partial_: True}
@@ -163,7 +165,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    ckpt_path: /homes/m19beauc/4dvarnet-starter/ckpt/ssh_uvatmo_spde_frcst2_4nadirs_swot.ckpt
+    ckpt_path: /homes/m19beauc/4dvarnet-starter/ckpt/ssh_uv_spde_frcst2_4nadirs_swot.ckpt
 
 defaults:
   - /domain: gf

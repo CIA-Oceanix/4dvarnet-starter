@@ -15,8 +15,10 @@ def find_wavelength_05_crossing(filename):
     f = interpolate.interp1d(x, y)
     
     xnew = 0.5
-    ynew = f(xnew)
-    
+    try:
+        ynew = f(xnew)
+    except ValueError:
+        ynew = 999.0
     return ynew
     
 def plot_psd_score(filename, plot=False):

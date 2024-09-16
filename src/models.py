@@ -8,6 +8,7 @@ import torch.nn.functional as F
 import numpy as np
 import xarray as xr
 from src.utils import get_last_time_wei, get_linear_time_wei
+from src.BCDUNet import BCDUNet
 
 class Lit4dVarNet(pl.LightningModule):
     def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
@@ -243,6 +244,106 @@ class Lit4dVarNet_SST(Lit4dVarNet):
             print(Path(self.trainer.log_dir) / 'test_data.nc')
             self.logger.log_metrics(metrics.to_dict())
 
+class Lit4dVarNet_SST_wcoarse(Lit4dVarNet):
+
+    def __init__(self, path_mask, optim_weight, domain_limits, persist_rw=True, *args, **kwargs):
+         super().__init__(*args, **kwargs)
+
+         self.domain_limits = domain_limits
+         self.mask_land = np.isfinite(xr.open_dataset(path_mask).sel(**(self.domain_limits or {})).analysed_sst_LR[20])
+
+         self.register_buffer('optim_weight', torch.from_numpy(optim_weight), persistent=persist_rw)
+
+    def modify_batch(self,batch):
+        batch = batch._replace(input=batch.input.nan_to_num())
+        batch = batch._replace(tgt=batch.tgt.nan_to_num())
+        return batch
+
+    def step(self, batch, phase=""):
+
+        if self.training and batch.tgt.isfinite().float().mean() < 0.05:
+            return None, None
+
+        batch = self.modify_batch(batch)
+        loss, out = self.base_step(batch, phase)
+        grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt),
+                                      self.optim_weight)
+        prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
+        self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
+
+        print(50*loss, 10*prior_cost, 1000*grad_loss)
+        training_loss = 50 * loss + 10 * prior_cost + 1000 * grad_loss
+        return training_loss, out
+
+    def base_step(self, batch, phase=""):
+
+        out = self(batch=batch)
+        loss = self.weighted_mse(out - batch.tgt, self.optim_weight)
+
+        with torch.no_grad():
+            self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
+            self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
+
+        return loss, out
+
+    def test_step(self, batch, batch_idx):
+        if batch_idx == 0:
+            self.test_data = []
+
+        batch = self.modify_batch(batch)
+        out = self(batch=batch)
+        m, s = self.norm_stats
+
+        self.test_data.append(torch.stack(
+            [
+                ((batch.input*s+m) + batch.coarse).cpu(),
+                ((batch.tgt*s+m) + batch.coarse).cpu(),
+                ((out*s+m) + batch.coarse).squeeze(dim=-1).detach().cpu(),
+            ],
+            dim=1,
+        ))
+
+        batch = None
+        out = None
+
+    def on_test_epoch_end(self):
+
+        if isinstance(self.trainer.test_dataloaders,list):
+            rec_da = self.trainer.test_dataloaders[0].dataset.reconstruct(
+                self.test_data, self.rec_weight.cpu().numpy()
+            )
+        else:
+            rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+                self.test_data, self.rec_weight.cpu().numpy()
+            )
+
+        self.test_data = rec_da.assign_coords(
+            dict(v0=self.test_quantities)
+        ).to_dataset(dim='v0')
+
+        # crop (if necessary) 
+        self.test_data = self.test_data.sel(**(self.domain_limits or {}))
+        self.mask_land = self.mask_land.sel(**(self.domain_limits or {}))
+
+        # set NaN according to mask
+        self.test_data = self.test_data.update({'inp':(('time','lat','lon'),self.test_data.inp.data),
+                                                'tgt':(('time','lat','lon'),self.test_data.tgt.data),
+                                                'analysed_sst':(('time','lat','lon'),self.test_data.out.data)})
+        self.test_data.coords['mask'] = (('lat', 'lon'), self.mask_land.values)
+        self.test_data = self.test_data.where(self.test_data.mask)
+
+        metric_data = self.test_data.pipe(self.pre_metric_fn),
+        metrics = pd.Series({
+            metric_n: metric_fn(metric_data)
+            for metric_n, metric_fn in self.metrics.items()
+        })
+
+        print(metrics.to_frame(name="Metrics").to_markdown())
+        if self.logger:
+            self.test_data.to_netcdf(Path(self.logger.log_dir) / 'test_data.nc')
+            print(Path(self.trainer.log_dir) / 'test_data.nc')
+            self.logger.log_metrics(metrics.to_dict())
+
 class Lit4dVarNet_OSE(Lit4dVarNet):
 
     def __init__(self, *args, **kwargs):
@@ -292,7 +393,7 @@ class Lit4dVarNet_OSE(Lit4dVarNet):
         return loss, out
 
 class GradSolver(nn.Module):
-    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.2, **kwargs):
+    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.2, reset_state=True, **kwargs):
         super().__init__()
         self.prior_cost = prior_cost
         self.obs_cost = obs_cost
@@ -302,6 +403,7 @@ class GradSolver(nn.Module):
         self.lr_grad = lr_grad
 
         self._grad_norm = None
+        self.reset_state = reset_state
 
     def init_state(self, batch, x_init=None):
         if x_init is not None:
@@ -324,7 +426,8 @@ class GradSolver(nn.Module):
     def forward(self, batch):
         with torch.set_grad_enabled(True):
             state = self.init_state(batch)
-            self.grad_mod.reset_state(batch.input)
+            if self.reset_state:
+                self.grad_mod.reset_state(batch.input)
 
             for step in range(self.n_step):
                 state = self.solver_step(state, batch, step=step)
@@ -392,7 +495,6 @@ class ConvLstmGradModel(nn.Module):
         out = self.conv_out(hidden)
         out = self.up(out)
         return out
-
 
 class BaseObsCost(nn.Module):
     def __init__(self, w=1) -> None:

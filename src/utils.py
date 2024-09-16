@@ -64,6 +64,20 @@ def cosanneal_lr_adam(lit_mod, lr, T_max=100, weight_decay=0.):
         "lr_scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=T_max),
     }
 
+def cosanneal_vae_lr_adam(lit_mod, lr, T_max=100, weight_decay=0.):
+    opt = torch.optim.Adam(
+        [
+            {"params": lit_mod.solver.grad_mod.parameters(), "lr": lr},
+            {"params": lit_mod.solver.obs_cost.parameters(), "lr": lr},
+            {"params": lit_mod.solver.prior_cost.parameters(), "lr": lr / 2},
+            {"params": lit_mod.solver.gen_mod.parameters(), "lr": lr},
+        ], weight_decay=weight_decay
+    )
+    return {
+        "optimizer": opt,
+        "lr_scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=T_max),
+    }
+
 def cosanneal_spde_lr_adam(lit_mod, lr, T_max=100, weight_decay=0.):
     opt = torch.optim.Adam(
         [
@@ -219,6 +233,8 @@ def get_center_time_wei(patch_dims, offset=0, **crop_kw):
         patch_dims.values(),
     )
 
+def duplicate_wei(weights):
+    return np.concatenate((weights,weights),axis=0)
 
 def load_enatl(*args, obs_from_tgt=True, **kwargs):
     # ds = xr.open_dataset('../sla-data-registry/qdata/enatl_wo_tide.nc')
@@ -312,12 +328,31 @@ def load_altimetry_data_woi(path, obs_from_tgt=False):
 
     if obs_from_tgt:
         ds = ds.assign(input=ds.tgt.where(np.isfinite(ds.input), np.nan))
-
+        
     return (
         ds[[*src.data_notebook_woi.TrainingItem._fields]]
         .transpose("time", "lat", "lon")
         .to_array()
     )
+
+def load_altimetry_data_fast_woi(path, obs_from_tgt=False, var_obs="nadir_mod", var_oi = "oi_ssh_mod", var_gt='ssh'):
+    
+    ds = xr.merge([
+             xr.open_dataset(path).rename_vars({var_obs:"input"}),
+             xr.open_dataset(path).rename_vars({var_gt:"tgt"}),
+             xr.open_dataset(path).rename_vars({var_oi:"oi"})]
+           ,compat='override')[[*src.data_notebook_woi_fast.TrainingItem._fields]].transpose('time', 'lat', 'lon')
+    
+    if obs_from_tgt:
+        ds = ds.assign(input=ds.tgt.where(np.isfinite(ds.input), np.nan))
+        
+    ds = ds.update({'tgt':(('time','lat','lon'),np.where(ds.tgt.data==0.,np.nan,ds.tgt.data))})
+    ds = ds.update({'oi':(('time','lat','lon'),np.where(np.abs(ds.oi.data)>1e3,np.nan,ds.oi.data))})
+
+    ds = ds.update({'tgt':(('time','lat','lon'),ds.tgt.data-ds.oi.data)})
+    ds = ds.update({'input':(('time','lat','lon'),ds.input.data-ds.oi.data)})
+
+    return ds
 
 def load_natl_data(
         path_obs="/DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-7nadirs-2009-2010-1_20.nc",

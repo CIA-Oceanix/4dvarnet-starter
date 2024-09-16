@@ -1,8 +1,8 @@
 # @package _global_
 
 paths:
-    natl_4nads_swot_osse: /DATASET/mbeauchamp/natl_4nadirs_swot.nc
-    natl_6nads_ose: /DATASET/mbeauchamp/natl_ose_6nadirs.nc
+    natl_4nads_swot_osse: /DATASET/mbeauchamp/IMT/data/natl_4nadirs_swot.nc
+    natl_6nads_ose: /DATASET/mbeauchamp/IMT/data/natl_ose_6nadirs.nc
 
 domain: ???
 
