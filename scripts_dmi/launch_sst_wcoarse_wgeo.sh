@@ -44,6 +44,6 @@ done
 
 echo ${list_outputs[*]}
 # merge the NetCDF files
-ncrcat ${list_outputs[*]} -O ${diro}/DMI-L4_GHRSST-SSTfnd-DMI_4DVarNet-NSEABALTIC_2021_${xpname}_${dm}.nc
-mv -f ${diro}/DMI-L4_GHRSST-SSTfnd-DMI_4DVarNet-NSEABALTIC_2021_${dm}.nc /DATASET/mbeauchamp/DMI/4DVarNet_outputs
+ncrcat ${list_outputs[*]} -O ${diro}/DMI-L4_GHRSST-SSTfnd-DMI_4DVarNet-NSEABALTIC_2021_${xp_name}_${dm}.nc
+mv -f ${diro}/DMI-L4_GHRSST-SSTfnd-DMI_4DVarNet-NSEABALTIC_2021_${xp_name}_${dm}.nc /DATASET/mbeauchamp/DMI/4DVarNet_outputs
 

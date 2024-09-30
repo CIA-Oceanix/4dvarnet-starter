@@ -16,11 +16,11 @@ TrainingItem_wcoarse = namedtuple(
 )
 
 TrainingItem_wgeo = namedtuple(
-    'TrainingItem_wgeo', ['input', 'tgt', 'lat', 'lon', 'mask', 'topo', 'fg_std']
+    'TrainingItem_wgeo', ['input', 'tgt', 'lat', 'lon', 'land_mask', 'topo', 'fg_std']
 )
 
 TrainingItem_wcoarse_wgeo = namedtuple(
-    'TrainingItem_wgeo', ['input', 'tgt', 'coarse', 'lat', 'lon', 'mask', 'topo', 'fg_std']
+    'TrainingItem_wcoarse_wgeo', ['input', 'tgt', 'coarse', 'lat', 'lon', 'land_mask', 'topo', 'fg_std']
 )
 
 class IncompleteScanConfiguration(Exception):
@@ -197,6 +197,7 @@ class XrDataset(torch.utils.data.Dataset):
                                     np.unravel_index(item, tuple(self.ds_size.values())))
                 }
         item =  self.da.isel(**sl).to_array()#.sortby('variable')
+
         if self.return_coords:
             return item.coords.to_dataset()[list(self.patch_dims)]
 
@@ -514,7 +515,7 @@ class BaseDataModule_wgeo(BaseDataModule):
                 lambda item: item._replace(tgt=normalize(item.tgt)),
                 lambda item: item._replace(lat=minmax_scale(np.expand_dims(item.lat[0], axis=0), lat_r)),
                 lambda item: item._replace(lon=minmax_scale(np.expand_dims(item.lon[0], axis=0), lon_r)),
-                lambda item: item._replace(mask=np.expand_dims(item.mask[0], axis=0)),
+                lambda item: item._replace(land_mask=np.expand_dims(item.land_mask[0], axis=0)),
                 lambda item: item._replace(topo=normalize_topo(np.expand_dims(item.topo[0], axis=0))),
                 lambda item: item._replace(fg_std=normalize_fgstd(np.expand_dims(item.fg_std[0], axis=0)))
             ],
@@ -538,7 +539,7 @@ class BaseDataModule_wgeo(BaseDataModule):
                 lambda item: item._replace(tgt=normalize(item.tgt)),
                 lambda item: item._replace(lat=minmax_scale(np.expand_dims(item.lat[0], axis=0), lat_r)),
                 lambda item: item._replace(lon=minmax_scale(np.expand_dims(item.lon[0], axis=0), lon_r)),
-                lambda item: item._replace(mask=np.expand_dims(item.mask[0], axis=0)),
+                lambda item: item._replace(land_mask=np.expand_dims(item.land_mask[0], axis=0)),
                 lambda item: item._replace(topo=normalize_topo(np.expand_dims(item.topo[0], axis=0))),
                 lambda item: item._replace(fg_std=normalize_fgstd(np.expand_dims(item.fg_std[0], axis=0)))
             ],
@@ -574,7 +575,7 @@ class BaseDataModule_wcoarse_wgeo(BaseDataModule):
                 lambda item: item._replace(tgt=normalize(item.tgt)),
                 lambda item: item._replace(lat=minmax_scale(np.expand_dims(item.lat[0], axis=0), lat_r)),
                 lambda item: item._replace(lon=minmax_scale(np.expand_dims(item.lon[0], axis=0), lon_r)),
-                lambda item: item._replace(mask=np.expand_dims(item.mask[0], axis=0)),
+                lambda item: item._replace(land_mask=np.expand_dims(item.land_mask[0], axis=0)),
                 lambda item: item._replace(topo=normalize_topo(np.expand_dims(item.topo[0], axis=0))),
                 lambda item: item._replace(fg_std=normalize_fgstd(np.expand_dims(item.fg_std[0], axis=0)))
             ],
@@ -599,7 +600,7 @@ class BaseDataModule_wcoarse_wgeo(BaseDataModule):
                 lambda item: item._replace(tgt=normalize(item.tgt)),
                 lambda item: item._replace(lat=minmax_scale(np.expand_dims(item.lat[0], axis=0), lat_r)),
                 lambda item: item._replace(lon=minmax_scale(np.expand_dims(item.lon[0], axis=0), lon_r)),
-                lambda item: item._replace(mask=np.expand_dims(item.mask[0], axis=0)),
+                lambda item: item._replace(land_mask=np.expand_dims(item.land_mask[0], axis=0)),
                 lambda item: item._replace(topo=normalize_topo(np.expand_dims(item.topo[0], axis=0))),
                 lambda item: item._replace(fg_std=normalize_fgstd(np.expand_dims(item.fg_std[0], axis=0)))
             ],

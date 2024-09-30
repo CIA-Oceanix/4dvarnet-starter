@@ -13,6 +13,7 @@ class Lit4dVarNet(pl.LightningModule):
     def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
         super().__init__()
         self.solver = solver
+        # load vae weights
         self.register_buffer('rec_weight', torch.from_numpy(rec_weight), persistent=persist_rw)
         self.test_data = None
         self._norm_stats = norm_stats
@@ -66,19 +67,13 @@ class Lit4dVarNet(pl.LightningModule):
         # classic 4DVarNet loss (MSE loss for solver + prior cost)
         training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost
         # VAE loss (supervised)
-        mean, log_var, x_hat = self.solver.gen_mod(batch.tgt)
-        loss_vae = self.vae_loss(x_hat, batch.tgt, mean, log_var)
+        #z, mean, log_var = self.solver.gen_mod.encoder(batch.tgt)
+        #x_hat = self.solver.gen_mod.decoder(z)
+        #loss_vae = self.gen_mod.vae_loss(x_hat, batch.tgt, mean, log_var, wKL=0.0001)
         # total loss
-        # training_loss += training_loss + .1*loss_vae
-        training_loss = loss_vae
+        #training_loss += training_loss + loss_vae
+        #training_loss = loss_vae
         return training_loss, out
-
-    def vae_loss(self, x, x_hat, mean, log_var):
-        # reproduction_loss = nn.functional.binary_cross_entropy(x_hat, x, reduction='sum')
-        # reproduction_loss = nn.functional.mse_loss(x_hat, x, reduction='mean')
-        reproduction_loss = self.weighted_mse(x - x_hat, torch.ones(self.rec_weight.shape).to(x.device))
-        KLD = - 0.5 * torch.sum(1+ log_var - mean.pow(2) - log_var.exp())
-        return reproduction_loss + KLD
 
     def base_step(self, batch, phase=""):
         out = self(batch=batch)

@@ -223,14 +223,14 @@ class Lit4dVarNet_SST(Lit4dVarNet):
         rzf_mask = True
         if rzf_mask:
             self.mask_land = self.mask_land.coarsen(lon=10,boundary='trim').mean(skipna=True).coarsen(lat=10,boundary='trim').mean(skipna=True)
-            self.mask_land = (self.mask_land!=0)
+            self.mask_land = (self.mask_land!=0.)
 
         # set NaN according to mask
         self.test_data = self.test_data.update({'inp':(('time','lat','lon'),self.test_data.inp.data),
                                                 'tgt':(('time','lat','lon'),self.test_data.tgt.data),
                                                 'analysed_sst':(('time','lat','lon'),self.test_data.out.data)})
-        self.test_data.coords['mask'] = (('lat', 'lon'), self.mask_land.values)
-        self.test_data = self.test_data.where(self.test_data.mask)
+        #self.test_data.coords['mask'] = (('lat', 'lon'), self.mask_land.values)
+        #self.test_data = self.test_data.where(self.test_data.mask)
 
         metric_data = self.test_data.pipe(self.pre_metric_fn),
         metrics = pd.Series({

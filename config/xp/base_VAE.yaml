@@ -82,12 +82,9 @@ model:
     obs_cost: 
       _target_: contrib.stoch_vae.solver.BaseObsCost
     gen_mod:
-      _target_: contrib.stoch_vae.solver.VAE
-      input_shape: 
-        - ${datamodule.xrds_kw.patch_dims.time}
-        - ${datamodule.xrds_kw.patch_dims.lat}
-        - ${datamodule.xrds_kw.patch_dims.lon}
-      z_dim: 200 
+      _target_: contrib.stoch_vae.VAE.VAE
+      in_channels: ${datamodule.xrds_kw.patch_dims.time}
+      out_channels: 50
     grad_mod: 
       _target_: contrib.stoch_vae.solver.ConvLstmGradModel
       dim_in: ${datamodule.xrds_kw.patch_dims.time}

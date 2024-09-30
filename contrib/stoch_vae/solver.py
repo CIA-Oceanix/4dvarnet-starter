@@ -8,6 +8,7 @@ import torch.nn.functional as F
 import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
+from contrib.stoch_vae.VAE import VAE as VAE_attention
 
 class VAE(nn.Module):
     def __init__(self, input_shape, z_dim):
@@ -87,6 +88,11 @@ class VAE(nn.Module):
         mu_p, log_var_p = self.encode(x)
         x = self.reparametrization(mu_p, log_var_p)
         return x
+
+    def vae_loss(self, x, x_hat, mean, log_var, wKL=.01):
+        reproduction_loss = nn.functional.mse_loss(x_hat, x, reduction='mean')
+        KLD = - 0.5 * torch.sum(1+ log_var - mean.pow(2) - log_var.exp())
+        return reproduction_loss + wKL*KLD, reproduction_loss, KLD
 
     def _get_conv_out_size(self, shape):
         out = self.encoder_conv(torch.zeros(1, *shape))
@@ -184,6 +190,11 @@ class VAE2(nn.Module):
         x = self.reparametrization(mu_p, log_var_p)
         return x
 
+    def vae_loss(self, x, x_hat, mean, log_var, wKL=.01):
+        reproduction_loss = nn.functional.mse_loss(x_hat, x, reduction='mean')
+        KLD = - 0.5 * torch.sum(1+ log_var - mean.pow(2) - log_var.exp())
+        return reproduction_loss + wKL*KLD, reproduction_loss, KLD
+
     def _get_conv_out_size(self, shape):
         out = self.encoder_conv(torch.zeros(1, *shape))
         self.conv_out_shape = out.size()
@@ -214,7 +225,7 @@ class GradSolver(nn.Module):
 
         # assimilation in latent space
         z_state = self.gen_mod.project_latent_space(state)
-        var_cost = self.prior_cost(state) + self.obs_cost(self.gen_mod.decode(z_state), batch)
+        var_cost = self.prior_cost(state) + self.obs_cost(self.gen_mod.decoder(z_state), batch)
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
 
         gmod = self.grad_mod(grad)

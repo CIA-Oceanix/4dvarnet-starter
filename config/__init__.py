@@ -47,9 +47,12 @@ domains = {
     "canaries_t": dict(lon=[-29, -17], lat=[33, 45]),
     "baltic": dict(lon=[-10, 30], lat=[48, 66]),
     "baltic_ext": dict(lon=[-12, 32], lat=[46, 68.001]),
-    "baltic_dm1": dict(lon=[0.38, 7.38], lat=[53.98, 57.78]),
-    "baltic_dm2": dict(lon=[-5.62, 3.58], lat=[61.18, 65.38]),
-    "baltic_dm3": dict(lon=[16.94, 20.68], lat=[55.18, 56.8])
+    "baltic_dm1_eval": dict(lon=[0.38, 7.38], lat=[53.98, 57.78]),
+    "baltic_dm2_eval": dict(lon=[-5.62, 3.58], lat=[61.18, 65.38]),
+    "baltic_dm3_eval": dict(lon=[16.94, 20.68], lat=[55.18, 56.8]),
+    "baltic_dm1": dict(lon=[1.48,6.28], lat=[53.48,58.28]),
+    "baltic_dm2": dict(lon=[-6.32,3,28], lat=[60.88,65.68]),
+    "baltic_dm3": dict(lon=[16.41,21.21], lat=[53.61,58.41])
 }
 
 for n, d in domains.items():

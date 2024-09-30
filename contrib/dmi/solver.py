@@ -177,7 +177,7 @@ class GradSolver_wgeo(GradSolver):
         x_init = super().init_state(batch, x_init)
         coords_cov = torch.stack((batch.lat[:,0].nan_to_num(), 
                                   batch.lon[:,0].nan_to_num(), 
-                                  batch.mask[:,0].nan_to_num(),
+                                  batch.land_mask[:,0].nan_to_num(),
                                   batch.topo[:,0].nan_to_num(), 
                                   batch.fg_std[:,0].nan_to_num()), dim=1).to(x_init.device)
         return (x_init, coords_cov)
