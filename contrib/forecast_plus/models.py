@@ -6,20 +6,29 @@ from src.models import Lit4dVarNetForecast
 
 
 class Plus4dVarNetForecast(Lit4dVarNetForecast):
+    """
+        slight modifications of the Lit4dVarNetForecast model
+
+        rec_weight_fn: function to create alternative reconstruction weights
+    """
     def __init__(
             self,
             *args,
             rec_weight_fn,
+            output_leadtime_start=None,
             **kwargs
         ):
         super().__init__(*args, **kwargs)
         self.rec_weight_fn = rec_weight_fn
+        self.output_leadtime_start = output_leadtime_start
 
     def on_test_epoch_end(self):
         dims = self.rec_weight.size()
         dT = dims[0]
         metrics = []
         output_start = 0 if self.output_only_forecast else -((dT - 1) // 2)
+        if self.output_leadtime_start is not None:
+            output_start = self.output_leadtime_start
         for i in range(output_start, 7):
             forecast_weight = self.rec_weight_fn(i, dT, dims, self.rec_weight.cpu().numpy())
             rec_da = self.trainer.test_dataloaders.dataset.reconstruct(

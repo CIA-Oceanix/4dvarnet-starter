@@ -19,20 +19,22 @@ def load_ose_data(path):
         .to_array()
     )
 
-def load_ose_data_with_tgt_mask(path, tgt_path, variable='zos', test_cut=None):
+def load_ose_data_with_tgt_mask(path, tgt_path, variable='zos'):
+    """
+        batches need to have a complete target in order for the Grad Masking to be carried out
 
-    ds_mask =  (
-        xr.open_dataset(tgt_path).drop_vars('depth')
-    )
+        path: path to ose data
+        tgt_path: path to a complete reconstruction of global glorys ssh containing the day 2020-01-20
+        variable: mask variable to load
+    """
 
+    ds_mask = xr.open_dataset(tgt_path).drop_vars('depth')
     ds = xr.open_dataset(path)
 
     if 'latitude' in list(ds_mask.dims):
         ds_mask = ds_mask.rename({'latitude':'lat', 'longitude':'lon'})
 
     ds_mask = ds_mask.sel(time='2020-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords)
-
-    print('ds_s loaded')
 
     ds = (
         ds
@@ -55,6 +57,16 @@ def mask_input(da, mask_list):
     return da
 
 def open_glorys12_data(path, masks_path, domain, variables="zos", masking=True, test_cut=None):
+    """
+        Function to load glorys data
+
+        path: path to glorys .nc file
+        masks_path: path to nadir-like observation masks with dimensions matching glorys dataset size. pickled np array list.
+        domain: lat and long extremities to cut data
+        variables: variable to load
+        masking: whether to mask the input data using the masks in masks_path
+        test_cut: if not None, {'time': slice(time1, time2)}, speeding up the loading by pre-cutting the loaded data
+    """
 
     print("LOADING input data")
     # DROPPING DEPTH !!

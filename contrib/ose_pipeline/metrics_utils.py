@@ -11,33 +11,9 @@ import scipy.signal
 from scipy import interpolate
 import matplotlib.pylab as plt
 
-def call_cfg_key(cfg, key):
-    OmegaConf.set_struct(cfg, True)
-    node = OmegaConf.select(cfg, key)
-    return hydra.utils.call(node)
-
-
-def reconstruct_from_config(config, your_rec_dir, best_ckpt_path):
-
-    trainer = pytorch_lightning.Trainer(
-        inference_mode= False,
-        accelerator='gpu',
-        devices= 1,
-        logger = pytorch_lightning.loggers.CSVLogger(save_dir= '/DATASET/GLORYS12/outputs/'+your_rec_dir, name= "reproduce")
-        )
-
-    lit_mod = call_cfg_key(config, 'model')
-
-    dm = call_cfg_key(config, 'datamodule')
-
-    pytorch_lightning.seed_everything(333)
-    trainer.test(
-        model=lit_mod,
-        datamodule=dm,
-        ckpt_path=best_ckpt_path
-    )
-
-
+class EmptyDomainException(Exception):
+    def __init__(self, *args):
+        super().__init__(*args)
 
 def read_l3_dataset(file,
                     lon_min=0.,
@@ -62,6 +38,10 @@ def read_l3_dataset(file,
         ds (xarray.Dataset) -- Dataset with the data.
     """
     ds = xr.load_dataset(file)
+
+    if 'latitude' in list(ds.variables):
+        ds = ds.rename({'latitude':'lat', 'longitude':'lon'})
+
     ds = ds.sel(time=slice(time_min, time_max), drop=True)
     ds = ds.where((ds["lat"] >= lat_min) & (ds["lat"] <= lat_max),
                   drop=True)
@@ -182,9 +162,12 @@ def interp_on_alongtrack(gridded_dataset,
         z_axis.safe_cast(ds_alongtrack.time.values),
         bounds_error=False).reshape(ds_alongtrack["lon"].values.shape)
 
-    """ssh_alongtrack = (ds_alongtrack["sla_unfiltered"] + ds_alongtrack["mdt"] -
-                      ds_alongtrack["lwe"]).values"""
-    ssh_alongtrack = ds_alongtrack["ssh"].values
+    if 'ssh' not in ds_alongtrack.variables:
+        ssh_alongtrack = (ds_alongtrack["sla_unfiltered"] + ds_alongtrack["mdt"] -
+                      ds_alongtrack["lwe"]).values
+    else:
+        ssh_alongtrack = ds_alongtrack["ssh"].values
+
     lon_alongtrack = ds_alongtrack["lon"].values
     lat_alongtrack = ds_alongtrack["lat"].values
     time_alongtrack = ds_alongtrack["time"].values
@@ -206,8 +189,7 @@ def interp_on_alongtrack(gridded_dataset,
                        & (lon_alongtrack <= lon_max - 0.25)
                        & (lat_alongtrack >= lat_min + 0.25)
                        & (lat_alongtrack <= lat_max - 0.25))[0]
-    
-    print('time alongtrack len after masking: {}'.format(time_alongtrack[indices].shape))
+
 
     return time_alongtrack[indices], lat_alongtrack[indices], lon_alongtrack[
         indices], ssh_alongtrack[indices], ssh_map_interp[indices]
@@ -246,7 +228,9 @@ def write_timeserie_stat(ssh_alongtrack, ssh_map_interp, time_vector, freq,
     # convert data vector and time vector into xarray.Dataarray
     da = xr.DataArray(diff, coords=[time_vector], dims="time")
 
-    #print("len of time in da: {}".format(len(da.time.values)))
+    len_time_obs = len(da.time.values)
+    if len_time_obs == 0:
+        raise EmptyDomainException('empty reference observations on domain.')
 
     # resample
     da_resample = da.resample(time=freq)
@@ -342,8 +326,8 @@ def write_timeserie_stat(ssh_alongtrack, ssh_map_interp, time_vector, freq,
 
     ds.to_netcdf(output_filename, group='maps', mode='a')
 
-    logging.info(' ')
-    logging.info(f'  Results saved in: {output_filename}')
+    #logging.info(' ')
+    #logging.info(f'  Results saved in: {output_filename}')
 
     rmse_score = 1. - rmse / rms_alongtrack
     # mask score if nb obs < nb_min_obs
@@ -353,10 +337,10 @@ def write_timeserie_stat(ssh_alongtrack, ssh_map_interp, time_vector, freq,
     mean_rmse = np.ma.mean(np.ma.masked_invalid(rmse_score))
     std_rmse = np.ma.std(np.ma.masked_invalid(rmse_score))
 
-    logging.info(' ')
-    logging.info(f'  MEAN RMSE Score = {mean_rmse}')
-    logging.info(' ')
-    logging.info(f'  STD RMSE Score = {std_rmse}')
+    #logging.info(' ')
+    #logging.info(f'  MEAN RMSE Score = {mean_rmse}')
+    #logging.info(' ')
+    #logging.info(f'  STD RMSE Score = {std_rmse}')
 
     return mean_rmse, std_rmse
 
@@ -400,7 +384,7 @@ def compute_stats(time_alongtrack, lat_alongtrack, lon_alongtrack,
 
     ncfile.close()
 
-    logging.info(f'  Results saved in: {output_filename}')
+    #logging.info(f'  Results saved in: {output_filename}')
 
     # write time series statistics
     leaderboard_nrmse, leaderboard_nrmse_std = write_timeserie_stat(
@@ -594,8 +578,8 @@ def plot_psd_score(filename, plot=False):
         plt.legend(loc='best')
         plt.grid(which='both')
 
-        logging.info(' ')
-        logging.info(f'  Minimum spatial scale resolved = {int(resolved_scale)}km')
+        #logging.info(' ')
+        #logging.info(f'  Minimum spatial scale resolved = {int(resolved_scale)}km')
 
         plt.show()
 

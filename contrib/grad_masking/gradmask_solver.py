@@ -5,6 +5,12 @@ import kornia.filters as kfilts
 from src.models import GradSolverZero, BilinAEPriorCost, Lit4dVarNet, Lit4dVarNetForecast
 from contrib.forecast_plus.models import Plus4dVarNetForecast
 
+"""
+    Overriden classes from src.models
+
+    The idea is to provide a mask of continents to the Prior Solver, so that the Gradient of the Prior Cost does not contain 'useless' information of continents reconstruction
+"""
+
 class GradMaskLit4dVarNet(Lit4dVarNet):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
