@@ -1,16 +1,22 @@
 # @package _global_
-ckpt: null # /DATASET/envs/oscar/4dvarnet-starter/outputs/2024-04-23/11-05-46/sound_base_transfert/checkpoints/val_mse=1237.19232-epoch=484.ckpt
+ckpt: null
+#outputs/2024-07-09/09-43-15/sound_base_transfert/checkpoints/val_mse=2366.58319-epoch=045.ckpt
+#outputs/2024-07-03/22-51-28/sound_base_transfert/checkpoints/val_mse=4783.30047-epoch=045.ckpt #null
+ #outputs/2024-06-26/11-13-21/sound_base_transfert/checkpoints/val_mse=4727.99461-epoch=052.ckpt
+#outputs/2024-06-24/17-10-27/sound_base_transfert/checkpoints/val_mse=2405.08618-epoch=044.ckpt
+#outputs/2024-06-25/23-03-48/sound_base_transfert/checkpoints/val_mse=4628.34702-epoch=051.ckpt
+#outputs/2024-06-14/09-41-47/sound_base_transfert/checkpoints/val_mse=3272.60665-epoch=279.ckpt #outputs/2024-06-25/12-37-30/sound_base_transfert/checkpoints/val_mse=2533.82127-epoch=067.ckpt #outputs/2024-04-04/10-21-05/sound_base_comfra/checkpoints/val_mse=978.39137-epoch=586.ckpt #outputs/2024-06-14/09-41-47/sound_base_transfert/checkpoints/val_mse=3272.60665-epoch=279.ckpt 
+#outputs/2024-06-19/19-17-51/sound_base_transfert/checkpoints/val_mse=2128.93279-epoch=252.ckpt #/DATASET/envs/oscar/4dvarnet-starter/outputs/2024-06-19/15-52-47/sound_base_transfert/checkpoints/val_mse=2533.38279-epoch=137.ckpt 
 resolution: '1_20'  # '1_20' or '1_8' (apostrophes « ' » are necessary!)
 
 paths:
     inp:
       train: '/DATASET/eNATL/eNATL60_BLB002_cutoff_freq_regrid_0_1000m.nc'
-      #train: '/DATASET/envs/oscar/eNATL60_BLB002_ECS_0_1000m_0I_001.nc'
       test: '/DATASET/NATL/NATL60GULF-CJM165_cutoff_freq_regrid_0_1000m.nc'
 
     inp_sst: 
-      train: '/DATASET/eNATL/eNATL60-BLB002-SST-GF-2009-2010-1_20.nc'
-      test: '/DATASET/NATL/NATL60-CJM165_NATL_sst_y2013.1y.nc'
+      train: /DATASET/eNATL/eNATL60-BLB002-SST-2009-2010-1_20.nc
+      test: /DATASET/NATL/NATL60-CJM165-SST-2009-2010-1_20.nc
     
     inp_ssh: 
       train: /DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-ssh-2009-2010-${resolution}.nc
@@ -22,8 +28,8 @@ paths:
       test: '/DATASET/NATL/NATL60GULF-CJM165_cutoff_freq_regrid_0_1000m.nc'
     
     tgt_sst:
-      train: '/DATASET/eNATL/eNATL60-BLB002-SST-GF-2009-2010-1_20.nc'
-      test: '/DATASET/NATL/NATL60-CJM165_NATL_GF_sst_y2013.1y.nc'
+      train: /DATASET/eNATL/eNATL60-BLB002-SST-2009-2010-1_20.nc
+      test: /DATASET/NATL/NATL60-CJM165-SST-2009-2010-1_20.nc
 
     tgt_ssh:  
       train: /DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-ssh-2009-2010-${resolution}.nc
@@ -40,7 +46,8 @@ trainer:
     save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 600
+  max_epochs: 150
+  accumulate_grad_batches: 16
   callbacks:
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
     - _target_: pytorch_lightning.callbacks.ModelCheckpoint
@@ -50,9 +57,9 @@ trainer:
 
 datamodule:
   xrds_kw:
-    patch_dims: { time: 15, lat: 240, lon: 240}
+    patch_dims: { time: 1, lat: 240, lon: 240}
     strides: { time: 1, lat: 200, lon: 200}
-  dl_kw: {batch_size: 4, num_workers: 1}
+  dl_kw: {batch_size: 16, num_workers: 1}
   aug_kw:
     aug_factor: 2
 
@@ -93,8 +100,8 @@ test_dm:
     train: null
     val: null
     test:
-      #time: {_target_: builtins.slice, _args_: ['2012-10-01', '2013-09-30']}
-      time: {_target_: builtins.slice, _args_: ['2013-06-15', '2013-09-10']} #['2013-06-01', '2013-09-30']}
+      time: {_target_: builtins.slice, _args_: ['2012-10-01', '2013-09-30']}
+      #time: {_target_: builtins.slice, _args_: ['2013-06-15', '2013-09-10']} #['2013-06-01', '2013-09-30']}
   mean_std_domain: test
   xrds_kw:
     patch_dims: ${datamodule.xrds_kw.patch_dims}
@@ -103,7 +110,7 @@ test_dm:
   dl_kw: ${datamodule.dl_kw}
   aug_kw: ${datamodule.aug_kw}
   norm_type: 'z_score'
-  std_c: 10.
+  std_c: 1.
 
 model:
   _target_: src.models.Lit4dVarNet
@@ -118,7 +125,7 @@ model:
     _target_: src.utils.get_triang_time_wei
     patch_dims: ${datamodule.xrds_kw.patch_dims}
     crop: {time: 0, lat: 20, lon: 20}
-    offset: 1
+    offset:  1
   solver:
     _target_: src.models.GradSolver
     n_step: 10
@@ -137,14 +144,14 @@ model:
       dim_hidden: 48
     weight_obs: 1. 
     weight_prior: 1.
-  sampling_rate: 0.001
+  sampling_rate: [0.001, 0.1]
   norm_type: 'z_score'
   test_metrics: ${metrics.test_metrics}
   pre_metric_fn:
     _target_: xarray.Dataset.sel
     _partial_: True
-    #time: {_target_: builtins.slice, _args_: ['2012-10-21', '2013-09-10']}
-    time: {_target_: builtins.slice, _args_: ['2013-07-11', '2013-08-20']} #['2013-06-21', '2013-09-10']}
+    time: {_target_: builtins.slice, _args_: ['2012-10-21', '2013-09-10']}
+    #time: {_target_: builtins.slice, _args_: ['2013-07-11', '2013-08-20']} #['2013-06-21', '2013-09-10']}
     lat: ${domain.test.lat}
     lon: ${domain.test.lon}
 

@@ -6,7 +6,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from pytorch_lightning.utilities import grad_norm
-
+import random
+from omegaconf import ListConfig
 
 class Lit4dVarNet(pl.LightningModule):
     def __init__(self, solver, rec_weight, opt_fn, sampling_rate = 1, test_metrics=None, pre_metric_fn=None, norm_stats=None, norm_type ='z_score', persist_rw=True):
@@ -18,7 +19,7 @@ class Lit4dVarNet(pl.LightningModule):
         self.opt_fn = opt_fn
         self.metrics = test_metrics or {}
         self.pre_metric_fn = pre_metric_fn or (lambda x: x)
-        self.sampling_rate = sampling_rate
+        self.sampling_rate = sampling_rate      
         self.norm_type = norm_type
         #self.mask = (torch.rand(1, *input_shape) > self.sampling_rate).to('cuda:0')
         print(sampling_rate)
@@ -109,12 +110,17 @@ class Lit4dVarNet(pl.LightningModule):
             return None, None
         # Create a mask selecting non-NaN values
         # if self.mask_sampling_with_nan is not None:
-        mask = (torch.rand(batch.input.size()) > self.sampling_rate).to('cuda:0')
-        # Apply the mask to the input data, setting selected values to NaN
+        # Create a mask selecting non-NaN values for each element in the batch
         masked_input = batch.input.clone()
-        masked_input[mask] = float('nan')
-        batch = batch._replace(input = masked_input)
-
+        for i in range(batch.input.size(0)):  # Assuming the first dimension is the batch size
+            sr = self.sampling_rate
+            if isinstance(self.sampling_rate, (list, tuple, ListConfig)) and len(self.sampling_rate) == 2:
+                sr = random.uniform(self.sampling_rate[0], self.sampling_rate[1])
+        
+            mask = (torch.rand(batch.input[i].size()) > sr).to(batch.input.device)
+            masked_input[i][mask] = float('nan')
+    
+        batch = batch._replace(input=masked_input)
         if self.solver.n_step > 0:
 
             loss, out = self.base_step(batch, phase)
@@ -123,11 +129,11 @@ class Lit4dVarNet(pl.LightningModule):
         
             self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
             self.log( f"{phase}_prior_cost", prior_cost, prog_bar=True, on_step=False, on_epoch=True)
-            weight_obs = self.solver.obs_cost.weight1_torch
-            weight_prior = self.solver.prior_cost.weight3_torch
-            self.log('sampling_rate', self.sampling_rate, on_step=False, on_epoch=True)
-            self.log('weight obs', weight_obs , on_step=False, on_epoch=True)
-            self.log('weight prior', weight_prior,on_step=False, on_epoch=True)
+            #weight_obs = self.solver.obs_cost.weight1_torch
+            #weight_prior = self.solver.prior_cost.weight3_torch
+            self.log('sampling_rate', sr, on_step=False, on_epoch=True)
+            #self.log('weight obs', weight_obs , on_step=False, on_epoch=True)
+            #self.log('weight prior', weight_prior,on_step=False, on_epoch=True)
 
             training_loss = 10 * loss + 20 * prior_cost + 5 * grad_loss
             #training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost
@@ -156,11 +162,17 @@ class Lit4dVarNet(pl.LightningModule):
         if batch_idx == 0:
             self.test_data = []
         batch_input_clone = batch.input.clone()
-        mask = (torch.rand(batch.input.size()) > self.sampling_rate).to('cuda:0')
-
         masked_input = batch.input.clone()
-        masked_input[mask] = float('nan')
-        batch = batch._replace(input = masked_input)
+        for i in range(batch.input.size(0)):  # Assuming the first dimension is the batch size
+            sr = self.sampling_rate
+            if isinstance(self.sampling_rate, (list, tuple, ListConfig)) and len(self.sampling_rate) == 2:
+                sr = random.uniform(self.sampling_rate[0], self.sampling_rate[1])
+        
+            mask = (torch.rand(batch.input[i].size()) > sr).to(batch.input.device)
+            masked_input[i][mask] = float('nan')
+    
+        batch = batch._replace(input=masked_input)
+    
         out = self(batch=batch)
 
         if self.norm_type == 'z_score':
@@ -248,8 +260,8 @@ class GradSolver(nn.Module):
     def solver_step(self, state, batch, step):
         #self._previous_prior_cost = self.prior_cost.save_state()
         #self._previous_grad_mod = self.grad_mod.detach()
-        var_cost = self.prior_cost.weight3_torch * self.prior_cost(state) +  self.obs_cost.weight1_torch * self.obs_cost(state, batch)
-        #var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
+        #var_cost = self.prior_cost.weight3_torch * self.prior_cost(state) +  self.obs_cost.weight1_torch * self.obs_cost(state, batch)
+        var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
 
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
         #if torch.isnan(var_cost).any():
@@ -347,6 +359,7 @@ class BaseObsCost(nn.Module):
     def __init__(self, weight1 = 1., w = 1) -> None:
         super().__init__()
         self.w=w
+        #self.weight1_torch = torch.tensor(weight1)
         self.weight1_torch = torch.nn.Parameter(torch.tensor(weight1), requires_grad = True)
 
     def forward(self, state, batch):
@@ -357,6 +370,7 @@ class BilinAEPriorCost(nn.Module):
     def __init__(self, dim_in, dim_hidden, kernel_size=3, weight3 = 1., downsamp=None, bilin_quad=True):
         super().__init__()
         self.bilin_quad = bilin_quad
+        #self.weight3_torch = torch.tensor(weight3)
         self.weight3_torch = torch.nn.Parameter(torch.tensor(weight3), requires_grad = True)
         self.conv_in = nn.Conv2d(
             dim_in, dim_hidden, kernel_size=kernel_size, padding=kernel_size // 2

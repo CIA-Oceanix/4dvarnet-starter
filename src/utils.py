@@ -162,15 +162,24 @@ def get_triang_time_wei(patch_dims, offset=0, **crop_kw):
         patch_dims.values(),
     )
 
-#Weight 0 sauf 1 au centre
 def get_dirac_time_wei(patch_dims, offset=0, **crop_kw):
-     pw = get_constant_crop(patch_dims, **crop_kw)
-     return np.fromfunction(
-        lambda t, *a: (
-            1 if np.abs(offset + 2 * t - patch_dims["time"]) == 0 else 0
-        ),
-         patch_dims.values(),
-     )
+    pw = get_constant_crop(patch_dims, **crop_kw)
+    time_size = patch_dims["time"]
+    
+    # Calculate the center index(es)
+    if time_size % 2 == 0:  # Even
+        center1 = time_size // 2 - 1
+        center_condition = lambda t: (t == center1) * pw
+    else:  # Odd
+        center = time_size // 2
+        center_condition = lambda t: t == center * pw
+    
+    # Use np.fromfunction to create the array
+    return np.fromfunction(
+        lambda t, *a: center_condition(t).astype(float),
+        patch_dims.values(),
+    )
+
 
 def get_constant_crop_depth(patch_dims, crop, dim_order=["time", "z","lat", "lon"]):
     patch_weight = np.zeros([patch_dims[d] for d in dim_order], dtype="float32")
@@ -323,14 +332,14 @@ def load_full_natl_data(
     return xr.Dataset(dict(input=inp, tgt=(gt.dims, gt.values)), inp.coords).to_array().sortby('variable')
 
 
-def rmse_based_scores_from_ds(ds, ref_variable='tgt', study_variable='out'):
+def rmse_based_scores_from_ds(ds, ref_variable='out', study_variable='tgt'):
     #mask = ~np.isnan(ds['input'])
     try:
         return rmse_based_scores(ds[ref_variable], ds[study_variable])[2:]
     except:
         return [np.nan, np.nan]
 
-def psd_based_scores_from_ds(ds, ref_variable='tgt', study_variable='out'):
+def psd_based_scores_from_ds(ds, ref_variable='out', study_variable='tgt'):
     print(ds)
     try:
         return psd_based_scores(ds[ref_variable], ds[study_variable])[1:]
