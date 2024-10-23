@@ -16,11 +16,11 @@ TrainingItem_wcoarse = namedtuple(
 )
 
 TrainingItem_wgeo = namedtuple(
-    'TrainingItem_wgeo', ['input', 'tgt', 'lat', 'lon', 'land_mask', 'topo', 'fg_std']
+    'TrainingItem_wgeo', ['input', 'tgt', 'latv', 'lonv', 'land_mask', 'topo', 'fg_std']
 )
 
 TrainingItem_wcoarse_wgeo = namedtuple(
-    'TrainingItem_wcoarse_wgeo', ['input', 'tgt', 'coarse', 'lat', 'lon', 'land_mask', 'topo', 'fg_std']
+    'TrainingItem_wcoarse_wgeo', ['input', 'tgt', 'coarse', 'latv', 'lonv', 'land_mask', 'topo', 'fg_std']
 )
 
 class IncompleteScanConfiguration(Exception):
@@ -471,9 +471,9 @@ class BaseDataModule_wcoarse(BaseDataModule):
         normalize = lambda item: (item - m) / s
         return ft.partial(ft.reduce,lambda i, f: f(i), [
             TrainingItem_wcoarse._make,
-            lambda item: item._replace(input=normalize(item.input)),
+            lambda item: item._replace(input=normalize(item.input-item.coarse)),
             lambda item: item._replace(coarse=item.coarse),
-            lambda item: item._replace(tgt=normalize(item.tgt)),
+            lambda item: item._replace(tgt=normalize(item.tgt-item.coarse)),
         ])
 
     def post_fn_rand(self):
@@ -481,9 +481,9 @@ class BaseDataModule_wcoarse(BaseDataModule):
         normalize = lambda item: (item - m) / s
         return ft.partial(ft.reduce,lambda i, f: f(i), [
             TrainingItem_wcoarse._make,
-            lambda item: item._replace(input=normalize(self.rand_obs(item.input))),
+            lambda item: item._replace(input=normalize(self.rand_obs(item.input-item.coarse))),
             lambda item: item._replace(coarse=item.coarse),
-            lambda item: item._replace(tgt=normalize(item.tgt)),
+            lambda item: item._replace(tgt=normalize(item.tgt-item.coarse)),
         ])
 
 class BaseDataModule_wgeo(BaseDataModule):
@@ -513,8 +513,8 @@ class BaseDataModule_wgeo(BaseDataModule):
                 TrainingItem_wgeo._make,
                 lambda item: item._replace(input=normalize(item.input)),
                 lambda item: item._replace(tgt=normalize(item.tgt)),
-                lambda item: item._replace(lat=minmax_scale(np.expand_dims(item.lat[0], axis=0), lat_r)),
-                lambda item: item._replace(lon=minmax_scale(np.expand_dims(item.lon[0], axis=0), lon_r)),
+                lambda item: item._replace(latv=minmax_scale(np.expand_dims(item.latv[0], axis=0), lat_r)),
+                lambda item: item._replace(lonv=minmax_scale(np.expand_dims(item.lonv[0], axis=0), lon_r)),
                 lambda item: item._replace(land_mask=np.expand_dims(item.land_mask[0], axis=0)),
                 lambda item: item._replace(topo=normalize_topo(np.expand_dims(item.topo[0], axis=0))),
                 lambda item: item._replace(fg_std=normalize_fgstd(np.expand_dims(item.fg_std[0], axis=0)))
@@ -537,8 +537,8 @@ class BaseDataModule_wgeo(BaseDataModule):
                 TrainingItem_wgeo._make,
                 lambda item: item._replace(input=normalize(self.rand_obs(item.input,obs=True))),
                 lambda item: item._replace(tgt=normalize(item.tgt)),
-                lambda item: item._replace(lat=minmax_scale(np.expand_dims(item.lat[0], axis=0), lat_r)),
-                lambda item: item._replace(lon=minmax_scale(np.expand_dims(item.lon[0], axis=0), lon_r)),
+                lambda item: item._replace(latv=minmax_scale(np.expand_dims(item.latv[0], axis=0), lat_r)),
+                lambda item: item._replace(lonv=minmax_scale(np.expand_dims(item.lonv[0], axis=0), lon_r)),
                 lambda item: item._replace(land_mask=np.expand_dims(item.land_mask[0], axis=0)),
                 lambda item: item._replace(topo=normalize_topo(np.expand_dims(item.topo[0], axis=0))),
                 lambda item: item._replace(fg_std=normalize_fgstd(np.expand_dims(item.fg_std[0], axis=0)))
@@ -570,11 +570,11 @@ class BaseDataModule_wcoarse_wgeo(BaseDataModule):
             lambda i, f: f(i),
             [
                 TrainingItem_wcoarse_wgeo._make,
-                lambda item: item._replace(input=normalize(item.input)),
+                lambda item: item._replace(input=normalize(item.input-item.coarse)),
                 lambda item: item._replace(coarse=item.coarse),
-                lambda item: item._replace(tgt=normalize(item.tgt)),
-                lambda item: item._replace(lat=minmax_scale(np.expand_dims(item.lat[0], axis=0), lat_r)),
-                lambda item: item._replace(lon=minmax_scale(np.expand_dims(item.lon[0], axis=0), lon_r)),
+                lambda item: item._replace(tgt=normalize(item.tgt-item.coarse)),
+                lambda item: item._replace(latv=minmax_scale(np.expand_dims(item.latv[0], axis=0), lat_r)),
+                lambda item: item._replace(lonv=minmax_scale(np.expand_dims(item.lonv[0], axis=0), lon_r)),
                 lambda item: item._replace(land_mask=np.expand_dims(item.land_mask[0], axis=0)),
                 lambda item: item._replace(topo=normalize_topo(np.expand_dims(item.topo[0], axis=0))),
                 lambda item: item._replace(fg_std=normalize_fgstd(np.expand_dims(item.fg_std[0], axis=0)))
@@ -595,11 +595,11 @@ class BaseDataModule_wcoarse_wgeo(BaseDataModule):
             lambda i, f: f(i),
             [
                 TrainingItem_wcoarse_wgeo._make,
-                lambda item: item._replace(input=normalize(self.rand_obs(item.input,obs=True))),
+                lambda item: item._replace(input=normalize(self.rand_obs(item.input-item.coarse,obs=True))),
                 lambda item: item._replace(coarse=item.coarse),
-                lambda item: item._replace(tgt=normalize(item.tgt)),
-                lambda item: item._replace(lat=minmax_scale(np.expand_dims(item.lat[0], axis=0), lat_r)),
-                lambda item: item._replace(lon=minmax_scale(np.expand_dims(item.lon[0], axis=0), lon_r)),
+                lambda item: item._replace(tgt=normalize(item.tgt-item.coarse)),
+                lambda item: item._replace(latv=minmax_scale(np.expand_dims(item.latv[0], axis=0), lat_r)),
+                lambda item: item._replace(lonv=minmax_scale(np.expand_dims(item.lonv[0], axis=0), lon_r)),
                 lambda item: item._replace(land_mask=np.expand_dims(item.land_mask[0], axis=0)),
                 lambda item: item._replace(topo=normalize_topo(np.expand_dims(item.topo[0], axis=0))),
                 lambda item: item._replace(fg_std=normalize_fgstd(np.expand_dims(item.fg_std[0], axis=0)))

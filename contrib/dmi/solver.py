@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import xarray as xr
+from contrib.dmi.VAE import *
 
 class GradSolver(nn.Module):
     def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.2, **kwargs):
@@ -183,7 +184,10 @@ class GradSolver_wgeo(GradSolver):
         return (x_init, coords_cov)
 
     def solver_step(self, state, batch, step):
-        var_cost = self.prior_cost(state) + self.obs_cost(state[0], batch)
+        if isinstance(self.prior_cost,BilinAEPriorCost_wgeo):
+            var_cost = self.prior_cost(state) + self.obs_cost(state[0], batch)
+        else:
+            var_cost = self.prior_cost(state, batch) + self.obs_cost(state[0], batch)
         x, coords_cov = state
         grad = torch.autograd.grad(var_cost, x, create_graph=True)[0]
 
@@ -259,5 +263,25 @@ class BilinAEPriorCost_wgeo(nn.Module):
 
     def forward(self, state):
         return F.mse_loss(state[0], self.forward_ae(state))
+
+
+class VAEPriorCost_wgeo(nn.Module):
+    def __init__(self, dim_in, dim_out, path_weights):
+        super().__init__()
+        self.vae = VAE(in_channels=dim_in, out_channels=dim_out)
+        # load weights of the VAE
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        ckpt = torch.load(path_weights, map_location=device)
+        self.vae.load_state_dict(ckpt)
+
+    def forward_ae(self, batch):
+        msk = batch.input.isfinite()
+        y = batch.input.nan_to_num()
+        coarse = batch.coarse.nan_to_num()
+        # VAE acts on SST not anomalies
+        return (self.vae(y+coarse)-coarse)
+
+    def forward(self, state, batch):
+        return F.mse_loss(state[0], self.forward_ae(batch))
 
 

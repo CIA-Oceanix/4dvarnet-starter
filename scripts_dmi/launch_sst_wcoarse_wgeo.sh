@@ -6,8 +6,11 @@ diro=/DATASET/mbeauchamp/DMI/results/lightning_logs
 #diro=$SCRATCH/lightning_logs
 
 ckpt_path=/homes/m19beauc/4dvarnet-starter/ckpt/sst_dmi_baltic_wcoarse_wgeo.ckpt
+ckpt_path=/homes/m19beauc/4dvarnet-starter/ckpt/sst_dmi_baltic_dm3_wcoarse_wgeo.ckpt
 
 dm=baltic_ext
+dm=baltic_dm3_eval
+
 xp_name=dt7_linweights_wcoarse
 
 list_outputs=()
