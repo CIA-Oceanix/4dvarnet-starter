@@ -268,11 +268,10 @@ class Lit4dVarNet_SST_wcoarse(Lit4dVarNet):
         loss, out = self.base_step(batch, phase)
         grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt),
                                       self.optim_weight)
-        prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
+        #prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
         self.log( f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
 
-        print(50*loss, 10*prior_cost, 1000*grad_loss)
-        training_loss = 50 * loss + 10 * prior_cost + 1000 * grad_loss
+        training_loss = 50 * loss + 1000 * grad_loss #+ 10 * prior_cost
         return training_loss, out
 
     def base_step(self, batch, phase=""):

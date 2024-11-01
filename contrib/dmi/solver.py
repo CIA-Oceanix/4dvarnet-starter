@@ -24,7 +24,6 @@ class GradSolver(nn.Module):
     def init_state(self, batch, x_init=None):
         if x_init is not None:
             return x_init
-
         return batch.input.nan_to_num().detach().requires_grad_(True)
 
     def solver_step(self, state, batch, step):
@@ -176,18 +175,18 @@ class GradSolver_wgeo(GradSolver):
 
     def init_state(self, batch, x_init=None):
         x_init = super().init_state(batch, x_init)
-        coords_cov = torch.stack((batch.lat[:,0].nan_to_num(), 
-                                  batch.lon[:,0].nan_to_num(), 
+        coords_cov = torch.stack((batch.latv[:,0].nan_to_num(), 
+                                  batch.lonv[:,0].nan_to_num(), 
                                   batch.land_mask[:,0].nan_to_num(),
                                   batch.topo[:,0].nan_to_num(), 
                                   batch.fg_std[:,0].nan_to_num()), dim=1).to(x_init.device)
         return (x_init, coords_cov)
 
-    def solver_step(self, state, batch, step):
+    def solver_step(self, state, batch, step, x_prior=None):
         if isinstance(self.prior_cost,BilinAEPriorCost_wgeo):
             var_cost = self.prior_cost(state) + self.obs_cost(state[0], batch)
         else:
-            var_cost = self.prior_cost(state, batch) + self.obs_cost(state[0], batch)
+            var_cost = self.prior_cost(state, batch, x_prior) + self.obs_cost(state[0], batch)
         x, coords_cov = state
         grad = torch.autograd.grad(var_cost, x, create_graph=True)[0]
 
@@ -201,15 +200,19 @@ class GradSolver_wgeo(GradSolver):
     def forward(self, batch):
         with torch.set_grad_enabled(True):
             state = self.init_state(batch)
+            if not isinstance(self.prior_cost,BilinAEPriorCost_wgeo):
+                # create a prior with VAE strategy
+                x_prior = self.prior_cost.forward_ae(state, batch)
+                state = self.init_state(batch, x_init=x_prior)
             self.grad_mod.reset_state(batch.input)
 
             for step in range(self.n_step):
-                state = self.solver_step(state, batch, step=step)
+                state = self.solver_step(state, batch, step=step, x_prior=x_prior)
                 if not self.training:
                     state = [s.detach().requires_grad_(True) for s in state]
 
-            if not self.training:
-                state = [self.prior_cost.forward_ae(state), state[1]]
+            #if not self.training:
+            #    state = [self.prior_cost.forward_ae(state,batch), state[1]]
         return state[0]
 
 class BilinAEPriorCost_wgeo(nn.Module):
@@ -266,22 +269,43 @@ class BilinAEPriorCost_wgeo(nn.Module):
 
 
 class VAEPriorCost_wgeo(nn.Module):
-    def __init__(self, dim_in, dim_out, path_weights):
+    def __init__(self, dim_in, dim_out, path_weights, norm_stats_anom, norm_stats_state):
         super().__init__()
         self.vae = VAE(in_channels=dim_in, out_channels=dim_out)
         # load weights of the VAE
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         ckpt = torch.load(path_weights, map_location=device)
         self.vae.load_state_dict(ckpt)
+        self.m_anom, self.s_anom = norm_stats_anom
+        self.m_state, self.s_state = norm_stats_state
 
-    def forward_ae(self, batch):
+    def norm(self, x, m, s, forward=True):
+        if forward:
+            return (x-m)/s
+        else:
+            return (x*s)+m
+
+    def forward_ae(self, state, batch):
         msk = batch.input.isfinite()
-        y = batch.input.nan_to_num()
+        anom = batch.input.nan_to_num()
         coarse = batch.coarse.nan_to_num()
+        y = self.norm(self.norm(anom, self.m_anom, self.s_anom, forward=False)+coarse,self.m_state, self.s_state)
+        y = self.norm(self.norm(anom, self.m_anom, self.s_anom, forward=False),self.m_state, self.s_state)
+        inp = torch.cat((y, state[1]),dim=1)
         # VAE acts on SST not anomalies
-        return (self.vae(y+coarse)-coarse)
+        res = self.norm(self.norm(self.vae(inp), self.m_state, self.s_state,forward=False) - coarse, self.m_anom, self.s_anom)
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(3,1)
+        ax[0].pcolormesh(y[0,3,:,:].detach().cpu())
+        ax[1].pcolormesh(res[0,3,:,:].detach().cpu())
+        ax[2].pcolormesh((self.vae(inp))[0,3,:,:].detach().cpu())
+        plt.show()
+        return res
 
-    def forward(self, state, batch):
-        return F.mse_loss(state[0], self.forward_ae(batch))
+    def forward(self, state, batch, x_prior=None):
+        if x_prior==None:
+            return F.mse_loss(state[0], self.forward_ae(state,batch))
+        else:
+            return F.mse_loss(state[0], x_prior)
 
 

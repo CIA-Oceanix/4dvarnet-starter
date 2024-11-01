@@ -47,7 +47,7 @@ def plot(ax, lon, lat, data, title, cmap, norm, extent=[-65, -55, 30, 40], gridd
     ax.set_extent(list(extent))
     if gridded:
         im=ax.pcolormesh(lon, lat, data, cmap=cmap, \
-                          norm=norm, edgecolors='face', alpha=1, \
+                          norm=norm, edgecolors='none', alpha=1, \
                           transform=ccrs.PlateCarree(central_longitude=0.0))
     else:
         im=ax.scatter(lon, lat, c=data, cmap=cmap, s=1, \

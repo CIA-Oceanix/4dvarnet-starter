@@ -85,7 +85,7 @@ model:
   _target_: src.models.Lit4dVarNet_SST_wcoarse
   persist_rw: False
   opt_fn:
-    _target_: src.utils.cosanneal_lr_adam
+    _target_: src.utils.cosanneal_vae_lr_adam
     _partial_: true
     lr: 1e-3
     T_max: ${trainer.max_epochs}
@@ -101,14 +101,21 @@ model:
       offset: 1
   solver: 
     _target_: contrib.dmi.solver.GradSolver_wgeo
-    n_step: 15
+    n_step: 7
     lr_grad: 1e3
     # lr_grad: 0.2
     prior_cost: 
       _target_: contrib.dmi.solver.VAEPriorCost_wgeo
-      dim_in: ${datamodule.xrds_kw.patch_dims.time}
+      #dim_in: ${datamodule.xrds_kw.patch_dims.time}
+      dim_in: 12
       dim_out: 50
-      path_weights: /homes/m19beauc/4dvarnet-starter/ckpt/sst_vae_dmi.pth
+      path_weights: /homes/m19beauc/4dvarnet-starter/ckpt/ckpt_vae_dmi.pth
+      norm_stats_anom:
+        - -0.015420883207237286
+        - 0.4562528584789277
+      norm_stats_state:
+        - 283.8052
+        - 4.2381434
     obs_cost: 
       _target_: src.models.BaseObsCost
     grad_mod: 
