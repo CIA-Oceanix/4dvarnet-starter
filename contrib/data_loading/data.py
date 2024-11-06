@@ -112,3 +112,87 @@ def open_glorys12_data(path, masks_path, domain, variables="zos", masking=True, 
     )
 
     return ds
+
+def open_var_dataset(var_path, var, domain, drop_depth, mask_path=None):
+    var_dataset = xr.Dataset({var:xr.open_dataset(var_path)[var]})
+
+    if 'depth' in var_dataset.dims and drop_depth:
+        var_dataset = var_dataset.drop_dims('depth')
+
+    if 'latitude' in list(var_dataset.dims):
+        var_dataset = var_dataset.rename({'latitude':'lat', 'longitude':'lon'})
+
+    if mask_path is not None:
+        mask_var = var+'_masked'
+        with open(mask_path, 'rb') as masks_file:
+            mask_list = pickle.load(masks_file)
+        mask_list = np.array(mask_list)
+
+        var_dataset= var_dataset.assign({
+            mask_var:xr.apply_ufunc(mask_input, var_dataset[var], input_core_dims=[['lat', 'lon']], output_core_dims=[['lat', 'lon']], kwargs={"mask_list": mask_list}, dask="allowed", vectorize=True)
+            })
+        var_dataset = xr.Dataset({mask_var: var_dataset[mask_var]})
+        return var_dataset, mask_var
+
+    var_dataset = var_dataset.sel(domain)
+
+    return var_dataset
+
+def merge_datasets(original_dataset: xr.Dataset, new_dataset: xr.Dataset, broadcast_time=False):
+    if broadcast_time:
+        time_coords = original_dataset.coords['time']
+
+        new_dataset = new_dataset.reindex({'lat': original_dataset.lat, 'lon': original_dataset.lon}, method='nearest')
+        new_dataset = new_dataset.expand_dims({'time': time_coords}, axis=0).broadcast_like(original_dataset)
+
+    merged_dataset = original_dataset.assign({var_name:var_data for var_name, var_data in new_dataset.data_vars.items()})
+    return merged_dataset
+
+# general function to load multiple varaibles from multiple datasets into 4DVarNet
+def open_multivar_datasets(vars_info,
+                           domain,
+                           drop_depth=True):
+
+    input_variables = []
+    tgt_variables = []
+
+    full_dataset = None
+
+    for var, var_info in vars_info.items():
+        print('opening dataset for: {}'.format(var))
+
+        var_path = var_info['var_path']
+        var_mask_path = var_info['mask_path']
+        mask_var=None
+        broadcast_time = var_info['broadcast_time']
+
+        var_dataset = open_var_dataset(var_path, var, domain, drop_depth)
+        if var_mask_path is not None:
+            mask_var_dataset, mask_var = open_var_dataset(var_path, var, domain, drop_depth, mask_path=var_mask_path)
+            var_dataset = merge_datasets(var_dataset, mask_var_dataset)
+
+        if full_dataset is None:
+            full_dataset = var_dataset
+        else:
+            full_dataset = merge_datasets(full_dataset, var_dataset, broadcast_time=broadcast_time)
+
+        if var_info['input']:
+            if mask_var is not None:
+                input_variables.append(mask_var)
+            else:
+                input_variables.append(var)
+        if var_info['output']:
+            tgt_variables.append(var)
+
+    full_dataset = (
+        full_dataset
+        .sel(domain)
+        .assign(
+            input = lambda ds: ds[input_variables].to_array(),
+            tgt = lambda ds: ds[tgt_variables].to_array()
+        )[[*input_variables]+[*tgt_variables]]
+        .transpose("time", "lat", "lon",...)
+        .to_array()
+    )
+
+    return full_dataset

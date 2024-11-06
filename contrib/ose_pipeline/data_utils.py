@@ -223,6 +223,7 @@ def grid_input(
     max_time: str = "2022-12-31",
     degrees: float = 0.083
 ):
+    Path(output_path).parent.mkdir(exist_ok=True, parents=True)
     ocngrid.coord_based_to_grid(
             coord_based_ds=xr.open_dataset(input_path),
             target_grid_ds=xr.Dataset(
