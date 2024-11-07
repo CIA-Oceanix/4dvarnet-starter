@@ -1,7 +1,7 @@
 # @package _global_
 
 paths:
-    masks_path: /DATASET/GLORYS12/obs_masks/global_obs_6sats_masks_2022.pickle
+    masks_path: /DATASET/GLORYS12/global_obs_6sats_masks_2022.pickle
     glorys12_data: /DATASET/GLORYS12/reanalysis/glorys12_2020_4th.nc
 
 domain:
@@ -40,7 +40,7 @@ trainer:
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 350
-  limit_train_batches: 50
+  limit_train_batches: 102
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
@@ -69,7 +69,7 @@ datamodule:
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 1, num_workers: 4}
   aug_kw:
-    aug_factor: 1
+    aug_factor: 2
     aug_only: True
 
 model:

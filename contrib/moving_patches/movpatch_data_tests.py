@@ -62,7 +62,7 @@ class XrDatasetMovingPatch(XrDataset):
         return item
     
     def get_patch_offset(self, dim):
-        return np.random.randint(0, self.patch_offset[dim]) if self.rand else 0
+        return np.random.randint(0, self.patch_offset[dim]) if (self.rand and not self.patch_offset[dim] == 0) else 0
     
     def rec_crop_valid(self, da, coords):
         """

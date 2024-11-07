@@ -68,8 +68,13 @@ class Plus4dVarNetForecastPatchGPU(Plus4dVarNetForecast):
     def test_quantities(self):
         return ['out']
 
+    def clear_gpu_mem(self):
+        del self.solver
+        torch.cuda.empty_cache()
+
     def on_test_epoch_end(self):
         # test_data as gpu tensor
+        self.clear_gpu_mem()
         self.test_data = torch.cat(self.test_data).cuda()
         super().on_test_epoch_end()
 

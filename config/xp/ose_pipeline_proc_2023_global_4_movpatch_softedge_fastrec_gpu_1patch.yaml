@@ -1,7 +1,7 @@
 # @package _global_
 
-xp_name: glorys4_global_movpatch_softedge_1y_fastrec_GPU_TESTS_1patch
-data_name: nrt_2023_global_4
+xp_name: glorys4_global_movpatch_softedge_fastrec_GPU_1patch
+data_name: processed_2023_global_4
 
 paths:
   ose_data_path: /DATASET/OCB_traces/
@@ -9,14 +9,14 @@ paths:
   metrics_path: /DATASET/GLORYS12/metrics/
 
   model_config_path: config/xp/base_forecast_global_softedge_fastrec_GPU_1patch.yaml
-  model_ckpt_path: /homes/p24hasle/repos/4dvarnet-starter-glorys12/outputs/2024-09-10/17-52-35/base_forecast_global.yaml/checkpoints/val_mse=48.92492-epoch=235.ckpt
+  model_ckpt_path: /DATASET/GLORYS12/forecast_global_1patch/base_forecast_global_softedge_fastrec_GPU_1patch/checkpoints/val_mse=17.72238-epoch=009.ckpt
 
 
 specs:
   pixels_per_degree: 4
 
-  min_time: 2023-04-01
-  max_time: 2023-05-15
+  min_time: 2023-01-01
+  max_time: 2023-09-10
   time_day_crop: 0
 
   min_lon: -180
@@ -78,14 +78,14 @@ metrics_spatial_domains:
 
 options:
   skip:
-    data: True
+    data: False
     rec: False
     metrics: False
 
   overwrite:
     data: False
     rec: False
-    metrics: True
+    metrics: False
 
 
 entrypoints:
