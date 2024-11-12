@@ -2,8 +2,8 @@
 
 paths:
     masks_path: /DATASET/GLORYS12/obs_masks/global_obs_6sats_masks_2022.pickle
-    glorys12_data: /DATASET/GLORYS12/reanalysis/glorys12_2020_4th.nc
-    ckpt_path: None
+    glorys12_data: /DATASET/GLORYS12/reanalysis/glorys12_2010_2019_4th.nc
+
 domain:
   train:
     lat:
@@ -40,7 +40,7 @@ trainer:
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 350
-  limit_train_batches: 50
+  limit_train_batches: 100
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
@@ -58,11 +58,11 @@ datamodule:
     domain: ${domain.train}
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2020-01-01', '2020-10-17']}
+      time: {_target_: builtins.slice, _args_: ['2010-01-01', '2019-05-17']}
     val: 
-      time: {_target_: builtins.slice, _args_: ['2020-10-18', '2020-11-24']}
+      time: {_target_: builtins.slice, _args_: ['2019-05-18', '2019-12-31']}
     test: 
-      time: {_target_: builtins.slice,  _args_: ['2020-11-25', '2020-12-31']}
+      time: {_target_: builtins.slice,  _args_: ['2019-12-31', '2019-12-31']}
   xrds_kw:
     patch_dims: { time: 29, lat: 680, lon: 1440}
     strides: { time: 1, lat: 672, lon: 1432}
@@ -109,7 +109,7 @@ model:
   pre_metric_fn:
         _target_: xarray.Dataset.sel
         _partial_: True
-        time: {_target_: builtins.slice, _args_: ["2020-11-25", "2020-12-31"]}
+        time: {_target_: builtins.slice, _args_: ["2019-11-25", "2019-12-31"]}
         lat: ${domain.test.lat}
         lon: ${domain.test.lon}
 
@@ -120,7 +120,6 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    ckpt: ${paths.ckpt_path}
 
 defaults:
   - _self_

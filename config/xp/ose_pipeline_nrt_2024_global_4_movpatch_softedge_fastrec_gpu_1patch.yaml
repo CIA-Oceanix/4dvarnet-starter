@@ -1,7 +1,7 @@
 # @package _global_
 
 xp_name: glorys4_global_movpatch_softedge_fastrec_GPU_1patch
-data_name: nrt_2023_global_4
+data_name: nrt_2024_global_4
 
 paths:
   ose_data_path: /DATASET/OCB_traces/
@@ -9,14 +9,14 @@ paths:
   metrics_path: /DATASET/GLORYS12/metrics/
 
   model_config_path: config/xp/base_forecast_global_softedge_fastrec_GPU_1patch.yaml
-  model_ckpt_path: /DATASET/GLORYS12/forecast_global_1patch/base_forecast_global_softedge_fastrec_GPU_1patch/checkpoints/val_mse=17.72238-epoch=009.ckpt
+  model_ckpt_path: /DATASET/GLORYS12/forecast_global_1patch/base_forecast_global_softedge_fastrec_GPU_1patch/checkpoints/val_mse=14.12296-epoch=034.ckpt
 
 
 specs:
   pixels_per_degree: 4
 
-  min_time: 2023-01-01
-  max_time: 2023-12-31
+  min_time: 2024-01-01
+  max_time: 2024-09-10
   time_day_crop: 0
 
   min_lon: -180
