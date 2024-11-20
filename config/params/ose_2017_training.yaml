@@ -1,0 +1,39 @@
+# @package _global_
+
+
+strides: {time: 1}
+
+trainer:
+  max_epochs: 100
+
+sst: false
+
+ose_dm:
+  _target_: contrib.ose_training.data.OseDatamodule
+  coarsen: 1
+  sst: ${sst}
+  # norm_stats: [0.45041265751056536, 0.4245028360946941]
+  dl_kws: {batch_size: 16, num_workers: 10}
+  train_ds:
+    _target_: contrib.ose_training.data.XrConcatDataset
+    _args_: [['${ose_ds.test.alg_noin_c2}', '${ose_ds.test.h2ag_noin_c2}', '${ose_ds.test.j2g_noin_c2}', '${ose_ds.test.j3_noin_c2}', '${ose_ds.test.s3a_noin_c2}']]
+
+  val_ds:
+    _target_: contrib.ose_training.data.XrConcatDataset
+    _args_: [['${ose_ds.test.j2n_noin_c2}']]
+
+  test_ds:
+    _target_: contrib.ose_training.data.XrConcatDataset
+    _args_: [['${ose_ds.test.c2}']]
+
+
+
+model:
+  _target_: contrib.ose_training.models.LitOse
+  pre_metric_fn: null
+  test_metrics: {}
+datamodule: ${ose_dm}
+
+
+defaults:
+  - /ose_ds/all

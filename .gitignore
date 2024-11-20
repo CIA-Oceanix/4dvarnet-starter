@@ -1,5 +1,6 @@
 **/__pycache__
 outputs
+test_data
 logs
 multirun
 lightning_logs
