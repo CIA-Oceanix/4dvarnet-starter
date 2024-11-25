@@ -9,16 +9,6 @@ class TransfertDataModule(BaseDataModule):
         super().__init__(*args, **kwargs)
         self.mean_std_domain = kwargs.get('mean_std_domain', 'train')
         self.std_c = kwargs.get('std_c', 1.)
-
-    def norm_stats(self):
-        if self._norm_stats is None:
-            if self.norm_type == 'z_score':
-                self._norm_stats = self.train_mean_std()
-                print("Norm stats", self._norm_stats)
-            if self.norm_type == 'min_max':
-                self._norm_stats = self.min_max_norm()
-                print("Norm stats", self._norm_stats)
-        return self._norm_stats
     
     def train_mean_std(self, variable='tgt'):
         train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {})).sel(self.domains[self.mean_std_domain])
@@ -32,7 +22,6 @@ class TransfertDataModule(BaseDataModule):
 
     def setup(self, stage='test'):
         post_fn = self.post_fn()
-
         if stage == 'fit':
             train_data = self.input_da.sel(self.domains['train'])
             train_xrds_kw = deepcopy(self.xrds_kw)
@@ -54,7 +43,6 @@ class TransfertDataModule(BaseDataModule):
                 **self.xrds_kw,
                 postpro_fn=post_fn,
             )
-
 
 def cosanneal_lr_adamw(lit_mod, lr, T_max, weight_decay=0.):
     opt = torch.optim.AdamW(

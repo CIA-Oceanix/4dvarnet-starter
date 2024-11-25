@@ -1,6 +1,6 @@
 # @package _global_
 trainer:
-  max_epochs: 1200
+  max_epochs: 600
 
 datamodule:
   aug_kw:
@@ -14,5 +14,3 @@ model:
       dim_hidden: 64
     grad_mod:
       dim_hidden: 96
-
-

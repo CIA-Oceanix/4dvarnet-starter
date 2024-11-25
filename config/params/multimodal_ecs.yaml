@@ -19,25 +19,29 @@ sst_da_test:
   tgt_var: ecs
   inp_var: ecs
   sst_var: sst
-  domain: ${domain.test}
+  domain: ${domain.train}
 
 obs_cost:
   _target_: contrib.multimodal.MultiModalObsCost
   dim_in: ${datamodule.xrds_kw.patch_dims.time}
   dim_hidden: 5
-  ecs_weight: 0.5
-  sst_weight: 0.5
+  #ecs_weight: 0.5
+  #sst_weight: 0.5
 
 ## Override config
 test_dm:
-  _target_: contrib.multimodal.MultiModalDataModule
+  _target_: contrib.multimodal.MultiModalDataModuleTransfert
   input_da: ${sst_da_test}
 
 train_dm:
-  _target_: contrib.multimodal.MultiModalDataModule
+  _target_: contrib.multimodal.MultiModalDataModuleTransfert
   input_da: ${sst_da_train}
 
+datamodule:
+  _target_: contrib.multimodal.MultiModalDataModule
+  input_da: ${sst_da_test}
+
 model:
-  _target_: contrib.multimodal.Lit4dVarNet_SST
+  #_target_: contrib.multimodal.Lit4dVarNet
   solver:
     obs_cost: ${obs_cost}

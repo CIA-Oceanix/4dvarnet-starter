@@ -1,0 +1,213 @@
+domain:
+  train:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - 32
+      - 44
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -66
+      - -54
+  test:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - 33
+      - 43
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -65
+      - -55
+period:
+  train:
+    time:
+      _target_: builtins.slice
+      _args_:
+      - null
+      - null
+  test:
+    time:
+      _target_: builtins.slice
+      _args_:
+      - null
+      - null
+resolution: '1_20'
+entrypoint: test
+checkpoint: outputs/2024-04-04/10-21-05/sound_base_comfra/checkpoints/val_mse=978.39137-epoch=586.ckpt
+val_period:
+  time:
+    _target_: builtins.slice
+    _args_:
+    - 2010-04-10-12
+    - 2010-06-30-12
+paths:
+  inp:
+    train: /DATASET/eNATL/eNATL60_BLB002_cutoff_freq_regrid_0_1000m.nc
+    test: /DATASET/NATL/NATL60GULF-CJM165_cutoff_freq_regrid_0_1000m.nc
+  inp_sst:
+    train: /DATASET/eNATL/eNATL60-BLB002-SST-GF-2009-2010-1_20.nc
+    test: /DATASET/NATL/NATL60-CJM165_NATL_sst_y2013.1y.nc
+  inp_ssh:
+    train: /DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-ssh-2009-2010-${resolution}.nc
+    test: /DATASET/NATL/NATL60-CJM165-ssh-2012-2013-${resolution}.nc
+  tgt:
+    train: /DATASET/eNATL/eNATL60_BLB002_cutoff_freq_regrid_0_1000m.nc
+    test: /DATASET/NATL/NATL60GULF-CJM165_cutoff_freq_regrid_0_1000m.nc
+  tgt_sst:
+    train: /DATASET/eNATL/eNATL60-BLB002-SST-GF-2009-2010-1_20.nc
+    test: /DATASET/NATL/NATL60-CJM165_NATL_sst_y2013.1y.nc
+  tgt_ssh:
+    train: /DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-ssh-2009-2010-${resolution}.nc
+    test: /DATASET/NATL/NATL60-CJM165-ssh-2012-2013-${resolution}.nc
+trainer:
+  _target_: pytorch_lightning.Trainer
+  inference_mode: false
+  gradient_clip_val: 0.5
+  accelerator: gpu
+  devices: 1
+  logger:
+    _target_: pytorch_lightning.loggers.tensorboard.TensorBoardLogger
+    save_dir: ${hydra:runtime.output_dir}
+    name: ${hydra:runtime.choices.xp}
+    version: ''
+  max_epochs: 600
+  accumulate_grad_batches: 2
+  callbacks:
+  - _target_: pytorch_lightning.callbacks.LearningRateMonitor
+  - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    monitor: val_mse
+    save_top_k: 3
+    filename: '{val_mse:.5f}-{epoch:03d}'
+datamodule:
+  _target_: contrib.multimodal.MultiModalDataModule
+  input_da: ${sst_da}
+  domains:
+    train: ${period.train}
+    val: ${val_period}
+    test: ${period.test}
+  xrds_kw:
+    patch_dims:
+      time: 15
+      lat: 240
+      lon: 240
+    strides:
+      time: 1
+      lat: 200
+      lon: 200
+    domain_limits: ${domain.train}
+  dl_kw:
+    batch_size: 4
+    num_workers: 1
+  aug_kw:
+    aug_factor: 5
+    aug_only: false
+  norm_type: z_score
+model:
+  _target_: src.models.Lit4dVarNet
+  persist_rw: false
+  opt_fn:
+    _target_: src.utils.cosanneal_lr_adamw
+    _partial_: true
+    lr: 0.001
+    T_max: ${trainer.max_epochs}
+    weight_decay: 0.01
+  rec_weight:
+    _target_: src.utils.get_dirac_time_wei
+    patch_dims: ${datamodule.xrds_kw.patch_dims}
+    crop:
+      time: 0
+      lat: 20
+      lon: 20
+    offset: 1
+  solver:
+    _target_: src.models.GradSolver
+    n_step: 15
+    lr_grad: 1000.0
+    prior_cost:
+      _target_: src.models.BilinAEPriorCost
+      dim_in: ${datamodule.xrds_kw.patch_dims.time}
+      dim_hidden: 64
+      bilin_quad: false
+      downsamp: 2
+    obs_cost: ${obs_cost}
+    grad_mod:
+      _target_: src.models.ConvLstmGradModel
+      dim_in: ${datamodule.xrds_kw.patch_dims.time}
+      dim_hidden: 96
+  sampling_rate: 0.01
+  norm_type: z_score
+  test_metrics: ${metrics.test_metrics}
+  pre_metric_fn:
+    _target_: xarray.Dataset.sel
+    _partial_: true
+    time: ${period.test.time}
+    lat: ${domain.test.lat}
+    lon: ${domain.test.lon}
+metrics:
+  nrmse_scores:
+    _target_: src.utils.rmse_based_scores_from_ds
+    _partial_: true
+  psd_scores:
+    _target_: src.utils.psd_based_scores_from_ds
+    _partial_: true
+  get0:
+    _target_: operator.itemgetter
+    _args_:
+    - 0
+  get1:
+    _target_: operator.itemgetter
+    _args_:
+    - 1
+  test_metrics:
+    μ:
+      _target_: src.utils.pipe
+      _partial_: true
+      fns:
+      - ${metrics.nrmse_scores}
+      - ${metrics.get0}
+    σ:
+      _target_: src.utils.pipe
+      _partial_: true
+      fns:
+      - ${metrics.nrmse_scores}
+      - ${metrics.get1}
+    λx:
+      _target_: src.utils.pipe
+      _partial_: true
+      fns:
+      - ${metrics.psd_scores}
+      - ${metrics.get0}
+    λt:
+      _target_: src.utils.pipe
+      _partial_: true
+      fns:
+      - ${metrics.psd_scores}
+      - ${metrics.get1}
+
+entrypoints:
+  - _target_: pytorch_lightning.seed_everything
+    seed: 333
+  - _target_: src.train.base_training
+    trainer: ${trainer}
+    lit_mod: ${model}
+    dm: ${datamodule}
+    ckpt: ${checkpoint}
+
+sst_da:
+  _target_: contrib.multimodal.load_natl_data_sst
+  tgt_path: ${paths.tgt[${entrypoint}]}
+  inp_path: ${paths.inp[${entrypoint}]}
+  sst_path: ${paths.inp_sst[${entrypoint}]}
+  tgt_var: ecs
+  inp_var: ecs
+  sst_var: sst
+  domain: ${domain.train}
+  period: ${period[${entrypoint}]}
+
+obs_cost:
+  _target_: contrib.multimodal.MultiModalObsCost
+  dim_in: ${datamodule.xrds_kw.patch_dims.time}
+  dim_hidden: 5

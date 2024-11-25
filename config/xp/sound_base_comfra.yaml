@@ -1,8 +1,8 @@
 # @package _global_
 
 resolution: '1_20'
-entrypoint: train  # 'train' or 'test'
-checkpoint: null #outputs/2024-03-27/17-21-41/sound_base_comfra/checkpoints/val_mse=2199.81333-epoch=242.ckpt 
+entrypoint: test  # 'train' or 'test'
+checkpoint:  outputs/2024-04-04/10-21-05/sound_base_comfra/checkpoints/val_mse=978.39137-epoch=586.ckpt #outputs/2024-03-27/17-21-41/sound_base_comfra/checkpoints/val_mse=2199.81333-epoch=242.ckpt 
 
 #outputs/2024-04-16/14-12-35/sound_base_comfra/checkpoints/val_mse=76.07142-epoch=279.ckpt #0.01 4dvar relative error
 #outputs/2024-04-16/14-11-51/sound_base_comfra/checkpoints/val_mse=1407.10178-epoch=300.ckpt  #0.01 4dvar
@@ -46,31 +46,24 @@ val_period:
       - 2010-06-30-12
 
 paths:
-    inp:
-      train: '/DATASET/eNATL/eNATL60_BLB002_cutoff_freq_regrid_0_1000m.nc'
-      test: '/DATASET/NATL/NATL60GULF-CJM165_cutoff_freq_regrid_0_1000m.nc'
-
-    inp_sst: 
-      train: '/DATASET/eNATL/eNATL60-BLB002-SST-GF-2009-2010-1_20.nc'
-      test: '/DATASET/NATL/NATL60-CJM165_NATL_sst_y2013.1y.nc'
-    
-    inp_ssh: 
-      train: /DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-ssh-2009-2010-${resolution}.nc
-      #train: /DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-7nadirs-2009-2010-${resolution}.nc
-      test: /DATASET/NATL/NATL60-CJM165-ssh-2012-2013-${resolution}.nc
-    
-    tgt:
-      train: '/DATASET/eNATL/eNATL60_BLB002_cutoff_freq_regrid_0_1000m.nc'
-      test: '/DATASET/NATL/NATL60GULF-CJM165_cutoff_freq_regrid_0_1000m.nc'
-    
-    tgt_sst:
-      train: '/DATASET/eNATL/eNATL60-BLB002-SST-GF-2009-2010-1_20.nc'
-      test: '/DATASET/NATL/NATL60-CJM165_NATL_GF_sst_y2013.1y.nc'
-
-    tgt_ssh:  
-      train: /DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-ssh-2009-2010-${resolution}.nc
-      test: /DATASET/NATL/NATL60-CJM165-ssh-2012-2013-${resolution}.nc
-
+  inp:
+    train: /DATASET/eNATL/eNATL60_BLB002_cutoff_freq_regrid_0_1000m.nc
+    test: /DATASET/NATL/NATL60GULF-CJM165_cutoff_freq_regrid_0_1000m.nc
+  inp_sst:
+    train: /DATASET/eNATL/eNATL60-BLB002-SST-2009-2010-1_20.nc
+    test: /DATASET/NATL/NATL60-CJM165-SST-2009-2010-1_20.nc
+  inp_ssh:
+    train: /DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-ssh-2009-2010-${resolution}.nc
+    test: /DATASET/NATL/NATL60-CJM165-ssh-2012-2013-${resolution}.nc
+  tgt:
+    train: /DATASET/eNATL/eNATL60_BLB002_cutoff_freq_regrid_0_1000m.nc
+    test: /DATASET/NATL/NATL60GULF-CJM165_cutoff_freq_regrid_0_1000m.nc
+  tgt_sst:
+    train: /DATASET/eNATL/eNATL60-BLB002-SST-2009-2010-1_20.nc
+    test: /DATASET/NATL/NATL60-CJM165-SST-2009-2010-1_20.nc
+  tgt_ssh:
+    train: /DATASET/eNATL/eNATL60_BLB002_SSH_nadirs/eNATL60-BLB002-ssh-2009-2010-${resolution}.nc
+    test: /DATASET/NATL/NATL60-CJM165-ssh-2012-2013-${resolution}.nc
 trainer:
   _target_: pytorch_lightning.Trainer
   inference_mode: false
@@ -105,7 +98,7 @@ datamodule:
     train: ${period.train}
     val: ${val_period}
     test:
-      time: {_target_: builtins.slice, _args_: ['2013-06-01', '2013-08-30']}
+      time: {_target_: builtins.slice, _args_: ['2012-10-01', '2013-09-30']}
   xrds_kw:
     patch_dims: { time: 15, lat: 240, lon: 240}
     strides: { time: 1, lat: 200, lon: 200}
@@ -126,7 +119,7 @@ model:
     T_max: ${trainer.max_epochs}
     weight_decay: 1e-2
   rec_weight:
-      _target_: src.utils.get_triang_time_wei
+      _target_: src.utils.get_dirac_time_wei
       patch_dims: ${datamodule.xrds_kw.patch_dims}
       crop: {time: 0, lat: 20, lon: 20}
       offset: 1
@@ -149,13 +142,15 @@ model:
       _target_: src.models.ConvLstmGradModel
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
       dim_hidden: 48
-  sampling_rate: 0.01
+  sampling_rate: 0.001
   norm_type: 'z_score'
   test_metrics: ${metrics.test_metrics}
   pre_metric_fn:
     _target_: xarray.Dataset.sel
     _partial_: true
-    time: ${period.test.time}
+    #time: ${period.test.time}
+    time: {_target_: builtins.slice, _args_: ['2012-10-21', '2013-09-10']}
+
     #time: {_target_: builtins.slice, _args_: ['2012-10-01', '2012-12-20']}
     lat: ${domain.test.lat}
     lon: ${domain.test.lon}
@@ -182,6 +177,6 @@ entrypoints:
 
 defaults:
   - /domain: gf
-  - /period: midsummer
+  - /period: allyear
   # - /period@val_period: midsummer
   - _self_

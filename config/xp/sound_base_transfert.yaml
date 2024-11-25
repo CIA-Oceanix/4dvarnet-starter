@@ -1,5 +1,6 @@
 # @package _global_
 ckpt: null
+# /DATASET/envs/oscar/4dvarnet-starter/outputs/2024-10-23/15-49-11/sound_base_transfert/checkpoints/val_mse=2189.66427-epoch=312.ckpt # 1 day [0.001, 0.1] 
 #outputs/2024-07-09/09-43-15/sound_base_transfert/checkpoints/val_mse=2366.58319-epoch=045.ckpt
 #outputs/2024-07-03/22-51-28/sound_base_transfert/checkpoints/val_mse=4783.30047-epoch=045.ckpt #null
  #outputs/2024-06-26/11-13-21/sound_base_transfert/checkpoints/val_mse=4727.99461-epoch=052.ckpt
@@ -57,7 +58,7 @@ trainer:
 
 datamodule:
   xrds_kw:
-    patch_dims: { time: 1, lat: 240, lon: 240}
+    patch_dims: { time: 15, lat: 240, lon: 240}
     strides: { time: 1, lat: 200, lon: 200}
   dl_kw: {batch_size: 16, num_workers: 1}
   aug_kw:
@@ -144,7 +145,7 @@ model:
       dim_hidden: 48
     weight_obs: 1. 
     weight_prior: 1.
-  sampling_rate: [0.001, 0.1]
+  sampling_rate: 0.001
   norm_type: 'z_score'
   test_metrics: ${metrics.test_metrics}
   pre_metric_fn:

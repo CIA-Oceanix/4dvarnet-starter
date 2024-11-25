@@ -3,6 +3,12 @@
 trainer:
   max_epochs: 600
 
+prior_cost_unet:
+  _target_: src.unet.UNet
+  n_channels: ${datamodule.xrds_kw.patch_dims.time}
+  n_classes: ${datamodule.xrds_kw.patch_dims.time}
+  bilinear: false
+  
 model:
   _target_: contrib.forecast_ecs.Lit4dVarNetForecast
   persist_rw: false
@@ -21,6 +27,7 @@ model:
     _target_: contrib.forecast_ecs.GradSolverZero
     n_step: 10
     lr_grad: 1e3
+    #prior_cost: ${prior_cost_unet}
     prior_cost:
       _target_: src.models.BilinAEPriorCost
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
@@ -35,13 +42,13 @@ model:
       dim_hidden: 48
     weight_obs: 1. 
     weight_prior: 1.
-  sampling_rate: 0.01
+  sampling_rate: 0.001
   norm_type: 'z_score'
   test_metrics: ${metrics.test_metrics}
   pre_metric_fn:
     _target_: xarray.Dataset.sel
     _partial_: True
-    #time: {_target_: builtins.slice, _args_: ['2012-10-21', '2013-09-10']}
-    time: {_target_: builtins.slice, _args_: ['2013-07-11', '2013-08-20']} #['2013-06-21', '2013-09-10']}
+    time: {_target_: builtins.slice, _args_: ['2012-10-21', '2013-09-10']}
+    #time: {_target_: builtins.slice, _args_: ['2013-07-11', '2013-08-20']} #['2013-06-21', '2013-09-10']}
     lat: ${domain.test.lat}
     lon: ${domain.test.lon}

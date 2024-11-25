@@ -13,6 +13,7 @@ import torch
 import xarray as xr
 import kornia.filters as kfilts
 from src.data import AugmentedDataset, BaseDataModule, XrDataset
+import contrib.transfert
 
 MultiModalSSTTrainingItem = collections.namedtuple(
     "MultiModalSSTTrainingItem", ["input", "tgt", "sst"]
@@ -38,14 +39,16 @@ def load_natl_data_sst(tgt_path, tgt_var, inp_path, inp_var, sst_path, sst_var, 
         .pipe(threshold_xarray)
         #.pipe(mask)
     )
+    print(sst_path)
     sst = (
         xr.open_dataset(sst_path)[sst_var]
         .sel(kwargs.get('domain', None))
         .sel(kwargs.get('period', None))
         #.pipe(mask)
     )
+    print(sst)
     print(xr.Dataset(
-            dict(input=inp, tgt=(tgt.dims, tgt.values)),
+            dict(input=inp, tgt=(tgt.dims, tgt.values), sst = (sst.dims, sst.values)),
             inp.coords,
         )
         .transpose('time', 'lat', 'lon')
@@ -60,33 +63,25 @@ def load_natl_data_sst(tgt_path, tgt_var, inp_path, inp_var, sst_path, sst_var, 
     )
 
 
-def load_data_with_sst(obs_var='five_nadirs'):
-    inp = xr.open_dataset( "../sla-data-registry/CalData/cal_data_new_errs.nc")[obs_var]
-    gt = ( xr.open_dataset(
-            "../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_ssh_y2013.1y.nc"
-        ).ssh.isel(time=slice(0, -1))
-        .interp(lat=inp.lat, lon=inp.lon, method="nearest")
-    )
-    sst = (xr.open_dataset(
-            "../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_sst_y2013.1y.nc"
-        ).sst.isel(time=slice(0, -1))
-        .interp(lat=inp.lat, lon=inp.lon, method="nearest")
-    )
-    ds =  (
-        xr.Dataset(dict(
-            input=inp, tgt=(gt.dims, gt.values), sst=(sst.dims, sst.values)
-        ), inp.coords).load()
-        .transpose('time', 'lat', 'lon')
-    )
-    return ds.to_array()
+#class MultiModalDataModule(src.data.BaseDataModule):
+#    def post_fn(self):
+#        normalize_ssh = lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1]
+#        m_sst, s_sst = self.train_mean_std('sst')
+#        normalize_sst = lambda item: (item - m_sst) / s_sst
+#        return ft.partial(
+#            ft.reduce,
+#            lambda i, f: f(i),
+#            [
+#                MultiModalSSTTrainingItem._make,
+#                lambda item: item._replace(tgt=normalize_ssh(item.tgt)),
+#                lambda item: item._replace(input=normalize_ssh(item.input)),
+#                lambda item: item._replace(sst=normalize_sst(item.sst)),
+#            ],
+#        )
 
-class MultiModalDataModule(src.data.BaseDataModule):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.mean_std_domain = kwargs.get('mean_std_domain', 'train')
-        self.std_c = kwargs.get('std_c', 1.)
-
+class MultiModalDataModuleTransfert(contrib.transfert.TransfertDataModule):    
     def post_fn(self):
+        print('-------------------')
         normalize_ssh = lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1]
         m_sst, s_sst = self.train_mean_std('sst')
         normalize_sst = lambda item: (item - m_sst) / s_sst
@@ -100,61 +95,33 @@ class MultiModalDataModule(src.data.BaseDataModule):
                 lambda item: item._replace(sst=normalize_sst(item.sst)),
             ],
         )
-    
-    def norm_stats(self):
-        if self._norm_stats is None:
-            if self.norm_type == 'z_score':
-                self._norm_stats = self.train_mean_std()
-                print("Norm stats", self._norm_stats)
-            if self.norm_type == 'min_max':
-                self._norm_stats = self.min_max_norm()
-                print("Norm stats", self._norm_stats)
-        return self._norm_stats
-    
-    def train_mean_std(self, variable='tgt'):
-        train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {})).sel(self.domains[self.mean_std_domain])
-        return train_data.sel(variable=variable).pipe(lambda da: (da.mean().values.item(), self.std_c*da.std().values.item()))
-    
-    def min_max_norm(self, variable = 'tgt'):
-        train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {})).sel(self.domains[self.mean_std_domain])
-        min_value = train_data.sel(variable=variable).min().values.item()
-        max_value = train_data.sel(variable=variable).max().values.item()
-        return min_value, max_value
-
-    def setup(self, stage='test'):
-        post_fn = self.post_fn()
-
-        if stage == 'fit':
-            train_data = self.input_da.sel(self.domains['train'])
-            train_xrds_kw = deepcopy(self.xrds_kw)
-            
-            self.train_ds = XrDataset(
-                train_data, **train_xrds_kw, postpro_fn=post_fn,
-            )
-            if self.aug_kw:
-                self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
-
-            self.val_ds = XrDataset(
-                self.input_da.sel(self.domains['val']),
-                **self.xrds_kw,
-                postpro_fn=post_fn,
-            )
-        else:
-            self.test_ds = XrDataset(
-                self.input_da.sel(self.domains['test']),
-                **self.xrds_kw,
-                postpro_fn=post_fn,
-            )
-class TransfertDataModule(BaseDataModule):
+class MultiModalDataModule(BaseDataModule):
     def __init__(self, *args, **kwargs):
+        print('MultiModalDataModule')
         super().__init__(*args, **kwargs)
         self.mean_std_domain = kwargs.get('mean_std_domain', 'train')
-        self.std_c = kwargs.get('std_c', 1.)
+        #self.std_c = kwargs.get('std_c', 1.)
+
+    def post_fn(self):
+        print('-------------------')
+        normalize_ssh = lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1]
+        m_sst, s_sst = self.train_mean_std('sst')
+        normalize_sst = lambda item: (item - m_sst) / s_sst
+        return ft.partial(
+            ft.reduce,
+            lambda i, f: f(i),
+            [
+                MultiModalSSTTrainingItem._make,
+                lambda item: item._replace(tgt=normalize_ssh(item.tgt)),
+                lambda item: item._replace(input=normalize_ssh(item.input)),
+                lambda item: item._replace(sst=normalize_sst(item.sst)),
+            ],
+        )
 
     
 
 class MultiModalObsCost(nn.Module):
-    def __init__(self, dim_in, dim_hidden, ecs_weight, sst_weight, weight1 = 1.):
+    def __init__(self, dim_in, dim_hidden, weight1 = 1.):#), ecs_weight, sst_weight, weight1 = 1.):
         super().__init__()
         self.base_cost = src.models.BaseObsCost()
 
@@ -162,19 +129,18 @@ class MultiModalObsCost(nn.Module):
         self.conv_sst =  torch.nn.Conv2d(dim_in, dim_hidden, (3, 3), padding=1, bias=False)
         
         self.weight1_torch    = torch.nn.Parameter(torch.tensor(weight1), requires_grad = True)
-        self.ssh_weight_torch = torch.nn.Parameter(torch.tensor(ecs_weight), requires_grad = True)
-        self.sst_weight_torch = torch.nn.Parameter(torch.tensor(sst_weight), requires_grad = True)
+        #self.ssh_weight_torch = torch.nn.Parameter(torch.tensor(ecs_weight), requires_grad = True)
+        #self.sst_weight_torch = 1 - self.ssh_weight_torch
 
     def forward(self, state, batch):
-
         ssh_cost =  self.base_cost(state, batch)
         sst_cost =  torch.nn.functional.mse_loss(
             self.conv_ssh(state),
             self.conv_sst(batch.sst.nan_to_num()),
         )
 
-        final_cost = self.ssh_weight_torch * ssh_cost + self.sst_weight_torch * sst_cost
-    
+        #final_cost = self.ssh_weight_torch * ssh_cost + self.sst_weight_torch * sst_cost
+        final_cost = ssh_cost + sst_cost
         return final_cost
     
 class Lit4dVarNet_SST(src.models.Lit4dVarNet):

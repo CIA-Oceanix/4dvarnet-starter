@@ -3,6 +3,7 @@ import einops
 import functools as ft
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import src.data
 import src.models
 import src.utils
@@ -10,6 +11,8 @@ import kornia.filters as kfilts
 import pandas as pd
 import tqdm
 import numpy as np
+from xrpatcher import XRDAPatcher
+from functools import partial
     
 class Lit4dVarNet_OI(src.models.Lit4dVarNet):
     def step(self, batch, phase=""):
@@ -19,7 +22,46 @@ class Lit4dVarNet_OI(src.models.Lit4dVarNet):
         # Apply the mask to the input data, setting selected values to NaN
         masked_input = batch.input.clone()
         masked_input[mask] = float('nan')
-        batch = batch._replace(input = masked_input)
+
+        lat_values = np.linspace(-65.95, -54, 240)
+        lon_values = np.linspace(32, 43.95, 240)
+        time_values = pd.date_range("2009-07-01T12:00:00", periods=15, freq='D')
+
+        # Create a DataArray with zeros
+        data = np.zeros((len(time_values), len(lat_values), len(lon_values)))
+
+        # Create the xarray DataArray
+        da = xr.DataArray(data, coords=[('time', time_values), ('lat', lat_values), ('lon', lon_values)])
+
+        # If you need a Dataset instead
+        ds = da.to_dataset(name='variable_name')
+
+        masked_input_np = masked_input.cpu().numpy()
+
+        # Assuming masked_input has the same shape as 'data' used to create 'ds'
+        # and the dimensions are in the order (time, lat, lon)
+
+        # Step 2: Create the xarray DataArray using the same coordinates
+        masked_input_da= xr.DataArray(masked_input_np[0], coords=[('time', time_values), ('lat', lat_values), ('lon', lon_values)])
+
+        # Step 3: Optionally convert to Dataset 
+        masked_input_ds = masked_input_da.to_dataset(name='ecs')
+        patcher_cls= partial(XRDAPatcher,
+                    patches=dict(time=5, lat=40, lon=40),
+                    strides=dict(time=5, lat=40, lon=40)
+                )
+        lt = pd.to_timedelta('7D')
+        lx = 1.5
+        ly = 1.5
+        noise = 0.05
+        obs_dt = pd.to_timedelta('1D')
+        obs_dx = 0.25
+        obs_dy = 0.25
+
+        interpolated_da = oi(outgrid_da = xr.DataArray(np.zeros_like(masked_input_da.values), dims=masked_input_da.dims, coords=masked_input_da.coords), patcher_cls= patcher_cls, obs = masked_input_ds, obs_var='ecs', lt=lt, lx=lx, ly=ly, noise=noise, obs_dt=obs_dt, obs_dx=obs_dx, obs_dy=obs_dy, device='cuda:0')
+        interpolated_tensor = torch.tensor(interpolated_da.values).to('cuda:0')
+        interpolated_tensor = interpolated_tensor.unsqueeze(0)
+        batch = batch._replace(input = interpolated_tensor)
         if self.solver.n_step > 0:
 
             loss, out = self.base_step(batch, phase)
@@ -44,7 +86,6 @@ class Lit4dVarNet_OI(src.models.Lit4dVarNet):
     def test_step(self, batch, batch_idx):
         if batch_idx == 0:
             self.test_data = []
-            
         batch_input_clone = batch.input.clone()
         mask = (torch.rand(batch.input.size()) > self.sampling_rate).to('cuda:0')
         # Apply the mask to the input data, setting selected values to NaN
@@ -74,6 +115,18 @@ class Lit4dVarNet_OI(src.models.Lit4dVarNet):
                 ],
                 dim=1,
             ))
+
+#def oi_pytorch(obs, patch_size, stride, lt=7., lx=1., ly=1., noise=0.05, obs_dt =1., obs_dx = 0.25, obd_dy=0.25):
+#    patches = obs.unfold(0, patch_size[0], stride[0])\
+#                     .unfold(1, patch_size[1], stride[1])\
+#                     .unfold(2, patch_size[2], stride[2])
+#    
+#    patcher_cls = patches.contiguous().view(-1, *patch_size)
+#    
+#    for patch in patcher_cls:
+#        obss = select_observations(obs, patch, lt, ly, lx)
+#        bin_edges = torch.arange(obs.time.min(), obs.time.max() + obs_dt, obs_dt)
+#        pobs = bin_and_average(obss, bin_edges)
 
 
 def oi(outgrid_da,
@@ -107,7 +160,7 @@ def oi(outgrid_da,
 
     patcher = patcher_cls(outgrid_da)
     # 1 Iterate over each patch
-    for p in tqdm.tqdm(patcher):
+    for p in patcher:
         # 2 select observations within 2 stds in each direction
         pobs = obs.where(
             (np.isfinite(obs[obs_var]))
@@ -179,3 +232,36 @@ def oi(outgrid_da,
         p[:] = sol.detach().cpu().numpy().reshape(p.shape)
 
     return outgrid_da
+
+#def bin_and_average(data, bin_edges):
+#    """
+#    Bins the data along the first dimension and averages the values within each bin.
+#    
+#    Parameters:
+#    - data: A PyTorch tensor of shape (N, ...) where N is the number of data points.
+#    - bin_edges: A PyTorch tensor of shape (M,) representing the edges of M-1 bins.
+#    
+#    Returns:
+#    - A PyTorch tensor containing the averaged data for each bin.
+#    """
+#    data = data.to(bin_edges.device)
+#    num_bins = bin_edges.shape[0] - 1
+#    bin_sums = torch.zeros(num_bins, *data.shape[1:], device=data.device)
+#    bin_counts = torch.zeros(num_bins, device=data.device)
+#    for i in range(num_bins):
+#        in_bin = (data[:, 0] >= bin_edges[i]) & (data[:, 0] < bin_edges[i + 1])
+#        bin_sums[i] += data[in_bin].sum(dim=0)
+#        bin_counts[i] += in_bin.sum()
+#    bin_counts[bin_counts == 0] = 1
+#    bin_averages = bin_sums / bin_counts.unsqueeze(1)
+#    return bin_averages
+#
+#def select_observations(obs, obs_var, p, lt, ly, lx):
+#    valid_obs = torch.isfinite(obs[..., obs_var])
+#    time_cond = (obs.time >= (p.time.min() - 2 * lt)) & (obs.time <= (p.time.max() + 2 * lt))
+#    lat_cond = (obs.lat >= (p.lat.min() - 2 * ly)) & (obs.lat <= (p.lat.max() + 2 * ly))
+#    lon_cond = (obs[0, 0, :, 2] >= (p.lon.min() - 2 * lx)) & (obs[0, 0, :, 2] <= (p.lon.max() + 2 * lx))
+#
+#    combined_cond = valid_obs & time_cond.unsqueeze(1).unsqueeze(2) & lat_cond.unsqueeze(0).unsqueeze(2) & lon_cond.unsqueeze(0).unsqueeze(1)
+#
+#    return obs[combined_cond]
