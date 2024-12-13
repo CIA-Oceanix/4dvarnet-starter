@@ -50,20 +50,20 @@ Animation:
 To run the configuration for the ECS reconstruction of the NATL dataset using the eNATL dataset as training.
 
 ```
-python main.py xp=sound_base_comfra
+python main.py xp=sound_base_transfert 
 ```
 
-Here is an example of the reconstruction of the ECS using a 00.1 sampling rate (i.e. 1% of the data) of the NATL dataset using the eNATL dataset as trainig.
+Here is an example of the reconstruction of the ECS using a 00.1 sampling rate (i.e. 1% of the data) of the NATL dataset using the eNATL dataset as training.
 
 |    |   Metrics |
 |:---|----------:|
-| μ  |   0.76598 |
+| μ  |   0.6228  |
 | σ  |   0.32826 |
-| λx |   1.511   |
-| λt |   6.925   |
+| λx |   3.223   |
+| λt |   49.806  |
 
 Animation:
-![Animation](https://s3.eu-central-1.wasabisys.com/melody/eNATL/ECS/animation_git.gif)
+![Animation](https://s3.eu-central-1.wasabisys.com/melody/eNATL/ECS/new_reco_NATL.gif)
 
 ## Useful links:
 
