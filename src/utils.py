@@ -61,6 +61,19 @@ def cosanneal_lr_adam(lit_mod, lr, T_max=100, weight_decay=0.):
         "lr_scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=T_max),
     }
 
+def cosanneal_lr_adamw(lit_mod, lr, T_max=100, weight_decay=0.):
+    opt = torch.optim.AdamW(
+        [
+            {"params": lit_mod.solver.grad_mod.parameters(), "lr": lr},
+            {"params": lit_mod.solver.obs_cost.parameters(), "lr": lr},
+            {"params": lit_mod.solver.prior_cost.parameters(), "lr": lr / 2},
+        ], weight_decay=weight_decay
+    )
+    return {
+        "optimizer": opt,
+        "lr_scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=T_max),
+    }
+
 def cosanneal_lr_lion(lit_mod, lr, T_max=100):
     import lion_pytorch
     opt = lion_pytorch.Lion(
@@ -117,8 +130,9 @@ def mask(da, sampling_rate = 0.1):
     return masked_data_array
 
 def threshold_xarray(da):
-    threshold = 10**3
+    threshold = 1000
     da = xr.where(da > threshold, 1, da)
+    da = xr.where(da <= 0, 0, da)
     return da
 
 def get_constant_crop(patch_dims, crop, dim_order=["time", "lat", "lon"]):
@@ -148,6 +162,25 @@ def get_triang_time_wei(patch_dims, offset=0, **crop_kw):
         patch_dims.values(),
     )
 
+def get_dirac_time_wei(patch_dims, offset=0, **crop_kw):
+    pw = get_constant_crop(patch_dims, **crop_kw)
+    time_size = patch_dims["time"]
+    
+    # Calculate the center index(es)
+    if time_size % 2 == 0:  # Even
+        center1 = time_size // 2 - 1
+        center_condition = lambda t: (t == center1) * pw
+    else:  # Odd
+        center = time_size // 2
+        center_condition = lambda t: t == center * pw
+    
+    # Use np.fromfunction to create the array
+    return np.fromfunction(
+        lambda t, *a: center_condition(t).astype(float),
+        patch_dims.values(),
+    )
+
+
 def get_constant_crop_depth(patch_dims, crop, dim_order=["time", "z","lat", "lon"]):
     patch_weight = np.zeros([patch_dims[d] for d in dim_order], dtype="float32")
     mask = tuple(
@@ -176,6 +209,44 @@ def get_triang_time_wei_depth(patch_dims, offset=0, **crop_kw):
         patch_dims.values(),
     )
 
+def get_triang_time_depth_wei(patch_dims, offset=0, **crop_kw):
+    pw = get_constant_crop(patch_dims, **crop_kw)
+    return np.fromfunction(
+        lambda t, z, *a: (
+            (1 - np.abs(offset + 2 * t - patch_dims["time"]) / patch_dims["time"]) * pw
+        ),
+        patch_dims.values(),
+    )
+
+def load_natl_data(tgt_path, tgt_var, inp_path, inp_var, **kwargs):
+    tgt = (
+        xr.open_dataset(tgt_path)[tgt_var]
+        .sel(kwargs.get('domain', None))
+        .sel(kwargs.get('period', None))
+        .pipe(threshold_xarray)
+    )
+    inp = (
+        xr.open_dataset(inp_path)[inp_var]
+        .sel(kwargs.get('domain', None))
+        .sel(kwargs.get('period', None))
+        .pipe(threshold_xarray)
+        #.pipe(mask)
+    )
+    print(xr.Dataset(
+            dict(input=inp, tgt=(tgt.dims, tgt.values)),
+            inp.coords,
+        )
+        .transpose('time', 'lat', 'lon')
+        .to_array())
+    return (
+        xr.Dataset(
+            dict(input=inp, tgt=(tgt.dims, tgt.values)),
+            inp.coords,
+        )
+        .transpose('time', 'lat', 'lon')
+        .to_array()
+    )
+
 
 def load_enatl(*args, obs_from_tgt=False, **kwargs):
     ssh = xr.open_zarr('../sla-data-registry/enatl_preproc/truth_SLA_SSH_NATL60.zarr/').ssh
@@ -190,20 +261,6 @@ def load_enatl(*args, obs_from_tgt=False, **kwargs):
     if obs_from_tgt:
         ds = ds.assign(input=ds.tgt.transpose(*ds.input.dims).where(np.isfinite(ds.input), np.nan))
     return ds.transpose('time', 'lat', 'lon').to_array().load()
-
-#def load_enatl_ecs(*args, obs_from_tgt=False, **kwargs):
-#    ssh = xr.open_dataset('/DATASET/eNATL/eNATL60_BLB002_cutoff_freq_0_1000m_regrid.nc').ecs
-#    nadirs = xr.open_dataset('/DATASET/eNATL/eNATL60_BLB002_cutoff_freq_0_1000m_regrid.nc').ecs
-#    ssh = ssh.interp(
-#        lon=np.arange(ssh.lon.min(), ssh.lon.max(), 1/20),
-#        lat=np.arange(ssh.lat.min(), ssh.lat.max(), 1/20)
-#    )
-#    nadirs = nadirs.interp(time=ssh.time, method='nearest').interp(lat=ssh.lat, lon=ssh.lon, method='nearest')
-#    ds =  xr.Dataset(dict(input=nadirs, tgt=(ssh.dims, ssh.values)), nadirs.coords)
-#
-#    if obs_from_tgt:
-#        ds = ds.assign(input=ds.tgt.transpose(*ds.input.dims).where(np.isfinite(ds.input), np.nan))
-#    return ds.transpose('time', 'lat', 'lon').to_array().load()
 
 def load_altimetry_data(path, obs_from_tgt=False):
     ds =  (
@@ -249,29 +306,14 @@ def load_cutoff_freq(path, obs_from_tgt=False):
         # .assign(input=lambda ds: mask(threshold_xarray(ds.cutoff_freq)),
         #         tgt=lambda ds: remove_nan(threshold_xarray(ds.cutoff_freq)))   
     )
-    da = ds[[*src.data.TrainingItem._fields]].transpose("time", "lat", "lon").to_array()
+    print(ds)
+    #da = ds[[*src.data.TrainingItem._fields]].transpose("time", "lat", "lon").to_array()
     return (
         ds[[*src.data.TrainingItem._fields]]
         .transpose("time", "lat", "lon")
         .to_array()
     )
 
-#def load_cutoff_freq_mask(path, obs_from_tgt=False):
-#    ds =  (
-#        xr.open_dataset(path)
-#        # .assign(ssh=lambda ds: ds.ssh.coarsen(lon=2, lat=2).mean().interp(lat=ds.lat, lon=ds.lon))
-#        .load()
-#        # .assign(input=lambda ds: (threshold_xarray(ds.ecs)),
-#        #         tgt=lambda ds: remove_nan(threshold_xarray(ds.ecs)))   
-#        .assign(input=lambda ds: mask(threshold_xarray(ds.cutoff_freq)),
-#                tgt=lambda ds: remove_nan(threshold_xarray(ds.cutoff_freq)))   
-#    )
-#    da = ds[[*src.data.TrainingItem._fields]].transpose("time", "lat", "lon").to_array()
-#    return (
-#        ds[[*src.data.TrainingItem._fields]]
-#        .transpose("time", "lat", "lon")
-#        .to_array()
-#    )
 
 def load_full_natl_data(
         path_obs="../sla-data-registry/CalData/cal_data_new_errs.nc",
@@ -290,25 +332,21 @@ def load_full_natl_data(
     return xr.Dataset(dict(input=inp, tgt=(gt.dims, gt.values)), inp.coords).to_array().sortby('variable')
 
 
-def rmse_based_scores_from_ds(ds, ref_variable='tgt', study_variable='out'):
+def rmse_based_scores_from_ds(ds, ref_variable='out', study_variable='tgt'):
     #mask = ~np.isnan(ds['input'])
     try:
         return rmse_based_scores(ds[ref_variable], ds[study_variable])[2:]
     except:
         return [np.nan, np.nan]
 
-def psd_based_scores_from_ds(ds, ref_variable='tgt', study_variable='out'):
+def psd_based_scores_from_ds(ds, ref_variable='out', study_variable='tgt'):
     print(ds)
     try:
         return psd_based_scores(ds[ref_variable], ds[study_variable])[1:]
     except:
         return [np.nan, np.nan]
 
-def rmse_based_scores(da_rec, da_ref, mask = None):
-    if mask is not None:
-        # Apply the mask to da_rec and da_ref
-        da_rec = da_rec.where(mask)
-        da_ref = da_ref.where(mask)
+def rmse_based_scores(da_rec, da_ref):
     rmse_t = (
         1.0
         - (((da_rec - da_ref) ** 2).mean(dim=("lon", "lat"))) ** 0.5
@@ -329,16 +367,9 @@ def rmse_based_scores(da_rec, da_ref, mask = None):
     )
 
 
-def psd_based_scores(da_rec, da_ref, mask = None):
-    if mask is not None:
-        # Apply the mask to da_rec and da_ref
-        da_rec = da_rec.where(mask)
-        da_ref = da_ref.where(mask)
+def psd_based_scores(da_rec, da_ref):
     print('hello')
-    #print(da_rec)
-    #print(da_ref)
     err = da_rec - da_ref
-    #print(err)
     err["time"] = (err.time - err.time[0]) / np.timedelta64(1, "D")
     signal = da_ref
     signal["time"] = (signal.time - signal.time[0]) / np.timedelta64(1, "D")
@@ -348,9 +379,6 @@ def psd_based_scores(da_rec, da_ref, mask = None):
     psd_signal = xrft.power_spectrum(
         signal, dim=["time", "lon"], detrend="constant", window="hann"
     ).compute()
-    # print(psd_signal)
-    # psd_signal.to_netcdf('/DATASET/envs/oscar/4dvarnet-starter/outputs/psd_base_signal.nc')
-    # psd_err.to_netcdf('/DATASET/envs/oscar/4dvarnet-starter/outputs/psd_base_err.nc')
 
     mean_psd_signal = psd_signal.mean(dim="lat").where(
         (psd_signal.freq_lon > 0.0) & (psd_signal.freq_time > 0), drop=True

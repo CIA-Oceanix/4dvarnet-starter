@@ -1,9 +1,8 @@
 # @package _global_
 
 paths:
-  enatl_gf_ecs: '/DATASET/NATL/NATL60GULF-CJM165_cutoff_freq_regrid_0_1000m.nc'
-  #enatl_gf_ecs: '/DATASET/eNATL/eNATL6 0_BLB002_cutoff_freq_0_1000m_regrid.nc'
-  #enatl_gf_celerity: '/DATASET/eNATL/eNATL60_BLB002_sound_speed_0_1000m_regrid.nc'
+    enatl_gf_ecs: '/DATASET/eNATL/eNATL60_BLB002_cutoff_freq_0_1000m_regrid.nc'
+    enatl_gf_celerity: '/DATASET/eNATL/eNATL60_BLB002_sound_speed_0_1000m_regrid.nc'
 domain: ???
 
 trainer:
@@ -17,7 +16,7 @@ trainer:
     save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 150
+  max_epochs: 400
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
@@ -26,25 +25,19 @@ trainer:
       save_top_k: 3
       filename: '{val_mse:.5f}-{epoch:03d}'
 
-datamodule:
+datamodule:lat
   _target_: src.data.BaseDataModule
   input_da: 
-    #_target_: src.utils.load_celerity_data
-    _target_: src.utils.load_cutoff_freq
-    path: ${paths.enatl_gf_ecs}
+    _target_: src.utils.load_celerity_data
+    #_target_: src.utils.load_cutoff_freq
+    path: ${paths.enatl_gf_celerity}
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2013-02-24', '2013-09-30']}
+      time: {_target_: builtins.slice, _args_: ['2009-07-01', '2010-01-31']}
     val: 
-      time: {_target_: builtins.slice, _args_: ['2012-12-15', '2013-02-24']}
+      time: {_target_: builtins.slice, _args_: ['2010-02-01', '2010-04-09']}
     test: 
-      time: {_target_: builtins.slice,  _args_: ['2012-10-01', '2012-12-20']}
-    #train:
-    #  time: {_target_: builtins.slice, _args_: ['2009-07-01-12', '2010-01-31-12']}
-    #val: 
-    #  time: {_target_: builtins.slice, _args_: ['2010-02-01-12', '2010-04-09-12']}
-    #test: 
-    #  time: {_target_: builtins.slice,  _args_: ['2010-04-10-12', '2010-06-30-12']}
+      time: {_target_: builtins.slice,  _args_: ['2010-04-10', '2010-06-30']}
     # train:
     #   time: {_target_: builtins.slice, _args_: ['2009-11-24', '2010-06-30']}
     # val: 
@@ -52,8 +45,8 @@ datamodule:
     # test: 
     #   time: {_target_: builtins.slice,  _args_: ['2009-07-01', '2009-09-20']}
   xrds_kw:
-    patch_dims: { time: 15,lat: 240, lon: 240}
-    strides: { time: 1,lat: 200, lon: 200}
+    patch_dims: { time: 15, z: 2,lat: 240, lon: 240}
+    strides: { time: 1, z: 1,lat: 200, lon: 200}
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 4, num_workers: 1}
   aug_kw:
@@ -61,7 +54,7 @@ datamodule:
     aug_only: True
 
 model:
-  _target_: src.models.Lit4dVarNet
+  _target_: src.models_depth.Lit4dVarNet_depth
   persist_rw: False
   opt_fn:
     _target_: src.utils.cosanneal_lr_adam
@@ -70,15 +63,16 @@ model:
     T_max: ${trainer.max_epochs}
   rec_weight:
       _target_: src.utils.get_triang_time_wei
-      patch_dims: ${datamodule.xrds_kw.patch_dims}
+      patch_dims: { time: 15, lat: 240, lon: 240}
       crop: {time: 0, lat: 20, lon: 20}
       offset: 1
   solver:
-    _target_: src.models.GradSolver
+    _target_: src.models_depth.GradSolver
     n_step: 10
-    lr_grad: 1e-3
+    lr_grad: 1e3
+    # lr_grad: 0.2
     prior_cost: 
-      _target_: src.models.BilinAEPriorCost
+      _target_: src.models_depth.BilinAEPriorCost
       #weight3: 1. 
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
       dim_hidden: 32
@@ -86,23 +80,22 @@ model:
       # bilin_quad: True
       downsamp: 2
     obs_cost: 
-      _target_: src.models.BaseObsCost
+      _target_: src.models_depth.BaseObsCost
       #weight1: 1. 
       #weight2: 1.
     grad_mod: 
-      _target_: src.models.ConvLstmGradModel
+      _target_: src.models_depth.ConvLstmGradModel
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
       dim_hidden: 48
-  sampling_rate: 0.1
+  sampling_rate: 0.5
   test_metrics: ${metrics.test_metrics}
   pre_metric_fn: 
         _target_: xarray.Dataset.sel
         _partial_: True
-        #time: {_target_: builtins.slice, _args_: ["2010-04-30", "2010-06-10"]}
-        time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
+        time: {_target_: builtins.slice, _args_: ["2010-04-30", "2010-06-10"]}
         lat: ${domain.test.lat}
         lon: ${domain.test.lon}
- 
+
 metrics:
   nrmse_scores: {_target_: src.utils.rmse_based_scores_from_ds, _partial_: True}
   psd_scores: {_target_: src.utils.psd_based_scores_from_ds, _partial_: True}

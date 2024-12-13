@@ -1,0 +1,47 @@
+# @package _global_
+
+## Specific components
+sst_da_train: 
+  _target_: contrib.multimodal.load_natl_data_sst
+  tgt_path: ${paths.tgt.train}  # .train or .test
+  inp_path: ${paths.inp.train}  # .train or .test
+  sst_path: ${paths.inp_sst.train}  # .train or .test
+  tgt_var: ecs
+  inp_var: ecs
+  sst_var: sst
+  domain: ${domain.train}
+
+sst_da_test: 
+  _target_: contrib.multimodal.load_natl_data_sst
+  tgt_path: ${paths.tgt.test}  # .train or .test
+  inp_path: ${paths.inp.test}  # .train or .test
+  sst_path: ${paths.inp_sst.test}  # .train or .test
+  tgt_var: ecs
+  inp_var: ecs
+  sst_var: sst
+  domain: ${domain.train}
+
+obs_cost:
+  _target_: contrib.multimodal.MultiModalObsCost
+  dim_in: ${datamodule.xrds_kw.patch_dims.time}
+  dim_hidden: 5
+  #ecs_weight: 0.5
+  #sst_weight: 0.5
+
+## Override config
+test_dm:
+  _target_: contrib.multimodal.MultiModalDataModuleTransfert
+  input_da: ${sst_da_test}
+
+train_dm:
+  _target_: contrib.multimodal.MultiModalDataModuleTransfert
+  input_da: ${sst_da_train}
+
+datamodule:
+  _target_: contrib.multimodal.MultiModalDataModule
+  input_da: ${sst_da_test}
+
+model:
+  #_target_: contrib.multimodal.Lit4dVarNet
+  solver:
+    obs_cost: ${obs_cost}
