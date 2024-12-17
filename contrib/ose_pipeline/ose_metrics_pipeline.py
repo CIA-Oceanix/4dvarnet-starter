@@ -49,7 +49,7 @@ def domain_metrics(
             var_name=out_var
         )
 
-        tqdm.write('leadtime {} - RMSE: {:.5f} | PSD: {:.4f}'.format(lead_time, a, b))
+        tqdm.write('leadtime {} - RMSE: {:.5f} | nRMSE: {:.5f} | PSD: {:.4f}'.format(lead_time, a[0], a[1], b))
         RMSE_array.append(a)
 
     with open(metrics_paths.format(domain_name+'_metrics'), mode='wb') as f:

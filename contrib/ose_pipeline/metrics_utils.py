@@ -110,7 +110,6 @@ def read_l4_dataset(list_of_file,
 
     return x_axis, y_axis, z_axis, grid
 
-
 def interp_on_alongtrack(gridded_dataset,
                          ds_alongtrack,
                          lon_min=0.,
@@ -171,7 +170,6 @@ def interp_on_alongtrack(gridded_dataset,
     lon_alongtrack = ds_alongtrack["lon"].values
     lat_alongtrack = ds_alongtrack["lat"].values
     time_alongtrack = ds_alongtrack["time"].values
-
 
     # get and apply mask from map_interp & alongtrack on each dataset
     msk1 = np.ma.masked_invalid(ssh_alongtrack).mask
@@ -337,12 +335,16 @@ def write_timeserie_stat(ssh_alongtrack, ssh_map_interp, time_vector, freq,
     mean_rmse = np.ma.mean(np.ma.masked_invalid(rmse_score))
     std_rmse = np.ma.std(np.ma.masked_invalid(rmse_score))
 
+    # ADDED RMSE
+    rmse = np.ma.masked_where(vcount.values < nb_min_obs, rmse)
+    result_rmse = np.ma.mean(np.ma.masked_invalid(rmse))
+
     #logging.info(' ')
     #logging.info(f'  MEAN RMSE Score = {mean_rmse}')
     #logging.info(' ')
     #logging.info(f'  STD RMSE Score = {std_rmse}')
 
-    return mean_rmse, std_rmse
+    return (result_rmse, mean_rmse), std_rmse
 
 
 def compute_stats(time_alongtrack, lat_alongtrack, lon_alongtrack,
