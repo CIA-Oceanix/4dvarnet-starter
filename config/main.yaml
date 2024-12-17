@@ -3,6 +3,7 @@ hydra:
   searchpath: 
     - pkg://config
     - pkg://contrib
+    - pkg://contrib/ose_pipeline
 defaults:
   - xp: ???
   - _self_

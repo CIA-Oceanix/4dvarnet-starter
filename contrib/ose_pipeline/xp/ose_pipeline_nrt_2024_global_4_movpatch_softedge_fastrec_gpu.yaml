@@ -1,0 +1,117 @@
+# @package _global_
+
+xp_name: glorys4_global_movpatch_softedge_1y_fastrec_GPU
+data_name: nrt_2024_global_4
+
+paths:
+  ose_data_path: /DATASET/OCB_traces/
+  rec_path: /DATASET/GLORYS12/rec/
+  metrics_path: /DATASET/GLORYS12/metrics/
+
+  model_config_path: config/xp/base_forecast_global_softedge_fastrec_GPU.yaml
+  model_ckpt_path: /homes/p24hasle/repos/4dvarnet-starter-glorys12/outputs/2024-09-10/17-52-35/base_forecast_global.yaml/checkpoints/val_mse=48.92492-epoch=235.ckpt
+
+
+specs:
+  pixels_per_degree: 4
+
+  min_time: 2024-01-01
+  max_time: 2024-07-31
+  time_day_crop: 0
+
+  min_lon: -180
+  max_lon: 180
+  min_lat: -80
+  max_lat: 90
+
+  #IMPORTANT: keep "{}" in place of satellite name in copernicus_dataset_id
+  copernicus_dataset_id: cmems_obs-sl_glo_phy-ssh_nrt_{}-l3-duacs_PT1S
+
+  input_satellites: ['al', 'c2n', 'h2b', 'j3n', 's3a', 's3b']
+  ref_satellites: ['s6a-hr']
+
+metrics_spatial_domains:
+  GLOBE:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - -80
+      - 90
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -180
+      - 180
+  GULFSTREAM:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - 32
+      - 42
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -65
+      - -55
+  GROENLAND:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - 48
+      - 58
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -35
+      - -25
+  MADERE:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - 32
+      - 42
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -23
+      - -13
+
+options:
+  skip:
+    data: False
+    rec: False
+    metrics: False
+
+  overwrite:
+    data: False
+    rec: True
+    metrics: True
+
+
+entrypoints:
+  - _target_: contrib.ose_pipeline.ose_full_pipeline.execute_full_pipeline
+    pixels_per_degree: ${specs.pixels_per_degree}
+    min_time: ${specs.min_time}
+    max_time: ${specs.max_time}
+    min_lon: ${specs.min_lon}
+    max_lon: ${specs.max_lon}
+    min_lat: ${specs.min_lat}
+    max_lat: ${specs.max_lat}
+    metrics_spatial_domains: ${metrics_spatial_domains}
+    time_day_crop: ${specs.time_day_crop}
+    copernicus_dataset_id: ${specs.copernicus_dataset_id}
+    input_satellites: ${specs.input_satellites}
+    ref_satellites: ${specs.ref_satellites}
+    ose_data_path: ${paths.ose_data_path}
+    rec_path: ${paths.rec_path}
+    metrics_path: ${paths.metrics_path}
+    model_config_path: ${paths.model_config_path}
+    model_ckpt_path: ${paths.model_ckpt_path}
+    xp_name: ${xp_name}
+    data_name: ${data_name}
+    skip: ${options.skip}
+    overwrite: ${options.overwrite}
+
+defaults:
+  - _self_
+
