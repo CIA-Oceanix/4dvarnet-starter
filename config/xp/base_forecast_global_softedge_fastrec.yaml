@@ -1,8 +1,8 @@
 # @package _global_
 
 paths:
-    masks_path: /DATASET/GLORYS12/global_obs_6sats_masks_2022.pickle
-    glorys12_data: /DATASET/GLORYS12/reanalysis/glorys12_2020_4th.nc
+    masks_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle
+    glorys12_data: /Odyssey/public/glorys/reanalysis/glorys12_2020_4th.nc
 
 domain:
   train:

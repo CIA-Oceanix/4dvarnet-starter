@@ -30,21 +30,37 @@ def setup_model_config(
         rec_paths,
         min_time,
         max_time,
+        min_time_std,
+        max_time_std,
         min_time_offseted,
         max_time_offseted,
-        overwrite
+        overwrite,
+        overrides
 ):
+    multivar = False
+    if 'multivar' in overrides.keys():
+        multivar = True
+    
+
     config = OmegaConf.load(model_config_path)
 
     OmegaConf.update(config, key='paths.ose_gridded_input_path', value=gridded_input_path)
 
-    del config['datamodule']['input_da']
 
-    OmegaConf.update(config, key='datamodule.input_da._target_', value='contrib.data_loading.data.load_ose_data_with_tgt_mask')
-    OmegaConf.update(config, key='datamodule.input_da.path', value='${paths.ose_gridded_input_path}')
-    OmegaConf.update(config, key='datamodule.input_da.tgt_path', value='${paths.glorys12_data}')
+    if multivar:
+        OmegaConf.update(config, key='multivar.ssh.var_path', value='${paths.ose_gridded_input_path}')
+        OmegaConf.update(config, key='multivar.ssh.var_name', value='ssh')
+        del config['multivar']['ssh']['mask_path']
+    else:
+        del config['datamodule']['input_da']
+        OmegaConf.update(config, key='datamodule.input_da._target_', value='contrib.data_loading.data.load_ose_data_with_tgt_mask')
+        OmegaConf.update(config, key='datamodule.input_da.path', value='${paths.ose_gridded_input_path}')
+        OmegaConf.update(config, key='datamodule.input_da.tgt_path', value='${paths.glorys12_data}')
 
-    OmegaConf.update(config, key='datamodule.domains.train.time._args_', value=[min_time, min_time_offseted])
+    if 'variable_std' in overrides.keys():
+        config['datamodule']['variable_std'] = overrides['variable_std']
+
+    OmegaConf.update(config, key='datamodule.domains.train.time._args_', value=[min_time_std, max_time_std])
     OmegaConf.update(config, key='datamodule.domains.val.time._args_', value=[min_time, min_time_offseted])
     
     OmegaConf.update(config, key='datamodule.domains.test.time._args_', value=[min_time, max_time])
@@ -71,9 +87,12 @@ def execute_rec_pipeline(
         gridded_input_path,
         min_time,
         max_time,
+        min_time_std,
+        max_time_std,
         min_time_offseted,
         max_time_offseted,
-        overwrite
+        overwrite,
+        overrides={}
 ):
     
     print('-'*60+'\n'+'-'*60+'\nRECONSTRUCTION PIPELINE START:\n')
@@ -86,9 +105,12 @@ def execute_rec_pipeline(
             rec_paths,
             min_time,
             max_time,
+            min_time_std,
+            max_time_std,
             min_time_offseted,
             max_time_offseted,
-            overwrite
+            overwrite,
+            overrides=overrides
         )
     except AllLeadtimesReconstructed:
         print('all leadtimes already reconstructed\n'+'-'*60)

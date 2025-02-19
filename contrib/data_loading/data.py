@@ -201,6 +201,7 @@ def open_multivar_datasets(vars_info,
             var_information_dict_masked['output_arch'] = 'no_output'
             var_information_dict_masked['masked_obs'] = True
             multivar_information['masked_'+var] = var_information_dict_masked
+            
             var_information_dict['input_arch'] = 'no_input'
 
         var_dataset = open_var_dataset(var_path, var, var_info.var_name, domain, drop_depth)

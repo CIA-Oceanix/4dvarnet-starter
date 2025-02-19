@@ -1,6 +1,6 @@
 # @package _global_
 
-xp_name: glorys4_global_movpatch_softedge_1y_fastrec_1m_std
+xp_name: glorys4_global_movpatch_softedge_1y_fastrec
 data_name: nrt_2023_global_4
 
 paths:
@@ -16,7 +16,7 @@ specs:
   pixels_per_degree: 4
 
   min_time: 2023-01-01
-  max_time: 2023-12-31
+  max_time: 2023-03-31
   time_day_crop: 0
 
   min_time_std: 2023-01-01
@@ -32,6 +32,9 @@ specs:
 
   input_satellites: ['al', 'c2n', 'h2b', 'j3n', 's3a', 's3b']
   ref_satellites: ['s6a-hr']
+
+overrides:
+  variable_std: input
 
 metrics_spatial_domains:
   GLOBE:
@@ -116,6 +119,7 @@ entrypoints:
     data_name: ${data_name}
     skip: ${options.skip}
     overwrite: ${options.overwrite}
+    overrides: ${overrides}
 
 defaults:
   - _self_

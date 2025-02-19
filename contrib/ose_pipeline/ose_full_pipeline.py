@@ -63,6 +63,8 @@ def execute_full_pipeline(
         pixels_per_degree,
         min_time,
         max_time,
+        min_time_std,
+        max_time_std,
         min_lon,
         max_lon,
         min_lat,
@@ -145,10 +147,13 @@ def execute_full_pipeline(
 
             min_time = min_time,
             max_time = max_time,
+            min_time_std = min_time_std,
+            max_time_std = max_time_std,
             min_time_offseted = min_time_offseted,
             max_time_offseted = max_time_offseted,
 
-            overwrite = overwrite['rec']
+            overwrite = overwrite['rec'],
+            overrides=overrides
         )
     else:
         print('-'*60+'\nRECONSTRUCTION PIPELINE SKIPPED\n'+'-'*60)

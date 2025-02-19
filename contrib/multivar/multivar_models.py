@@ -3,6 +3,8 @@ from contrib.multivar.multivar_utils import MultivarBatchSelector
 import torch
 import torch.nn.functional as F
 import numpy as np
+import pandas as pd
+from pathlib import Path
 
 import kornia.filters as kfilts
 
@@ -11,6 +13,8 @@ class Multivar4dVarNet(Lit4dVarNet):
     def __init__(self, multivar_selector: MultivarBatchSelector, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.multivar_selector = multivar_selector
+        self._output_norm_stats = None
+        self._input_norm_stats = None
 
     @staticmethod
     def weighted_mse(err, weight):
@@ -28,12 +32,12 @@ class Multivar4dVarNet(Lit4dVarNet):
         if self._norm_stats is not None:
             return self._norm_stats
         elif self.trainer.datamodule is not None:
-            return self.trainer.datamodule.output_norm_stats()
+            return self.trainer.datamodule.placeholder_norm_stats()
         return (0., 1.)
 
     @property
     def output_norm_stats(self):
-        if self.output_norm_stats is not None:
+        if self._output_norm_stats is not None:
             return self._output_norm_stats
         elif self.trainer.datamodule is not None:
             self._output_norm_stats = self.trainer.datamodule.output_norm_stats()
@@ -42,7 +46,7 @@ class Multivar4dVarNet(Lit4dVarNet):
 
     @property
     def input_norm_stats(self):
-        if self.input_norm_stats is not None:
+        if self._input_norm_stats is not None:
             return self._input_norm_stats
         elif self.trainer.datamodule is not None:
             self._input_norm_stats = self.trainer.datamodule.input_norm_stats()
@@ -50,11 +54,11 @@ class Multivar4dVarNet(Lit4dVarNet):
         return (0., 1.)
 
     def skip_batch(self, batch):
-        return False
+        return self.multivar_selector.multivar_full_output(batch).isfinite().float().mean() < 0.1
 
     def step(self, batch, phase=""):
         # SKIP BATCH TO IMPLEMENT #
-        if self.skip_batch(batch):
+        if self.training and self.skip_batch(batch):
             return None, None
 
         loss, out = self.multivar_step(batch, phase)
@@ -73,7 +77,102 @@ class Multivar4dVarNet(Lit4dVarNet):
             self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
 
         return loss, out
+    
+    def test_step(self, batch, batch_idx):
+        if batch_idx == 0:
+            self.test_data = []
+        out = self(batch=batch)
+        m, s = self.output_norm_stats
 
+        self.test_data.append(torch.stack(
+            [
+                out.squeeze(dim=-1).detach().cpu() * s + m,
+            ],
+            dim=1,
+        ))
+
+class Multivar4dVarNetForecast(Multivar4dVarNet):
+    def __init__(
+            self,
+            *args,
+            rec_weight_fn,
+            output_leadtime_start=None,
+            output_only_forecast=True,
+            **kwargs
+        ):
+        super().__init__(*args, **kwargs)
+        self.rec_weight_fn = rec_weight_fn
+        self.output_leadtime_start = output_leadtime_start
+        self.output_only_forecast = output_only_forecast
+
+    @property
+    def test_quantities(self):
+        return ['out']
+
+    def clear_gpu_mem(self):
+        del self.solver
+        torch.cuda.empty_cache()
+
+    def mask_batch(self, batch):
+        return self.multivar_selector.mask_batch(batch)
+    
+    def training_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        return super().training_step(mask_batch, batch_idx)
+
+    def validation_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        return super().validation_step(mask_batch, batch_idx)
+
+    def test_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        super().test_step(mask_batch, batch_idx)
+
+    def get_dT(self):
+        return self.rec_weight.size()[0]
+    
+    def on_test_epoch_end(self):
+        # test_data as gpu tensor
+        self.clear_gpu_mem()
+        print('TEST DATA SIZE: {}'.format(torch.cat(self.test_data).size()))
+        #self.test_data = torch.cat(self.test_data).cuda()
+        n_output_dims = self.test_data[0].shape[1]
+
+        for output_dim in range(n_output_dims):
+            dims = self.rec_weight.size()
+            dT = self.get_dT()
+            metrics = []
+            output_start = 0 if self.output_only_forecast else -((dT - 1) // 2)
+            if self.output_leadtime_start is not None:
+                output_start = self.output_leadtime_start
+            for i in range(output_start, 7):
+                leadtime_idx = dT // 2 + i
+                forecast_weight = self.rec_weight_fn(i, dT, dims, self.rec_weight.cpu().numpy())[leadtime_idx]
+                rec_da = self.trainer.test_dataloaders.dataset.reconstruct_from_items(
+                    torch.cat(self.test_data).index_select(dim=2, index=torch.Tensor([leadtime_idx]).type(torch.int64)).index_select(dim=1, index=torch.Tensor([output_dim]).type(torch.int64)).cuda(),
+                    forecast_weight,
+                    leadtime=leadtime_idx
+                )
+
+                if isinstance(rec_da, list):
+                    rec_da = rec_da[0]
+
+                test_data_leadtime = rec_da.assign_coords(
+                    dict(v0=self.test_quantities)
+                ).to_dataset(dim='v'+str(output_dim))
+
+                if self.logger:
+                    test_data_leadtime.to_netcdf(Path(self.logger.log_dir) / f'test_data_{i+(dT-1)//2}_ dim{output_dim}.nc')
+                    print(Path(self.trainer.log_dir) / f'test_data_{i+(dT-1)//2}_dim{output_dim}.nc')
+                    
+                metric_data = test_data_leadtime.pipe(self.pre_metric_fn)
+                metrics_leadtime = pd.Series({
+                    metric_n: metric_fn(metric_data)
+                    for metric_n, metric_fn in self.metrics.items()
+                })
+                metrics.append(metrics_leadtime)
+
+            print(pd.DataFrame(metrics, range(output_start, 7)).T.to_markdown())
 
 class MultivarGradSolverZero(GradSolverZero):
 
@@ -102,7 +201,7 @@ class MultivarGradSolverZero(GradSolverZero):
     def forward(self, batch):
         with torch.set_grad_enabled(True):
             state = self.init_state(batch)
-            self.grad_mod.reset_state(self.multivar_selector.multivar_full_input(batch))
+            self.grad_mod.reset_state(self.multivar_selector.multivar_full_output(batch))
 
             for step in range(self.n_step):
                 state = self.solver_step(state, batch, step=step)
@@ -122,7 +221,7 @@ class MultivarBaseObsCost(BaseObsCost):
     def forward(self, state, batch):
         batch_obs = self.multivar_selector.multivar_obs_input(batch)
         msk = batch_obs.isfinite()
-        return self.w * F.mse_loss(self.multivar_selector.multivar_state_obs(state)[msk], batch_obs.nan_to_num()[msk])
+        return self.w * F.mse_loss(self.multivar_selector.multivar_state_obs(state)[msk], batch_obs[msk])
 
 class MultivarBilinAEPriorCost(BilinAEPriorCost):
 

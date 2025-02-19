@@ -61,6 +61,14 @@ class MultivarBatchSelector(metaclass=SingletonMeta):
     def __init__(self):
         super().__init__()
 
+    def mask_batch(self, batch):
+        masked_batch = batch
+        masked_dim_size = masked_batch.shape[2]
+        masked_batch[:,self.full_input_idx, masked_dim_size//2:] = np.nan
+        masked_batch[:,self.prior_input_idx, masked_dim_size//2:] = np.nan
+
+        return masked_batch
+
     def multivar_setup(self, multivar_info):
 
         self.full_input_idx = torch.Tensor(multivar_info['full_input_idx']).type(torch.int64).cuda()
@@ -74,7 +82,6 @@ class MultivarBatchSelector(metaclass=SingletonMeta):
         print('full_output_idx: {}'.format(list(self.full_output_idx)))
         print('state_obs_channels: {}'.format(list(self.state_obs_channels)))
         print('state_obs_input_idx: {}'.format(list(self.state_obs_input_idx)))
-
 
     def multivar_full_input(self, batch):
         new_batch = torch.index_select(batch, dim=1, index=self.full_input_idx)

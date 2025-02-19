@@ -156,8 +156,15 @@ class XrDatasetMovingPatch(XrDataset):
     
 
 class MovingPatchDataModule(BaseDataModule):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, variable_std='tgt', **kwargs):
         super().__init__(*args, **kwargs)
+        self.variable_std = variable_std
+
+    def norm_stats(self):
+        if self._norm_stats is None:
+            self._norm_stats = self.train_mean_std(variable=self.variable_std)
+            print("Norm stats", self._norm_stats)
+        return self._norm_stats
 
     def setup(self, stage='test'):
         # calling MovingPatch Datasets, rand=True for train only
