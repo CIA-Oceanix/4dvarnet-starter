@@ -20,6 +20,7 @@ dependencies:
   - holoviews
   - mkl=2024.0
   - pip:
+    - xrpatcher
     - GitPython
     - einops
     - toolz

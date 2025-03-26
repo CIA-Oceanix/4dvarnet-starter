@@ -1,4 +1,5 @@
 import hydra
+import torch
 from pathlib import Path
 import pandas as pd
 import xrft
@@ -12,8 +13,15 @@ import contrib.ose2osse.dc_diag
 
 
 def compute_segment_data(
-    rec, test_track, oi, period=slice("2017-01-01", "2017-12-31"), npt=156
+    rec, test_track, oi, period=slice("2017-01-01", "2017-12-31"), npt=156, domain=None,
 ):
+    # print(f"{rec=}")
+    # print(f"{oi=}")
+    # print(f"{test_track=}")
+    if domain is not None:
+        rec = rec.sel(domain)
+        oi = oi.sel(domain)
+
     diag_data = test_track.assign(
         oi=lambda ds: oi.interp(
             time=ds.time,
@@ -80,6 +88,28 @@ def dc_spat_res_from_diag_data(diag_data, v='rec'):
 
     return resolved_scale(ds.psd_diff)
 
+
+def rmse(diag_data):
+    return (
+        diag_data.pipe(lambda ds: ds - ds.gt)[["rec", "oi"]]
+        .pipe(np.square)
+        .resample(time="1D")
+        .mean()
+        .pipe(np.sqrt)
+    ).mean().rec.values.item()
+
+def rmse_score(diag_data):
+    rmse = (
+        diag_data.pipe(lambda ds: ds - ds.gt)[["rec", "oi"]]
+        .pipe(np.square)
+        .resample(time="1D")
+        .mean()
+        .pipe(np.sqrt)
+    )
+    rms = np.sqrt(np.square(diag_data.gt).resample(time="1D").mean())
+    rmse_score = 1.0 - rmse / rms
+    return rmse_score.mean().rec.values.item()
+
 def ose_diags_from_da(rec, test_track, oi, crop_psd=50):
     segment_data, diag_data = compute_segment_data(rec, test_track, oi)
 
@@ -132,10 +162,14 @@ def ose_diags(model, test_track_path, oi_path, save_rec_path=None):
     return metric_df
 
 
-def test_ose(trainer, lit_mod, ose_dm, ckpt, diag_data_dir, test_track_path, oi_path):
+def test_ose(trainer, lit_mod, ose_dm, ckpt, diag_data_dir, test_track_path, oi_path, rec_weight=None, domain=None):
     lit_mod._norm_stats = ose_dm.norm_stats()
+    if rec_weight is not None:
+        lit_mod.rec_weight.data = torch.from_numpy(rec_weight)
     trainer.test(lit_mod, datamodule=ose_dm, ckpt_path=ckpt)
     ose_tdat = lit_mod.test_data
+    if domain is not None:
+        ose_tdat = ose_tdat.sel(domain)
 
     test_track = xr.open_dataset(test_track_path).load()
     oi = xr.open_dataset(oi_path).ssh

@@ -1,0 +1,35 @@
+#@package _global_
+
+_patches: {time: 15, lat: 240, lon: 240}
+patches: ${oc.select:datamodule.xrds_kw.patches,${._patches}}
+new_model:
+  _target_: contrib.unrolled.models.ConvLstmSolver
+  dim_in: ${..patches.time}
+  dim_hidden: 92
+  niter: 15
+  ae:
+    _target_: contrib.unrolled.models.BilinAe
+    # dim_in: ${datamodule.xrds_kw.patches.time}
+    dim_in: ${..dim_hidden}
+    dim_hidden: 64
+    downsamp: 1
+
+trainer:
+  max_epochs: 300
+
+datamodule:
+  xrds_kw:
+    patches: {time: '${_patches.time}'}
+  dl_kw: {batch_size: 8}
+  aug_kw:
+    aug_factor: 6
+    aug_only: False
+
+model: 
+  rec_weight: {patch_dims: '${patches}'}
+  opt_fn:
+    _target_: contrib.uw_convlstm.utils.cosanneal_lr_adam
+    lr: 1e-3
+    weight_decay: 0.
+  solver: ${..new_model}
+

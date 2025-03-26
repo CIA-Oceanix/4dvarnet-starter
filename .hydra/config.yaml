@@ -1,0 +1,152 @@
+xpd: jobs/new_baseline
+xp_name: ${hydra:runtime.choices.xp}
+xp_overrides:
+  model:
+    save_dir: ${hydra:runtime.output_dir}
+    rec_weight: ${rec_weight}
+    test_metrics: ${ose_metrics.test_metrics}
+    pre_metric_fn: ${ose_metrics.pre_metric_fn}
+  datamodule:
+    input_da:
+      _target_: ${oc.select:data.${inp_da},contrib.ose2osse.data.load_ose_data}
+    domains:
+      test:
+        time:
+          _target_: builtins.slice
+          _args_:
+          - '2016-12-01'
+          - '2018-01-31'
+      train:
+        time:
+          _target_: builtins.slice
+          _args_:
+          - '2016-12-01'
+          - '2018-01-31'
+    xrds_kw:
+      strides:
+        lat: 100
+        lon: 100
+      domain_limits: ${domain.train}
+    dl_kw:
+      batch_size: 16
+      num_workers: 10
+      persistent_workers: false
+    patcher_cls:
+      _partial_: true
+      dense_vars: null
+      sparse_vars:
+      - input
+      - tgt
+      res: 5000.0
+      weight: ${rec_weight}
+      cache: false
+      nproc_rec: 10
+overrides_targets:
+  model.rec_weight: contrib.multi_domain_diag.get_smooth_spat_rec_weight
+  model.rec_weight.orig_rec_weight: contrib.multi_domain_diag.load_cfg_from_xp
+  datamodule.patcher_cls: contrib.ortho.OrthoPatcher
+  datamodule.patcher_cls.weight: contrib.multi_domain_diag.get_smooth_spat_rec_weight
+  datamodule.patcher_cls.weight.orig_rec_weight: contrib.multi_domain_diag.load_cfg_from_xp
+trainer:
+  _target_: pytorch_lightning.Trainer
+  inference_mode: false
+  accelerator: gpu
+  devices: 2
+  logger:
+    _target_: pytorch_lightning.loggers.CSVLogger
+    save_dir: ${xpd}
+    name: ${xp_name}
+lit_mod:
+  _target_: contrib.multi_domain_diag.load_cfg_from_xp
+  key: model
+  xpd: ${xpd}
+  overrides: ${xp_overrides}
+  overrides_targets: ${overrides_targets}
+dm:
+  _target_: contrib.multi_domain_diag.load_cfg_from_xp
+  key: datamodule
+  xpd: ${xpd}
+  overrides: ${xp_overrides}
+  overrides_targets: ${overrides_targets}
+ckpt:
+  _target_: src.utils.best_ckpt
+  xp_dir: ${xpd}
+rec_weight:
+  orig_rec_weight:
+    key: model.rec_weight
+    xpd: ${xpd}
+entrypoints:
+- _target_: pytorch_lightning.seed_everything
+  seed: 333
+- _target_: builtins.print
+  _args_:
+  - ${hydra:runtime.output_dir}
+- _target_: pytorch_lightning.Trainer.test
+  self: ${trainer}
+  model: ${lit_mod}
+  datamodule: ${dm}
+  ckpt_path: ${ckpt}
+domain:
+  train:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - 32
+      - 54
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -51
+      - -9
+  test:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - 33
+      - 53
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -50
+      - -10
+inp_da: default
+data:
+  sst: contrib.multimodal.ose_utils.load_ose_data_with_mursst
+ose_metrics:
+  test_metrics:
+    mu:
+      _target_: contrib.ose2osse.diagnostics.rmse_score
+      _partial_: true
+    rmse:
+      _target_: contrib.ose2osse.diagnostics.rmse
+      _partial_: true
+    lx:
+      _target_: contrib.ose2osse.diagnostics.dc_spat_res_from_diag_data
+      _partial_: true
+      v: rec
+  pre_metric_fn:
+    _target_: src.utils.pipe
+    _partial_: true
+    fns:
+    - _target_: operator.attrgetter
+      _args_:
+      - out
+    - _target_: contrib.ose2osse.diagnostics.compute_segment_data
+      _partial_: true
+      oi:
+        _target_: src.utils.pipe
+        inp:
+          _target_: xarray.open_dataset
+          _args_:
+          - ../sla-data-registry/data_OSE/NATL/training/ssh_alg_h2g_j2g_j2n_j3_s3a_duacs.nc
+        fns:
+        - _target_: operator.attrgetter
+          _args_:
+          - ssh
+      test_track:
+        _target_: xarray.open_dataset
+        _args_:
+        - ../sla-data-registry/data_OSE/along_track/c2_2017_world.nc
+    - _target_: operator.itemgetter
+      _args_:
+      - 1

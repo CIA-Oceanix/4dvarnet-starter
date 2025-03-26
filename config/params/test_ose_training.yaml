@@ -1,0 +1,48 @@
+# @package _global_
+inp_da: default
+patches: 
+  _target_: contrib.multi_domain_diag.load_cfg_from_xp
+  key: patches
+  xpd : ${xpd}
+  overrides: null
+
+
+xp_overrides:
+  datamodule:
+    norm_stats: [0.45041265751056536, 0.4245028360946941]
+    dl_kw: {batch_size: 16, num_workers: 1}
+    xrds_kw: {patches: '${patches}'}
+    domains:
+      val:
+        time: {_target_: builtins.slice, _args_: ['2016-12-01', '2018-01-31']}
+  model:
+    test_metrics: {}
+    pre_metric_fn: null
+
+overrides_targets:
+  datamodule: ${oc.select:dm_cls.${inp_da},src.data.BaseDataModule}
+  model: src.models.Lit4dVarNet
+
+dm_cls:
+  default: src.data.BaseDataModule
+  sst: contrib.multimodal.MultiModalDataModule
+
+
+# new_dm:
+#   _target_: src.data.BaseDataModule
+#   dl_kw: {batch_size: 16, num_workers: 1}
+#   input_da: 
+#     _target_: ${oc.select:data.${inp_da},contrib.ose2osse.data.load_ose_data}
+#   domains: 
+#     test: 
+#       time: {_target_: builtins.slice, _args_: ['2016-12-01', '2018-01-31']}
+#     val: 
+#       time: {_target_: builtins.slice, _args_: ['2016-12-01', '2018-01-31']}
+#     train: 
+#       time: {_target_: builtins.slice, _args_: ['2016-12-01', '2018-01-31']}
+#   xrds_kw: 
+#     strides: {lat: 100, lon: 100}
+#     patch_dims: ${patches}
+#     domain_limits: ${domain.train}
+#
+# dm: ${new_dm}

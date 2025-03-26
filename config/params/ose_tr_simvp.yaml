@@ -1,0 +1,31 @@
+# @package _global_
+
+
+patches: {time: 20, lat: 240, lon: 240}
+
+datamodule:
+  coarsen: 1
+  dl_kws: 
+    batch_size: 24
+    num_workers: 16
+
+model:
+  rec_weight: {patch_dims: '${patches}'}
+  opt_fn:
+    _target_: contrib.uw_convlstm.utils.cosanneal_lr_adam
+    lr: 1e-3
+    weight_decay: 1e-5
+  solver: ${simvp.new_model}
+
+
+simvp:
+  new_model:
+    mod:
+      in_shape:
+        - ${patches.time}
+        - 1
+        - ${patches.lat}
+        - ${patches.lon}
+        
+defaults:
+  - /params/simvp@simvp
