@@ -39,7 +39,7 @@ trainer:
     save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 350
+  max_epochs: 100
   limit_train_batches: 100
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
@@ -75,11 +75,10 @@ datamodule:
 model:
   _target_: contrib.unet.models.Unet
   solver:
-    _target_: contrib.unet.models.UnetSolver
+    _target_: contrib.unet.models.UnetSolver3D
     _partial_: True
-    dim_in: ${datamodule.xrds_kw.patch_dims.time}
-  #channel_dims: [32, 32, 32, 64, 64, 64, 128, 128, 128, 256, 256, 256, 512]
-  channel_dims: [64, 64, 64, 128, 128, 128, 256, 256, 256, 512]
+    dim_in: 1
+  channel_dims: [8, 8, 8, 16, 16, 16, 32, 32, 32, 64]
   opt_fn:
     _target_: contrib.unet.utils.cosanneal_lr_adam
     _partial_: true

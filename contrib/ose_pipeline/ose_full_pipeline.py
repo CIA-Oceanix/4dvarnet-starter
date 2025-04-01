@@ -191,7 +191,8 @@ def execute_full_pipeline(
 
             spatial_domains = metrics_spatial_domains,
 
-            overwrite = overwrite['metrics']
+            overwrite = overwrite['metrics'],
+            overrides=overrides
         )
     else:
         print('-'*60+'\nMETRICS PIPELINE SKIPPED\n'+'-'*60)

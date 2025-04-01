@@ -8,12 +8,7 @@ multivar:
     input_arch: full_input
     output_arch: full_output
     broadcast_time: False
-  bathymetry:
-    var_path: /Odyssey/public/glorys/bathymetry/bathymetry_4th.nc
-    var_name: deptho
-    input_arch: prior_input
-    output_arch: no_output
-    broadcast_time: True
+    aug: True
 
 multivar_selector:
   _target_: contrib.multivar.multivar_utils.MultivarBatchSelector
@@ -82,6 +77,9 @@ datamodule:
     strides: { time: 1, lat: 40, lon: 40}
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 64, num_workers: 4}
+  aug_dims:
+    _target_: contrib.multivar.multivar_utils.get_multivar_aug_dims
+    multivar_dict: ${multivar}
 
 model:
   _target_: contrib.multivar.multivar_models.Multivar4dVarNetForecast

@@ -8,7 +8,7 @@ from pathlib import Path
 
 class Unet(pl.LightningModule):
 
-    def __init__(self, dim_in, channel_dims, rec_weight, opt_fn, rec_weight_fn=None, norm_stats=None, test_metrics=None, pre_metric_fn=None, persist_rw=True, output_leadtime_start=None, output_only_forecast=True, batch_selector=None):
+    def __init__(self, solver, channel_dims, rec_weight, opt_fn, rec_weight_fn=None, norm_stats=None, test_metrics=None, pre_metric_fn=None, persist_rw=True, output_leadtime_start=None, output_only_forecast=True, batch_selector=None):
         super().__init__()
         self.register_buffer('rec_weight', torch.from_numpy(rec_weight), persistent=persist_rw)
         self.test_data = None
@@ -22,97 +22,7 @@ class Unet(pl.LightningModule):
         self.output_only_forecast = output_only_forecast
 
         self.max_depth = len(channel_dims) // 3
-
-        self.ups = list()
-        self.up_pools = list()
-        self.downs = list()
-        self.down_pools = list()
-        self.residues = list()
-
-        for depth in range(self.max_depth):
-            self.ups.append(
-                torch.nn.Sequential(
-                    torch.nn.Conv2d(
-                        in_channels=channel_dims[depth*3+1],
-                        out_channels=channel_dims[depth*3]
-                    ),
-                    torch.nn.Conv2d(
-                        in_channels=channel_dims[depth*3+2]*2,
-                        out_channels=channel_dims[depth*3+1],
-                        kernel_size=3
-                    )
-                )
-            )
-            self.up_pools.append(
-                torch.nn.MaxPool2d(
-                    in_channels=channel_dims[depth*3+3],
-                    out_channels=channel_dims[depth*3+2],
-                    kernel_size=2
-                )
-            )
-            self.downs.append(
-                torch.nn.Sequential(
-                    torch.nn.Conv2d(
-                        in_channels=dim_in if depth==0 else channel_dims[depth*3-1],
-                        out_channels=channel_dims[depth*3],
-                        kernel_size=3
-                    ),
-                    torch.nn.Conv2d(
-                        in_channels=channel_dims[depth*3],
-                        out_channels=channel_dims[depth*3+1],
-                        kernel_size=3
-                    )
-                )
-            )
-            self.down_pools.append(
-                torch.nn.ConvTranspose2d(
-                    in_channels=channel_dims[depth*3+1],
-                    out_channels=channel_dims[depth*3+2],
-                    kernel_size=2
-                )
-            )
-
-    def unet_step(self, x, depth):
-        x = self.concat_residue(x)
-        x, residue = self.down(x)
-
-        if depth == self.max_depth:
-            return self.up(x, depth)
-        else:
-            self.residues.append(residue)
-            return self.up(self.unet_step(x, depth+1), depth)
-
-    def forward(self, x):
-        return self.unet_step(x, depth=0)
-
-    def test_step(self, batch, batch_idx):
-        if batch_idx == 0:
-            self.test_data = []
-        out = self(batch=batch)
-        m, s = self.norm_stats
-
-        self.test_data.append(torch.stack(
-            [
-                batch.input.cpu() * s + m,
-                batch.tgt.cpu() * s + m,
-                out.squeeze(dim=-1).detach().cpu() * s + m,
-            ],
-            dim=1,
-        ))
-
-    def down(self, x, depth):
-        x = self.downs[depth](x)
-        return self.down_pools[depth](x), x
-
-    def up(self, x, depth):
-        x = self.ups[depth](x)
-        return self.up_pools[depth](x), x
-
-    def concat_residue(self, x):
-        if len(self.residues) != 0:
-            return torch.concat((x, self.residues.pop(-1)))
-        else:
-            return x
+        self.solver = solver(channel_dims=channel_dims, max_depth=self.max_depth)
         
     # PYTORCH LIGHTNING LOGIC
 
@@ -146,6 +56,9 @@ class Unet(pl.LightningModule):
 
         return mask_batch
 
+    def forward(self, batch):
+        return self.solver(batch)
+
     def training_step(self, batch, batch_idx):
         batch = self.mask_batch(batch)
         return self.step(batch, "train")[0]
@@ -158,9 +71,12 @@ class Unet(pl.LightningModule):
         if self.training and batch.tgt.isfinite().float().mean() < 0.1:
             return None, None
 
-        out = self(x=batch)
+        out = self(batch=batch.input)
         loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
-        self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
+        with torch.no_grad():
+            self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
+            self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
+
 
         return loss, out
     
@@ -173,6 +89,7 @@ class Unet(pl.LightningModule):
 
     def clear_gpu_mem(self):
         del self.solver
+
         torch.cuda.empty_cache()
 
     def test_step(self, batch, batch_idx):
@@ -180,7 +97,7 @@ class Unet(pl.LightningModule):
 
         if batch_idx == 0:
             self.test_data = []
-        out = self(batch=mask_batch)
+        out = self(batch=mask_batch.input)
         m, s = self.norm_stats
 
         self.test_data.append(torch.stack(
@@ -229,3 +146,270 @@ class Unet(pl.LightningModule):
             metrics.append(metrics_leadtime)
 
         print(pd.DataFrame(metrics, range(output_start, 7)).T.to_markdown())
+
+class UnetSolver(torch.nn.Module):
+    def __init__(self, dim_in, channel_dims, max_depth):
+        super().__init__()
+        self.max_depth=max_depth
+
+        self.ups = torch.nn.ModuleList()
+        self.up_pools = torch.nn.ModuleList()
+        self.downs = torch.nn.ModuleList()
+        self.down_pools = torch.nn.ModuleList()
+        self.residues = list()
+
+        self.bottom_transform = torch.nn.Sequential(
+            torch.nn.Conv2d(
+                in_channels=channel_dims[self.max_depth*3-1],
+                out_channels=channel_dims[self.max_depth*3],
+                padding='same',
+                kernel_size=3
+            ),
+            torch.nn.ReLU(),
+            torch.nn.Conv2d(
+                in_channels=channel_dims[self.max_depth*3],
+                out_channels=channel_dims[self.max_depth*3],
+                padding='same',
+                kernel_size=3
+            ),
+            torch.nn.ReLU()
+        )
+
+        self.final_up = torch.nn.Sequential(
+            torch.nn.Conv2d(
+                in_channels=channel_dims[0],
+                out_channels=dim_in,
+                padding='same',
+                kernel_size=3
+            )
+        )
+
+        self.final_linear = torch.nn.Sequential(
+            torch.nn.Linear(dim_in, dim_in)
+        )
+        
+
+        for depth in range(self.max_depth):
+            self.ups.append(
+                torch.nn.Sequential(
+                    torch.nn.Conv2d(
+                        in_channels=channel_dims[depth*3+2]*2,
+                        out_channels=channel_dims[depth*3+1],
+                        padding='same',
+                        kernel_size=3
+                    ),
+                    torch.nn.ReLU(),
+                    torch.nn.Conv2d(
+                        in_channels=channel_dims[depth*3+1],
+                        out_channels=channel_dims[depth*3],
+                        padding='same',
+                        kernel_size=3
+                    ),
+                    torch.nn.ReLU(),
+                )
+            )
+            self.up_pools.append(
+                torch.nn.ConvTranspose2d(
+                    in_channels=channel_dims[depth*3+3],
+                    out_channels=channel_dims[depth*3+2],
+                    kernel_size=2,
+                    stride=2
+                )
+            )
+            self.downs.append(
+                torch.nn.Sequential(
+                    torch.nn.Conv2d(
+                        in_channels=dim_in if depth==0 else channel_dims[depth*3-1],
+                        out_channels=channel_dims[depth*3],
+                        padding='same',
+                        kernel_size=3
+                    ),
+                    torch.nn.ReLU(),
+                    torch.nn.Conv2d(
+                        in_channels=channel_dims[depth*3],
+                        out_channels=channel_dims[depth*3+1],
+                        padding='same',
+                        kernel_size=3
+                    ),
+                    torch.nn.ReLU(),
+                )
+            )
+            self.down_pools.append(
+                torch.nn.MaxPool2d(
+                    kernel_size=2
+                )
+            )
+
+    def unet_step(self, x, depth):
+        x, residue = self.down(x, depth)
+        self.residues.append(residue)
+
+        if depth == self.max_depth-1:
+            x = self.bottom_transform(x)
+        else:
+            x = self.unet_step(x, depth+1)
+
+        return self.up(x, depth)
+
+    def forward(self, x):
+        x = x.nan_to_num()
+        x = self.final_up(self.unet_step(x, depth=0))
+        x = torch.permute(x, dims=(0,2,3,1))
+        x = self.final_linear(x)
+        x = torch.permute(x, dims=(0,3,1,2))
+        return x
+
+    def down(self, x, depth):
+        x = self.downs[depth](x)
+        return self.down_pools[depth](x), x
+    
+    def up(self, x, depth):
+        x = self.up_pools[depth](x)
+        x = self.concat_residue(x)
+        return self.ups[depth](x)
+
+    #def concat_residue(self, x):
+    #    if len(self.residues) != 0:
+    #        return torch.concat((x, self.residues.pop(-1)), dim=1)
+    #    else:
+    #        return x
+
+    def concat_residue(self, x):
+
+        if len(self.residues) != 0:
+            residue = self.residues.pop(-1)
+            
+            _, _, h_x, w_x = x.shape
+            _, _, h_r, w_r = residue.shape
+
+            pad_h = h_r - h_x
+            pad_w = w_r - w_x
+
+            if pad_h > 0 or pad_w > 0:
+                x = F.pad(x, (0, pad_w, 0, pad_h), mode="reflect", value=0)
+
+            return torch.concat((x, residue), dim=1)
+        else:
+            return x
+        
+class UnetSolver3D(UnetSolver):
+    def __init__(self, dim_in, channel_dims, max_depth):
+        self.max_depth=max_depth
+
+        self.ups = torch.nn.ModuleList()
+        self.up_pools = torch.nn.ModuleList()
+        self.downs = torch.nn.ModuleList()
+        self.down_pools = torch.nn.ModuleList()
+        self.residues = list()
+
+        self.bottom_transform = torch.nn.Sequential(
+            torch.nn.Conv3d(
+                in_channels=channel_dims[self.max_depth*3-1],
+                out_channels=channel_dims[self.max_depth*3],
+                padding='same',
+                kernel_size=3
+            ),
+            torch.nn.ReLU(),
+            torch.nn.Conv3d(
+                in_channels=channel_dims[self.max_depth*3],
+                out_channels=channel_dims[self.max_depth*3],
+                padding='same',
+                kernel_size=3
+            ),
+            torch.nn.ReLU()
+        )
+
+        self.final_up = torch.nn.Sequential(
+            torch.nn.Conv3d(
+                in_channels=channel_dims[0],
+                out_channels=dim_in,
+                padding='same',
+                kernel_size=3
+            )
+        )
+
+        self.final_linear = torch.nn.Sequential(
+            torch.nn.Linear(dim_in, dim_in)
+        )
+        
+
+        for depth in range(self.max_depth):
+            self.ups.append(
+                torch.nn.Sequential(
+                    torch.nn.Conv3d(
+                        in_channels=channel_dims[depth*3+2]*2,
+                        out_channels=channel_dims[depth*3+1],
+                        padding='same',
+                        kernel_size=3
+                    ),
+                    torch.nn.ReLU(),
+                    torch.nn.Conv3d(
+                        in_channels=channel_dims[depth*3+1],
+                        out_channels=channel_dims[depth*3],
+                        padding='same',
+                        kernel_size=3
+                    ),
+                    torch.nn.ReLU(),
+                )
+            )
+            self.up_pools.append(
+                torch.nn.ConvTranspose3d(
+                    in_channels=channel_dims[depth*3+3],
+                    out_channels=channel_dims[depth*3+2],
+                    kernel_size=(1,2,2),
+                    stride=(1,2,2)
+                )
+            )
+            self.downs.append(
+                torch.nn.Sequential(
+                    torch.nn.Conv3d(
+                        in_channels=dim_in if depth==0 else channel_dims[depth*3-1],
+                        out_channels=channel_dims[depth*3],
+                        padding='same',
+                        kernel_size=3
+                    ),
+                    torch.nn.ReLU(),
+                    torch.nn.Conv3d(
+                        in_channels=channel_dims[depth*3],
+                        out_channels=channel_dims[depth*3+1],
+                        padding='same',
+                        kernel_size=3
+                    ),
+                    torch.nn.ReLU(),
+                )
+            )
+            self.down_pools.append(
+                torch.nn.MaxPool3d(
+                    kernel_size=(1,2,2)
+                )
+            )
+
+    def forward(self, x):
+        x = x.unsqueeze(dim=1)
+        x = x.nan_to_num()
+        x = self.final_up(self.unet_step(x, depth=0))
+        x = x.squeeze(dim=1)
+        x = torch.permute(x, dims=(0,2,3,1))
+        x = self.final_linear(x)
+        x = torch.permute(x, dims=(0,3,1,2))
+        return x
+    
+    def concat_residue(self, x):
+
+        if len(self.residues) != 0:
+            residue = self.residues.pop(-1)
+            
+            _, _, _, h_x, w_x = x.shape
+            _, _, _, h_r, w_r = residue.shape
+
+            pad_h = h_r - h_x
+            pad_w = w_r - w_x
+
+            if pad_h > 0 or pad_w > 0:
+                x = F.pad(x, (0, pad_w, 0, pad_h), mode="reflect", value=0)
+
+            return torch.concat((x, residue), dim=1)
+        else:
+            return x
+
+    

@@ -8,12 +8,6 @@ multivar:
     input_arch: full_input
     output_arch: full_output
     broadcast_time: False
-  bathymetry:
-    var_path: /Odyssey/public/glorys/bathymetry/bathymetry_4th.nc
-    var_name: deptho
-    input_arch: prior_input
-    output_arch: no_output
-    broadcast_time: True
 
 multivar_selector:
   _target_: contrib.multivar.multivar_utils.MultivarBatchSelector
@@ -64,7 +58,7 @@ trainer:
       filename: '{val_mse:.5f}-{epoch:03d}'
 
 datamodule:
-  _target_: contrib.multivar.multivar_data.MultivarDataModule
+  _target_: contrib.multivar.multivar_data.MultivarNfNDataModule
   multivar_da: 
     _target_: contrib.data_loading.data.open_multivar_datasets
     vars_info: ${multivar}

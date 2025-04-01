@@ -17,11 +17,13 @@ class Plus4dVarNetForecast(Lit4dVarNetForecast):
             *args,
             rec_weight_fn,
             output_leadtime_start=None,
+            output_leadtime_end=None,
             **kwargs
         ):
         super().__init__(*args, **kwargs)
         self.rec_weight_fn = rec_weight_fn
         self.output_leadtime_start = output_leadtime_start
+        self.output_leadtime_end = output_leadtime_end
 
     def get_dT(self):
         return self.rec_weight.size()[0]
@@ -33,7 +35,11 @@ class Plus4dVarNetForecast(Lit4dVarNetForecast):
         output_start = 0 if self.output_only_forecast else -((dT - 1) // 2)
         if self.output_leadtime_start is not None:
             output_start = self.output_leadtime_start
-        for i in range(output_start, 7):
+        if self.output_leadtime_end is not None:
+            output_end = self.output_leadtime_end
+        else:
+            output_end = 7
+        for i in range(output_start, output_end):
             forecast_weight = self.rec_weight_fn(i, dT, dims, self.rec_weight.cpu().numpy())
             rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
                 self.test_data, forecast_weight
@@ -58,7 +64,7 @@ class Plus4dVarNetForecast(Lit4dVarNetForecast):
             })
             metrics.append(metrics_leadtime)
 
-        print(pd.DataFrame(metrics, range(output_start, 7)).T.to_markdown())
+        print(pd.DataFrame(metrics, range(output_start, output_end)).T.to_markdown())
 
 class Plus4dVarNetForecastPatchGPU(Plus4dVarNetForecast):
     def __init__(self, *args, **kwargs):

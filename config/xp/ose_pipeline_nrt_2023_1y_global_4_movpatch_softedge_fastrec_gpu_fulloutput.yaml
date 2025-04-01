@@ -1,6 +1,6 @@
 # @package _global_
 
-xp_name: glorys4_global_multivar_IN_ssh_bathy_OUT_ssh
+xp_name: glorys4_global_1patch_fulloutput
 data_name: nrt_2023_global_4
 
 paths:
@@ -8,18 +8,20 @@ paths:
   rec_path: /Odyssey/public/glorys/rec/
   metrics_path: /Odyssey/public/glorys/metrics/
 
-  model_config_path: config/xp/multivar_forecast_IN_ssh_bathy_OUT_ssh.yaml
-  model_ckpt_path: /Odyssey/public/glorys/trainings/multivar_forecast_IN_ssh_bathy_OUT_ssh/multivar_forecast_IN_ssh_bathy_OUT_ssh/checkpoints/val_mse=15.99271-epoch=114.ckpt
+  model_config_path: config/xp/base_forecast_global_softedge_fastrec_GPU_1patch_fulloutput.yaml
+  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_1patch_10y/base_forecast_global_softedge_fastrec_GPU_1patch_10y/checkpoints/val_mse=6.89547-epoch=072.ckpt
+
 
 specs:
   pixels_per_degree: 4
 
   min_time: 2023-01-01
   max_time: 2023-12-31
-  min_time_std: 2023-01-01
-  max_time_std: 2023-03-31
   time_day_crop: 0
 
+  min_time_std: 2023-01-01
+  max_time_std: 2023-01-31
+  
   min_lon: -180
   max_lon: 180
   min_lat: -80
@@ -79,7 +81,7 @@ metrics_spatial_domains:
 
 options:
   skip:
-    data: True
+    data: False
     rec: False
     metrics: False
 
@@ -89,9 +91,7 @@ options:
     metrics: True
 
   overrides:
-    multivar: True
-    metrics_dim: 0
-
+    leadtime_start: -14
 
 
 entrypoints:
@@ -99,8 +99,8 @@ entrypoints:
     pixels_per_degree: ${specs.pixels_per_degree}
     min_time: ${specs.min_time}
     max_time: ${specs.max_time}
-    min_time_std: ${specs.min_time_std}
-    max_time_std: ${specs.max_time_std}
+    min_time_std: ${specs.min_time}
+    max_time_std: ${specs.max_time}
     min_lon: ${specs.min_lon}
     max_lon: ${specs.max_lon}
     min_lat: ${specs.min_lat}

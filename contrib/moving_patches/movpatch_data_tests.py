@@ -61,6 +61,7 @@ class XrDatasetMovingPatch(XrDataset):
 
         return item
     
+    
     def get_patch_offset(self, dim):
         return np.random.randint(0, self.patch_offset[dim]) if (self.rand and not self.patch_offset[dim] == 0) else 0
     
@@ -355,35 +356,72 @@ class XrDatasetMovingPatchFastRecGPU(XrDatasetMovingPatch):
     def get_unpadded_dims(self):
         return (len(self.da[d].values) for d in self.patch_dims)
 
+    #def __getitem__(self, item):
+    #    sl = {
+    #        dim: slice(self.strides.get(dim, 1) * idx,
+    #                   self.strides.get(dim, 1) * idx + self.patch_dims[dim])
+    #        for dim, idx in zip(self.ds_size.keys(),
+    #                            np.unravel_index(item, tuple(self.ds_size.values())))
+    #    }
+#
+    #    if self.return_coords:
+    #        return sl
+#
+    #    # moving patch
+    #    ds_overflow = {}
+    #    for dim in ['lat', 'lon']:
+    #        patch_offset = self.get_patch_offset(dim)
+    #        sl[dim] = slice(sl[dim].start + patch_offset, sl[dim].stop + patch_offset)
+    #        ds_overflow[dim] = sl[dim].stop - self.da_dims[dim]
+    #        sl[dim] = slice(min(sl[dim].start, self.da_dims[dim]), min(sl[dim].stop, self.da_dims[dim]))
+    #    item = self.da.isel(**sl)
+#
+    #    # pad patch if needed
+    #    # padding messes the patch coordinates, it is therefore done after returning coords in the event of return_coords being True
+    #    item = item.pad({dim: (0, dim_overflow if dim_overflow>0 else 0) for dim, dim_overflow in ds_overflow.items()}, mode='constant', constant_values=np.nan)
+#
+    #    item = item.data.astype(np.float32)
+    #    if self.postpro_fn is not None:
+    #        item = self.postpro_fn(item)
+#
+    #    return item
+    
     def __getitem__(self, item):
         sl = {
-            dim: slice(self.strides.get(dim, 1) * idx,
+            dim: np.arange(self.strides.get(dim, 1) * idx,
                        self.strides.get(dim, 1) * idx + self.patch_dims[dim])
             for dim, idx in zip(self.ds_size.keys(),
                                 np.unravel_index(item, tuple(self.ds_size.values())))
         }
 
+        # moving patch
+
+        # CIRCULAR INDEXING FOR LONGITUDE
+        dim = 'lon'
+        patch_offset = self.get_patch_offset(dim)
+        sl[dim] = (sl[dim] + patch_offset) % self.da_dims[dim]
+
+        # REFLECT INDICES FOR LATITUDE
+        dim = 'lat'
+        patch_offset = self.get_patch_offset(dim)
+        sl[dim] = sl[dim] + patch_offset
+        sl[dim] = np.where(sl[dim] < 0, -sl[dim], sl[dim])
+        sl[dim] = np.where(sl[dim] >= self.da_dims[dim], 2*self.da_dims[dim] - sl[dim] - 2, sl[dim])
+
         if self.return_coords:
             return sl
-
-        # moving patch
-        ds_overflow = {}
-        for dim in ['lat', 'lon']:
-            patch_offset = self.get_patch_offset(dim)
-            sl[dim] = slice(sl[dim].start + patch_offset, sl[dim].stop + patch_offset)
-            ds_overflow[dim] = sl[dim].stop - self.da_dims[dim]
-            sl[dim] = slice(min(sl[dim].start, self.da_dims[dim]), min(sl[dim].stop, self.da_dims[dim]))
+        
         item = self.da.isel(**sl)
 
-        # pad patch if needed
-        # padding messes the patch coordinates, it is therefore done after returning coords in the event of return_coords being True
-        item = item.pad({dim: (0, dim_overflow if dim_overflow>0 else 0) for dim, dim_overflow in ds_overflow.items()}, mode='constant', constant_values=np.nan)
-
+        item = self.apply_augmentation(item, sl)
 
         item = item.data.astype(np.float32)
         if self.postpro_fn is not None:
             item = self.postpro_fn(item)
 
+        return item
+
+    def apply_augmentation(self, item, sl):
         return item
 
     def reconstruct(self, batches, weight=None):
@@ -407,25 +445,28 @@ class XrDatasetMovingPatchFastRecGPU(XrDatasetMovingPatch):
 
         new_shape = items[0].shape[:len(new_dims)]
         full_unpadded_shape = [*new_shape, *self.get_unpadded_dims()]
-        full_padded_shape = [*new_shape, *self.get_padded_dims()]
+        #full_padded_shape = [*new_shape, *self.get_padded_dims()]
 
         # create cuda slices
         full_slices = []
         time_cut = items[0].size(dim=1)
         for idx, coord_slices in enumerate(coords_slices):
-            coord_slices['time'] = slice(coord_slices['time'].start, coord_slices['time'].start + time_cut)
+            coord_slices['time'] = slice(coord_slices['time'][0], coord_slices['time'][0] + time_cut)
             full_slices.append(tuple([slice(None)]*len(new_dims)+list(coord_slices.values())))
 
         # create cuda tensors
-        rec_tensor = torch.zeros(size=full_padded_shape).cuda()
-        count_tensor = torch.zeros(size=full_padded_shape).cuda()
+        #rec_tensor = torch.zeros(size=full_padded_shape).cuda()
+        #count_tensor = torch.zeros(size=full_padded_shape).cuda()
+        rec_tensor = torch.zeros(size=full_unpadded_shape).cuda()
+        count_tensor = torch.zeros(size=full_unpadded_shape).cuda()
         w = torch.tensor(weight).cuda()
 
         for idx in range(items.size(0)):
             rec_tensor[full_slices[idx]] += items[idx] * w
             count_tensor[full_slices[idx]] += w
         result_tensor = (rec_tensor / count_tensor).cpu()
-        result_array = np.array(result_tensor[[slice(0,max_shape) for max_shape in full_unpadded_shape]])
+        #result_array = np.array(result_tensor[[slice(0,max_shape) for max_shape in full_unpadded_shape]])
+        result_array = result_tensor.numpy()
 
         result_da = xr.DataArray(
             result_array,
@@ -451,6 +492,50 @@ class MovingPatchDataModuleFastRecGPU(MovingPatchDataModule):
             self.input_da.sel(self.domains['val']), **self.xrds_kw, postpro_fn=post_fn, rand=False
         )
         self.test_ds = XrDatasetMovingPatchFastRecGPU(
+            self.input_da.sel(self.domains['test']), **self.xrds_kw, postpro_fn=post_fn, rand=False
+        )
+
+        if self.aug_kw:
+            self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
+
+class XrDatasetMovingPatchFastRecGPUNoFullNaN(XrDatasetMovingPatchFastRecGPU):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __getitem__(self, i):
+        item = super().__getitem__(i)
+        if self.return_coords:
+            return item
+
+        # patch_dims and strides should be: time, lat, lon
+        # patch_dim - stride should be // 2
+        # item's last dimensions must be lat, lon
+        dim_offset = len(item.shape) - 2 # 2 for last 2 dimensions
+        center_item = item.copy()
+        for idx, (patch_dim, stride) in enumerate(zip(list(self.patch_dims.values())[-2:], list(self.strides.values())[-2:])):
+            offset = (patch_dim-stride)//2
+            center_item = np.take(center_item, range(offset, stride+offset), axis=idx+dim_offset)
+
+        if np.isnan(center_item).all():
+            return self.__getitem__((i + 1) % len(self))
+        
+        return item
+        
+
+class MovingPatchDataModuleFastRecGPUNoFullNaN(MovingPatchDataModule):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def setup(self, stage='test'):
+        # calling MovingPatch Datasets, rand=True for train only
+        post_fn = self.post_fn()
+        self.train_ds = XrDatasetMovingPatchFastRecGPUNoFullNaN(
+            self.input_da.sel(self.domains['train']), **self.xrds_kw, postpro_fn=post_fn, rand=True
+        )
+        self.val_ds = XrDatasetMovingPatchFastRecGPUNoFullNaN(
+            self.input_da.sel(self.domains['val']), **self.xrds_kw, postpro_fn=post_fn, rand=False
+        )
+        self.test_ds = XrDatasetMovingPatchFastRecGPUNoFullNaN(
             self.input_da.sel(self.domains['test']), **self.xrds_kw, postpro_fn=post_fn, rand=False
         )
 

@@ -8,6 +8,12 @@ multivar:
     input_arch: full_input
     output_arch: full_output
     broadcast_time: False
+  mld:
+    var_path: /Odyssey/public/glorys/reanalysis/glorys12_2010_2019_4th.nc
+    var_name: mlotst
+    input_arch: no_input
+    output_arch: full_output
+    broadcast_time: False
   bathymetry:
     var_path: /Odyssey/public/glorys/bathymetry/bathymetry_4th.nc
     var_name: deptho

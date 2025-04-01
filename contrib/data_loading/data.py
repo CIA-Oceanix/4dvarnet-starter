@@ -34,7 +34,7 @@ def load_ose_data_with_tgt_mask(path, tgt_path, variable='zos'):
     if 'latitude' in list(ds_mask.dims):
         ds_mask = ds_mask.rename({'latitude':'lat', 'longitude':'lon'})
 
-    ds_mask = ds_mask.sel(time='2020-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords)
+    ds_mask = ds_mask.isel(time=0)[variable].expand_dims(time=ds.time).assign_coords(ds.coords)
 
     ds = (
         ds
@@ -113,7 +113,7 @@ def open_glorys12_data(path, masks_path, domain, variables="zos", masking=True, 
 
     return ds
 
-def open_var_dataset(var_path, var, var_name, domain, drop_depth, mask_path=None):
+def open_var_dataset(var_path, var, var_name, domain, drop_depth, fill_nan=None, mask_path=None):
     """
         open a single dataset for the multivar 4dvar
 
@@ -135,6 +135,9 @@ def open_var_dataset(var_path, var, var_name, domain, drop_depth, mask_path=None
         if domain_var_key not in var_dataset.dims:
             del domain[domain_var_key]
     var_dataset = var_dataset.sel(domain)
+
+    if fill_nan is not None:
+        var_dataset = var_dataset.fillna(fill_nan)
 
     if mask_path is not None:
         print('masking [{}] var'.format(var))
@@ -188,6 +191,10 @@ def open_multivar_datasets(vars_info,
         if 'mask_path' in var_info:
             var_mask_path = var_info['mask_path']
         broadcast_time = var_info['broadcast_time']
+        fill_nan = None
+        if 'fill_nan' in var_info:
+            fill_nan = var_info['fill_nan']
+
 
         # var_info_dict
         var_information_dict = dict()
@@ -195,7 +202,7 @@ def open_multivar_datasets(vars_info,
         var_information_dict['output_arch'] = var_info.output_arch
 
         if var_mask_path is not None:
-            var_dataset = open_var_dataset(var_path, var, var_info.var_name, domain, drop_depth, mask_path=var_mask_path)
+            var_dataset = open_var_dataset(var_path, var, var_info.var_name, domain, drop_depth, fill_nan=fill_nan, mask_path=var_mask_path)
             full_dataset = merge_datasets(full_dataset, var_dataset)
             var_information_dict_masked = var_information_dict.copy()
             var_information_dict_masked['output_arch'] = 'no_output'
@@ -204,7 +211,7 @@ def open_multivar_datasets(vars_info,
             
             var_information_dict['input_arch'] = 'no_input'
 
-        var_dataset = open_var_dataset(var_path, var, var_info.var_name, domain, drop_depth)
+        var_dataset = open_var_dataset(var_path, var, var_info.var_name, domain, drop_depth, fill_nan=fill_nan)
         full_dataset = merge_datasets(full_dataset, var_dataset, broadcast_time=broadcast_time)
         multivar_information[var] = var_information_dict
 

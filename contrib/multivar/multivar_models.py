@@ -84,12 +84,16 @@ class Multivar4dVarNet(Lit4dVarNet):
         out = self(batch=batch)
         m, s = self.output_norm_stats
 
-        self.test_data.append(torch.stack(
-            [
+        n_vars = s.shape[0]
+        size_t = out.size(1) // n_vars
+        out = out.view(out.size(0), n_vars, size_t, out.size(2), out.size(3))
+
+        s = torch.tensor(s).view(1,n_vars,1,1,1)
+        m = torch.tensor(m).view(1,n_vars,1,1,1)
+
+        self.test_data.append(
                 out.squeeze(dim=-1).detach().cpu() * s + m,
-            ],
-            dim=1,
-        ))
+            )
 
 class Multivar4dVarNetForecast(Multivar4dVarNet):
     def __init__(
@@ -147,6 +151,7 @@ class Multivar4dVarNetForecast(Multivar4dVarNet):
                 output_start = self.output_leadtime_start
             for i in range(output_start, 7):
                 leadtime_idx = dT // 2 + i
+                print(output_start, leadtime_idx, dT)
                 forecast_weight = self.rec_weight_fn(i, dT, dims, self.rec_weight.cpu().numpy())[leadtime_idx]
                 rec_da = self.trainer.test_dataloaders.dataset.reconstruct_from_items(
                     torch.cat(self.test_data).index_select(dim=2, index=torch.Tensor([leadtime_idx]).type(torch.int64)).index_select(dim=1, index=torch.Tensor([output_dim]).type(torch.int64)).cuda(),
@@ -162,7 +167,7 @@ class Multivar4dVarNetForecast(Multivar4dVarNet):
                 ).to_dataset(dim='v'+str(output_dim))
 
                 if self.logger:
-                    test_data_leadtime.to_netcdf(Path(self.logger.log_dir) / f'test_data_{i+(dT-1)//2}_ dim{output_dim}.nc')
+                    test_data_leadtime.to_netcdf(Path(self.logger.log_dir) / f'test_data_{i+(dT-1)//2}_dim{output_dim}.nc')
                     print(Path(self.trainer.log_dir) / f'test_data_{i+(dT-1)//2}_dim{output_dim}.nc')
                     
                 metric_data = test_data_leadtime.pipe(self.pre_metric_fn)
@@ -210,6 +215,23 @@ class MultivarGradSolverZero(GradSolverZero):
 
             if not self.training:
                 state = self.prior_cost.forward_ae(state, batch)
+        return state
+    
+class MultivarGradSolverZeroRaw(MultivarGradSolverZero):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def forward(self, batch):
+        with torch.set_grad_enabled(True):
+            state = self.init_state(batch)
+            self.grad_mod.reset_state(self.multivar_selector.multivar_full_output(batch))
+
+            for step in range(self.n_step):
+                state = self.solver_step(state, batch, step=step)
+                if not self.training:
+                    state = state.detach().requires_grad_(True)
+
         return state
     
 class MultivarBaseObsCost(BaseObsCost):

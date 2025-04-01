@@ -1,15 +1,16 @@
 # @package _global_
 
-xp_name: glorys4_global_multivar_IN_ssh_bathy_OUT_ssh
+xp_name: unet_test
 data_name: nrt_2023_global_4
 
 paths:
-  ose_data_path: /Odyssey/public/altimetry_traces/
-  rec_path: /Odyssey/public/glorys/rec/
-  metrics_path: /Odyssey/public/glorys/metrics/
+  ose_data_path: /DATASET/OCB_traces/
+  rec_path: /DATASET/GLORYS12/rec/
+  metrics_path: /DATASET/GLORYS12/metrics/
 
-  model_config_path: config/xp/multivar_forecast_IN_ssh_bathy_OUT_ssh.yaml
-  model_ckpt_path: /Odyssey/public/glorys/trainings/multivar_forecast_IN_ssh_bathy_OUT_ssh/multivar_forecast_IN_ssh_bathy_OUT_ssh/checkpoints/val_mse=15.99271-epoch=114.ckpt
+  model_config_path: base_forecast_UNet_1patch_10y.yaml
+  model_ckpt_path: /Odyssey/public/glorys/trainings/unet_test_run/base_forecast_UNet_1patch_10y/checkpoints/val_mse=12.20238-epoch=066.ckpt
+
 
 specs:
   pixels_per_degree: 4
@@ -79,19 +80,14 @@ metrics_spatial_domains:
 
 options:
   skip:
-    data: True
+    data: False
     rec: False
     metrics: False
 
   overwrite:
     data: False
-    rec: True
-    metrics: True
-
-  overrides:
-    multivar: True
-    metrics_dim: 0
-
+    rec: False
+    metrics: False
 
 
 entrypoints:
@@ -99,8 +95,6 @@ entrypoints:
     pixels_per_degree: ${specs.pixels_per_degree}
     min_time: ${specs.min_time}
     max_time: ${specs.max_time}
-    min_time_std: ${specs.min_time_std}
-    max_time_std: ${specs.max_time_std}
     min_lon: ${specs.min_lon}
     max_lon: ${specs.max_lon}
     min_lat: ${specs.min_lat}
@@ -119,7 +113,6 @@ entrypoints:
     data_name: ${data_name}
     skip: ${options.skip}
     overwrite: ${options.overwrite}
-    overrides: ${options.overrides}
 
 defaults:
   - _self_

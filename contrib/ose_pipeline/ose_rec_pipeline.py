@@ -68,11 +68,12 @@ def setup_model_config(
     OmegaConf.update(config, key='model.pre_metric_fn.time._args_', value=[min_time_offseted, max_time_offseted])
 
     # LEADTIME OUTPUTS:
-    leadtime_start = get_leadtime_start(
-        overwrite,
-        rec_paths,
-        dT = dict(config)['datamodule']['xrds_kw']['patch_dims']['time'],
-    )
+    #leadtime_start = get_leadtime_start(
+    #    overwrite,
+    #    rec_paths,
+    #    dT = dict(config)['datamodule']['xrds_kw']['patch_dims']['time'],
+    #)
+    leadtime_start = 0 if 'leadtime_start' not in overrides.keys() else overrides['leadtime_start']
     OmegaConf.update(config, key='model.output_leadtime_start', value=leadtime_start)
 
     return config

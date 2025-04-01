@@ -8,12 +8,14 @@ multivar:
     input_arch: full_input
     output_arch: full_output
     broadcast_time: False
+    aug: True
   bathymetry:
     var_path: /Odyssey/public/glorys/bathymetry/bathymetry_4th.nc
     var_name: deptho
     input_arch: prior_input
     output_arch: no_output
     broadcast_time: True
+    fill_nan: 0.0
 
 multivar_selector:
   _target_: contrib.multivar.multivar_utils.MultivarBatchSelector
@@ -54,7 +56,7 @@ trainer:
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 350
-  limit_train_batches: 1000
+  limit_train_batches: 100
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
@@ -64,7 +66,7 @@ trainer:
       filename: '{val_mse:.5f}-{epoch:03d}'
 
 datamodule:
-  _target_: contrib.multivar.multivar_data.MultivarDataModule
+  _target_: contrib.multivar.multivar_data.MultivarNfNDataModule
   multivar_da: 
     _target_: contrib.data_loading.data.open_multivar_datasets
     vars_info: ${multivar}
@@ -78,10 +80,13 @@ datamodule:
     test: 
       time: {_target_: builtins.slice,  _args_: ['2019-12-31', '2019-12-31']}
   xrds_kw:
-    patch_dims: { time: 29, lat: 48, lon: 48}
-    strides: { time: 1, lat: 40, lon: 40}
+    patch_dims: { time: 29, lat: 680, lon: 1440}
+    strides: { time: 1, lat: 672, lon: 1432}
     domain_limits: ${domain.train}
-  dl_kw: {batch_size: 64, num_workers: 4}
+  dl_kw: {batch_size: 1, num_workers: 2}
+  aug_dims:
+    _target_: contrib.multivar.multivar_utils.get_multivar_aug_dims
+    multivar_dict: ${multivar}
 
 model:
   _target_: contrib.multivar.multivar_models.Multivar4dVarNetForecast
@@ -90,7 +95,7 @@ model:
   opt_fn:
     _target_: src.utils.cosanneal_lr_adam
     _partial_: true
-    lr: 3e-4
+    lr: 1e-3
     T_max: ${trainer.max_epochs}
   rec_weight:
       _target_: contrib.multivar.multivar_utils.get_multivar_forecast_wei
@@ -105,7 +110,7 @@ model:
     _partial_: True
     soft_edge: 0.25
   solver:
-    _target_: contrib.multivar.multivar_models.MultivarGradSolverZero
+    _target_: contrib.multivar.multivar_models.MultivarGradSolverZeroRaw
     multivar_selector: ${multivar_selector}
     n_step: 10
     lr_grad: 1e3
@@ -121,7 +126,7 @@ model:
         _target_: contrib.multivar.multivar_utils.get_multivar_prior_dims_out
         multivar_dict: ${multivar}
         channels_per_dim: ${datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 128
+      dim_hidden: 64
       bilin_quad: False
       # bilin_quad: True
       #downsamp: 2
