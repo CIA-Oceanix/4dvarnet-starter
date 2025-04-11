@@ -1,6 +1,6 @@
 # @package _global_
 
-xp_name: glorys4_global_movpatch_softedge_1y_fastrec_1m_std
+xp_name: glorys4_global_multivar_1patch_IN_ssh_bathy0_OUT_ssh
 data_name: nrt_2023_global_4
 
 paths:
@@ -8,20 +8,18 @@ paths:
   rec_path: /Odyssey/public/glorys/rec/
   metrics_path: /Odyssey/public/glorys/metrics/
 
-  model_config_path: config/xp/base_forecast_global_softedge_fastrec.yaml
-  model_ckpt_path: /homes/p24hasle/repos/4dvarnet-starter-glorys12/outputs/2024-09-10/17-52-35/base_forecast_global.yaml/checkpoints/val_mse=48.92492-epoch=235.ckpt
-
+  model_config_path: config/xp/multivar_forecast_1patch_NfN_IN_ssh_aug_bathy0_OUT_ssh_raw_lr1e3.yaml
+  model_ckpt_path: /Odyssey/public/glorys/trainings/multivar_forecast_1patch_NfN_IN_ssh_aug_bathy0_OUT_ssh_raw_lr1e3/multivar_forecast_1patch_NfN_IN_ssh_aug_bathy0_OUT_ssh_raw_lr1e3/checkpoints/val_mse=6.03716-epoch=265.ckpt
 
 specs:
   pixels_per_degree: 4
 
   min_time: 2023-01-01
   max_time: 2023-12-31
-  time_day_crop: 0
-
   min_time_std: 2023-01-01
   max_time_std: 2023-01-31
-  
+  time_day_crop: 0
+
   min_lon: -180
   max_lon: 180
   min_lat: -80
@@ -90,14 +88,19 @@ options:
     rec: True
     metrics: True
 
+  overrides:
+    multivar: True
+    metrics_dim: 0
+
+
 
 entrypoints:
   - _target_: contrib.ose_pipeline.ose_full_pipeline.execute_full_pipeline
     pixels_per_degree: ${specs.pixels_per_degree}
     min_time: ${specs.min_time}
     max_time: ${specs.max_time}
-    min_time_std: ${specs.min_time}
-    max_time_std: ${specs.max_time}
+    min_time_std: ${specs.min_time_std}
+    max_time_std: ${specs.max_time_std}
     min_lon: ${specs.min_lon}
     max_lon: ${specs.max_lon}
     min_lat: ${specs.min_lat}
@@ -116,6 +119,7 @@ entrypoints:
     data_name: ${data_name}
     skip: ${options.skip}
     overwrite: ${options.overwrite}
+    overrides: ${options.overrides}
 
 defaults:
   - _self_

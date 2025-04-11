@@ -39,7 +39,7 @@ trainer:
     save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 350
+  max_epochs: 100
   limit_train_batches: 100
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
@@ -67,18 +67,22 @@ datamodule:
     patch_dims: { time: 29, lat: 680, lon: 1440}
     strides: { time: 1, lat: 672, lon: 1432}
     domain_limits: ${domain.train}
-  dl_kw: {batch_size: 1, num_workers: 8}
+  dl_kw: {batch_size: 1, num_workers: 2}
   aug_kw:
     aug_factor: 1
     aug_only: True
 
 model:
-  _target_: contrib.forecast_plus.models.Plus4dVarNetForecastPatchGPU
-  persist_rw: False
+  _target_: contrib.unet.models.Unet
+  solver:
+    _target_: contrib.unet.models.UnetSolver3D
+    _partial_: True
+    dim_in: 1
+  channel_dims: [32, 32, 32, 64, 64, 64, 32, 32, 32, 64]
   opt_fn:
-    _target_: src.utils.cosanneal_lr_adam
+    _target_: contrib.unet.utils.cosanneal_lr_adam
     _partial_: true
-    lr: 1e-3
+    lr: 1e-4 #lowered from 1e-3
     T_max: ${trainer.max_epochs}
   rec_weight:
     _target_: src.utils.get_forecast_wei
@@ -88,24 +92,6 @@ model:
     _target_: contrib.forecast_weights.forecast_weights_reconstruction_soft_edges
     _partial_: True
     soft_edge: 0.25
-  solver:
-    _target_: src.models.GradSolverZero
-    n_step: 10
-    lr_grad: 1e3
-    # lr_grad: 0.2
-    prior_cost:
-      _target_: src.models.BilinAEPriorCost
-      dim_in: ${datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 128
-      bilin_quad: False
-      # bilin_quad: True
-      #downsamp: 2
-    obs_cost:
-      _target_: src.models.BaseObsCost
-    grad_mod:
-      _target_: src.models.ConvLstmGradModel
-      dim_in: ${datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 192
   pre_metric_fn:
         _target_: xarray.Dataset.sel
         _partial_: True

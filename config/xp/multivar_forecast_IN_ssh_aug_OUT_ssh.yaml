@@ -8,18 +8,7 @@ multivar:
     input_arch: full_input
     output_arch: full_output
     broadcast_time: False
-  mld:
-    var_path: /Odyssey/public/glorys/reanalysis/glorys12_2010_2019_4th.nc
-    var_name: mlotst
-    input_arch: no_input
-    output_arch: full_output
-    broadcast_time: False
-  bathymetry:
-    var_path: /Odyssey/public/glorys/bathymetry/bathymetry_4th.nc
-    var_name: deptho
-    input_arch: prior_input
-    output_arch: no_output
-    broadcast_time: True
+    aug: True
 
 multivar_selector:
   _target_: contrib.multivar.multivar_utils.MultivarBatchSelector
@@ -56,7 +45,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: ${hydra:runtime.output_dir}
+    save_dir: /Odyssey/public/glorys/trainings/multivar_forecast_IN_ssh_bathy_OUT_ssh/
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 350
@@ -88,29 +77,31 @@ datamodule:
     strides: { time: 1, lat: 40, lon: 40}
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 64, num_workers: 4}
+  aug_dims:
+    _target_: contrib.multivar.multivar_utils.get_multivar_aug_dims
+    multivar_dict: ${multivar}
 
 model:
-  _target_: contrib.multivar.multivar_models.Multivar4dVarNet
+  _target_: contrib.multivar.multivar_models.Multivar4dVarNetForecast
   multivar_selector: ${multivar_selector}
   persist_rw: False
   opt_fn:
     _target_: src.utils.cosanneal_lr_adam
     _partial_: true
-    lr: 1e-3
+    lr: 3e-4
     T_max: ${trainer.max_epochs}
   rec_weight:
-      _target_: contrib.multivar.multivar_utils.get_multivar_triang_time_wei
+      _target_: contrib.multivar.multivar_utils.get_multivar_forecast_wei
       patch_dims: ${datamodule.xrds_kw.patch_dims}
-      crop: {time: 0, lat: 20, lon: 20}
+      crop: {time: 0, lat: 4, lon: 4}
       dims_out:
         _target_: contrib.multivar.multivar_utils.get_multivar_prior_dims_out
         multivar_dict: ${multivar}
         channels_per_dim: ${datamodule.xrds_kw.patch_dims.time}
-      offset: 1
-  #rec_weight_fn:
-  #  _target_: contrib.forecast_weights.forecast_weights_reconstruction_soft_edges
-  #  _partial_: True
-  #  soft_edge: 0.25
+  rec_weight_fn:
+    _target_: contrib.forecast_weights.forecast_weights_reconstruction_soft_edges
+    _partial_: True
+    soft_edge: 0.25
   solver:
     _target_: contrib.multivar.multivar_models.MultivarGradSolverZero
     multivar_selector: ${multivar_selector}
@@ -128,7 +119,7 @@ model:
         _target_: contrib.multivar.multivar_utils.get_multivar_prior_dims_out
         multivar_dict: ${multivar}
         channels_per_dim: ${datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 64
+      dim_hidden: 128
       bilin_quad: False
       # bilin_quad: True
       #downsamp: 2

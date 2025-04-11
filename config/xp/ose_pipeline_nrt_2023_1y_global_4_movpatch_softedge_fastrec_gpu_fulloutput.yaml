@@ -1,6 +1,6 @@
 # @package _global_
 
-xp_name: glorys4_global_movpatch_softedge_1y_fastrec_1m_std
+xp_name: glorys4_global_1patch_fulloutput
 data_name: nrt_2023_global_4
 
 paths:
@@ -8,8 +8,8 @@ paths:
   rec_path: /Odyssey/public/glorys/rec/
   metrics_path: /Odyssey/public/glorys/metrics/
 
-  model_config_path: config/xp/base_forecast_global_softedge_fastrec.yaml
-  model_ckpt_path: /homes/p24hasle/repos/4dvarnet-starter-glorys12/outputs/2024-09-10/17-52-35/base_forecast_global.yaml/checkpoints/val_mse=48.92492-epoch=235.ckpt
+  model_config_path: config/xp/base_forecast_global_softedge_fastrec_GPU_1patch_fulloutput.yaml
+  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_1patch_10y/base_forecast_global_softedge_fastrec_GPU_1patch_10y/checkpoints/val_mse=6.89547-epoch=072.ckpt
 
 
 specs:
@@ -81,7 +81,7 @@ metrics_spatial_domains:
 
 options:
   skip:
-    data: True
+    data: False
     rec: False
     metrics: False
 
@@ -89,6 +89,9 @@ options:
     data: False
     rec: True
     metrics: True
+
+  overrides:
+    leadtime_start: -14
 
 
 entrypoints:
@@ -116,6 +119,7 @@ entrypoints:
     data_name: ${data_name}
     skip: ${options.skip}
     overwrite: ${options.overwrite}
+    overrides: ${options.overrides}
 
 defaults:
   - _self_

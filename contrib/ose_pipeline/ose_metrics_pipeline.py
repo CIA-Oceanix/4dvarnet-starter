@@ -25,7 +25,8 @@ def domain_metrics(
         spatial_domain,
         domain_name,
         leadtimes,
-        out_var
+        out_var,
+        overrides
 ):
     lon_min = spatial_domain.lon.start
     lon_max = spatial_domain.lon.stop
@@ -37,9 +38,14 @@ def domain_metrics(
     RMSE_array = []
 
     for lead_time in tqdm(lead_times):
+
+        formatted_leadtime = lead_time
+        if 'metrics_dim' in overrides.keys():
+            formatted_leadtime = '{}_dim{}'.format(lead_time, overrides['metrics_dim'])
+
         a,b = eval_ose(
             path_alongtrack = concat_ref_path,
-            path_rec = rec_paths.format(lead_time),
+            path_rec = rec_paths.format(formatted_leadtime),
             time_min = min_time_offseted,
             time_max = max_time_offseted,
             lon_min=lon_min,
@@ -65,6 +71,7 @@ def execute_metrics_pipeline(
         max_time_offseted,
         spatial_domains,
         overwrite,
+        overrides
 
 ):
     print('-'*60+'\n'+'-'*60+'\nMETRICS PIPELINE START:\n')
@@ -84,7 +91,8 @@ def execute_metrics_pipeline(
                     spatial_domain,
                     domain_name,
                     leadtimes,
-                    out_var
+                    out_var,
+                    overrides
                 )
                 print('-'*60)
             except EmptyDomainException:

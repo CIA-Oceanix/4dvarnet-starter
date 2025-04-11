@@ -67,7 +67,7 @@ datamodule:
     patch_dims: { time: 29, lat: 680, lon: 1440}
     strides: { time: 1, lat: 672, lon: 1432}
     domain_limits: ${domain.train}
-  dl_kw: {batch_size: 1, num_workers: 8}
+  dl_kw: {batch_size: 1, num_workers: 2}
   aug_kw:
     aug_factor: 1
     aug_only: True
@@ -94,18 +94,18 @@ model:
     lr_grad: 1e3
     # lr_grad: 0.2
     prior_cost:
-      _target_: src.models.BilinAEPriorCost
-      dim_in: ${datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 128
-      bilin_quad: False
-      # bilin_quad: True
-      #downsamp: 2
+      _target_: contrib.unet.models.UnetPriorCost
+      channel_dims: [64, 64, 64, 64, 64, 64, 64, 64, 64, 64]
+      solver:
+        _target_: contrib.unet.models.UnetSolver
+        _partial_: True
+        dim_in: ${datamodule.xrds_kw.patch_dims.time}
     obs_cost:
       _target_: src.models.BaseObsCost
     grad_mod:
       _target_: src.models.ConvLstmGradModel
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 192
+      dim_hidden: 96
   pre_metric_fn:
         _target_: xarray.Dataset.sel
         _partial_: True

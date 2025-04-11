@@ -1,27 +1,29 @@
 # @package _global_
 
-xp_name: glorys4_global_movpatch_softedge_1y_fastrec_1m_std
+xp_name: multivar_mapping_ssh_sst_to_u_v # name of your experience (will create folders using this name)
 data_name: nrt_2023_global_4
 
 paths:
   ose_data_path: /Odyssey/public/altimetry_traces/
-  rec_path: /Odyssey/public/glorys/rec/
+  rec_path: /Odyssey/public/glorys/rec/ # your reconstruction will be stored in <rec_path>/<xp_name>/<data_name>/
   metrics_path: /Odyssey/public/glorys/metrics/
 
-  model_config_path: config/xp/base_forecast_global_softedge_fastrec.yaml
-  model_ckpt_path: /homes/p24hasle/repos/4dvarnet-starter-glorys12/outputs/2024-09-10/17-52-35/base_forecast_global.yaml/checkpoints/val_mse=48.92492-epoch=235.ckpt
-
+  model_config_path: /Odyssey/public/4dvar_uv/base_forecast_global_multivar_theo.yaml
+  model_ckpt_path: /Odyssey/public/4dvar_uv/val_mse=32.58671-epoch=332.ckpt # when copying from the terminal, be careful to remove the two '\' in 'mse\=...' and 'epoch\=...'
 
 specs:
   pixels_per_degree: 4
 
-  min_time: 2023-01-01
-  max_time: 2023-12-31
+  # time on which model will be tested
+  min_time: 2020-10-01
+  max_time: 2020-10-31
+
+  # time on which the model will compute the normalisation stats (mean,std)
+  min_time_std: 2020-01-01
+  max_time_std: 2020-09-30
+
   time_day_crop: 0
 
-  min_time_std: 2023-01-01
-  max_time_std: 2023-01-31
-  
   min_lon: -180
   max_lon: 180
   min_lat: -80
@@ -80,15 +82,24 @@ metrics_spatial_domains:
       - -13
 
 options:
+  # IMPORTANT: For reconstruction only, use skip>True for 'data' and 'metrics'
   skip:
     data: True
     rec: False
-    metrics: False
+    metrics: True
 
+  # IMPORTANT: will replace your files if True
   overwrite:
     data: False
     rec: True
     metrics: True
+
+  overrides:
+    keep_original_data: True # This will prevent OSE data to be used, using instead the original data used for training
+    mapping: True
+    multivar: True # For multivar models
+    metrics_dim: 0 # Dimension on which to perform the metrics
+
 
 
 entrypoints:
@@ -96,8 +107,8 @@ entrypoints:
     pixels_per_degree: ${specs.pixels_per_degree}
     min_time: ${specs.min_time}
     max_time: ${specs.max_time}
-    min_time_std: ${specs.min_time}
-    max_time_std: ${specs.max_time}
+    min_time_std: ${specs.min_time_std}
+    max_time_std: ${specs.max_time_std}
     min_lon: ${specs.min_lon}
     max_lon: ${specs.max_lon}
     min_lat: ${specs.min_lat}
@@ -116,6 +127,7 @@ entrypoints:
     data_name: ${data_name}
     skip: ${options.skip}
     overwrite: ${options.overwrite}
+    overrides: ${options.overrides}
 
 defaults:
   - _self_
