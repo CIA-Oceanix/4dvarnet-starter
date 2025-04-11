@@ -1,6 +1,7 @@
 import torch
 import pytorch_lightning as pl
 import torch.nn.functional as F
+import torch.nn as nn
 import numpy as np
 
 import pandas as pd
@@ -151,7 +152,9 @@ class UnetSolver(torch.nn.Module):
     def __init__(self, dim_in, channel_dims, max_depth):
         super().__init__()
         self.max_depth=max_depth
+        self.init_layers(dim_in, channel_dims)
 
+    def init_layers(self, dim_in, channel_dims):
         self.ups = torch.nn.ModuleList()
         self.up_pools = torch.nn.ModuleList()
         self.downs = torch.nn.ModuleList()
@@ -294,8 +297,9 @@ class UnetSolver(torch.nn.Module):
         
 class UnetSolver3D(UnetSolver):
     def __init__(self, dim_in, channel_dims, max_depth):
-        self.max_depth=max_depth
-
+        super().__init__(dim_in, channel_dims, max_depth)
+    
+    def init_layers(self, dim_in, channel_dims):
         self.ups = torch.nn.ModuleList()
         self.up_pools = torch.nn.ModuleList()
         self.downs = torch.nn.ModuleList()
@@ -307,14 +311,14 @@ class UnetSolver3D(UnetSolver):
                 in_channels=channel_dims[self.max_depth*3-1],
                 out_channels=channel_dims[self.max_depth*3],
                 padding='same',
-                kernel_size=3
+                kernel_size=(5,3,3)
             ),
             torch.nn.ReLU(),
             torch.nn.Conv3d(
                 in_channels=channel_dims[self.max_depth*3],
                 out_channels=channel_dims[self.max_depth*3],
                 padding='same',
-                kernel_size=3
+                kernel_size=(5,3,3)
             ),
             torch.nn.ReLU()
         )
@@ -324,7 +328,7 @@ class UnetSolver3D(UnetSolver):
                 in_channels=channel_dims[0],
                 out_channels=dim_in,
                 padding='same',
-                kernel_size=3
+                kernel_size=(5,3,3)
             )
         )
 
@@ -340,14 +344,14 @@ class UnetSolver3D(UnetSolver):
                         in_channels=channel_dims[depth*3+2]*2,
                         out_channels=channel_dims[depth*3+1],
                         padding='same',
-                        kernel_size=3
+                        kernel_size=(5,3,3)
                     ),
                     torch.nn.ReLU(),
                     torch.nn.Conv3d(
                         in_channels=channel_dims[depth*3+1],
                         out_channels=channel_dims[depth*3],
                         padding='same',
-                        kernel_size=3
+                        kernel_size=(5,3,3)
                     ),
                     torch.nn.ReLU(),
                 )
@@ -366,14 +370,14 @@ class UnetSolver3D(UnetSolver):
                         in_channels=dim_in if depth==0 else channel_dims[depth*3-1],
                         out_channels=channel_dims[depth*3],
                         padding='same',
-                        kernel_size=3
+                        kernel_size=(5,3,3)
                     ),
                     torch.nn.ReLU(),
                     torch.nn.Conv3d(
                         in_channels=channel_dims[depth*3],
                         out_channels=channel_dims[depth*3+1],
                         padding='same',
-                        kernel_size=3
+                        kernel_size=(5,3,3)
                     ),
                     torch.nn.ReLU(),
                 )
@@ -388,10 +392,9 @@ class UnetSolver3D(UnetSolver):
         x = x.unsqueeze(dim=1)
         x = x.nan_to_num()
         x = self.final_up(self.unet_step(x, depth=0))
-        x = x.squeeze(dim=1)
-        x = torch.permute(x, dims=(0,2,3,1))
+        x = torch.permute(x, dims=(0,2,3,4,1))
         x = self.final_linear(x)
-        x = torch.permute(x, dims=(0,3,1,2))
+        x = x.squeeze(dim=-1)
         return x
     
     def concat_residue(self, x):
@@ -412,4 +415,15 @@ class UnetSolver3D(UnetSolver):
         else:
             return x
 
+class UnetPriorCost(nn.Module):
+    def __init__(self, channel_dims, solver):
+        super().__init__()
+
+        self.max_depth = len(channel_dims) // 3
+        self.solver = solver(channel_dims=channel_dims, max_depth=self.max_depth)
+
+    def forward_ae(self, x):
+        return self.solver(x)
     
+    def forward(self, state):
+        return F.mse_loss(state, self.forward_ae(state))

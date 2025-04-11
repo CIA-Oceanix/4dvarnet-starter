@@ -1,6 +1,6 @@
 # @package _global_
 
-xp_name: glorys4_global_multivar_1patch_IN_ssh_bathy0_OUT_ssh
+xp_name: glorys4_global_multivar_1patch_IN_ssh_bathy0_OUT_ssh2
 data_name: nrt_2023_global_4
 
 paths:
@@ -9,7 +9,7 @@ paths:
   metrics_path: /Odyssey/public/glorys/metrics/
 
   model_config_path: config/xp/multivar_forecast_1patch_NfN_IN_ssh_aug_bathy0_OUT_ssh_raw_lr1e3.yaml
-  model_ckpt_path: /Odyssey/public/glorys/trainings/multivar_forecast_1patch_NfN_IN_ssh_aug_bathy0_OUT_ssh_raw_lr1e3/multivar_forecast_1patch_NfN_IN_ssh_aug_bathy0_OUT_ssh_raw_lr1e3/checkpoints/val_mse=6.03716-epoch=265.ckpt
+  model_ckpt_path: /Odyssey/public/glorys/trainings/multivar_forecast_1patch_NfN_IN_ssh_aug_bathy0_OUT_ssh_raw_lr1e3/multivar_forecast_1patch_NfN_IN_ssh_aug_bathy0_OUT_ssh_raw_lr1e3/checkpoints/val_mse=5.95438-epoch=327.ckpt
 
 specs:
   pixels_per_degree: 4
@@ -17,7 +17,7 @@ specs:
   min_time: 2023-01-01
   max_time: 2023-12-31
   min_time_std: 2023-01-01
-  max_time_std: 2023-01-31
+  max_time_std: 2023-12-31
   time_day_crop: 0
 
   min_lon: -180

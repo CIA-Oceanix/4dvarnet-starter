@@ -63,7 +63,7 @@ class MultivarXrDataset(XrDatasetMovingPatchFastRecGPU):
         full_slices = []
         time_cut = items[0].size(dim=1)
         for idx, coord_slices in enumerate(coords_slices):
-            coord_slices['time'] = np.arange(coord_slices['time'][0], coord_slices['time'][0] + time_cut)
+            coord_slices['time'] = np.arange(coord_slices['time'][leadtime], coord_slices['time'][leadtime] + time_cut)
             full_slices.append(np.ix_(*([np.arange(len_new_dim) for len_new_dim in full_unpadded_shape[:len(new_dims)]]+list(coord_slices.values()))))
 
         # create cuda tensors

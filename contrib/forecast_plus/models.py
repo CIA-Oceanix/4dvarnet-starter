@@ -3,7 +3,7 @@ import numpy as np
 from pathlib import Path
 import torch
 
-from src.models import Lit4dVarNetForecast, GradSolverZero, BilinAEPriorCost
+from src.models import Lit4dVarNetForecast, GradSolverZero, BilinAEPriorCost, GradSolver
 
 
 class Plus4dVarNetForecast(Lit4dVarNetForecast):
@@ -171,3 +171,21 @@ class BaseObsCostCCut(nn.Module):
     def forward(self, state, batch):
         msk = batch.input.isfinite()
         return self.w * F.mse_loss(state[:,:batch.input.size(dim=1)][msk], batch.input.nan_to_num()[msk])
+    
+class GradSolverMDT(GradSolver):
+    """
+    Implementation of the GradSolver with an initialisation at 0, instead of the observations
+    """
+
+    def __init__(self, datamodule, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dm = datamodule
+
+    def init_state(self, batch, x_init=None):
+        """
+        if x_init is not None : return x_init
+        else : return 0
+        """
+        if x_init is not None:
+            return x_init
+        return self.dm.get_mdt().requires_grad_(True)

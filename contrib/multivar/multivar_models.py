@@ -16,6 +16,10 @@ class Multivar4dVarNet(Lit4dVarNet):
         self._output_norm_stats = None
         self._input_norm_stats = None
 
+    @property
+    def test_quantities(self):
+        return ['out']
+
     @staticmethod
     def weighted_mse(err, weight):
         err_w = err * weight[None, ...]
@@ -52,6 +56,11 @@ class Multivar4dVarNet(Lit4dVarNet):
             self._input_norm_stats = self.trainer.datamodule.input_norm_stats()
             return self._input_norm_stats
         return (0., 1.)
+
+
+    def clear_gpu_mem(self):
+        del self.solver
+        torch.cuda.empty_cache()
 
     def skip_batch(self, batch):
         return self.multivar_selector.multivar_full_output(batch).isfinite().float().mean() < 0.1
@@ -94,6 +103,38 @@ class Multivar4dVarNet(Lit4dVarNet):
         self.test_data.append(
                 out.squeeze(dim=-1).detach().cpu() * s + m,
             )
+        
+    def on_test_epoch_end(self):
+        self.clear_gpu_mem()
+        print('TEST DATA SIZE: {}'.format(torch.cat(self.test_data).size()))
+
+        n_output_dims = self.test_data[0].shape[1]
+
+        for output_dim in range(n_output_dims):
+            rec_da = self.trainer.test_dataloaders.dataset.reconstruct_from_items(
+                torch.cat(self.test_data).type(torch.int64).index_select(dim=1, index=torch.Tensor([output_dim]).type(torch.int64)).cuda(),
+                self.rec_weight.cpu().numpy()[:self.rec_weight.cpu().numpy().shape[0]//n_output_dims]
+            )
+
+            if isinstance(rec_da, list):
+                rec_da = rec_da[0]
+
+            test_data = rec_da.assign_coords(
+                dict(v0=self.test_quantities)
+            ).to_dataset(dim='v0')
+
+            metric_data = test_data.pipe(self.pre_metric_fn)
+            metrics = pd.Series({
+                metric_n: metric_fn(metric_data)
+                for metric_n, metric_fn in self.metrics.items()
+            })
+
+            print(metrics.to_frame(name="Metrics").to_markdown())
+            if self.logger:
+                test_data.to_netcdf(Path(self.logger.log_dir) / f'test_data_dim{output_dim}.nc')
+                print(Path(self.trainer.log_dir) / f'test_data_dim{output_dim}.nc')
+                self.logger.log_metrics(metrics.to_dict())
+
 
 class Multivar4dVarNetForecast(Multivar4dVarNet):
     def __init__(
@@ -112,10 +153,6 @@ class Multivar4dVarNetForecast(Multivar4dVarNet):
     @property
     def test_quantities(self):
         return ['out']
-
-    def clear_gpu_mem(self):
-        del self.solver
-        torch.cuda.empty_cache()
 
     def mask_batch(self, batch):
         return self.multivar_selector.mask_batch(batch)
@@ -167,8 +204,8 @@ class Multivar4dVarNetForecast(Multivar4dVarNet):
                 ).to_dataset(dim='v'+str(output_dim))
 
                 if self.logger:
-                    test_data_leadtime.to_netcdf(Path(self.logger.log_dir) / f'test_data_{i+(dT-1)//2}_dim{output_dim}.nc')
-                    print(Path(self.trainer.log_dir) / f'test_data_{i+(dT-1)//2}_dim{output_dim}.nc')
+                    test_data_leadtime.to_netcdf(Path(self.logger.log_dir) / f'test_data_{leadtime_idx}_dim{output_dim}.nc')
+                    print(Path(self.trainer.log_dir) / f'test_data_{leadtime_idx}_dim{output_dim}.nc')
                     
                 metric_data = test_data_leadtime.pipe(self.pre_metric_fn)
                 metrics_leadtime = pd.Series({

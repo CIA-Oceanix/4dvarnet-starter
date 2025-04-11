@@ -37,25 +37,35 @@ def setup_model_config(
         overwrite,
         overrides
 ):
+
     multivar = False
     if 'multivar' in overrides.keys():
-        multivar = True
-    
+        multivar = overrides.pop('multivar')
+
+    mapping = False
+    if 'mapping' in overrides.keys():
+        mapping = overrides.pop('mapping')
+
+    keep_original_data = False
+    if 'keep_original_data' in overrides.keys():
+        keep_original_data = overrides.pop('keep_original_data')
 
     config = OmegaConf.load(model_config_path)
 
-    OmegaConf.update(config, key='paths.ose_gridded_input_path', value=gridded_input_path)
+    if not keep_original_data:
+
+        OmegaConf.update(config, key='paths.ose_gridded_input_path', value=gridded_input_path)
 
 
-    if multivar:
-        OmegaConf.update(config, key='multivar.ssh.var_path', value='${paths.ose_gridded_input_path}')
-        OmegaConf.update(config, key='multivar.ssh.var_name', value='ssh')
-        del config['multivar']['ssh']['mask_path']
-    else:
-        del config['datamodule']['input_da']
-        OmegaConf.update(config, key='datamodule.input_da._target_', value='contrib.data_loading.data.load_ose_data_with_tgt_mask')
-        OmegaConf.update(config, key='datamodule.input_da.path', value='${paths.ose_gridded_input_path}')
-        OmegaConf.update(config, key='datamodule.input_da.tgt_path', value='${paths.glorys12_data}')
+        if multivar:
+            OmegaConf.update(config, key='multivar.ssh.var_path', value='${paths.ose_gridded_input_path}')
+            OmegaConf.update(config, key='multivar.ssh.var_name', value='ssh')
+            del config['multivar']['ssh']['mask_path']
+        else:
+            del config['datamodule']['input_da']
+            OmegaConf.update(config, key='datamodule.input_da._target_', value='contrib.data_loading.data.load_ose_data_with_tgt_mask')
+            OmegaConf.update(config, key='datamodule.input_da.path', value='${paths.ose_gridded_input_path}')
+            OmegaConf.update(config, key='datamodule.input_da.tgt_path', value='${paths.glorys12_data}')
 
     if 'variable_std' in overrides.keys():
         config['datamodule']['variable_std'] = overrides['variable_std']
@@ -73,8 +83,10 @@ def setup_model_config(
     #    rec_paths,
     #    dT = dict(config)['datamodule']['xrds_kw']['patch_dims']['time'],
     #)
-    leadtime_start = 0 if 'leadtime_start' not in overrides.keys() else overrides['leadtime_start']
-    OmegaConf.update(config, key='model.output_leadtime_start', value=leadtime_start)
+
+    if not mapping:
+        leadtime_start = 0 if 'leadtime_start' not in overrides.keys() else overrides['leadtime_start']
+        OmegaConf.update(config, key='model.output_leadtime_start', value=leadtime_start)
 
     return config
 

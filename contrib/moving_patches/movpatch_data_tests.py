@@ -451,8 +451,8 @@ class XrDatasetMovingPatchFastRecGPU(XrDatasetMovingPatch):
         full_slices = []
         time_cut = items[0].size(dim=1)
         for idx, coord_slices in enumerate(coords_slices):
-            coord_slices['time'] = slice(coord_slices['time'][0], coord_slices['time'][0] + time_cut)
-            full_slices.append(tuple([slice(None)]*len(new_dims)+list(coord_slices.values())))
+            coord_slices['time'] = np.arange(coord_slices['time'][0], coord_slices['time'][0] + time_cut)
+            full_slices.append(np.ix_(*([np.arange(len_new_dim) for len_new_dim in full_unpadded_shape[:len(new_dims)]]+list(coord_slices.values()))))
 
         # create cuda tensors
         #rec_tensor = torch.zeros(size=full_padded_shape).cuda()
@@ -541,3 +541,25 @@ class MovingPatchDataModuleFastRecGPUNoFullNaN(MovingPatchDataModule):
 
         if self.aug_kw:
             self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
+
+
+#class MovingPatchDataModuleFastRecGPUNoFullNaN_MDT(MovingPatchDataModule):
+#    def __init__(self, *args, **kwargs):
+#        super().__init__(*args, **kwargs)
+#
+#    
+#    def setup(self, stage='test'):
+#        # calling MovingPatch Datasets, rand=True for train only
+#        post_fn = self.post_fn()
+#        self.train_ds = XrDatasetMovingPatchFastRecGPUNoFullNaN(
+#            self.input_da.sel(self.domains['train']), **self.xrds_kw, postpro_fn=post_fn, rand=True
+#        )
+#        self.val_ds = XrDatasetMovingPatchFastRecGPUNoFullNaN(
+#            self.input_da.sel(self.domains['val']), **self.xrds_kw, postpro_fn=post_fn, rand=False
+#        )
+#        self.test_ds = XrDatasetMovingPatchFastRecGPUNoFullNaN(
+#            self.input_da.sel(self.domains['test']), **self.xrds_kw, postpro_fn=post_fn, rand=False
+#        )
+#
+#        if self.aug_kw:
+#            self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)

@@ -1,6 +1,6 @@
 # @package _global_
 
-xp_name: glorys4_global_multivar_1patch_IN_ssh_bathy0_OUT_ssh
+xp_name: 4dvar_unet
 data_name: nrt_2023_global_4
 
 paths:
@@ -8,8 +8,9 @@ paths:
   rec_path: /Odyssey/public/glorys/rec/
   metrics_path: /Odyssey/public/glorys/metrics/
 
-  model_config_path: config/xp/multivar_forecast_1patch_NfN_IN_ssh_aug_bathy0_OUT_ssh_raw_lr1e3.yaml
-  model_ckpt_path: /Odyssey/public/glorys/trainings/multivar_forecast_1patch_NfN_IN_ssh_aug_bathy0_OUT_ssh_raw_lr1e3/multivar_forecast_1patch_NfN_IN_ssh_aug_bathy0_OUT_ssh_raw_lr1e3/checkpoints/val_mse=6.03716-epoch=265.ckpt
+  model_config_path: config/xp/base_forecast_global_4DU_GPU_1patch_10y.yaml
+  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_4dvar_unet/base_forecast_global_4DU_GPU_1patch_10y/checkpoints/val_mse=6.41746-epoch=148.ckpt
+
 
 specs:
   pixels_per_degree: 4
@@ -85,13 +86,8 @@ options:
 
   overwrite:
     data: False
-    rec: True
-    metrics: True
-
-  overrides:
-    multivar: True
-    metrics_dim: 0
-
+    rec: False
+    metrics: False
 
 
 entrypoints:
@@ -119,7 +115,6 @@ entrypoints:
     data_name: ${data_name}
     skip: ${options.skip}
     overwrite: ${options.overwrite}
-    overrides: ${options.overrides}
 
 defaults:
   - _self_

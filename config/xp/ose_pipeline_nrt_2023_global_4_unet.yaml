@@ -4,12 +4,12 @@ xp_name: unet_test
 data_name: nrt_2023_global_4
 
 paths:
-  ose_data_path: /DATASET/OCB_traces/
-  rec_path: /DATASET/GLORYS12/rec/
-  metrics_path: /DATASET/GLORYS12/metrics/
+  ose_data_path: /Odyssey/public/altimetry_traces/
+  rec_path: /Odyssey/public/glorys/rec/
+  metrics_path: /Odyssey/public/glorys/metrics/
 
-  model_config_path: base_forecast_UNet_1patch_10y.yaml
-  model_ckpt_path: /Odyssey/public/glorys/trainings/unet_test_run/base_forecast_UNet_1patch_10y/checkpoints/val_mse=12.20238-epoch=066.ckpt
+  model_config_path: config/xp/base_forecast_UNet_1patch_10y.yaml
+  model_ckpt_path: /Odyssey/public/glorys/trainings/unet_test_run/base_forecast_UNet_1patch_10y/checkpoints/val_mse=9.74597-epoch=133.ckpt
 
 
 specs:
@@ -80,14 +80,14 @@ metrics_spatial_domains:
 
 options:
   skip:
-    data: False
+    data: True
     rec: False
     metrics: False
 
   overwrite:
     data: False
     rec: False
-    metrics: False
+    metrics: True
 
 
 entrypoints:
@@ -95,6 +95,8 @@ entrypoints:
     pixels_per_degree: ${specs.pixels_per_degree}
     min_time: ${specs.min_time}
     max_time: ${specs.max_time}
+    min_time_std: ${specs.min_time_std}
+    max_time_std: ${specs.max_time_std}
     min_lon: ${specs.min_lon}
     max_lon: ${specs.max_lon}
     min_lat: ${specs.min_lat}
