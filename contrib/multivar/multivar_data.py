@@ -188,6 +188,7 @@ class MultivarDataModule(MovingPatchDataModuleFastRecGPU):
             full_output_idx = full_output_idx,
             state_obs_channels = state_obs_channels,
             state_obs_input_idx = state_obs_input_idx,
+            var_names = list(self.multivar_information.keys())
         )
         self.multivar_info_dict = multivar_info
 

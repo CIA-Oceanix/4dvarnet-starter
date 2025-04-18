@@ -2,24 +2,33 @@
 
 multivar:
   ssh:
-    var_path: /Odyssey/public/glorys/reanalysis/glorys12_2010_2019_4th.nc
-    mask_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle
+    var_path: /Odyssey/public/glorys/reanalysis/glorys12_multivar_2020_4th.nc
+    #mask_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle
     var_name: zos
-    input_arch: full_input
-    output_arch: full_output
+    input_arch: prior_input
+    output_arch: no_output
     broadcast_time: False
-  mld:
-    var_path: /Odyssey/public/glorys/reanalysis/glorys12_2010_2019_4th.nc
-    var_name: mlotst
+  sst:
+    var_path: /Odyssey/public/glorys/reanalysis/glorys12_multivar_2020_4th.nc
+    #mask_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle
+    var_name: thetao
+    input_arch: prior_input
+    output_arch: no_output
+    broadcast_time: False
+  uo:
+    var_path: /Odyssey/public/glorys/reanalysis/glorys12_multivar_2020_4th.nc
+    #mask_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle
+    var_name: uo
     input_arch: no_input
     output_arch: full_output
     broadcast_time: False
-  bathymetry:
-    var_path: /Odyssey/public/glorys/bathymetry/bathymetry_4th.nc
-    var_name: deptho
-    input_arch: prior_input
-    output_arch: no_output
-    broadcast_time: True
+  vo:
+    var_path: /Odyssey/public/glorys/reanalysis/glorys12_multivar_2020_4th.nc
+    #mask_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle
+    var_name: vo
+    input_arch: no_input
+    output_arch: full_output
+    broadcast_time: False
 
 multivar_selector:
   _target_: contrib.multivar.multivar_utils.MultivarBatchSelector
@@ -56,7 +65,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/multivar_forecast_IN_ssh_bathy_OUT_ssh/
+    save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 350
@@ -65,9 +74,9 @@ trainer:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
     - _target_: pytorch_lightning.callbacks.ModelCheckpoint
-      monitor: val_total_mse
+      monitor: val_mse
       save_top_k: 3
-      filename: '{val_total_mse:.5f}-{epoch:03d}'
+      filename: '{val_mse:.5f}-{epoch:03d}'
 
 datamodule:
   _target_: contrib.multivar.multivar_data.MultivarDataModule
@@ -78,11 +87,11 @@ datamodule:
     full_time_domain: ${datamodule.domains}
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2019-01-01', '2019-05-01']}
+      time: {_target_: builtins.slice, _args_: ['2020-01-01', '2020-10-01']}
     val: 
-      time: {_target_: builtins.slice, _args_: ['2019-05-02', '2019-06-30']}
+      time: {_target_: builtins.slice, _args_: ['2020-10-01', '2020-12-30']}
     test: 
-      time: {_target_: builtins.slice,  _args_: ['2019-12-31', '2019-12-31']}
+      time: {_target_: builtins.slice,  _args_: ['2020-12-31', '2020-12-31']}
   xrds_kw:
     patch_dims: { time: 29, lat: 48, lon: 48}
     strides: { time: 1, lat: 40, lon: 40}
@@ -90,26 +99,27 @@ datamodule:
   dl_kw: {batch_size: 64, num_workers: 4}
 
 model:
-  _target_: contrib.multivar.multivar_models.Multivar4dVarNetForecast
+  _target_: contrib.multivar.multivar_models.Multivar4dVarNet
   multivar_selector: ${multivar_selector}
   persist_rw: False
   opt_fn:
     _target_: src.utils.cosanneal_lr_adam
     _partial_: true
-    lr: 3e-4
+    lr: 1e-3
     T_max: ${trainer.max_epochs}
   rec_weight:
-      _target_: contrib.multivar.multivar_utils.get_multivar_forecast_wei
+      _target_: contrib.multivar.multivar_utils.get_multivar_mapping_wei
       patch_dims: ${datamodule.xrds_kw.patch_dims}
       crop: {time: 0, lat: 4, lon: 4}
       dims_out:
         _target_: contrib.multivar.multivar_utils.get_multivar_prior_dims_out
         multivar_dict: ${multivar}
         channels_per_dim: ${datamodule.xrds_kw.patch_dims.time}
-  rec_weight_fn:
-    _target_: contrib.forecast_weights.forecast_weights_reconstruction_soft_edges
-    _partial_: True
-    soft_edge: 0.25
+      offset: 1
+  #rec_weight_fn:
+  #  _target_: contrib.forecast_weights.forecast_weights_reconstruction_soft_edges
+  #  _partial_: True
+  #  soft_edge: 0.25
   solver:
     _target_: contrib.multivar.multivar_models.MultivarGradSolverZero
     multivar_selector: ${multivar_selector}
@@ -127,7 +137,7 @@ model:
         _target_: contrib.multivar.multivar_utils.get_multivar_prior_dims_out
         multivar_dict: ${multivar}
         channels_per_dim: ${datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 128
+      dim_hidden: 64
       bilin_quad: False
       # bilin_quad: True
       #downsamp: 2
@@ -144,7 +154,7 @@ model:
   pre_metric_fn:
         _target_: xarray.Dataset.sel
         _partial_: True
-        time: {_target_: builtins.slice, _args_: ["2019-11-25", "2019-12-31"]}
+        time: {_target_: builtins.slice, _args_: ["2020-11-25", "2020-12-31"]}
         lat: ${domain.test.lat}
         lon: ${domain.test.lon}
 
