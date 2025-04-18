@@ -87,9 +87,9 @@ datamodule:
     full_time_domain: ${datamodule.domains}
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2020-01-01', '2020-10-01']}
+      time: {_target_: builtins.slice, _args_: ['2020-01-01', '2020-02-15']}
     val: 
-      time: {_target_: builtins.slice, _args_: ['2020-10-01', '2020-12-30']}
+      time: {_target_: builtins.slice, _args_: ['2020-10-01', '2020-11-30']}
     test: 
       time: {_target_: builtins.slice,  _args_: ['2020-12-31', '2020-12-31']}
   xrds_kw:
