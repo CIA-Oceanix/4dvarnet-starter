@@ -80,6 +80,31 @@ def get_multivar_forecast_wei(patch_dims, dims_out, **crop_kw):
     final_patch_weight = time_patch_weight[:, None, None] * pw
     return final_patch_weight
 
+def get_multivar_mapping_wei(patch_dims, dims_out, offset=0, **crop_kw):
+    """
+    return weight for forecast reconstruction:
+    patch_dims: dimension of the patches used
+
+    linear from 0 to 1 where there are obs
+    linear from 1 to 0.5 for 7 days of forecast
+    0 elsewhere
+    """
+    pw = get_constant_crop(patch_dims, **crop_kw)
+    time_patch_weight = np.fromfunction(
+        lambda t, *a: (
+            (1 - np.abs(offset + 2 * t - patch_dims["time"]) / patch_dims["time"]) * pw
+        ),
+        patch_dims.values(),
+    )
+    
+    # assuming dims_out = time * n_vars_out
+    n_vars_out = dims_out // patch_dims['time']
+    time_patch_weight = np.concatenate([time_patch_weight]*n_vars_out, axis=0)
+    pw = np.concatenate([pw]*n_vars_out, axis=0)
+
+    final_patch_weight = time_patch_weight[:, None, None] * pw
+    return final_patch_weight
+
 class SingletonMeta(type):
     """
     The Singleton class can be implemented in different ways in Python. Some
@@ -119,6 +144,8 @@ class MultivarBatchSelector(metaclass=SingletonMeta):
         self.full_output_idx = torch.Tensor(multivar_info['full_output_idx']).type(torch.int64).cuda()
         self.state_obs_channels = torch.Tensor(multivar_info['state_obs_channels']).type(torch.int64).cuda()
         self.state_obs_input_idx = torch.Tensor(multivar_info['state_obs_input_idx']).type(torch.int64).cuda()
+        self.var_names = multivar_info['var_names']
+        self.output_var_names = [self.var_names[idx] for idx in self.full_output_idx.tolist()]
 
         print('full_input_idx: {}'.format(list(self.full_input_idx)))
         print('prior_input_idx: {}'.format(list(self.prior_input_idx)))
@@ -154,3 +181,6 @@ class MultivarBatchSelector(metaclass=SingletonMeta):
         new_batch = new_batch.view(new_batch.shape[0], -1, *new_batch.shape[-2:])
         #print('multivar_obs_input batch shape: {} | type: {}'.format(new_batch.shape, new_batch.dtype))
         return new_batch.type(torch.float)
+    
+    def multivar_output_var_names(self):
+        return self.output_var_names

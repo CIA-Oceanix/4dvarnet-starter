@@ -71,20 +71,44 @@ class Multivar4dVarNet(Lit4dVarNet):
             return None, None
 
         loss, out = self.multivar_step(batch, phase)
-        grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(self.multivar_selector.multivar_full_output(batch)), self.rec_weight)
-        prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out), batch)
-        self.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
+        prior_costs = self.solver.prior_cost.multivar_costs(self.solver.init_state(batch, out.view(out.size(0), out.size(1)*out.size(2), out.size(3), out.size(4))), batch)
+
+        grad_loss = None
+        prior_cost = None
+
+        for i, var in enumerate(self.multivar_selector.multivar_output_var_names()):
+            grad_loss_i = self.weighted_mse(kfilts.sobel(out[:,i]) - kfilts.sobel(self.multivar_selector.multivar_full_output(batch).view_as(out)[:,i]), self.rec_weight[:out.size(2)])
+            self.log(f"{phase}_{var}_gloss", grad_loss_i, prog_bar=True, on_step=False, on_epoch=True)
+            grad_loss = grad_loss_i if grad_loss is None else grad_loss + grad_loss_i
+
+            self.log(f"{phase}_{var}_prior_cost", prior_costs[i], prog_bar=True, on_step=False, on_epoch=True)
+            prior_cost = prior_costs[i] if prior_cost is None else prior_cost + prior_costs[i]
 
         training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost
         return training_loss, out
     
     def multivar_step(self, batch, phase=""):
         out = self(batch=batch)
-        loss = self.weighted_mse(out - self.multivar_selector.multivar_full_output(batch), self.rec_weight)
-        with torch.no_grad():
-            self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
-            self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
+        output_var_names = self.multivar_selector.multivar_output_var_names()
+        size_t = out.size(1) // len(output_var_names)
 
+        out = out.view(out.size(0), len(output_var_names), size_t, out.size(2), out.size(3))
+
+        loss = None
+        total_mse = None
+
+        for i, var in enumerate(output_var_names):
+            loss_i = self.weighted_mse(out[:,i] - self.multivar_selector.multivar_full_output(batch).view_as(out)[:,i], self.rec_weight[:out.size(2)])
+            with torch.no_grad():
+                mse_i = 10000 * loss_i * self.output_norm_stats[1][i]**2
+                self.log(f"{phase}_{var}_mse", mse_i, prog_bar=True, on_step=False, on_epoch=True)
+                self.log(f"{phase}_{var}_loss", loss_i, prog_bar=True, on_step=False, on_epoch=True)
+            loss = loss_i if loss is None else loss + loss_i
+            total_mse = mse_i if total_mse is None else total_mse + mse_i
+
+        with torch.no_grad():
+            self.log(f"{phase}_total_mse", total_mse, prog_bar=True, on_step=False, on_epoch=True)
+              
         return loss, out
     
     def test_step(self, batch, batch_idx):
@@ -112,7 +136,7 @@ class Multivar4dVarNet(Lit4dVarNet):
 
         for output_dim in range(n_output_dims):
             rec_da = self.trainer.test_dataloaders.dataset.reconstruct_from_items(
-                torch.cat(self.test_data).type(torch.int64).index_select(dim=1, index=torch.Tensor([output_dim]).type(torch.int64)).cuda(),
+                torch.cat(self.test_data).index_select(dim=1, index=torch.Tensor([output_dim]).type(torch.int64)).cuda(),
                 self.rec_weight.cpu().numpy()[:self.rec_weight.cpu().numpy().shape[0]//n_output_dims]
             )
 
@@ -305,6 +329,13 @@ class MultivarBilinAEPriorCost(BilinAEPriorCost):
         )
         x = self.up(x)
         return x
+    
+    def multivar_costs(self, state, batch):
+        out = self.forward_ae(state, batch)
+        n_vars = len(self.multivar_selector.multivar_output_var_names())
+        out = out.view(out.size(0), n_vars, out.size(1)//n_vars, out.size(2), out.size(3))
+        state = state.view_as(out)
+        return torch.Tensor([F.mse_loss(state[:,i], out[:,i]) for i in range(n_vars)])
     
     def forward(self, state, batch):
         return F.mse_loss(state, self.forward_ae(state, batch))

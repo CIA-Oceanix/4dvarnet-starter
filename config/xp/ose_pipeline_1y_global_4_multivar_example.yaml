@@ -15,12 +15,12 @@ specs:
   pixels_per_degree: 4
 
   # time on which model will be tested
-  min_time: 2020-10-01
+  min_time: 2020-05-01
   max_time: 2020-10-31
 
   # time on which the model will compute the normalisation stats (mean,std)
   min_time_std: 2020-01-01
-  max_time_std: 2020-09-30
+  max_time_std: 2020-03-31
 
   time_day_crop: 0
 
