@@ -99,10 +99,8 @@ def get_multivar_mapping_wei(patch_dims, dims_out, offset=0, **crop_kw):
     
     # assuming dims_out = time * n_vars_out
     n_vars_out = dims_out // patch_dims['time']
-    time_patch_weight = np.concatenate([time_patch_weight]*n_vars_out, axis=0)
-    pw = np.concatenate([pw]*n_vars_out, axis=0)
+    final_patch_weight = np.concatenate([time_patch_weight]*n_vars_out, axis=0)
 
-    final_patch_weight = time_patch_weight[:, None, None] * pw
     return final_patch_weight
 
 class SingletonMeta(type):
