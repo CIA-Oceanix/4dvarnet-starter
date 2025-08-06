@@ -56,6 +56,9 @@ class XrDataset(torch.utils.data.Dataset):
         da_dims = dict(zip(self.da.dims, self.da.shape))
         self.da_dims = da_dims
 
+        self._rng = np.random.default_rng()
+        self.noise = 0.02 * 1.5
+
         self.define_ds_size(da_dims, patch_dims, self.strides)
         self.check_full_scan(check_full_scan, da_dims)
         self.check_dim_order(check_dim_order)
@@ -131,6 +134,21 @@ class XrDataset(torch.utils.data.Dataset):
             return item.coords.to_dataset()[list(self.patch_dims)]
 
         item = item.data.astype(np.float32)
+
+        '''
+            Include NOISE as Daniel suggested
+        
+        print('Check NOISE enetering !')
+        print('NOISE !!!!')
+        if self.noise:
+            noise = np.tile(
+                self._rng.uniform(-self.noise, self.noise, item[0].shape),
+                (2, 1, 1, 1)
+            ).astype(np.float32)
+            item = item + noise
+        '''
+
+
         if self.postpro_fn is not None:
             item = self.postpro_fn(item)
 
@@ -274,6 +292,8 @@ class BaseDataModule(pl.LightningDataModule):
         )
         if self.aug_kw:
             self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
+
+        print('TESTSTTSTSTS')
 
         self.val_ds = XrDataset(
             self.input_da.sel(self.domains['val']), **self.xrds_kw, postpro_fn=post_fn,

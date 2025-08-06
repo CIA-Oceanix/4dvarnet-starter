@@ -1,9 +1,12 @@
 # @package _global_
+#
+#
+# Training du modèle en global, avec 1 seul patch, sur 10 ans entre 2010 et 2019 et test sur 2023 ??? ou sur 1 an ???
 
 paths:
-    masks_path: /DATASET/GLORYS12/obs_masks/global_obs_6sats_masks_2022.pickle
-    glorys12_data: /DATASET/GLORYS12/reanalysis/glorys12_2020_4th.nc
-    ckpt_path: None
+    masks_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle   # mask pour simuler les traces altimètriques , 6 satellites , 1 et 0
+    glorys12_data: /Odyssey/public/glorys/reanalysis/glorys12_2020_4th.nc             # les fichiers glorys12 de 2020
+    ckpt_path: None                                                                   # checkpoint -> pour loader le checkpoint et recommencer le training
 domain:
   train:
     lat:
@@ -30,30 +33,31 @@ domain:
 
 trainer:
   _target_: pytorch_lightning.Trainer
-  inference_mode: False
-  gradient_clip_val: 0.5
-  accelerator: gpu
+  inference_mode: False                   # psk Train
+  gradient_clip_val: 0.5                  # jamais changé : D
+  accelerator: gpu                     
   devices: 1
   logger:
-    _target_: pytorch_lightning.loggers.CSVLogger
+    _target_: pytorch_lightning.loggers.CSVLogger     # à changer manuellement au lancement , après xp , trainer.logger.save_dir = "/Odyssey/private/trainings/model_name/ ..... "
     save_dir: ${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 350
-  limit_train_batches: 50
+  limit_train_batches: 50       # le nb de batch pour 1 époque 
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
     - _target_: pytorch_lightning.callbacks.ModelCheckpoint
       monitor: val_mse
-      save_top_k: 3
+      save_top_k: 3             # enregistrer que les 3 meilleurs checkpoint, par exemple regarder dans le dossier : /Odyssey/public/glorys/trainings/forecast_global_gradmask/base_forecast_global_gradmask.yaml/checkpoints
       filename: '{val_mse:.5f}-{epoch:03d}'
 
+# CHARGER LES DONN2ES et les fournir au modèle 
 datamodule:
-  _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU
-  input_da: 
-    _target_: contrib.data_loading.data.open_glorys12_data
-    path: ${paths.glorys12_data}
+  _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU         # pour le modèle avec les patch de 10°x10° , mais pour le modèle de 1 seul patch, ça va fonctionner 
+  input_da: # charger les données d'inout et les donner au module, c'est un paramètre de la fonction MovingPatchDataModuleFastRecGPU
+    _target_: contrib.data_loading.data.open_glorys12_data          # si y a d'autres données en plus de glorys, faudrait créer une fonction pour correctement charger les données (par exemple SST, U, V , etc )
+    path: ${paths.glorys12_data}       # où chercher les données ? 
     masks_path: ${paths.masks_path}
     domain: ${domain.train}
   domains:
@@ -62,41 +66,41 @@ datamodule:
     val: 
       time: {_target_: builtins.slice, _args_: ['2020-10-18', '2020-11-24']}
     test: 
-      time: {_target_: builtins.slice,  _args_: ['2020-11-25', '2020-12-31']}
+      time: {_target_: builtins.slice,  _args_: ['2020-11-25', '2020-12-31']}             # Si on train sur 10 ans, alors on met 9 ans en train, 1 an en val et rien en test, car le test va se faire sur 2023, ou autre. 
   xrds_kw:
-    patch_dims: { time: 29, lat: 680, lon: 1440}
-    strides: { time: 1, lat: 672, lon: 1432}
+    patch_dims: { time: 29, lat: 680, lon: 1440}     # Les dimensions d'1 patch : là c'est 1 seule patch. Time : ça prend le jour numéro 14 au milieu 29, donc 14 premiers jours en input et . Input : donner 29 dont 15 sont vides -> NaN (à vérifier)
+    strides: { time: 1, lat: 672, lon: 1432}    # de cb on se déplace pour créer un patch suivant. On se déplace ici d'1 jour, la même taille que le patch - 2 fois le nb de pixels par degré. Ici donc - 8 (680 - 672). Donc on se déplace de la taille du patch -> en faisant un léger overlap de 2° (à voir pk 2, mais ça marche).
     domain_limits: ${domain.train}
-  dl_kw: {batch_size: 1, num_workers: 4}
+  dl_kw: {batch_size: 1, num_workers: 4}    # jamais testé plus 
   aug_kw:
-    aug_factor: 1
-    aug_only: True
+    aug_factor: 1            # augmentation de données -> 2 ~ il va faire 2 fois créer les traces random -> 2 traces par jour ; 
+    aug_only: True           # enlever les données inout de base, et garder uniquement cette manière d'augmenter les données. Si False, alors il v aprendre des vraies traces altimétriques + l'augmentation via exercice OSE. Pierre fait uniquement l'augmentation , et uniquement 1, psk l'exercice c'est de pr&édire à partir des données OSE. Avec 1 trace par jour de plusieurs altimetres -> plusieurs traces.
 
 model:
-  _target_: contrib.forecast_plus.models.Plus4dVarNetForecastPatchGPU
-  persist_rw: False
+  _target_: contrib.forecast_plus.models.Plus4dVarNetForecastPatchGPU     # le modèle principal : ) src/model/4dvarnet-forecast/ à la base. Celle ci c'est Pierre qui l'a créée avec la reconstruction sur GPU.
+  persist_rw: False     # change pas !
   opt_fn:
-    _target_: src.utils.cosanneal_lr_adam
-    _partial_: true
+    _target_: src.utils.cosanneal_lr_adam    # optimizer, change pas ! 
+    _partial_: true                          # : ) ok
     lr: 1e-3
     T_max: ${trainer.max_epochs}
   rec_weight:
-    _target_: src.utils.get_forecast_wei
+    _target_: src.utils.get_forecast_wei    # les poids de reconstruction , qui donne les poids différents aus jours de prédiction entre 0 et 15 (on garde tout je sais pas pk,  mais ok). Et on récupère uniquement les leadtime à partir de 14, donc au total on reconstruit 21 jours !!! C'est le 4dvarnet qui lui prédit 21 jour (peut être , à vérifier) . Ce qui nous interesse c'est les jours du 15 au 20. 
     patch_dims: ${datamodule.xrds_kw.patch_dims}
-    crop: {time: 0, lat: 4, lon: 4}
+    crop: {time: 0, lat: 4, lon: 4}        # le modèle n'apprend pas les 1° sur les bords
   rec_weight_fn:
-    _target_: contrib.forecast_weights.forecast_weights_reconstruction_soft_edges
+    _target_: contrib.forecast_weights.forecast_weights_reconstruction_soft_edges        # c'est pas clair , mais ça sert à recoller les patch 
     _partial_: True
-    soft_edge: 0.25
+    soft_edge: 0.25                    # au loeu d'avoir un crop dur, on fait un poids de 0.25 sur le bord, qui est ensuite ajoute sur les bords du patch et ensuite la moyenne pondérée 
   solver:
-    _target_: src.models.GradSolverZero
+    _target_: src.models.GradSolverZero        # ... pas changer ! 
     n_step: 10
     lr_grad: 1e3
     # lr_grad: 0.2
     prior_cost:
       _target_: src.models.BilinAEPriorCost
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
-      dim_hidden: 64
+      dim_hidden: 64                           # pour rendre le modèle plus groos
       bilin_quad: False
       # bilin_quad: True
       #downsamp: 2
@@ -109,7 +113,7 @@ model:
   pre_metric_fn:
         _target_: xarray.Dataset.sel
         _partial_: True
-        time: {_target_: builtins.slice, _args_: ["2020-11-25", "2020-12-31"]}
+        time: {_target_: builtins.slice, _args_: ["2020-11-25", "2020-12-31"]}          # les metrics ava,t y avait que sur la partie test, y avait un crop etc ... Mais on s'en fout psk mes metrics de test set ne sont pas utilisées en global ! 
         lat: ${domain.test.lat}
         lon: ${domain.test.lon}
 
@@ -119,7 +123,7 @@ entrypoints:
   - _target_: src.train.base_training
     trainer: ${trainer}
     lit_mod: ${model}
-    dm: ${datamodule}
+    dm: ${datamodule}          # Data Module -> voir la partie data avant 
     ckpt: ${paths.ckpt_path}
 
 defaults:

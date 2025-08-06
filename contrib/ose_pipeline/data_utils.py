@@ -31,7 +31,7 @@ def download_copernicus_data_for_sat(
     sat: str | None = "c2",
     download_dir: str = "data/downloads/${.sat}",
     min_time: str = "2022-01-01",
-    max_time: str = "2022-12-31",
+    max_time: str = "2023-12-31",
     regex: str = None,
     copernicus_dataset_id="cmems_obs-sl_glo_phy-ssh_nrt_{}-l3-duacs_PT1S",
     _skip_val: bool = False,
@@ -125,7 +125,7 @@ def filt_preprocess(
         )
         .assign(ssh=lambda d: d.sla_filtered + d.mdt - d.lwe)
         .pipe(ocnval.validate_ssh)
-        .sortby("time")[["ssh"]]
+        .sortby("time")[["ssh", "sla_filtered", "sla_unfiltered", "mdt", "lwe"]]
     )
 
 def filt_output_validation(

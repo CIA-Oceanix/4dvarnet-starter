@@ -52,6 +52,18 @@ def cosanneal_lr_adam(lit_mod, lr, T_max=100, weight_decay=0.):
     }
 
 
+def cosanneal_lr_adam_UNet(lit_mod, lr, T_max=100, weight_decay=0.):
+    opt = torch.optim.Adam(
+        [
+            {"params": lit_mod.solver.parameters(), "lr": lr},
+        ], weight_decay=weight_decay 
+    )
+    return {
+        "optimizer": opt,
+        "lr_scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=T_max),
+    }
+
+
 def cosanneal_lr_lion(lit_mod, lr, T_max=100):
     import lion_pytorch
     opt = lion_pytorch.Lion(
@@ -145,6 +157,74 @@ def get_forecast_wei(patch_dims, **crop_kw):
     final_patch_weight = time_patch_weight[:, None, None] * pw
     return final_patch_weight
 
+
+def get_forecast_wei_adaptable_per_resolution(
+    patch_dims,
+    coarsen_factor=1,
+    base_crop={'lat': 4, 'lon': 4},
+    **kwargs
+    ):
+    """
+    Adapt weights to different spatial resolutions by scaling crop size.
+
+    Parameters:
+    - patch_dims: dict, e.g. {'time':29, 'lat':340, 'lon':720}
+    - coarsen_factor: int or tuple, e.g. 2 or (2,2) representing spatial downscaling factor
+    - base_crop: dict with crop sizes at original resolution (pixels)
+    - kwargs: other args passed to get_constant_crop
+
+    Returns:
+    - final_patch_weight: weighted array (time, lat, lon)
+    """
+    # If coarsen_factor is int, convert to tuple for lat/lon
+    if isinstance(coarsen_factor, int):
+        coarsen_factor = (coarsen_factor, coarsen_factor)
+    
+    # Compute adjusted crop per spatial dim
+    adj_crop = {
+        'time': 0,
+        'lat': max(1, base_crop['lat'] // coarsen_factor[0]),
+        'lon': max(1, base_crop['lon'] // coarsen_factor[1]),
+    }
+    
+    # Create spatial crop mask with adjusted crop
+    pw = get_constant_crop(patch_dims, crop=adj_crop, **kwargs)
+
+    # Temporal weights as before
+    time_len = patch_dims['time']
+    max_forecast_steps = 7
+    forecast_len = min(max_forecast_steps, time_len // 2)
+    obs_len = time_len - forecast_len
+
+    obs_weights = np.linspace(0, 1, obs_len, endpoint=False) if obs_len > 0 else np.array([])
+    forecast_weights = np.linspace(1, 0.5, forecast_len, endpoint=True) if forecast_len > 0 else np.array([])
+    time_patch_weight = np.concatenate([obs_weights, forecast_weights])
+
+    if len(time_patch_weight) < time_len:
+        pad_len = time_len - len(time_patch_weight)
+        time_patch_weight = np.concatenate([time_patch_weight, np.zeros(pad_len)])
+
+    final_patch_weight = time_patch_weight[:, None, None] * pw
+    return final_patch_weight
+
+
+
+def get_forecast_wei_shorter_latent_dim(patch_dims, **crop_kw):
+    """
+    return weight for forecast reconstruction:
+    patch_dims: dimension of the patches used
+
+    linear from 0 to 1 where there are obs
+    linear from 1 to 0.5 for 7 days of forecast
+    0 elsewhere
+    """
+    pw = get_constant_crop(patch_dims, **crop_kw)
+    time_patch_weight = np.concatenate(
+        (np.linspace(0, 1, 14),
+         np.linspace(1, 0.5, 7)), # 7 for 7 leadtimes
+        axis=0)
+    final_patch_weight = time_patch_weight[:, None, None] * pw
+    return final_patch_weight
 
 def load_enatl(*args, obs_from_tgt=True, **kwargs):
     # ds = xr.open_dataset('../sla-data-registry/qdata/enatl_wo_tide.nc')

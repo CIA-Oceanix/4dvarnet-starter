@@ -1,0 +1,2 @@
+Training : base_forecast_glorys12.yaml
+Inference : long fichier de l'exemple de Pierre : D

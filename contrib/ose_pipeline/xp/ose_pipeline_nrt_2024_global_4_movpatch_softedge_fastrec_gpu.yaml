@@ -4,9 +4,9 @@ xp_name: glorys4_global_movpatch_softedge_1y_fastrec_GPU
 data_name: nrt_2024_global_4
 
 paths:
-  ose_data_path: /DATASET/OCB_traces/
-  rec_path: /DATASET/GLORYS12/rec/
-  metrics_path: /DATASET/GLORYS12/metrics/
+  ose_data_path: /Odyssey/public/altimetry_traces/
+  rec_path: /Odyssey/public/glorys/rec/
+  metrics_path: /Odyssey/public/glorys/metrics/
 
   model_config_path: config/xp/base_forecast_global_softedge_fastrec_GPU.yaml
   model_ckpt_path: /homes/p24hasle/repos/4dvarnet-starter-glorys12/outputs/2024-09-10/17-52-35/base_forecast_global.yaml/checkpoints/val_mse=48.92492-epoch=235.ckpt

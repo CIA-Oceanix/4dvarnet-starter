@@ -1,0 +1,129 @@
+# @package _global_
+
+xp_name: glorys4_global_1patch_SLA_fine_tunning_no_augment # le nom avec lequel ça sera rangé 
+data_name: processed_2023_global_4 # données qu'on veut tester -> altimètres processé 2023 en global au 1/4 -> L4 
+
+paths:
+  ose_data_path: /Odyssey/public/altimetry_traces/    # les traces  ose_data_path/ processed_2023_... (data_name)
+  rec_path:  /Odyssey/public/glorys/rec/              # reconstruction de la SSH avec 4dvarnet à partir des traces /rec_path/xp_name/data_name/
+  metrics_path:  /Odyssey/public/glorys/metrics/      # metriques des cartes reconstruites comparées aux traces altimetriques reprocessés / NRT (en fonction du data_name) -> /metrics_path/xp_name/data_name/
+
+  model_config_path: config/xp/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_fine_tunning.yaml
+    #base_forecast_global_softedge_fastrec_GPU_1patch.yaml           # HYDRA -> infos liées à l'architecture (nb de sous couches etc -> à voir ... ) 
+  model_ckpt_path: /Odyssey/public/duacs_trainings/forecast_global_GPU_1patch_10y_SLA_fine_tunning_no_augment/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_fine_tunning/checkpoints/val_mse=3.12482-epoch=099.ckpt
+    # with data augmentation : /Odyssey/public/duacs_trainings/forecast_global_GPU_1patch_10y_SLA_not_SSH_fine_tunning/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_fine_tunning/checkpoints/val_mse=2.68642-epoch=178.ckpt
+    # Latest rec generated : val_mse=3.74799-epoch=039.ckpt
+    #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_not_SSH/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA/checkpoints/val_mse=5.21636-epoch=057.ckpt
+    # for fine tunning : Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_from_REAL_DATA_fine_tuning/base_forecast_global_softedge_fastrec_GPU_1patch_10y_REAL_DATA/checkpoints/val_mse=3.07822-epoch=153.ckpt
+
+    #/Odyssey/public/glorys/trainings/forecast_global_gradmask/base_forecast_global_gradmask.yaml/checkpoints/val_mse=35.06043-epoch=310.ckpt
+    # For model trained on 1 patch only Odyssey/public/glorys/forecast_global_1patch/base_forecast_global_softedge_fastrec_GPU_1patch/checkpoints/val_mse=17.72238-epoch=009.ckpt # le checkpoint 
+    # & epoch dure ~9/10 min ; pour entraîner sur 10 ans ~ moins d'époques, et sur 1 an -> ~ 200 epochs (sachant que 1 batch c'est la reconstruction d'1 jour). Entre 8 et 10 heures +- pour avoir le meilleur résultat. 
+    #
+    # OSSE -> simulation des traces altimétriques à partir de GLORYS12 de 2010 à 2019 ; target -> glorys12. Inference : traces vraies -> target duacs l4
+    # Fine tuning -> entraînement osse -> fine tuning sur les vrais traces altimètriques NRT -> target duacs L4. 
+
+
+specs:
+  pixels_per_degree: 4                 # 1/4° -> regrillage des données traces altimètriques L3 , pour les donner en input au modèle. ils existe,t aussi non grillées pour le calcul des métriques. 
+
+  min_time: 2023-01-01                 # inférence, et pour le téléchargement
+  max_time: 2023-12-31
+  time_day_crop: 0                     # retirer les jours au début et à la fin -> utile en mapping
+
+  min_lon: -180                        # 
+  max_lon: 180
+  min_lat: -80
+  max_lat: 90
+
+  #IMPORTANT: keep "{}" in place of satellite name in copernicus_dataset_id
+  copernicus_dataset_id: cmems_obs-sl_glo_phy-ssh_my_{}-l3-duacs_PT1S               # Global_SSH_forecast_OSE git -> explication 
+
+  input_satellites: ['c2', 'h2ag', 'h2b', 'j3', 's3a', 's3b']                       # dans la même explication
+  ref_satellites: ['alg']                                                           # alg réf psk dans le mapping c'est comme ça : D -> mais en forecast on peut utiliser les mêmes satellites en input et en réf, mais au final on utilise pas du tout ça. Input_satellites c'est à la fois inout et à la fois référence pour les métriques.
+
+metrics_spatial_domains:
+  GLOBE:
+    lat:
+      _target_: builtins.slice            # crée un objet python d'une slice
+      _args_:
+      - -80
+      - 90
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -180
+      - 180
+  GULFSTREAM:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - 32
+      - 42
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -65
+      - -55
+  GROENLAND:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - 48
+      - 58
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -35
+      - -25
+  MADERE:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - 32
+      - 42
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -23
+      - -13
+
+options:    # pipeline : données download, concat etc ; 4dvarnet pour reconstruction ; metrics . Skip sert à skip une étape. 
+  skip:
+    data: False
+    rec: False
+    metrics: False
+
+  overwrite:         # check si ça existe de base. Si false, il va pas remplacer. Metrics générakement en true.
+    data: False   # pas besoin de overwrit'e data téléchargée 
+    rec: True    # pas besoin de refaire la reconstruction   
+    metrics: False   # pas besoin de recalculer les metriques 
+
+# HYDRA , RIEN CHANGER ! 
+entrypoints:
+  - _target_: contrib.ose_pipeline.ose_full_pipeline.execute_full_pipeline      # va lancer execute_full_pipeline.py -> inférence ; pour training -> config/
+    pixels_per_degree: ${specs.pixels_per_degree}
+    min_time: ${specs.min_time}
+    max_time: ${specs.max_time}
+    min_lon: ${specs.min_lon}
+    max_lon: ${specs.max_lon}
+    min_lat: ${specs.min_lat}
+    max_lat: ${specs.max_lat}
+    metrics_spatial_domains: ${metrics_spatial_domains}
+    time_day_crop: ${specs.time_day_crop}
+    copernicus_dataset_id: ${specs.copernicus_dataset_id}
+    input_satellites: ${specs.input_satellites}
+    ref_satellites: ${specs.ref_satellites}
+    ose_data_path: ${paths.ose_data_path}
+    rec_path: ${paths.rec_path}
+    metrics_path: ${paths.metrics_path}
+    model_config_path: ${paths.model_config_path}
+    model_ckpt_path: ${paths.model_ckpt_path}
+    xp_name: ${xp_name}
+    data_name: ${data_name}
+    skip: ${options.skip}
+    overwrite: ${options.overwrite}
+
+defaults:
+  - _self_
+

@@ -2,7 +2,7 @@
 
 paths:
     masks_path: /DATASET/GLORYS12/obs_masks/global_obs_6sats_masks_2022.pickle
-    glorys12_data: /DATASET/GLORYS12/reanalysis/glorys12_2010_2019_4th.nc
+    glorys12_data: /DATASET/GLORYS12/reanalysis/glorys12_2010_2019_4th.nc   # Path des trcaes L3 ? 
 
 domain:
   train:

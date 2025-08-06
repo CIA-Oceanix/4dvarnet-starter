@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from src.utils import get_forecast_wei_adaptable_per_resolution
 
 
 class Lit4dVarNet(pl.LightningModule):
@@ -49,13 +50,12 @@ class Lit4dVarNet(pl.LightningModule):
     def step(self, batch, phase=""):
         if self.training and batch.tgt.isfinite().float().mean() < 0.1:
             return None, None
-
-        loss, out = self.base_step(batch, phase)
+        loss, out = self.base_step(batch, phase)       
         grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
         prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
         self.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
 
-        training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost
+        training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost # 10000 for 1/20° and 250 for 1/4° # 250 for the grad_loss and best results
         return training_loss, out
 
     def base_step(self, batch, phase=""):
@@ -115,6 +115,531 @@ class Lit4dVarNet(pl.LightningModule):
             self.test_data.to_netcdf(Path(self.logger.log_dir) / 'test_data.nc')
             print(Path(self.trainer.log_dir) / 'test_data.nc')
             self.logger.log_metrics(metrics.to_dict())
+
+
+class Lit4dVarNet_FineTune_L3(pl.LightningModule):
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
+        super().__init__()
+        self.solver = solver
+        self.register_buffer('rec_weight', torch.from_numpy(rec_weight), persistent=persist_rw)
+        self.test_data = None
+        self._norm_stats = norm_stats
+        self.opt_fn = opt_fn
+        self.metrics = test_metrics or {}
+        self.pre_metric_fn = pre_metric_fn or (lambda x: x)
+
+    @property
+    def norm_stats(self):
+        if self._norm_stats is not None:
+            return self._norm_stats
+        elif self.trainer.datamodule is not None:
+            return self.trainer.datamodule.norm_stats()
+        return (0., 1.)
+
+    @staticmethod
+    def weighted_mse(err, weight):
+        err_w = err * weight[None, ...]
+        non_zeros = (torch.ones_like(err) * weight[None, ...]) == 0.0
+        err_num = err.isfinite() & ~non_zeros
+        if err_num.sum() == 0: 
+            return torch.scalar_tensor(1000.0, device=err_num.device).requires_grad_()
+        loss = F.mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
+        return loss
+
+    def training_step(self, batch, batch_idx):
+        return self.step(batch, "train")[0]
+
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, "val")[0]
+
+    def forward(self, batch):
+        return self.solver(batch)
+
+    def step(self, batch, phase=""):
+        if self.training and batch.tgt.isfinite().float().mean() < 0.1:
+            return None, None
+
+        loss, out = self.base_step(batch, phase)
+        grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
+        prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
+        self.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
+
+        training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost # 10000 for 1/20° and 250 for 1/4° # 250 for the grad_loss and best results
+        return training_loss, out
+
+    def base_step(self, batch, phase=""):
+        out = self(batch=batch)
+
+        print('Base step')
+        print(batch) # ground_truth_L3
+
+        loss = self.weighted_mse(out - batch.tgt, self.rec_weight) + self.weighted_mse(out - torch.nan_to_num(batch.ground_truth_L3), self.rec_weight)
+
+        with torch.no_grad():
+            self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
+            self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
+
+        return loss, out
+
+    def configure_optimizers(self):
+        return self.opt_fn(self)
+
+    def test_step(self, batch, batch_idx):
+        if batch_idx == 0:
+            self.test_data = []
+        out = self(batch=batch)
+        m, s = self.norm_stats
+
+        self.test_data.append(torch.stack(
+            [
+                batch.input.cpu() * s + m,
+                batch.tgt.cpu() * s + m,
+                out.squeeze(dim=-1).detach().cpu() * s + m,
+            ],
+            dim=1,
+        ))
+
+    @property
+    def test_quantities(self):
+        return ['inp', 'tgt', 'out']
+
+    def on_test_epoch_end(self):
+        rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+            self.test_data,
+            self.rec_weight.cpu().numpy()
+        )
+
+        if isinstance(rec_da, list):
+            rec_da = rec_da[0]
+
+        self.test_data = rec_da.assign_coords(
+            dict(v0=self.test_quantities)
+        ).to_dataset(dim='v0')
+
+        metric_data = self.test_data.pipe(self.pre_metric_fn)
+        metrics = pd.Series({
+            metric_n: metric_fn(metric_data)
+            for metric_n, metric_fn in self.metrics.items()
+        })
+
+        print(metrics.to_frame(name="Metrics").to_markdown())
+        if self.logger:
+            self.test_data.to_netcdf(Path(self.logger.log_dir) / 'test_data.nc')
+            print(Path(self.trainer.log_dir) / 'test_data.nc')
+            self.logger.log_metrics(metrics.to_dict()) 
+
+
+
+class Lit4dVarNet_UNet(pl.LightningModule):
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
+        super().__init__()
+        self.solver = solver
+        self.register_buffer('rec_weight', torch.from_numpy(rec_weight), persistent=persist_rw)
+        self.test_data = None
+        self._norm_stats = norm_stats
+        self.opt_fn = opt_fn
+        self.metrics = test_metrics or {}
+        self.pre_metric_fn = pre_metric_fn or (lambda x: x)
+
+    @property
+    def norm_stats(self):
+        if self._norm_stats is not None:
+            return self._norm_stats
+        elif self.trainer.datamodule is not None:
+            return self.trainer.datamodule.norm_stats()
+        return (0., 1.)
+
+    @staticmethod
+    def weighted_mse(err, weight):
+        '''
+            Changement
+        '''
+        err_w = err * weight[None, ...]
+        non_zeros = (torch.ones_like(err) * weight[None, ...]) == 0.0
+        err_num = err.isfinite() & ~non_zeros
+        if err_num.sum() == 0:
+            return torch.scalar_tensor(1000.0, device=err_num.device).requires_grad_()
+        loss = F.mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
+        return loss
+
+    def training_step(self, batch, batch_idx):
+        return self.step(batch, "train")[0]
+
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, "val")[0]
+
+    def forward(self, batch):
+        return self.solver(batch)
+
+    def step(self, batch, phase=""):
+        if self.training and batch.tgt.isfinite().float().mean() < 0.1:
+            return None, None
+
+        loss, out = self.base_step(batch, phase)
+        grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
+        # Infer coarsen factor from shape (assuming original dims known)
+        original_lat, original_lon = 680, 1440
+        coarsen_lat = 4 # coarsening factor, for duacs at 1/4°, "4" means we coarsen to 1°
+        coarsen_lon = 4
+        coarsen_factor = (coarsen_lat, coarsen_lon)
+
+        # Prepare patch dims dynamically
+        patch_dims = {
+            'time': out.shape[1],
+            'lat': original_lat // coarsen_lat,
+            'lon': original_lon // coarsen_lon,
+        }
+
+        # Generate weights on the fly
+        weights = get_forecast_wei_adaptable_per_resolution(
+            patch_dims=patch_dims,
+            coarsen_factor=coarsen_factor,
+            base_crop={'lat': 4, 'lon': 4}  # or adjust as needed
+        )
+
+        # Convert numpy weights to torch tensor and move to device
+        weights_torch = torch.tensor(weights, dtype=out.dtype, device=out.device)
+        
+        coarsen_loss = self.weighted_mse(torch.nn.AvgPool2d(4)(out) - torch.nn.AvgPool2d(4)(torch.nan_to_num(batch.tgt)), weights_torch)
+        self.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
+        training_loss = 50 * loss + 50 * coarsen_loss + 50 * grad_loss
+        #50* torch.nn.L1Loss(reduction='mean')(torch.nn.AvgPool2d(2)(out), torch.nn.AvgPool2d(2)(batch.tgt))
+        #F.mse_loss(out[:,14 : 14+7, :], batch.tgt)
+        #50 * loss + 1000 * grad_loss #+ 1.0 * prior_cost
+        return training_loss, out
+            
+    def base_step(self, batch, phase=""):
+        #atch = torch.an_to_num(batch, nan=0.0)
+        out = self(batch=batch)
+
+        loss = self.weighted_mse(out - torch.nan_to_num(batch.tgt), self.rec_weight)
+        #rint('loss = ' + str(loss.item()))
+
+        with torch.no_grad():
+            self.log(f"{phase}_mse", 50 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
+            self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
+
+        return loss, out
+
+    def configure_optimizers(self):
+        return self.opt_fn(self)
+
+    def test_step(self, batch, batch_idx):
+        if batch_idx == 0:
+            self.test_data = []
+        out = self(batch=batch)
+        m, s = self.norm_stats
+
+        self.test_data.append(torch.stack(
+            [
+                batch.input.cpu() * s + m,
+                batch.tgt.cpu() * s + m,
+                out.squeeze(dim=-1).detach().cpu() * s + m,
+            ],
+            dim=1,
+        ))
+
+    @property
+    def test_quantities(self):
+        return ['inp', 'tgt', 'out']
+
+    def on_test_epoch_end(self):
+        rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+            self.test_data,
+            self.rec_weight.cpu().numpy()
+        )
+
+        if isinstance(rec_da, list):
+            rec_da = rec_da[0]
+
+        self.test_data = rec_da.assign_coords(
+            dict(v0=self.test_quantities)
+        ).to_dataset(dim='v0')
+
+        metric_data = self.test_data.pipe(self.pre_metric_fn)
+        metrics = pd.Series({
+            metric_n: metric_fn(metric_data)
+            for metric_n, metric_fn in self.metrics.items()
+        })
+
+        print(metrics.to_frame(name="Metrics").to_markdown())
+        if self.logger:
+            self.test_data.to_netcdf(Path(self.logger.log_dir) / 'test_data.nc')
+            print(Path(self.trainer.log_dir) / 'test_data.nc')
+            self.logger.log_metrics(metrics.to_dict())
+
+
+class Lit4dVarNet_UNet_MLD(pl.LightningModule):
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
+        super().__init__()
+        self.solver = solver
+        self.register_buffer('rec_weight', torch.from_numpy(rec_weight), persistent=persist_rw)
+        self.test_data = None
+        self._norm_stats = norm_stats
+        self.opt_fn = opt_fn
+        self.metrics = test_metrics or {}
+        self.pre_metric_fn = pre_metric_fn or (lambda x: x)
+
+    @property
+    def norm_stats(self):
+        if self._norm_stats is not None:
+            return self._norm_stats
+        elif self.trainer.datamodule is not None:
+            return self.trainer.datamodule.norm_stats()
+        print('ENTERED HERE !!!')
+        print('NORM STATS !!!')
+        return (0., 1.)
+
+    @staticmethod
+    def weighted_mse(err, weight):
+        err_w = err * weight[None, ...]
+        non_zeros = (torch.ones_like(err) * weight[None, ...]) == 0.0
+        err_num = err.isfinite() & ~non_zeros
+        if err_num.sum() == 0:
+            return torch.scalar_tensor(1000.0, device=err_num.device).requires_grad_()
+        loss = F.mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
+        return loss
+
+    def training_step(self, batch, batch_idx):
+        return self.step(batch, "train")[0]
+
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, "val")[0]
+
+    def forward(self, batch):
+        return self.solver(batch)
+
+    def step(self, batch, phase=""):
+        if self.training and batch.tgt.isfinite().float().mean() < 0.1:
+            return None, None
+
+        loss, out = self.base_step(batch, phase)
+        grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
+        self.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
+        training_loss = loss #F.mse_loss(out[:,14 : 14+7, :], batch.tgt)
+        #50 * loss + 1000 * grad_loss #+ 1.0 * prior_cost
+        return training_loss, out
+            
+    def base_step(self, batch, phase=""):
+        #atch = torch.an_to_num(batch, nan=0.0)
+        out = self(batch=batch)
+
+        loss = self.weighted_mse(out - torch.nan_to_num(batch.tgt), self.rec_weight)
+        #rint('loss = ' + str(loss.item()))
+
+        print('Self norm stats')
+        print(self.norm_stats)
+        print(self.norm_stats[1]**2)
+        
+        with torch.no_grad():
+            self.log(f"{phase}_mse", loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
+            self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
+
+        return loss, out
+
+    def configure_optimizers(self):
+        return self.opt_fn(self)
+
+    def test_step(self, batch, batch_idx):
+        if batch_idx == 0:
+            self.test_data = []
+        out = self(batch=batch)
+        m, s = self.norm_stats
+
+        self.test_data.append(torch.stack(
+            [
+                batch.input.cpu() * s + m,
+                batch.tgt.cpu() * s + m,
+                out.squeeze(dim=-1).detach().cpu() * s + m,
+            ],
+            dim=1,
+        ))
+
+    @property
+    def test_quantities(self):
+        return ['inp', 'tgt', 'out']
+
+    def on_test_epoch_end(self):
+        rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+            self.test_data,
+            self.rec_weight.cpu().numpy()
+        )
+
+        if isinstance(rec_da, list):
+            rec_da = rec_da[0]
+
+        self.test_data = rec_da.assign_coords(
+            dict(v0=self.test_quantities)
+        ).to_dataset(dim='v0')
+
+        metric_data = self.test_data.pipe(self.pre_metric_fn)
+        metrics = pd.Series({
+            metric_n: metric_fn(metric_data)
+            for metric_n, metric_fn in self.metrics.items()
+        })
+
+        print(metrics.to_frame(name="Metrics").to_markdown())
+        if self.logger:
+            self.test_data.to_netcdf(Path(self.logger.log_dir) / 'test_data.nc')
+            print(Path(self.trainer.log_dir) / 'test_data.nc')
+            self.logger.log_metrics(metrics.to_dict())
+
+
+class Lit4dVarNetForecast_UNet(Lit4dVarNet_UNet):
+    """
+    Lit4dVarNet for forecasting applications:
+    solver: function to use as solver
+    rec_weight: optimisation weight
+    opt_fn: optimisation function
+    test_metrics: metrics to run for test
+    pre_metric_fn: preprocessing functions to apply to the reconstruction
+    norm_stats: normalisation stats of data
+    persist_rw: if True: rec_weight saved alongside parameters
+    output_only_forecast: if True, for test_dataloader will reconstruct and evaluate only for leadtimes from present and onwards
+    """
+
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, output_only_forecast=False):
+        super().__init__(solver, rec_weight, opt_fn, test_metrics, pre_metric_fn, norm_stats, persist_rw)
+        self.output_only_forecast=output_only_forecast
+
+    @staticmethod
+    def mask_batch(batch):
+
+        # temporal masking
+        new_input = batch.input
+        dims = new_input.size()
+        new_input[:, dims[1]//2:, :, :] = np.nan
+
+        mask_batch = batch._replace(input=new_input)
+
+        return mask_batch
+
+    def training_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        return super().training_step(mask_batch, batch_idx)
+
+    def validation_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        return super().validation_step(mask_batch, batch_idx)
+
+    def test_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        super().test_step(mask_batch, batch_idx)
+ 
+    def on_test_epoch_end(self):
+        dims = self.rec_weight.size()
+        dT = dims[0]
+        metrics = []
+        output_start = 0 if self.output_only_forecast else -((dT - 1) // 2)
+        for i in range(output_start, 7):
+            forecast_weight = np.concatenate(
+                (np.zeros((dT // 2 + i, dims[1], dims[2])),
+                 np.ones((1, dims[1], dims[2])),
+                 np.zeros((dT // 2 - i, dims[1], dims[2]))),
+                axis=0)
+            rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+                self.test_data, forecast_weight
+            )
+
+            if isinstance(rec_da, list):
+                rec_da = rec_da[0]
+
+            test_data_leadtime = rec_da.assign_coords(
+                dict(v0=self.test_quantities)
+            ).to_dataset(dim='v0')
+
+            if self.logger:
+                test_data_leadtime.to_netcdf(Path(self.logger.log_dir) / f'test_data_{i+(dT-1)//2}.nc')
+                print(Path(self.trainer.log_dir) / f'test_data_{i+(dT-1)//2}.nc')
+
+
+            metric_data = test_data_leadtime.pipe(self.pre_metric_fn)
+            metrics_leadtime = pd.Series({
+                metric_n: metric_fn(metric_data)
+                for metric_n, metric_fn in self.metrics.items()
+            })
+            metrics.append(metrics_leadtime)
+
+        print(pd.DataFrame(metrics, range(output_start, 7)).T.to_markdown())
+
+
+class Lit4dVarNetForecast_UNet_MLD(Lit4dVarNet_UNet_MLD):
+    """
+    Lit4dVarNet for forecasting applications:
+    solver: function to use as solver
+    rec_weight: optimisation weight
+    opt_fn: optimisation function
+    test_metrics: metrics to run for test
+    pre_metric_fn: preprocessing functions to apply to the reconstruction
+    norm_stats: normalisation stats of data
+    persist_rw: if True: rec_weight saved alongside parameters
+    output_only_forecast: if True, for test_dataloader will reconstruct and evaluate only for leadtimes from present and onwards
+    """
+
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, output_only_forecast=False):
+        super().__init__(solver, rec_weight, opt_fn, test_metrics, pre_metric_fn, norm_stats, persist_rw)
+        self.output_only_forecast=output_only_forecast
+
+    @staticmethod
+    def mask_batch(batch):
+
+        # temporal masking
+        new_input = batch.input
+        dims = new_input.size()
+        new_input[:, dims[1]//2:, :, :] = np.nan
+
+        mask_batch = batch._replace(input=new_input)
+
+        return mask_batch
+
+    def training_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        return super().training_step(mask_batch, batch_idx)
+
+    def validation_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        return super().validation_step(mask_batch, batch_idx)
+
+    def test_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        super().test_step(mask_batch, batch_idx)
+ 
+    def on_test_epoch_end(self):
+        dims = self.rec_weight.size()
+        dT = dims[0]
+        metrics = []
+        output_start = 0 if self.output_only_forecast else -((dT - 1) // 2)
+        for i in range(output_start, 7):
+            forecast_weight = np.concatenate(
+                (np.zeros((dT // 2 + i, dims[1], dims[2])),
+                 np.ones((1, dims[1], dims[2])),
+                 np.zeros((dT // 2 - i, dims[1], dims[2]))),
+                axis=0)
+            rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+                self.test_data, forecast_weight
+            )
+
+            if isinstance(rec_da, list):
+                rec_da = rec_da[0]
+
+            test_data_leadtime = rec_da.assign_coords(
+                dict(v0=self.test_quantities)
+            ).to_dataset(dim='v0')
+
+            if self.logger:
+                test_data_leadtime.to_netcdf(Path(self.logger.log_dir) / f'test_data_{i+(dT-1)//2}.nc')
+                print(Path(self.trainer.log_dir) / f'test_data_{i+(dT-1)//2}.nc')
+
+
+            metric_data = test_data_leadtime.pipe(self.pre_metric_fn)
+            metrics_leadtime = pd.Series({
+                metric_n: metric_fn(metric_data)
+                for metric_n, metric_fn in self.metrics.items()
+            })
+            metrics.append(metrics_leadtime)
+
+        print(pd.DataFrame(metrics, range(output_start, 7)).T.to_markdown())
+
 
 
 class Lit4dVarNetForecast(Lit4dVarNet):
@@ -195,6 +720,160 @@ class Lit4dVarNetForecast(Lit4dVarNet):
         print(pd.DataFrame(metrics, range(output_start, 7)).T.to_markdown())
 
 
+class Lit4dVarNetForecast_only1leadtime(Lit4dVarNet):
+    """
+    Lit4dVarNet for forecasting applications:
+    solver: function to use as solver
+    rec_weight: optimisation weight
+    opt_fn: optimisation function
+    test_metrics: metrics to run for test
+    pre_metric_fn: preprocessing functions to apply to the reconstruction
+    norm_stats: normalisation stats of data
+    persist_rw: if True: rec_weight saved alongside parameters
+    output_only_forecast: if True, for test_dataloader will reconstruct and evaluate only for leadtimes from present and onwards
+    """
+
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, output_only_forecast=False):
+        super().__init__(solver, rec_weight, opt_fn, test_metrics, pre_metric_fn, norm_stats, persist_rw)
+        self.output_only_forecast=output_only_forecast
+
+    @staticmethod
+    def mask_batch(batch):
+
+        # temporal masking
+        new_input = batch.input
+        dims = new_input.size()
+        new_input[:, 14:, :, :] = np.nan
+
+        mask_batch = batch._replace(input=new_input)
+
+        return mask_batch
+
+    def training_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        return super().training_step(mask_batch, batch_idx)
+
+    def validation_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        return super().validation_step(mask_batch, batch_idx)
+
+    def test_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        super().test_step(mask_batch, batch_idx)
+
+    def on_test_epoch_end(self):
+        dims = self.rec_weight.size()
+        dT = dims[0]
+        metrics = []
+        output_start = 0 if self.output_only_forecast else -14 #-((dT - 1) // 2)
+        for i in range(output_start, 7):
+            forecast_weight = np.concatenate(
+                (np.zeros((14 + i, dims[1], dims[2])),
+                 np.ones((1, dims[1], dims[2])),
+                 np.zeros((6 - i, dims[1], dims[2]))),
+                axis=0)
+            rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+                self.test_data, forecast_weight
+            )
+
+            if isinstance(rec_da, list):
+                rec_da = rec_da[0]
+
+            test_data_leadtime = rec_da.assign_coords(
+                dict(v0=self.test_quantities)
+            ).to_dataset(dim='v0')
+
+            if self.logger:
+                test_data_leadtime.to_netcdf(Path(self.logger.log_dir) / f'test_data_{i+14}.nc')
+                print(Path(self.trainer.log_dir) / f'test_data_{i+14}.nc')
+
+
+            metric_data = test_data_leadtime.pipe(self.pre_metric_fn)
+            metrics_leadtime = pd.Series({
+                metric_n: metric_fn(metric_data)
+                for metric_n, metric_fn in self.metrics.items()
+            })
+            metrics.append(metrics_leadtime)
+
+        print(pd.DataFrame(metrics, range(output_start, 7)).T.to_markdown())
+
+
+class Lit4dVarNetForecast_only1leadtime_FineTune_L3(Lit4dVarNet_FineTune_L3):
+    """
+    Lit4dVarNet for forecasting applications:
+    solver: function to use as solver
+    rec_weight: optimisation weight
+    opt_fn: optimisation function
+    test_metrics: metrics to run for test
+    pre_metric_fn: preprocessing functions to apply to the reconstruction
+    norm_stats: normalisation stats of data
+    persist_rw: if True: rec_weight saved alongside parameters
+    output_only_forecast: if True, for test_dataloader will reconstruct and evaluate only for leadtimes from present and onwards
+    """
+
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, output_only_forecast=False):
+        super().__init__(solver, rec_weight, opt_fn, test_metrics, pre_metric_fn, norm_stats, persist_rw)
+        self.output_only_forecast=output_only_forecast
+
+    @staticmethod
+    def mask_batch(batch):
+
+        # temporal masking
+        new_input = batch.input
+        dims = new_input.size()
+        new_input[:, 14:, :, :] = np.nan
+
+        mask_batch = batch._replace(input=new_input)
+
+        return mask_batch
+
+    def training_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        return super().training_step(mask_batch, batch_idx)
+
+    def validation_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        return super().validation_step(mask_batch, batch_idx)
+
+    def test_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        super().test_step(mask_batch, batch_idx)
+    
+    def on_test_epoch_end(self):
+        dims = self.rec_weight.size()
+        dT = dims[0]
+        metrics = []
+        output_start = 0 if self.output_only_forecast else -14 #-((dT - 1) // 2)
+        for i in range(output_start, 7):
+            forecast_weight = np.concatenate(
+                (np.zeros((14 + i, dims[1], dims[2])),
+                 np.ones((1, dims[1], dims[2])),
+                 np.zeros((6 - i, dims[1], dims[2]))),
+                axis=0)
+            rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+                self.test_data, forecast_weight
+            )
+
+            if isinstance(rec_da, list):
+                rec_da = rec_da[0]
+
+            test_data_leadtime = rec_da.assign_coords(
+                dict(v0=self.test_quantities)
+            ).to_dataset(dim='v0')
+
+            if self.logger:
+                test_data_leadtime.to_netcdf(Path(self.logger.log_dir) / f'test_data_{i+14}.nc')
+                print(Path(self.trainer.log_dir) / f'test_data_{i+14}.nc')
+
+
+            metric_data = test_data_leadtime.pipe(self.pre_metric_fn)
+            metrics_leadtime = pd.Series({
+                metric_n: metric_fn(metric_data)
+                for metric_n, metric_fn in self.metrics.items()
+            })
+            metrics.append(metrics_leadtime)
+        print(pd.DataFrame(metrics, range(output_start, 7)).T.to_markdown())
+
 
 class GradSolver(nn.Module):
     def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.2, **kwargs):
@@ -244,6 +923,23 @@ class GradSolver(nn.Module):
 class GradSolverZero(GradSolver):
     """
     Implementation of the GradSolver with an initialisation at 0, instead of the observations
+    """
+
+    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.2, **kwargs):
+        super().__init__(prior_cost, obs_cost, grad_mod, n_step, lr_grad, **kwargs)
+
+    def init_state(self, batch, x_init=None):
+        """
+        if x_init is not None : return x_init
+        else : return 0
+        """
+        if x_init is not None:
+            return x_init
+        return torch.zeros_like(batch.input).requires_grad_(True)
+    
+class GradSolverMDT_not_Zeros(GradSolver):
+    """
+    Implementation of the GradSolver with an initialisation at MDT, instead of zeros
     """
 
     def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.2, **kwargs):
@@ -372,3 +1068,58 @@ class BilinAEPriorCost(nn.Module):
 
     def forward(self, state):
         return F.mse_loss(state, self.forward_ae(state))
+    
+    
+    
+""" Full assembly of the parts to form the complete network 
+    -- modified from https://github.com/milesial/Pytorch-UNet """
+
+#from core.model.UNet.parts import StandardBlock, ResBlock, Down, Up, OutConv
+'''
+
+class UNet(nn.Module):
+    def __init__(self, n_channels, n_classes, bilinear=True, block=ResBlock,
+                 add_input=False):
+        super(UNet, self).__init__()
+        self.n_channels = n_channels
+        self.n_classes = n_classes
+        self.add_input = add_input
+        self.bilinear = bilinear
+        factor = 2 if bilinear else 1
+
+        # block-wise weight scaling factors for stabilised gradients
+        sfs = 1/torch.arange(1, 10).sqrt()
+        
+        # define modules
+        self.inc = StandardBlock(n_channels, 64)
+        self.down1 = Down(64, 128, block, sf=sfs[1])
+        self.down2 = Down(128, 256, block, sf=sfs[2])
+        self.down3 = Down(256, 512, block, sf=sfs[3])
+        self.down4 = Down(512, 1024 // factor, block, sf=sfs[4])
+        
+        self.up1 = Up(1024, 512 // factor, block, bilinear, sf=sfs[5])
+        self.up2 = Up(512, 256 // factor, block, bilinear, sf=sfs[6])
+        self.up3 = Up(256, 128 // factor, block, bilinear, sf=sfs[7])
+        self.up4 = Up(128, 64, block, bilinear, sf=sfs[8])
+        self.outc = OutConv(64, n_classes)
+        
+    def forward(self, x):
+        if self.add_input:
+            inp = x[:,-1].unsqueeze(1)
+
+        x1 = self.inc(x)
+        x2 = self.down1(x1)
+        x3 = self.down2(x2)
+        x4 = self.down3(x3)
+        x5 = self.down4(x4)
+        
+        x = self.up1(x5, x4)
+        x = self.up2(x, x3)
+        x = self.up3(x, x2)
+        x = self.up4(x, x1)
+        
+        out = self.outc(x)
+        if self.add_input:
+            out += inp
+
+        return out'''

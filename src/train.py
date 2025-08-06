@@ -3,6 +3,7 @@ torch.set_float32_matmul_precision('high')
 
 
 def base_training(trainer, dm, lit_mod, ckpt=None):
+    print('START HERE')
     if trainer.logger is not None:
         print()
         print("Logdir:", trainer.logger.log_dir)

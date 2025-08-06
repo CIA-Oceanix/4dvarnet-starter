@@ -18,7 +18,6 @@ def call_cfg_key(cfg, key):
 
 
 def reconstruct_from_config(config, rec_path, xp_name, data_name, best_ckpt_path):
-
     trainer = pytorch_lightning.Trainer(
         inference_mode= False,
         accelerator='gpu',
