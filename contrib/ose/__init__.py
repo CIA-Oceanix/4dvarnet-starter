@@ -67,37 +67,39 @@ class XrOSEDataset(torch.utils.data.Dataset):
 
         _nadir = next(iter(self.ds))
         _ds = self.ds[_nadir]
-        print(_ds.lat)
         self.resolution = (_ds.lat[1] - _ds.lat[0]).item()
 
         _other_dims = []
         _other_shapes = []
-        for v in self.bools.dims:
-            if v in ("nadir", "time"):
-                continue
-            _other_dims.append(v)
-            print(self.bools[v][0], self.bools[v][-1] + 1, self.resolution)
+        if(len(_ds.time) != 0):
+            # This part of the code is calculating the dimensions and sizes of the dataset for creating
+            # patches. 
+            for v in self.bools.dims:
+                if v in ("nadir", "time"):
+                    continue
+                _other_dims.append(v)
 
-            _other_shapes.append(
-                np.arange(
-                    self.bools[v][0],
-                    self.bools[v][-1] + 1,
-                    self.resolution,
-                ).shape[0]
-            )
-        _dims = ("variable", "time") + tuple(_other_dims)
-        _shape = (2, self.bools["time"].shape[0]) + tuple(_other_shapes)
-        ds_dims = dict(zip(_dims, _shape))
-        for dim in patch_dims:
-            print(dim)
-            print(ds_dims)
-        self.ds_size = {
-            dim: max(
-                (ds_dims[dim] - patch_dims[dim]) // strides.get(dim, 1) + 1,
-                0,
-            )
-            for dim in patch_dims
-        }
+                _other_shapes.append(
+                    np.arange(
+                        self.bools[v][0],
+                        self.bools[v][-1] + 1,
+                        self.resolution,
+                    ).shape[0]
+                )
+            _dims = ("variable", "time") + tuple(_other_dims)
+            _shape = (2, self.bools["time"].shape[0]) + tuple(_other_shapes)
+            ds_dims = dict(zip(_dims, _shape))
+            for dim in patch_dims:
+                print(dim)
+                print(ds_dims)
+                print(_ds.time)
+            self.ds_size = {
+                dim: max(
+                    (ds_dims[dim] - patch_dims[dim]) // strides.get(dim, 1) + 1,
+                    0,
+                )
+                for dim in patch_dims
+            }
         self._rng = np.random.default_rng()
 
         self.min_percent_data = .02  # Minimum percentage of data required
