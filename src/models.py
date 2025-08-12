@@ -278,7 +278,7 @@ class Lit4dVarNet_UNet(pl.LightningModule):
 
         loss, out = self.base_step(batch, phase)
         grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
-        original_lat, original_lon = 680, 1440
+        original_lat, original_lon = 48, 48 # Previously: 680, 1440
         coarsen_lat = 4 # coarsening factor, for duacs at 1/4°, 4 means we coarsen to 1°
         coarsen_lon = 4
         coarsen_factor = (coarsen_lat, coarsen_lon)

@@ -71,22 +71,22 @@ datamodule:
     nadir_fn_pattern: ose_*_daily_sla_0.25deg.nc
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2017-01-01', '2022-04-17']}
+      time: {_target_: builtins.slice, _args_: ['2017-01-01', '2018-04-17']}
     val: 
-      time: {_target_: builtins.slice, _args_: ['2022-04-18', '2022-11-30']}
+      time: {_target_: builtins.slice, _args_: ['2018-04-18', '2018-11-30']}
     test: 
-      time: {_target_: builtins.slice,  _args_: ['2022-12-31', '2022-12-31']}
+      time: {_target_: builtins.slice,  _args_: ['2018-11-01', '2018-11-30']}
   xrds_kw:
-    patch_dims: { time: 29, lat: 680, lon: 1440}
-    strides: { time: 1, lat: 672, lon: 1432}
+    patch_dims: { time: 29, lat: 48, lon: 48}  # previsouly : 680, 1440
+    strides: { time: 1, lat: 40, lon: 40} # previously, 672, 1432
     #domain_limits: ${domain.train}
     train:
-      patch_dims: { time: 29, lat: 680, lon: 1440}
-      strides: { time: 1, lat: 672, lon: 1432}
+      patch_dims: { time: 29, lat: 48, lon: 48}
+      strides: { time: 1, lat: 40, lon: 40}
       #domain_limits: ${domain.train}
     val:
-      patch_dims: { time: 29, lat: 680, lon: 1440}
-      strides: { time: 1, lat: 672, lon: 1432}
+      patch_dims: { time: 29, lat: 48, lon: 48}
+      strides: { time: 1, lat: 40, lon: 40}
       #domain_limits: ${domain.test}
   dl_kw: {batch_size: 1, num_workers: 12}
   aug_kw:
