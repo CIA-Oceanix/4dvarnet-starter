@@ -9,6 +9,7 @@ def dog_kornia(x, sigma, l3_mask):
         
     x = torch.nan_to_num(x, nan=0.0)
     #x_masked = x * l3_mask
+    ls_mask = xr.open_dataset('/Odyssey/public/altimetry_traces/2010_2023/gridded/l3_mask.nc').l3_mask.astype('float32').values
     mask_bool = l3_mask.bool()
     mask_filtered = torch.where(mask_bool, kfilts.gaussian_blur2d(l3_mask, (k, k), (sigma, sigma), separable = False), torch.nan)
 

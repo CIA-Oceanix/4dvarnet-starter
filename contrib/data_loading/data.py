@@ -60,7 +60,7 @@ def load_ose_data_with_tgt_mask(path, tgt_path, variable='adt'):
         .to_array()
     )
 
-def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, variable):
+def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_path_l3_data, variable):
                                 #variable='zos'):
     """
         batches need to have a complete target in order for the Grad Masking to be carried out
@@ -72,8 +72,10 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, variabl
     print("ENTER")   
     if(len(tgt_path_not_glorys) != 0):
         tgt_path = tgt_path_not_glorys
+    elif(len(tgt_path_l3_data) != 0):
+        tgt_path = tgt_path_l3_data
 
-    ds_mask = xr.open_dataset(tgt_path)#drop_vars('depth')
+    ds_mask = xr.open_dataset(tgt_path)#drop_vars('depth')    # TGT_PATH is GLORYS12_DATA in contrib/ose_pipeline/ose_rec_pipeline.py
     ds = xr.open_dataset(path)
 
     if 'latitude' in list(ds_mask.dims):
@@ -95,6 +97,8 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, variabl
     ds = ds.sel(time=ds['time'].dt.year == 2023)
     #isel(lat = np.arange(40, 720, 1))  # Select only the year 2023 from the time dimensi
     print(ds)
+    print('ds_mask')
+    print('path is ' + tgt_path)
     print(ds_mask)
 
 
@@ -104,7 +108,7 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, variabl
     #ds_mask = ds_mask.sel(time='2019-01-20')['sla'].expand_dims(time=ds.time)[:,:,:].assign_coords(ds.coord
     target_lat = ds['lat']
     target_lon = ds['lon']
-    ds_mask = ds_mask.sel(time='2019-01-20')[variable].expand_dims(time=ds.time)[:,:,:]   # CHANGED FROM 2023 TO 2019 !!! , but should be 2020 ! 
+    ds_mask = ds_mask.sel(time='2021-01-20')[variable].expand_dims(time=ds.time)[:,:,:]   # CHANGED FROM 2023 TO 2019 !!! , but should be 2020 ! # CHNAGED AGAIN FROM 2019 TO 2021
     if(variable.split('_')[0] == "sla"):
         ds_mask = ds_mask.interp(lat=target_lat, lon=target_lon)
         ds = ds.isel(lat = np.arange(40, 720, 1))
@@ -112,8 +116,12 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, variabl
         ds_mask = ds_mask.assign_coords(ds.coords)
     elif(variable.split('_')[-1] == "temperature"):
         print('ENETERED IN IF')
-        ds = ds.interp(lat=target_lat[::4], lon=target_lon[::4])
-        ds_mask = ds_mask.interp(lat=target_lat[::4], lon=target_lon[::4])
+        lat_new = np.arange(target_lat[0], target_lat[-1], 0.25)
+        lon_new = np.arange(target_lon[0], target_lon[-1], 0.25)
+        print('lon new')
+        print(lon_new)
+        ds = ds.interp(lat=lat_new, lon=lon_new)
+        ds_mask = ds_mask.interp(lat=lat_new, lon=lon_new)
 
 
     #ds_mask.sel(time='2020-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords)
@@ -358,9 +366,6 @@ def open_glorys12_data_sla(path, masks_path, domain, variables="sla", masking=Tr
 
     return ds
 
-
-
-
 '''
     Real data , for the L3 loss and AvgPool loss
 '''
@@ -431,7 +436,7 @@ def open_glorys12_data_sla_OSE(path, masks_path, real_traces, domain, variables=
 '''
     SST inp and out
 '''
-def open_glorys12_data_sst(path, masks_path, domain, variables="thetao", masking=True, test_cut=None): # zos before
+def open_glorys12_data_sst(path, masks_path, domain, variables="sea_surface_temperature", masking=True, test_cut=None): # zos before
     """
         Function to load glorys data
 

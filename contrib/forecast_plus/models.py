@@ -3,7 +3,9 @@ import numpy as np
 from pathlib import Path
 import torch
 
-from src.models import Lit4dVarNetForecast, GradSolverZero, BilinAEPriorCost, Lit4dVarNetForecast_UNet, Lit4dVarNet_UNet_MLD, Lit4dVarNetForecast_only1leadtime, Lit4dVarNetForecast_only1leadtime_FineTune_L3, Lit4dVarNetForecast_UNet_MLD
+from src.models import Lit4dVarNetForecast, GradSolverZero, BilinAEPriorCost, \
+    Lit4dVarNetForecast_UNet, Lit4dVarNet_UNet_MLD, Lit4dVarNetForecast_only1leadtime, \
+        Lit4dVarNetForecast_only1leadtime_FineTune_L3, Lit4dVarNetForecast_UNet_MLD, Lit4dVarNetForecast_UNet_sst
 
 class Plus4dVarNetForecast(Lit4dVarNetForecast):
     """
@@ -221,6 +223,59 @@ class Plus4dVarNetForecast_UNet_21(Lit4dVarNetForecast_UNet):
 
         print(pd.DataFrame(metrics, range(output_start, 7)).T.to_markdown())
 
+class Plus4dVarNetForecast_UNet_sst(Lit4dVarNetForecast_UNet_sst):
+    """
+        slight modifications of the Lit4dVarNetForecast model
+
+        rec_weight_fn: function to create alternative reconstruction weights
+    """
+    def __init__(
+            self,
+            *args,
+            rec_weight_fn,
+            output_leadtime_start=None,
+            **kwargs
+        ):
+        super().__init__(*args, **kwargs)
+        self.rec_weight_fn = rec_weight_fn
+        self.output_leadtime_start = output_leadtime_start
+
+    def get_dT(self):
+        return self.rec_weight.size()[0]
+
+    def on_test_epoch_end(self):
+        dims = self.rec_weight.size()
+        dT = self.get_dT()
+        metrics = []
+        output_start = 0 if self.output_only_forecast else -14
+        if self.output_leadtime_start is not None:
+            output_start = self.output_leadtime_start
+        for i in range(output_start, 7):
+            forecast_weight = self.rec_weight_fn(i, dT, dims, self.rec_weight.cpu().numpy())
+            rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+                self.test_data, forecast_weight
+            )
+
+            if isinstance(rec_da, list):
+                rec_da = rec_da[0]
+
+            test_data_leadtime = rec_da.assign_coords(
+                dict(v0=self.test_quantities)
+            ).to_dataset(dim='v0')
+
+            if self.logger:
+                test_data_leadtime.to_netcdf(Path(self.logger.log_dir) / f'test_data_{i+14}.nc')
+                print(Path(self.trainer.log_dir) / f'test_data_{i+14}.nc')
+
+            metric_data = test_data_leadtime.pipe(self.pre_metric_fn)
+            metrics_leadtime = pd.Series({
+                metric_n: metric_fn(metric_data)
+                for metric_n, metric_fn in self.metrics.items()
+            })
+            metrics.append(metrics_leadtime)
+
+        print(pd.DataFrame(metrics, range(output_start, 7)).T.to_markdown())
+
 
 
 
@@ -360,6 +415,8 @@ class Plus4dVarNetForecastPatchGPU(Plus4dVarNetForecast):
             self.test_data = []
         out = self(batch=mask_batch)
         m, s = self.norm_stats
+        print('self.norm_stats')
+        print(self.norm_stats)
 
         self.test_data.append(torch.stack(
             [
@@ -371,6 +428,43 @@ class Plus4dVarNetForecastPatchGPU(Plus4dVarNetForecast):
         ))
 
 class Plus4dVarNetForecastPatchGPU_UNet(Plus4dVarNetForecast_UNet_21):
+    #Plus4dVarNetForecast_UNet):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @property
+    def test_quantities(self):
+        return ['out']
+
+    def clear_gpu_mem(self):
+        del self.solver
+        torch.cuda.empty_cache()
+
+    def on_test_epoch_end(self):
+        # test_data as gpu tensor
+        self.clear_gpu_mem()
+        self.test_data = torch.cat(self.test_data).cuda()
+        super().on_test_epoch_end()
+
+    def test_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+
+        if batch_idx == 0:
+            self.test_data = []
+        out = self(batch=mask_batch)
+        m, s = self.norm_stats
+
+        self.test_data.append(torch.stack(
+            [
+                #mask_batch.input.cpu() * s + m,
+                #mask_batch.tgt.cpu() * s + m,
+                out.squeeze(dim=-1).detach().cpu() * s + m,
+            ],
+            dim=1,
+        ))
+      
+        
+class Plus4dVarNetForecastPatchGPU_UNet_SST(Plus4dVarNetForecast_UNet_sst):
     #Plus4dVarNetForecast_UNet):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

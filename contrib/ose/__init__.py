@@ -67,7 +67,6 @@ class XrOSEDataset(torch.utils.data.Dataset):
 
         _nadir = next(iter(self.ds))
         _ds = self.ds[_nadir]
-        print(_ds)
         self.resolution = (_ds.lat[1] - _ds.lat[0]).item()
 
         _other_dims = []
@@ -104,8 +103,6 @@ class XrOSEDataset(torch.utils.data.Dataset):
         else:
             self.ds_size = {'time': 0, 'lat': 0, 'lon': 0}
             
-        print('self.ds_size')
-        print(self.ds_size)
         self._rng = np.random.default_rng()
 
         self.min_percent_data = .02  # Minimum percentage of data required
@@ -188,8 +185,8 @@ class XrOSEDataset(torch.utils.data.Dataset):
                 .nadir
                 .values[available_nadirs.sel(time=t).values]
             )
-            print('avail_at_t')
-            print(avail_at_t)
+            #rint('avail_at_t')
+            #print(avail_at_t)
 
             # Pick randomly a reference among the available altimeters
             if avail_at_t.size > 0:
@@ -235,6 +232,7 @@ class XrOSEDataset(torch.utils.data.Dataset):
         inp = xr.concat(inp_t, dim='time')
         tgt.name = 'tgt'
         inp.name = 'input'
+        
 
         item = xr.merge([inp, tgt]).to_dataarray().sortby('variable')
         # Pfiou, this is the end
