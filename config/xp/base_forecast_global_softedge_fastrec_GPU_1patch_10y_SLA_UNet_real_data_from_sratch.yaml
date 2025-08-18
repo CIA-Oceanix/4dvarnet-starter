@@ -3,20 +3,9 @@
 paths:
   masks_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle
   glorys12_data: /Odyssey/public/duacs/2023/duacs_2017_2022_4th.nc
-    #duacs_2010_2019_0.25deg.nc
-    #2023/duacs_2010_2023.nc
-    #Odyssey/public/duacs/2010_2019/duacs_2010_2019_0.25deg.nc
-    #023/duacs_2010_2023.nc  #/Odyssey/public/glorys/reanalysis/glorys4_2010_2019_sla.nc for glorys, but for fine tune i am testing : DUACS, to use for masking : 
   real_traces: /Odyssey/public/altimetry_traces/2010_2023/gridded/gridded_input.nc
-    # For 6 altimeters : /Odyssey/public/altimetry_traces/2010_2023/gridded/gridded_input.nc
-    # For 14 altimetere s: /SCRATCH/d21botvy/all_altimeters.nc
   ref_data_l4: ""
-    #ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_1patch_10y_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch/checkpoints/val_mse=0.01974-epoch=087.ckpt
-    #forecast_global_1patch_1y_SLA_UNet_ResBlock_fine_tune/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_fine_tune/checkpoints/val_mse=9.61748-epoch=024.ckpt
-      #UNet best config de base : forecast_global_GPU_1patch_1y_SLA_UNet/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet/checkpoints/val_mse=3.08068-epoch=204.ckpt
-      #
-      #
-      #
+
 var_name: "sla_filtered"
 
 
@@ -52,7 +41,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_1patch_2017_2022_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_1patch_2017_2022_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses_DoG
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 350

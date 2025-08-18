@@ -55,8 +55,30 @@ class Lit4dVarNet(pl.LightningModule):
         grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
         prior_cost = self.solver.prior_cost(self.solver.init_state(batch, out))
         self.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
+        
+        original_lat, original_lon = 680, 1440
+        coarsen_lat = 4 # coarsening factor, for duacs at 1/4°, 4 means we coarsen to 1°
+        coarsen_lon = 4
+        coarsen_factor = (coarsen_lat, coarsen_lon)
 
-        training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost # 10000 for 1/20° and 250 for 1/4° # 250 for the grad_loss and best results
+        patch_dims = {
+            'time': out.shape[1],
+            'lat': original_lat // coarsen_lat,
+            'lon': original_lon // coarsen_lon,
+        }
+
+        # Generate weights on the fly
+        weights = get_forecast_wei_adaptable_per_resolution(
+            patch_dims=patch_dims,
+            coarsen_factor=coarsen_factor,
+            base_crop={'lat': 4, 'lon': 4}
+        )
+
+        weights_torch = torch.tensor(weights, dtype=out.dtype, device=out.device)
+        
+        coarsen_loss = self.weighted_mse(torch.nn.AvgPool2d(4)(out) - torch.nn.AvgPool2d(4)(torch.nan_to_num(batch.tgt)), weights_torch)
+
+        training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost + 50 * coarsen_loss # 10000 for 1/20° and 250 for 1/4° # 250 for the grad_loss and best results
         return training_loss, out
 
     def base_step(self, batch, phase=""):
@@ -278,7 +300,7 @@ class Lit4dVarNet_UNet(pl.LightningModule):
 
         loss, out = self.base_step(batch, phase)
         grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
-        original_lat, original_lon = 48, 48 # Previously: 680, 1440
+        original_lat, original_lon = 680, 1440
         coarsen_lat = 4 # coarsening factor, for duacs at 1/4°, 4 means we coarsen to 1°
         coarsen_lon = 4
         coarsen_factor = (coarsen_lat, coarsen_lon)
@@ -300,7 +322,7 @@ class Lit4dVarNet_UNet(pl.LightningModule):
         
         coarsen_loss = self.weighted_mse(torch.nn.AvgPool2d(4)(out) - torch.nn.AvgPool2d(4)(torch.nan_to_num(batch.tgt)), weights_torch)
         
-        DoG_loss = self.weighted_mse(dog_kornia(out, 1, 2), dog_kornia(torch.nan_to_num(batch.tgt), 1, 2))
+        DoG_loss = self.weighted_mse(dog_kornia(out, 1), dog_kornia(torch.nan_to_num(batch.tgt), 1))
         
         self.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
         # In case of SST : 
