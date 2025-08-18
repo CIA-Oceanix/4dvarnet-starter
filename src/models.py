@@ -300,10 +300,15 @@ class Lit4dVarNet_UNet(pl.LightningModule):
         
         coarsen_loss = self.weighted_mse(torch.nn.AvgPool2d(4)(out) - torch.nn.AvgPool2d(4)(torch.nan_to_num(batch.tgt)), weights_torch)
         
-        #oG_loss = self.weighted_mse(dog_kornia(out, 1, 2), dog_kornia(torch.nan_to_num(batch.tgt), 1, 2))
+        DoG_loss = self.weighted_mse(dog_kornia(out, 1, 2), dog_kornia(torch.nan_to_num(batch.tgt), 1, 2))
         
         self.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
-        training_loss = 50 * loss # 50 * coarsen_loss + 50 * grad_loss # 50 * DoG_loss
+        # In case of SST : 
+        #training_loss = 50 * loss # 50 * coarsen_loss + 50 * grad_loss # 50 * DoG_loss
+        
+        # In case of SLA : 
+        training_loss = 50 * loss + 50 * coarsen_loss + 50 * grad_loss + 50 * DoG_loss
+
         #50* torch.nn.L1Loss(reduction='mean')(torch.nn.AvgPool2d(2)(out), torch.nn.AvgPool2d(2)(batch.tgt))
         #F.mse_loss(out[:,14 : 14+7, :], batch.tgt)
         #50 * loss + 1000 * grad_loss #+ 1.0 * prior_cost

@@ -12,6 +12,7 @@ paths:
     # For 14 altimetere s: /SCRATCH/d21botvy/all_altimeters.nc
   ref_data_l4: ""
   ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_1patch_2017_2022_SLA_4dvarnet_real_data_Nadir_Duacs_losses/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_4dvarnet_real_data_from_sratch/checkpoints/val_mse=7.61364-epoch=006.ckpt
+  ose_data_paths: ''
     #/Odyssey/public/glorys/trainings/forecast_global_1patch_10y_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch/checkpoints/val_mse=0.01974-epoch=087.ckpt
     #forecast_global_1patch_1y_SLA_UNet_ResBlock_fine_tune/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_fine_tune/checkpoints/val_mse=9.61748-epoch=024.ckpt
       #UNet best config de base : forecast_global_GPU_1patch_1y_SLA_UNet/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet/checkpoints/val_mse=3.08068-epoch=204.ckpt
