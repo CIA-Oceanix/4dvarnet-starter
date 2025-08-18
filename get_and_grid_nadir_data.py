@@ -118,7 +118,8 @@ def filt_daily_ssh_data(
     )
     #  Curate
     #print(glob('/Odyssey/public/altimetry_traces/processed/2024/SEALEVEL_GLO_PHY_L3_MY_008_062/cmems_obs-sl_glo_phy-ssh_my_c2n-l3-duacs_PT1S_202411/**/**/*.nc'))
-    ds = xr.open_mfdataset(glob('/Odyssey/public/altimetry_traces/processed/2024/SEALEVEL_GLO_PHY_L3_MY_008_062/cmems_obs-sl_glo_phy-ssh_my_c2n-l3-duacs_PT1S_202411/**/**/*.nc')[:5],
+    ds = xr.open_mfdataset(Path(input_dir).glob("**/*.nc"),
+            #glob('/Odyssey/public/altimetry_traces/processed/2024/SEALEVEL_GLO_PHY_L3_MY_008_062/cmems_obs-sl_glo_phy-ssh_my_c2n-l3-duacs_PT1S_202411/**/**/*.nc')[:5],
             #Path(input_dir).glob("**/*.nc"),   # modified to :5 juste to test !
         preprocess=partial_prepro,
         concat_dim="time",
