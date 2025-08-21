@@ -5,6 +5,7 @@ paths:
   glorys12_data: /Odyssey/public/duacs/2023/duacs_2017_2022_0.25deg.nc
   real_traces: /Odyssey/public/altimetry_traces/2010_2023/gridded/sla_l3_all_2010_2023_0.25deg_convl4.nc
   ref_data_l4: ""
+  ckpt_path: ""
 
 var_name: "sla_filtered"
 
@@ -134,6 +135,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
+    #kpt: ${paths.ckpt_path}
 
 defaults:
   - _self_

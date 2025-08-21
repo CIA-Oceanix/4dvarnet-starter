@@ -141,6 +141,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
+    ckpt: ${ckpt_path}
 
 defaults:
   - _self_
