@@ -1,4 +1,4 @@
-from src.data import XrDataset, BaseDataModule, AugmentedDataset
+from src.data import XrDataset, BaseDataModule, AugmentedDataset, BaseDataModuleOSE
 import numpy as np
 import xarray as xr
 import time
@@ -156,6 +156,30 @@ class XrDatasetMovingPatch(XrDataset):
     
 
 class MovingPatchDataModule(BaseDataModule):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def setup(self, stage='test'):
+        # calling MovingPatch Datasets, rand=True for train only
+        post_fn = self.post_fn()
+        self.train_ds = XrDatasetMovingPatch(
+            self.input_da.sel(self.domains['train']), **self.xrds_kw, postpro_fn=post_fn, rand=True
+        )
+        self.val_ds = XrDatasetMovingPatch(
+            self.input_da.sel(self.domains['val']), **self.xrds_kw, postpro_fn=post_fn, rand=False
+        )
+        self.test_ds = XrDatasetMovingPatch(
+            self.input_da.sel(self.domains['test']), **self.xrds_kw, postpro_fn=post_fn, rand=False
+        )
+
+        if self.aug_kw:
+            self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
+      
+      
+'''
+    For OSE experiments, specifically DoG loss
+'''            
+class MovingPatchDataModuleOSE(BaseDataModuleOSE):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -811,7 +835,7 @@ class XrDatasetMovingPatchFastRecGPU_PREVIOUS_VERSION(XrDatasetMovingPatch):
         return result_da
 
 
-class MovingPatchDataModuleFastRecGPU(MovingPatchDataModule):
+class MovingPatchDataModuleFastRecGPU(MovingPatchDataModuleOSE):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

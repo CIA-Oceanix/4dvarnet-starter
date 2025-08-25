@@ -671,17 +671,17 @@ class Lit4dVarNetForecast_UNet(Lit4dVarNet_UNet):
 
     @staticmethod
     def mask_batch(batch):
-        
-        input_old = batch.input
-
         # temporal masking
-        new_input = input_old.clone()
+        new_input = batch.input.clone()
         dims = new_input.size()
         new_input[:, dims[1]//2:, :, :] = np.nan
-
-        batch['input_complete'] = input_old
-
-        mask_batch = batch._replace(input=new_input) # for DoG and other L3 losses
+        mask_batch = batch._replace(input=new_input)
+        
+        # temporal masking
+        new_input = batch.input.clone()
+        dims = new_input.size()
+        new_input[:, :dims[1]//2, :, :] = np.nan
+        mask_batch = batch._replace(input_complete=new_input) # for DoG and other L3 losses
 
         return mask_batch
 

@@ -1,7 +1,7 @@
 import xarray as xr
 import numpy as np
 import pickle
-from src.data import TrainingItem
+from src.data import TrainingItem, TrainingItemOSE
 import pandas as pd
 
 def load_ose_data(path):
@@ -409,6 +409,7 @@ def open_glorys12_data_sla_OSE(path, masks_path, real_traces, domain, variables=
         .load()
         .assign(
             input = lambda ds: ds_real["sla_unfiltered"],
+            input_complete = lambda ds: ds_real["sla_unfiltered"],
             tgt= lambda ds: ds[variables]
         )
     )
@@ -424,7 +425,7 @@ def open_glorys12_data_sla_OSE(path, masks_path, real_traces, domain, variables=
     '''
     ds = ds.sel(domain)
     ds = (
-        ds[[*TrainingItem._fields]]
+        ds[[*TrainingItemOSE._fields]]
         .transpose("time", "lat", "lon")
         .to_array()
     )

@@ -2,7 +2,8 @@
 
 paths:
   masks_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle
-  glorys12_data: /Odyssey/public/duacs/2023/duacs_2017_2022_4th.nc
+  glorys12_data: /Odyssey/public/duacs/2023/duacs_2017_2022_0.25deg.nc
+    #duacs_2017_2022_4th.nc
     #duacs_2010_2019_0.25deg.nc
     #2023/duacs_2010_2023.nc
     #Odyssey/public/duacs/2010_2019/duacs_2010_2019_0.25deg.nc
