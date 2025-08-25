@@ -432,6 +432,67 @@ def open_glorys12_data_sla_OSE(path, masks_path, real_traces, domain, variables=
 
     return ds
 
+def open_glorys12_data_sla_OSE_classic(path, masks_path, real_traces, domain, variables="sla", masking=True, test_cut=None): # zos before
+    """
+        Function to load glorys data
+
+        path: path to glorys .nc file
+        masks_path: path to nadir-like observation masks with dimensions matching glorys dataset size. pickled np array list.
+        domain: lat and long extremities to cut data
+        variables: variable to load
+        masking: whether to mask the input data using the masks in masks_path
+        test_cut: if not None, {'time': slice(time1, time2)}, speeding up the loading by pre-cutting the loaded data
+    """
+    print("LOADING input data")
+    ds =  (
+            xr.open_dataset(path)# if the file is original GLORYS12 file : drop_vars('depth')
+    )
+
+    print('DS is')
+    print(ds)
+
+    ds_real = xr.open_dataset(real_traces)
+
+    print('DS real is ')
+    print(ds_real)
+
+    if 'latitude' in list(ds.dims):
+        ds = ds.rename({'latitude':'lat', 'longitude':'lon'})
+    if 'latitude' in list(ds_real.dims):
+        ds_real = ds_real.rename({'latitude':'lat', 'longitude':'lon'})
+
+    if test_cut is not None:
+        ds = ds.sel(time=test_cut)
+    if test_cut is not None:
+        ds_real = ds_real.sel(time=test_cut)
+
+    ds = (
+        ds
+        .load()
+        .assign(
+            input = lambda ds: ds_real["sla_unfiltered"],
+            tgt= lambda ds: ds[variables]
+        )
+    )
+    print("done.")
+    '''
+    if masking:
+        with open(masks_path, 'rb') as masks_file:
+            mask_list = pickle.load(masks_file)
+        mask_list = np.array(mask_list)
+        ds= ds.assign(
+            input=xr.apply_ufunc(mask_input, ds.input, input_core_dims=[['lat', 'lon']], output_core_dims=[['lat', 'lon']], kwargs={"mask_list": mask_list}, dask="allowed", vectorize=True)
+            )
+    '''
+    ds = ds.sel(domain)
+    ds = (
+        ds[[*TrainingItem._fields]]
+        .transpose("time", "lat", "lon")
+        .to_array()
+    )
+
+    return ds
+
 
 
 '''

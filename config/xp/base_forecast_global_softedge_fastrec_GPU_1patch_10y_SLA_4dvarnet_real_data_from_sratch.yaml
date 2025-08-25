@@ -72,7 +72,7 @@ trainer:
 datamodule:
   _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU
   input_da: 
-    _target_: contrib.data_loading.data.open_glorys12_data_sla_OSE
+    _target_: contrib.data_loading.data.open_glorys12_data_sla_OSE_classic
       #open_duacs_data_sla
     path: ${paths.glorys12_data}
     masks_path: ${paths.masks_path}

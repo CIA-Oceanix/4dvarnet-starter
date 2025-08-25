@@ -13,28 +13,19 @@ def dog_kornia(x, sigma, K):
     mask_bool = ~torch.isnan(x)
     
     x = torch.nan_to_num(x, nan=0.0)
-    #x_masked = x * l3_mask
-    #l3_mask = xr.open_dataset('/Odyssey/public/altimetry_traces/2010_2023/gridded/l3_mask.nc').l3_mask.astype('float32').values
-    #print("l3_mask")
-    #print(l3_mask)
-    mask_bool_tensor = torch.from_numpy(mask_bool) if isinstance(mask_bool, np.ndarray) else mask_bool
-    
-    # Convert l3_mask (NumPy array) to a PyTorch tensor
-    l3_mask_tensor = torch.from_numpy(l3_mask).float()  # Ensure the tensor is of type floa
-    print('l3 mask tensor shape')
-    print(l3_mask_tensor)
+    #mask_bool_tensor = torch.from_numpy(mask_bool) if isinstance(mask_bool, np.ndarray) else mask_bool
+    mask_bool_tensor = mask_bool.float()  # Convert to float (0.0 for False, 1.0 for True)
     
     # Apply the Gaussian blur with the tensor
     mask_filtered = torch.where(
-        mask_bool_tensor[:,:,:],
-        kfilts.gaussian_blur2d(l3_mask_tensor.unsqueeze(0)[:,:,:], (k, k), (sigma, sigma), separable=False),
+        mask_bool_tensor.unsqueeze(0),
+        kfilts.gaussian_blur2d(mask_bool_tensor.unsqueeze(0)[:,:,:], (k, k), (sigma, sigma), separable=False),
         torch.nan
     )
     print('mask filtered[0] shape')
     print(mask_filtered[0].shape)
     print(mask_bool_tensor.shape)
     print(kornia.filters.gaussian_blur2d(x, (k, k), (sigma, sigma), separable = False).shape)
-    #mask_filtered = torch.where(mask_bool, kfilts.gaussian_blur2d(l3_mask, (k, k), (sigma, sigma), separable = False), torch.nan)
 
     data_filtered_normalized = []
     for i in range(K):
