@@ -10,12 +10,13 @@ def dog_kornia(x, sigma, K):
     if k % 2 == 0:
         k += 1
         
+    mask_bool = ~torch.isnan(x)
+    
     x = torch.nan_to_num(x, nan=0.0)
     #x_masked = x * l3_mask
-    l3_mask = xr.open_dataset('/Odyssey/public/altimetry_traces/2010_2023/gridded/l3_mask.nc').l3_mask.astype('float32').values
+    #l3_mask = xr.open_dataset('/Odyssey/public/altimetry_traces/2010_2023/gridded/l3_mask.nc').l3_mask.astype('float32').values
     #print("l3_mask")
     #print(l3_mask)
-    mask_bool = l3_mask.astype(bool)
     mask_bool_tensor = torch.from_numpy(mask_bool) if isinstance(mask_bool, np.ndarray) else mask_bool
     
     # Convert l3_mask (NumPy array) to a PyTorch tensor
@@ -31,7 +32,6 @@ def dog_kornia(x, sigma, K):
     )
     print('mask filtered[0] shape')
     print(mask_filtered[0].shape)
-
     print(mask_bool_tensor.shape)
     print(kornia.filters.gaussian_blur2d(x, (k, k), (sigma, sigma), separable = False).shape)
     #mask_filtered = torch.where(mask_bool, kfilts.gaussian_blur2d(l3_mask, (k, k), (sigma, sigma), separable = False), torch.nan)
