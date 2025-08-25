@@ -322,7 +322,7 @@ class Lit4dVarNet_UNet(pl.LightningModule):
         
         coarsen_loss = self.weighted_mse(torch.nn.AvgPool2d(4)(out) - torch.nn.AvgPool2d(4)(torch.nan_to_num(batch.tgt)), weights_torch)
         
-        DoG_loss = self.weighted_mse(dog_kornia(out, 1, 2), dog_kornia(torch.nan_to_num(batch.tgt), 1, 2))
+        DoG_loss = self.weighted_mse(dog_kornia(out, 1, 2), dog_kornia(torch.nan_to_num(batch.input_complete), 1, 2))
         
         self.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
         # In case of SST : 
@@ -671,13 +671,17 @@ class Lit4dVarNetForecast_UNet(Lit4dVarNet_UNet):
 
     @staticmethod
     def mask_batch(batch):
+        
+        input_old = batch.input
 
         # temporal masking
-        new_input = batch.input
+        new_input = input_old.clone()
         dims = new_input.size()
         new_input[:, dims[1]//2:, :, :] = np.nan
 
-        mask_batch = batch._replace(input=new_input)
+        batch['input_complete'] = input_old
+
+        mask_batch = batch._replace(input=new_input) # for DoG and other L3 losses
 
         return mask_batch
 
@@ -1138,7 +1142,7 @@ class GradSolver(nn.Module):
         if x_init is not None:
             return x_init
 
-        return batch.input.nan_to_num().detach().requires_grad_(True)
+        return batch.input.nan_to_num().detach().requires_grad_(True)      # A modifier en init zéro ! OU torch.interpolate()
 
     def solver_step(self, state, batch, step):
         var_cost = self.prior_cost(state) + self.obs_cost(state, batch)

@@ -26,11 +26,14 @@ def dog_kornia(x, sigma, K):
     # Apply the Gaussian blur with the tensor
     mask_filtered = torch.where(
         mask_bool_tensor[:,:,:],
-        kfilts.gaussian_blur2d(l3_mask_tensor.unsqueeze(0)[:,:,40:], (k, k), (sigma, sigma), separable=False),
+        kfilts.gaussian_blur2d(l3_mask_tensor.unsqueeze(0)[:,:,:], (k, k), (sigma, sigma), separable=False),
         torch.nan
     )
     print('mask filtered[0] shape')
     print(mask_filtered[0].shape)
+
+    print(mask_bool_tensor.shape)
+    print(kornia.filters.gaussian_blur2d(x, (k, k), (sigma, sigma), separable = False).shape)
     #mask_filtered = torch.where(mask_bool, kfilts.gaussian_blur2d(l3_mask, (k, k), (sigma, sigma), separable = False), torch.nan)
 
     data_filtered_normalized = []

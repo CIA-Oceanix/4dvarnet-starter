@@ -7,7 +7,7 @@ import functools as ft
 from collections import namedtuple
 from tqdm import tqdm
 
-TrainingItem = namedtuple('TrainingItem', ['input', 'tgt'])
+TrainingItem = namedtuple('TrainingItem', ['input', 'input_complete', 'tgt'])
 
 
 class IncompleteScanConfiguration(Exception):
@@ -292,8 +292,6 @@ class BaseDataModule(pl.LightningDataModule):
         )
         if self.aug_kw:
             self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
-
-        print('TESTSTTSTSTS')
 
         self.val_ds = XrDataset(
             self.input_da.sel(self.domains['val']), **self.xrds_kw, postpro_fn=post_fn,
