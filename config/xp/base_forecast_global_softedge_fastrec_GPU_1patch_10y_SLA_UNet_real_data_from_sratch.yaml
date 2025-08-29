@@ -2,12 +2,16 @@
 
 paths:
   masks_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle
-  glorys12_data: /Odyssey/public/duacs/2023/duacs_2017_2022_0.25deg.nc
-  real_traces: /Odyssey/public/altimetry_traces/2010_2023/gridded/sla_l3_all_2010_2023_0.25deg_convl4.nc
+  glorys12_data: /Odyssey/public/duacs/2010_2019/duacs_2010_2019_0.25deg_float32.nc
+    #2023/duacs_2017_2022_0.25deg.nc
+  real_traces: /Odyssey/public/altimetry_traces/2010_2019/gridded_0.25deg/sla_l3_all_2010_2019_0.25deg_convl4_float32.nc
+    #2010_2023/gridded/sla_l3_all_2010_2023_0.25deg_convl4.nc
   ref_data_l4: ""
-  ckpt_path: ""
+  ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses_DoG/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch/checkpoints/val_mse=0.01425-epoch=027.ckpt
+  ose_data_paths: '' # pas clair ce que c'est !!!!
 
-var_name: "sla_filtered"
+var_name: "sla_filtered" 
+  #-> dans mes fichiers c'est tjrs tout'es les variables dispo, dans les fichiers de Daniel c'est que sla_filtered qui s'appelle simplement sla
 
 
 domain:
@@ -42,7 +46,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_1patch_2017_2022_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses_DoG
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses_DoG
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 350
@@ -56,21 +60,21 @@ trainer:
       filename: '{val_mse:.5f}-{epoch:03d}'
 
 datamodule:
-  _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU
+  _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPUOSE
   input_da: 
-    _target_: contrib.data_loading.data.open_glorys12_data_sla_OSE
-      #open_duacs_data_sla
+    _target_: contrib.data_loading.data.open_glorys12_data_sla_OSE  #open_duacs_data_sla
     path: ${paths.glorys12_data}
     masks_path: ${paths.masks_path}
     real_traces: ${paths.real_traces}
     domain: ${domain.train}
+    variables: "sla"
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2017-01-01', '2022-04-17']}
+      time: {_target_: builtins.slice, _args_:['2016-01-01', '2019-04-17']}                   # ['2017-01-01', '2022-04-17']}
     val: 
-      time: {_target_: builtins.slice, _args_: ['2022-04-18', '2022-11-30']}
+      time: {_target_: builtins.slice, _args_:['2019-04-18', '2019-11-30']}                   # ['2022-04-18', '2022-11-30']}
     test: 
-      time: {_target_: builtins.slice,  _args_: ['2022-12-31', '2022-12-31']}
+      time: {_target_: builtins.slice,  _args_:['2019-12-31', '2019-12-31']}                  # ['2022-12-31', '2022-12-31']}
   xrds_kw:
     patch_dims: { time: 29, lat: 680, lon: 1440}
     strides: { time: 1, lat: 672, lon: 1432}
@@ -105,22 +109,6 @@ model:
       _target_: src.parts.ResBlock
       _partial_: True
     add_input: False
-      #n_step: 10
-      #lr_grad: 1e3
-    # lr_grad: 0.2
-    #prior_cost:
-    # _target_: src.models.BilinAEPriorCost
-    # dim_in: ${datamodule.xrds_kw.patch_dims.time}
-    # dim_hidden: 64
-    # bilin_quad: False
-      # bilin_quad: True
-      #downsamp: 2
-    # obs_cost:
-    #_target_: src.models.BaseObsCost
-    #grad_mod:
-    # _target_: src.models.ConvLstmGradModel
-    # dim_in: ${datamodule.xrds_kw.patch_dims.time}
-    # dim_hidden: 96
   pre_metric_fn:
         _target_: xarray.Dataset.sel
         _partial_: True
@@ -135,7 +123,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    #kpt: ${paths.ckpt_path}
+    ckpt: ${paths.ckpt_path}
 
 defaults:
   - _self_

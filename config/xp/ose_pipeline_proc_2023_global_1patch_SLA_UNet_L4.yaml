@@ -1,6 +1,6 @@
 # @package _global_
 
-xp_name: glorys4_global_1patch_SLA_UNet_L4_duacs # le nom avec lequel ça sera rangé 
+xp_name: glorys4_global_1patch_SLA_UNet_L4_duacs_tested_on_L3_2023 # le nom avec lequel ça sera rangé 
 data_name: nrt_sla
 
 paths:

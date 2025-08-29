@@ -75,6 +75,7 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
     elif(len(tgt_path_l3_data) != 0):
         tgt_path = tgt_path_l3_data
 
+    print(f'tgt_path is {tgt_path}')
     ds_mask = xr.open_dataset(tgt_path)#drop_vars('depth')    # TGT_PATH is GLORYS12_DATA in contrib/ose_pipeline/ose_rec_pipeline.py
     ds = xr.open_dataset(path)
 
@@ -95,7 +96,9 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
 
     ds['time'] = pd.to_datetime(ds['time'].values)  # Ensure time is in datetime format if it's not already
     ds = ds.sel(time=ds['time'].dt.year == 2023)
-    #isel(lat = np.arange(40, 720, 1))  # Select only the year 2023 from the time dimensi
+    ds_mask = ds_mask.sel(time='2019-01-20')[variable].expand_dims(time=ds.time)[:,:,:]   # CHANGED FROM 2023 TO 2019 !!! , but should be 2020 ! # CHNAGED AGAIN FROM 2019 TO 2021  
+    # Changed again from 2021 to 2019
+    print('ds')
     print(ds)
     print('ds_mask')
     print('path is ' + tgt_path)
@@ -108,14 +111,14 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
     #ds_mask = ds_mask.sel(time='2019-01-20')['sla'].expand_dims(time=ds.time)[:,:,:].assign_coords(ds.coord
     target_lat = ds['lat']
     target_lon = ds['lon']
-    ds_mask = ds_mask.sel(time='2021-01-20')[variable].expand_dims(time=ds.time)[:,:,:]   # CHANGED FROM 2023 TO 2019 !!! , but should be 2020 ! # CHNAGED AGAIN FROM 2019 TO 2021
+    
     if(variable.split('_')[0] == "sla"):
         ds_mask = ds_mask.interp(lat=target_lat, lon=target_lon)
         ds = ds.isel(lat = np.arange(40, 720, 1))
         ds_mask = ds_mask.isel(lat = np.arange(40, 720, 1))
         ds_mask = ds_mask.assign_coords(ds.coords)
     elif(variable.split('_')[-1] == "temperature"):
-        print('ENETERED IN IF')
+        print('ENETERED IN IF TEMPERATURE')
         lat_new = np.arange(target_lat[0], target_lat[-1], 0.25)
         lon_new = np.arange(target_lon[0], target_lon[-1], 0.25)
         print('lon new')
@@ -130,13 +133,13 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
         ds
         .assign(
             input=ds[variable],
-            #sla_filtered,  # ds.sla_unfiltered usually !!!
+            input_complete = ds[variable],
             tgt= ds_mask
         )
     )
 
     return (
-        ds[[*TrainingItem._fields]]
+         ds[[*TrainingItemOSE._fields]]    # previously TrainingItem simply !!!
         .transpose("time", "lat", "lon")
         .to_array()
     )
@@ -154,7 +157,14 @@ def load_ose_data_with_tgt_mask_L4(path, tgt_path, variable='zos'):
     """
     ds_mask = xr.open_dataset(tgt_path)#drop_vars('depth'
     print(tgt_path)
-    ds = xr.open_dataset('/Odyssey/public/duacs/2023/duacs_2023_sla_adt_interpolated.nc')
+    '''
+        Previously : tested on L4 inputs (see latest benchmark in https://github.com/CIA-Oceanix/Global_SSH_forecasting_OSE/tree/main)
+    '''
+    #ds = xr.open_dataset('/Odyssey/public/duacs/2023/duacs_2023_sla_adt_interpolated.nc')
+    '''
+        Testing now inference on L3 inputs : ) for the nrt altims from 2023n concatenated and gridded
+    '''
+    ds = xr.open_dataset('/Odyssey/public/altimetry_traces/2010_2023/gridded/compressed_sla_l3_complevelLucile.nc')
     #/Odyssey/private/d21botvy/cmems_obs-sl_glo_phy-ssh_my_allsat-l4-duacs-0.125deg_P1D_multi-vars_179.94W-179.94E_89.94S-89.94N_2023-01-01-2023-12-31_(1).nc')
     #(path)
 
@@ -168,7 +178,7 @@ def load_ose_data_with_tgt_mask_L4(path, tgt_path, variable='zos'):
     ds = ds.sel(time=ds['time'].dt.year == 2023)
     #isel(lat = np.arange(40, 720, 1))  # Select only the year 2023 from the time dimensi
 
-    ds_mask = ds.sel(time='2023-01-01')['sla'].expand_dims(time=ds.time)[:,:,:].assign_coords(ds.coords)
+    ds_mask = ds.sel(time='2023-01-01')['sla_filtered'].expand_dims(time=ds.time)[:,:,:].assign_coords(ds.coords) # before : sla !!!
     #ds_mask.sel(time='2019-01-20')['sla'].expand_dims(time=ds.time)[:,:,:].assign_coords(ds.coords)
     #print('DS maks')
     #print(ds_mask)
@@ -188,7 +198,7 @@ def load_ose_data_with_tgt_mask_L4(path, tgt_path, variable='zos'):
     ds = (
         ds
         .assign(
-            input=ds.sla,  # ds.sla_unfiltered usually !!!
+            input=ds.sla_filtered,  # ds.sla_unfiltered usually !!! for L3 inputs AND sla for DUACS L4 inputs ! 
             tgt= ds_mask
             )
     )
@@ -408,8 +418,8 @@ def open_glorys12_data_sla_OSE(path, masks_path, real_traces, domain, variables=
         ds
         .load()
         .assign(
-            input = lambda ds: ds_real["sla_unfiltered"],
-            input_complete = lambda ds: ds_real["sla_unfiltered"],
+            input = lambda ds: ds_real[variables],
+            input_complete = lambda ds: ds_real[variables],
             tgt= lambda ds: ds[variables]
         )
     )

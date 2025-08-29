@@ -8,7 +8,7 @@ paths:
     #2023/duacs_2010_2023.nc
     #Odyssey/public/duacs/2010_2019/duacs_2010_2019_0.25deg.nc
     #023/duacs_2010_2023.nc  #/Odyssey/public/glorys/reanalysis/glorys4_2010_2019_sla.nc for glorys, but for fine tune i am testing : DUACS, to use for masking : 
-  real_traces: /Odyssey/public/altimetry_traces/2010_2023/gridded/gridded_input.nc
+  real_traces: /Odyssey/public/altimetry_traces/2010_2023/gridded/compressed_sla_l3_complevelLucile.nc #ridded_input.nc
     # For 6 altimeters : /Odyssey/public/altimetry_traces/2010_2023/gridded/gridded_input.nc
     # For 14 altimetere s: /SCRATCH/d21botvy/all_altimeters.nc
   ref_data_l4: ""
@@ -56,7 +56,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_1patch_2017_2022_SLA_4dvarnet_real_data_Nadir_Duacs_losses
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_1patch_2017_2022_SLA_4dvarnet_OSE_Duacs_loss_latent_dim_21
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 350
@@ -95,7 +95,7 @@ datamodule:
     aug_only: False # ATTENTION !!!!! CHANGED AUGMENTATION !!!!
 
 model:
-  _target_: contrib.forecast_plus.models.Plus4dVarNetForecastPatchGPU
+  _target_: contrib.forecast_plus.models.Plus4dVarNetForecastPatchGPU #latent_dim        #Plus4dVarNetForecastPatchGPU
   persist_rw: False
   opt_fn:
     _target_: src.utils.cosanneal_lr_adam            #cosanneal_lr_adam
