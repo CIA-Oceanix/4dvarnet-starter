@@ -8,11 +8,11 @@ paths:
     #2023/duacs_2010_2023.nc
     #Odyssey/public/duacs/2010_2019/duacs_2010_2019_0.25deg.nc
     #023/duacs_2010_2023.nc  #/Odyssey/public/glorys/reanalysis/glorys4_2010_2019_sla.nc for glorys, but for fine tune i am testing : DUACS, to use for masking : 
-  real_traces: /Odyssey/public/altimetry_traces/2010_2023/gridded/compressed_sla_l3_complevelLucile.nc #ridded_input.nc
+  real_traces: /Odyssey/public/altimetry_traces/2010_2023/gridded/sla_l3_all_2010_2023_0.25deg_convl4.nc #ridded_input.nc
     # For 6 altimeters : /Odyssey/public/altimetry_traces/2010_2023/gridded/gridded_input.nc
     # For 14 altimetere s: /SCRATCH/d21botvy/all_altimeters.nc
   ref_data_l4: ""
-  ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_1patch_2017_2022_SLA_4dvarnet_real_data_Nadir_Duacs_losses/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_4dvarnet_real_data_from_sratch/checkpoints/val_mse=8.47135-epoch=016.ckpt
+  #ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_1patch_2017_2022_SLA_4dvarnet_real_data_Nadir_Duacs_losses/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_4dvarnet_real_data_from_sratch/checkpoints/val_mse=8.47135-epoch=016.ckpt
     #/Odyssey/public/glorys/trainings/forecast_global_1patch_2017_2022_SLA_4dvarnet_real_data_Nadir_Duacs_losses/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_4dvarnet_real_data_from_sratch/checkpoints/val_mse=7.61364-epoch=006.ckpt
   ose_data_paths: ''
     #/Odyssey/public/glorys/trainings/forecast_global_1patch_10y_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch/checkpoints/val_mse=0.01974-epoch=087.ckpt
@@ -86,7 +86,7 @@ datamodule:
     test: 
       time: {_target_: builtins.slice,  _args_: ['2022-12-31', '2022-12-31']}
   xrds_kw:
-    patch_dims: { time: 29, lat: 680, lon: 1440}
+    patch_dims: { time: 21, lat: 680, lon: 1440}
     strides: { time: 1, lat: 672, lon: 1432}
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 1, num_workers: 4}
@@ -95,7 +95,7 @@ datamodule:
     aug_only: False # ATTENTION !!!!! CHANGED AUGMENTATION !!!!
 
 model:
-  _target_: contrib.forecast_plus.models.Plus4dVarNetForecastPatchGPU #latent_dim        #Plus4dVarNetForecastPatchGPU
+  _target_: contrib.forecast_plus.models.Plus4dVarNetForecastPatchGPU_latent_dim        #Plus4dVarNetForecastPatchGPU
   persist_rw: False
   opt_fn:
     _target_: src.utils.cosanneal_lr_adam            #cosanneal_lr_adam
@@ -142,7 +142,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    ckpt: ${ckpt_path}
+    #kpt: ${ckpt_path}
 
 defaults:
   - _self_

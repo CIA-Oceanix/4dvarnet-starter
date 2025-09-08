@@ -133,7 +133,7 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
         ds
         .assign(
             input=ds[variable],
-            input_complete = ds[variable],
+            #input_complete = ds[variable],   # FOR L3 loss , like DOG , only ! 
             tgt= ds_mask
         )
     )
@@ -164,7 +164,8 @@ def load_ose_data_with_tgt_mask_L4(path, tgt_path, variable='zos'):
     '''
         Testing now inference on L3 inputs : ) for the nrt altims from 2023n concatenated and gridded
     '''
-    ds = xr.open_dataset('/Odyssey/public/altimetry_traces/2010_2023/gridded/compressed_sla_l3_complevelLucile.nc')
+    ds = xr.open_dataset('/Odyssey/public/altimetry_traces/2010_2023/gridded/sla_l3_all_2010_2023_0.25deg_convl4.nc')
+    #sla_l3_all_2010_2023_0.25deg_convl4.nc
     #/Odyssey/private/d21botvy/cmems_obs-sl_glo_phy-ssh_my_allsat-l4-duacs-0.125deg_P1D_multi-vars_179.94W-179.94E_89.94S-89.94N_2023-01-01-2023-12-31_(1).nc')
     #(path)
 

@@ -1,6 +1,6 @@
 # @package _global_
 
-xp_name: glorys4_global_1patch_SLA_4dvarnet_Filtered_OSE_2017-2022_Duacs_loss # le nom avec lequel ça sera rangé 
+xp_name: glorys4_global_1patch_SLA_4dvarnet_Filtered_OSE_2017-2022_Duacs_loss_latent_dim_21   # le nom avec lequel ça sera rangé 
 data_name: nrt_sla
 
 paths:
@@ -9,7 +9,8 @@ paths:
   metrics_path:  /Odyssey/public/glorys/metrics/      # metriques des cartes reconstruites comparées aux traces altimetriques reprocessés / NRT (en fonction du data_name) -> /metrics_path/xp_name/data_name/
 
   model_config_path: config/xp/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_4dvarnet_real_data_from_sratch.yaml
-  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_1patch_2017_2022_SLA_4dvarnet_real_data_Nadir_Duacs_losses/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_4dvarnet_real_data_from_sratch/checkpoints/val_mse=5.46220-epoch=270.ckpt
+  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_1patch_2017_2022_SLA_4dvarnet_OSE_Duacs_loss_latent_dim_21/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_4dvarnet_real_data_from_sratch/checkpoints/val_mse=3.91112-epoch=289.ckpt
+    #orecast_global_1patch_2017_2022_SLA_4dvarnet_real_data_Nadir_Duacs_losses/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_4dvarnet_real_data_from_sratch/checkpoints/val_mse=5.46220-epoch=270.ckpt
   # /Odyssey/public/glorys/trainings/forecast_global_1patch_10y_SLA_UNet_ResBlock_real_data_Nadir/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch/checkpoints/val_mse=0.01981-epoch=295.ckpt
   ref_data_l4: ""
 
