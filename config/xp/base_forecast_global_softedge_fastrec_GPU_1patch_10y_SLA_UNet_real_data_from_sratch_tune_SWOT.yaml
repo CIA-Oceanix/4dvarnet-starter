@@ -5,9 +5,10 @@ paths:
   glorys12_data: /Odyssey/public/duacs/2010_2019/duacs_2010_2019_0.25deg_float32.nc
     #2023/duacs_2017_2022_0.25deg.nc
   real_traces: /Odyssey/public/altimetry_traces/2010_2019/gridded_0.25deg/sla_l3_all_2010_2019_0.25deg_convl4_float32.nc
-    #2010_2023/gridded/sla_l3_all_2010_2023_0.25deg_convl4.nc
+  swot_traces: /Odyssey/public/swot_traces/gridded/ssha_l3_swot_2023_2025_0.25deg_convl4_float32.nc
+  #2010_2023/gridded/sla_l3_all_2010_2023_0.25deg_convl4.nc
   ref_data_l4: ""
-  #kpt_path: /Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses_DoG/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch/checkpoints/val_mse=0.01425-epoch=027.ckpt
+  ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses_DoG/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch/checkpoints/val_mse=0.00967-epoch=187.ckpt
   ose_data_paths: '' # pas clair ce que c'est !!!!
 
 var_name: "sla_filtered" 
@@ -46,7 +47,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses_DoG_correct_mse
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_Nadir_Duacs_loss_DoG_correct_mse_SWOT_tune
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 350
@@ -62,10 +63,11 @@ trainer:
 datamodule:
   _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPUOSE
   input_da: 
-    _target_: contrib.data_loading.data.open_glorys12_data_sla_OSE  #open_duacs_data_sla
+    _target_: contrib.data_loading.data.open_glorys12_data_sla_OSE_SWOT  #open_duacs_data_sla
     path: ${paths.glorys12_data}
     masks_path: ${paths.masks_path}
     real_traces: ${paths.real_traces}
+    swot_data: ${paths.swot_traces}
     domain: ${domain.train}
     variables: "sla"
   domains:
@@ -123,7 +125,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    #kpt: ${paths.ckpt_path}
+    ckpt: ${paths.ckpt_path}
 
 defaults:
   - _self_

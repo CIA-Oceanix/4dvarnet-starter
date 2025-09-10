@@ -99,26 +99,17 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
     ds = ds.sel(time=ds['time'].dt.year == 2019)    # 2023 for inference before !!! 
     ds_mask = ds_mask.sel(time='2019-01-20')[variable].expand_dims(time=ds.time)[:,:,:]   # CHANGED FROM 2023 TO 2019 !!! , but should be 2020 ! # CHNAGED AGAIN FROM 2019 TO 2021  
     # Changed again from 2021 to 2019
-    #print('ds')
-    #print(ds)
-    #print('ds_mask')
-    #print('path is ' + tgt_path)
-    #print(ds_mask)
 
     print('VARIABLE IS')
     print(variable)
 
-    #ds_mask = ds_mask.sel(time='2019-01-20')['sla'].expand_dims(time=ds.time)[:,:,:].assign_coords(ds.coord
-    target_lat = ds.sel(lon = np.arange(-180, 180, 0.25))['lat']
-    target_lon = ds.sel(lon = np.arange(-180, 180, 0.25))['lon']
-    print(len(variable.split('_')))
+    #arget_lat = ds.sel(lon = np.arange(-180, 180, 0.25))['lat']
+    #target_lon = ds.sel(lon = np.arange(-180, 180, 0.25))['lon']
     if(variable.split('_')[0] == "sla"):
         ds_mask = ds_mask.interp(lat=target_lat, lon=target_lon)
         ds = ds.interp(lat=target_lat, lon=target_lon)
-        #ds = ds.isel(lat = np.arange(40, ds.lat.values.shape[0], 1))   # 720 before !
-        #ds_mask = ds_mask.isel(lat = np.arange(40, ds.lat.values.shape[0], 1))  # 720 before !
-        print(ds)
-        print(ds_mask)
+        ds = ds.isel(lat = np.arange(40, ds.lat.values.shape[0], 1))   # 720 before !
+        ds_mask = ds_mask.isel(lat = np.arange(40, ds.lat.values.shape[0], 1))  # 720 before !
         ds_mask = ds_mask.assign_coords(ds.coords)
     elif(variable.split('_')[-1] == "temperature"):
         lat_new = np.arange(target_lat[0], target_lat[-1], 0.25)
@@ -421,6 +412,76 @@ def open_glorys12_data_sla_OSE(path, masks_path, real_traces, domain, variables=
             input = lambda ds: ds_real[variables],
             input_complete = lambda ds: ds_real[variables],
             tgt= lambda ds: ds[variables]
+        )
+    )
+    print("done.")
+    '''
+    if masking:
+        with open(masks_path, 'rb') as masks_file:
+            mask_list = pickle.load(masks_file)
+        mask_list = np.array(mask_list)
+        ds= ds.assign(
+            input=xr.apply_ufunc(mask_input, ds.input, input_core_dims=[['lat', 'lon']], output_core_dims=[['lat', 'lon']], kwargs={"mask_list": mask_list}, dask="allowed", vectorize=True)
+            )
+    '''
+    ds = ds.sel(domain)
+    ds = (
+        ds[[*TrainingItemOSE._fields]]
+        .transpose("time", "lat", "lon")
+        .to_array()
+    )
+
+    return ds
+
+
+'''
+    Loader for SWOT data 
+'''
+def open_glorys12_data_sla_OSE_SWOT(path, masks_path, real_traces, swot_data, domain, variables="sla", masking=True, test_cut=None): # zos before
+    """
+        Function to load glorys data
+
+        path: path to glorys .nc file
+        masks_path: path to nadir-like observation masks with dimensions matching glorys dataset size. pickled np array list.
+        domain: lat and long extremities to cut data
+        variables: variable to load
+        masking: whether to mask the input data using the masks in masks_path
+        test_cut: if not None, {'time': slice(time1, time2)}, speeding up the loading by pre-cutting the loaded data
+    """
+    print("LOADING input data")
+    ds =  (
+            xr.open_dataset(path)# if the file is original GLORYS12 file : drop_vars('depth')
+    )
+
+    print('DS is')
+    print(ds)
+
+    ds_real = xr.open_dataset(real_traces)
+    
+    ds_swot = xr.open_dataset(swot_data)
+
+    print('DS real is ')
+    print(ds_real)
+
+    if 'latitude' in list(ds.dims):
+        ds = ds.rename({'latitude':'lat', 'longitude':'lon'})
+    if 'latitude' in list(ds_real.dims):
+        ds_real = ds_real.rename({'latitude':'lat', 'longitude':'lon'})
+    if 'latitude' in list(ds_swot.dims):
+        ds_swot = ds_swot.rename({'latitude':'lat', 'longitude':'lon'})
+
+    if test_cut is not None:
+        ds = ds.sel(time=test_cut)
+        ds_real = ds_real.sel(time=test_cut)
+        ds_swot = ds_swot.sel(time=test_cut)
+
+    ds = (
+        ds
+        .load()
+        .assign(
+            input = lambda ds: ds_real[variables],
+            input_complete = lambda ds: ds_swot["ssha_filtered"], # before : ds_real ! but for fine tune it is SWOT
+            tgt = lambda ds: ds[variables]
         )
     )
     print("done.")

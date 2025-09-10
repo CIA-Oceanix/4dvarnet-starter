@@ -78,7 +78,7 @@ class Lit4dVarNet(pl.LightningModule):
         
         coarsen_loss = self.weighted_mse(torch.nn.AvgPool2d(4)(out) - torch.nn.AvgPool2d(4)(torch.nan_to_num(batch.tgt)), weights_torch)
         
-        DoG_loss = self.weighted_mse(dog_kornia(out, 1, 2), dog_kornia(torch.nan_to_num(batch.input_complete), 1, 2))
+        DoG_loss = self.weighted_mse(dog_kornia(out, 1, 2) - dog_kornia(torch.nan_to_num(batch.input_complete), 1, 2), self.rec_weight)
 
         training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost + 50 * coarsen_loss + 50 * DoG_loss # 10000 for 1/20° and 250 for 1/4° # 250 for the grad_loss and best results
         # added DoG loss
@@ -326,7 +326,9 @@ class Lit4dVarNet_UNet(pl.LightningModule):
         
         coarsen_loss = self.weighted_mse(torch.nn.AvgPool2d(4)(out) - torch.nn.AvgPool2d(4)(torch.nan_to_num(batch.tgt)), weights_torch)
         
-        DoG_loss = self.weighted_mse(dog_kornia(out, 1, 2), dog_kornia(torch.nan_to_num(batch.input_complete), 1, 2))
+        DoG_loss = self.weighted_mse(dog_kornia(out, 1, 2) - dog_kornia(torch.nan_to_num(batch.input_complete), 1, 2), self.rec_weight) # corrected this part ! 
+        
+        #L3_loss = self.weighted_mse(out - torch.nan_to_num(batch.input_complete), self.rec_weight)
         
         self.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
         # In case of SST : 

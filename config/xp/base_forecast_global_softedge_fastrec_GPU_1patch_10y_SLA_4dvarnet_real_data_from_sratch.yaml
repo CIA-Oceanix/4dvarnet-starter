@@ -71,7 +71,7 @@ trainer:
       filename: '{val_mse:.5f}-{epoch:03d}'
 
 datamodule:
-  _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU
+  _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPUOSE # before DoG loss : without OSE : )
   input_da: 
     _target_: contrib.data_loading.data.open_glorys12_data_sla_OSE #classic for normal loss and OSE for DoG loss
       #open_duacs_data_sla
