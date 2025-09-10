@@ -8,7 +8,8 @@ paths:
     #2023/duacs_2010_2023.nc
     #Odyssey/public/duacs/2010_2019/duacs_2010_2019_0.25deg.nc
     #023/duacs_2010_2023.nc  #/Odyssey/public/glorys/reanalysis/glorys4_2010_2019_sla.nc for glorys, but for fine tune i am testing : DUACS, to use for masking : 
-  real_traces: /Odyssey/public/altimetry_traces/2010_2023/gridded/sla_l3_all_2010_2023_0.25deg_convl4.nc #ridded_input.nc
+    #real_traces: /Odyssey/public/altimetry_traces/2010_2023/gridded/sla_l3_all_2010_2023_0.25deg_convl4.nc #ridded_input.n
+  real_traces: /Odyssey/public/altimetry_traces/2010_2019/gridded_0.25deg/sla_l3_all_2010_2019_0.25deg_convl4_float32.nc
     # For 6 altimeters : /Odyssey/public/altimetry_traces/2010_2023/gridded/gridded_input.nc
     # For 14 altimetere s: /SCRATCH/d21botvy/all_altimeters.nc
   ref_data_l4: ""
@@ -56,7 +57,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_1patch_2017_2022_SLA_4dvarnet_OSE_Duacs_loss_latent_dim_21
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_4dvarnet_OSE_Duacs_loss_latent_dim_21_DoG
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 350
@@ -72,7 +73,7 @@ trainer:
 datamodule:
   _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU
   input_da: 
-    _target_: contrib.data_loading.data.open_glorys12_data_sla_OSE_classic
+    _target_: contrib.data_loading.data.open_glorys12_data_sla_OSE #classic for normal loss and OSE for DoG loss
       #open_duacs_data_sla
     path: ${paths.glorys12_data}
     masks_path: ${paths.masks_path}
@@ -80,11 +81,11 @@ datamodule:
     domain: ${domain.train}
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2017-01-01', '2022-04-17']}
+      time: {_target_: builtins.slice, _args_: ['2016-01-01', '2019-04-17']} # previsouly : 2017 to 2022
     val: 
-      time: {_target_: builtins.slice, _args_: ['2022-04-18', '2022-11-30']}
+      time: {_target_: builtins.slice, _args_: ['2019-04-18', '2019-11-30']} # previously : '2022-04-18', '2022-11-30'
     test: 
-      time: {_target_: builtins.slice,  _args_: ['2022-12-31', '2022-12-31']}
+      time: {_target_: builtins.slice,  _args_: ['2019-12-31', '2019-12-31']}
   xrds_kw:
     patch_dims: { time: 21, lat: 680, lon: 1440}
     strides: { time: 1, lat: 672, lon: 1432}

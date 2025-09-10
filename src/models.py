@@ -77,8 +77,12 @@ class Lit4dVarNet(pl.LightningModule):
         weights_torch = torch.tensor(weights, dtype=out.dtype, device=out.device)
         
         coarsen_loss = self.weighted_mse(torch.nn.AvgPool2d(4)(out) - torch.nn.AvgPool2d(4)(torch.nan_to_num(batch.tgt)), weights_torch)
+        
+        DoG_loss = self.weighted_mse(dog_kornia(out, 1, 2), dog_kornia(torch.nan_to_num(batch.input_complete), 1, 2))
 
-        training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost + 50 * coarsen_loss # 10000 for 1/20° and 250 for 1/4° # 250 for the grad_loss and best results
+        training_loss = 50 * loss + 1000 * grad_loss + 1.0 * prior_cost + 50 * coarsen_loss + 50 * DoG_loss # 10000 for 1/20° and 250 for 1/4° # 250 for the grad_loss and best results
+        # added DoG loss
+        
         return training_loss, out
 
     def base_step(self, batch, phase=""):
@@ -919,6 +923,7 @@ class Lit4dVarNetForecast(Lit4dVarNet):
         new_input[:, dims[1]//2:, :, :] = np.nan
 
         mask_batch = batch._replace(input=new_input)
+        
 
         return mask_batch
 
@@ -997,6 +1002,12 @@ class Lit4dVarNetForecast_only1leadtime(Lit4dVarNet):
         new_input[:, 14:, :, :] = np.nan
 
         mask_batch = batch._replace(input=new_input)
+        
+        # temporal masking
+        new_input = batch.input.clone()
+        dims = new_input.size()
+        new_input[:, :14, :, :] = np.nan
+        mask_batch = batch._replace(input_complete=new_input) # for DoG and other L3 losses
 
         return mask_batch
 

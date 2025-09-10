@@ -2,11 +2,16 @@
 
 paths:
     masks_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle 
-    glorys12_data: /Odyssey/public/glorys/reanalysis/glorys4_2010_2019_sla.nc
+    glorys12_data: /Odyssey/public/glorys/reanalysis/glorys12_2010_2019_daily_sla_4th_float32.nc
+      #PREVIOUSLY before changes in float32 etc : glorys4_2010_2019_sla.nc
       #kpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_latent_dimension_1/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_not_29_but_1/checkpoints/val_mse=8.29492-epoch=279.ckpt
       #Odyssey/public/glorys/reanalysis/glorys12_2010_2019_4th.nc   # Path des trcaes L3 ?
       #kpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_not_SSH/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA/checkpoints/val_mse=5.06367-epoch=088.ckpt
-      #al_mse=5.21636-epoch=057.ckpt
+      #al_mse=5.21636-epoch=057.ckp
+    ref_data_l4: /Odyssey/public/data_challenge_ssh_ose/data/alongtrack/gridded_obs_sla_0.25.nc # basically this is tgt_path_not_glorys
+    ose_data_paths: /Odyssey/public/data_challenge_ssh_ose/data/alongtrack/gridded_obs_sla_0.25.nc
+
+var_name: sla_filtered
 
 domain:
   train:

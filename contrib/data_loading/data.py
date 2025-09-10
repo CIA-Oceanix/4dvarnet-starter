@@ -69,13 +69,14 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
         tgt_path: path to a complete reconstruction of global glorys ssh containing the day 2020-01-20
         variable: mask variable to load
     """
-    print("ENTER")   
     if(len(tgt_path_not_glorys) != 0):
         tgt_path = tgt_path_not_glorys
-    elif(len(tgt_path_l3_data) != 0):
-        tgt_path = tgt_path_l3_data
+    if(len(tgt_path_l3_data) != 0):
+        #tgt_path = tgt_path_l3_data
+        path = tgt_path_l3_data # because path is basically input data
 
     print(f'tgt_path is {tgt_path}')
+    print(f'path is {path}')
     ds_mask = xr.open_dataset(tgt_path)#drop_vars('depth')    # TGT_PATH is GLORYS12_DATA in contrib/ose_pipeline/ose_rec_pipeline.py
     ds = xr.open_dataset(path)
 
@@ -95,37 +96,35 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
 
 
     ds['time'] = pd.to_datetime(ds['time'].values)  # Ensure time is in datetime format if it's not already
-    ds = ds.sel(time=ds['time'].dt.year == 2023)
+    ds = ds.sel(time=ds['time'].dt.year == 2019)    # 2023 for inference before !!! 
     ds_mask = ds_mask.sel(time='2019-01-20')[variable].expand_dims(time=ds.time)[:,:,:]   # CHANGED FROM 2023 TO 2019 !!! , but should be 2020 ! # CHNAGED AGAIN FROM 2019 TO 2021  
     # Changed again from 2021 to 2019
-    print('ds')
-    print(ds)
-    print('ds_mask')
-    print('path is ' + tgt_path)
-    print(ds_mask)
-
+    #print('ds')
+    #print(ds)
+    #print('ds_mask')
+    #print('path is ' + tgt_path)
+    #print(ds_mask)
 
     print('VARIABLE IS')
     print(variable)
 
     #ds_mask = ds_mask.sel(time='2019-01-20')['sla'].expand_dims(time=ds.time)[:,:,:].assign_coords(ds.coord
-    target_lat = ds['lat']
-    target_lon = ds['lon']
-    
+    target_lat = ds.sel(lon = np.arange(-180, 180, 0.25))['lat']
+    target_lon = ds.sel(lon = np.arange(-180, 180, 0.25))['lon']
+    print(len(variable.split('_')))
     if(variable.split('_')[0] == "sla"):
         ds_mask = ds_mask.interp(lat=target_lat, lon=target_lon)
-        ds = ds.isel(lat = np.arange(40, 720, 1))
-        ds_mask = ds_mask.isel(lat = np.arange(40, 720, 1))
+        ds = ds.interp(lat=target_lat, lon=target_lon)
+        #ds = ds.isel(lat = np.arange(40, ds.lat.values.shape[0], 1))   # 720 before !
+        #ds_mask = ds_mask.isel(lat = np.arange(40, ds.lat.values.shape[0], 1))  # 720 before !
+        print(ds)
+        print(ds_mask)
         ds_mask = ds_mask.assign_coords(ds.coords)
     elif(variable.split('_')[-1] == "temperature"):
-        print('ENETERED IN IF TEMPERATURE')
         lat_new = np.arange(target_lat[0], target_lat[-1], 0.25)
         lon_new = np.arange(target_lon[0], target_lon[-1], 0.25)
-        print('lon new')
-        print(lon_new)
         ds = ds.interp(lat=lat_new, lon=lon_new)
         ds_mask = ds_mask.interp(lat=lat_new, lon=lon_new)
-
 
     #ds_mask.sel(time='2020-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords)
 
@@ -139,7 +138,7 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
     )
 
     return (
-         ds[[*TrainingItemOSE._fields]]    # previously TrainingItem simply !!!
+         ds[[*TrainingItem._fields]]    # previously TrainingItem simply !!!  and TrainingItemOSE only for L3 loss training and rec
         .transpose("time", "lat", "lon")
         .to_array()
     )
