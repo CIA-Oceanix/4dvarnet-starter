@@ -89,7 +89,7 @@ class Lit4dVarNet(pl.LightningModule):
         out = self(batch=batch)
 
         loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
-
+        
         with torch.no_grad():
             self.log(f"{phase}_mse", 10000 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
             self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
@@ -326,16 +326,17 @@ class Lit4dVarNet_UNet(pl.LightningModule):
         
         coarsen_loss = self.weighted_mse(torch.nn.AvgPool2d(4)(out) - torch.nn.AvgPool2d(4)(torch.nan_to_num(batch.tgt)), weights_torch)
         
-        DoG_loss = self.weighted_mse(dog_kornia(out, 1, 2) - dog_kornia(torch.nan_to_num(batch.input_complete), 1, 2), self.rec_weight) # corrected this part ! 
+        #DoG_loss = self.weighted_mse(out - torch.nan_to_num(batch.input_complete), self.rec_weight) # simple MSE instead of DoG !!!
+        #self.weighted_mse(dog_kornia(out, 1, 2) - dog_kornia(torch.nan_to_num(batch.input_complete), 1, 2), self.rec_weight) # corrected this part ! 
         
-        #L3_loss = self.weighted_mse(out - torch.nan_to_num(batch.input_complete), self.rec_weight)
+        L3_loss = self.weighted_mse(out - torch.nan_to_num(batch.input_complete), self.rec_weight)
         
         self.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
         # In case of SST : 
         #training_loss = 50 * loss # 50 * coarsen_loss + 50 * grad_loss # 50 * DoG_loss
         
         # In case of SLA : 
-        training_loss = 50 * loss + 50 * coarsen_loss + 50 * grad_loss + 50 * DoG_loss
+        training_loss = 50 * loss + 50 * coarsen_loss + 50 * grad_loss + 50*L3_loss #+ 50 * DoG_loss
 
         #50* torch.nn.L1Loss(reduction='mean')(torch.nn.AvgPool2d(2)(out), torch.nn.AvgPool2d(2)(batch.tgt))
         #F.mse_loss(out[:,14 : 14+7, :], batch.tgt)
@@ -347,7 +348,41 @@ class Lit4dVarNet_UNet(pl.LightningModule):
         out = self(batch=batch)
 
         loss = self.weighted_mse(out - torch.nan_to_num(batch.tgt), self.rec_weight)
-        #rint('loss = ' + str(loss.item()))
+        
+        '''
+            Compute L3 val mse 
+        '''
+        # Extract lat/lon grid coords and find their min/max for normalization
+        lat_grid = batch.input_coords_l4[:, 0, :, :]  # [B, H, W]
+        lon_grid = batch.input_coords_l4[:, 1, :, :]  # [B, H, W]
+        time_grid = batch.input_coords_l4[:, 2, :, :, :] # [B, T, H, W]
+
+        lat_min, lat_max = lat_grid.amin(dim=[1,2], keepdim=True), lat_grid.amax(dim=[1,2], keepdim=True)
+        lon_min, lon_max = lon_grid.amin(dim=[1,2], keepdim=True), lon_grid.amax(dim=[1,2], keepdim=True)
+        time_min, time_max = time_grid.amin(dim=[1,2,3], keepdim=True), time_grid.amax(dim=[1,2,3], keepdim=True)
+
+        # Normalize along-track lat/lon points to [-1, 1] grid coords
+        # batch.input_coords_l3: [B, N, 3] (lat, lon, time) or [B, N, 2] (lat, lon)
+        lat_points = batch.input_coords_l3[:, :, 0]  # [B, N]
+        lon_points = batch.input_coords_l3[:, :, 1]  # [B, N]
+        time_points = batch.input_coords_l3[:, :, 2]
+
+        # Stack normalized points as [x, y] for grid_sample (note grid_sample expects [x, y], i.e. lon then lat)
+        # So swap order to lon_norm first, then lat_norm
+        grid_points = torch.stack([lon_points, lat_points, time_points], dim=-1)  # [B, N, 2]
+
+        # grid_sample requires 4D input grid: [B, C, H, W] and grid: [B, N, 1, 2]
+        grid_points = grid_points.unsqueeze(2).unsqueeze(2)                # [B, N, 1, 1, 3]
+        
+        # Sample the output field at along-track points
+        # Mode can be 'bilinear', 'nearest', etc.
+        out_interpolated = F.grid_sample(out, grid_points, mode='bilinear', align_corners=True)  # [B, C, N, 1]
+
+        out_interpolated = out_interpolated.squeeze(-1).squeeze(-1)  # [B, C, N]
+
+        # Compute loss between interpolated output and alongtrack input_complete SLA
+        # Assuming batch.input_complete shape [B, C, N] matches
+        loss_l3 = F.mse_loss(out_interpolated, batch.input_complete)
 
         with torch.no_grad():
             self.log(f"{phase}_mse", 50 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
@@ -599,10 +634,6 @@ class Lit4dVarNet_UNet_MLD(pl.LightningModule):
 
         loss = self.weighted_mse(out - torch.nan_to_num(batch.tgt), self.rec_weight)
         #rint('loss = ' + str(loss.item()))
-
-        print('Self norm stats')
-        print(self.norm_stats)
-        print(self.norm_stats[1]**2)
         
         with torch.no_grad():
             self.log(f"{phase}_mse", loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
@@ -686,8 +717,12 @@ class Lit4dVarNetForecast_UNet(Lit4dVarNet_UNet):
         # temporal masking
         new_input = batch.input.clone()
         dims = new_input.size()
-        new_input[:, :dims[1]//2, :, :] = np.nan
-        mask_batch = batch._replace(input_complete=new_input) # for DoG and other L3 losses
+        
+        '''
+            For fine tuning, as input_complete is independent , do not mask the first 14 days 
+        '''
+        #new_input[:, :dims[1]//2, :, :] = np.nan
+        #mask_batch = batch._replace(input_complete=new_input) # for DoG and other L3 losses
 
         return mask_batch
 

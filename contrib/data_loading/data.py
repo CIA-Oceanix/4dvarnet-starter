@@ -1,8 +1,9 @@
 import xarray as xr
 import numpy as np
 import pickle
-from src.data import TrainingItem, TrainingItemOSE
+from src.data import TrainingItem, TrainingItemOSE, TrainingItemOSE_coords
 import pandas as pd
+from glob import glob
 
 def load_ose_data(path):
     print('Load ose data')
@@ -96,20 +97,23 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
 
 
     ds['time'] = pd.to_datetime(ds['time'].values)  # Ensure time is in datetime format if it's not already
-    ds = ds.sel(time=ds['time'].dt.year == 2019)    # 2023 for inference before !!! 
-    ds_mask = ds_mask.sel(time='2019-01-20')[variable].expand_dims(time=ds.time)[:,:,:]   # CHANGED FROM 2023 TO 2019 !!! , but should be 2020 ! # CHNAGED AGAIN FROM 2019 TO 2021  
+    ds = ds.sel(time=ds['time'].dt.year == 2023)
+    # BEFORE SWOT : ds.sel(time=ds['time'].dt.year == 2019)    # 2023 for inference before !!! 
+    ds_mask = ds_mask.sel(time='2024-01-20')[variable].expand_dims(time=ds.time)[:,:,:] # 2024 for swot ? 
+    # BEOFRE SWOT : ds_mask.sel(time='2019-01-20')[variable].expand_dims(time=ds.time)[:,:,:]   # CHANGED FROM 2023 TO 2019 !!! , but should be 2020 ! # CHNAGED AGAIN FROM 2019 TO 2021  
     # Changed again from 2021 to 2019
 
     print('VARIABLE IS')
     print(variable)
 
-    #arget_lat = ds.sel(lon = np.arange(-180, 180, 0.25))['lat']
-    #target_lon = ds.sel(lon = np.arange(-180, 180, 0.25))['lon']
+    target_lat = ds.sel(lon = np.arange(-180, 180, 0.25))['lat']
+    target_lon = ds.sel(lon = np.arange(-180, 180, 0.25))['lon']
+    
     if(variable.split('_')[0] == "sla"):
         ds_mask = ds_mask.interp(lat=target_lat, lon=target_lon)
         ds = ds.interp(lat=target_lat, lon=target_lon)
         ds = ds.isel(lat = np.arange(40, ds.lat.values.shape[0], 1))   # 720 before !
-        ds_mask = ds_mask.isel(lat = np.arange(40, ds.lat.values.shape[0], 1))  # 720 before !
+        ds_mask = ds_mask.isel(lat = np.arange(40, ds_mask.lat.values.shape[0], 1))  # 720 before !
         ds_mask = ds_mask.assign_coords(ds.coords)
     elif(variable.split('_')[-1] == "temperature"):
         lat_new = np.arange(target_lat[0], target_lat[-1], 0.25)
@@ -122,14 +126,14 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
     ds = (
         ds
         .assign(
-            input=ds[variable],
-            #input_complete = ds[variable],   # FOR L3 loss , like DOG , only ! 
+            input= ds[variable], #ds[variable],
+            input_complete = ds[variable], #ds[variable],   # FOR L3 loss , like DOG , only !  and for SWOT also ! 
             tgt= ds_mask
         )
     )
 
     return (
-         ds[[*TrainingItem._fields]]    # previously TrainingItem simply !!!  and TrainingItemOSE only for L3 loss training and rec
+         ds[[*TrainingItemOSE._fields]]    # previously TrainingItem simply !!!  and TrainingItemOSE only for L3 loss training and rec and for SWTO also ! 
         .transpose("time", "lat", "lon")
         .to_array()
     )
@@ -435,6 +439,97 @@ def open_glorys12_data_sla_OSE(path, masks_path, real_traces, domain, variables=
 
 
 '''
+    Loading of L3 data 
+'''
+def open_glorys12_data_sla_OSE_L3(path, masks_path, real_traces, domain, variables="sla", masking=True, test_cut=None): # zos before
+    """
+        Function to load glorys data
+
+        path: path to glorys .nc file
+        masks_path: path to nadir-like observation masks with dimensions matching glorys dataset size. pickled np array list.
+        domain: lat and long extremities to cut data
+        variables: variable to load
+        masking: whether to mask the input data using the masks in masks_path
+        test_cut: if not None, {'time': slice(time1, time2)}, speeding up the loading by pre-cutting the loaded data
+    """
+    print("LOADING input data")
+    ds =  (
+            xr.open_dataset(path)# if the file is original GLORYS12 file : drop_vars('depth')
+    )
+
+    print('DS is')
+    print(ds)
+
+    ds_real = xr.open_dataset(real_traces)
+
+    print('DS real is ')
+    print(ds_real)
+
+    if 'latitude' in list(ds.dims):
+        ds = ds.rename({'latitude':'lat', 'longitude':'lon'})
+    if 'latitude' in list(ds_real.dims):
+        ds_real = ds_real.rename({'latitude':'lat', 'longitude':'lon'})
+
+    if test_cut is not None:
+        ds = ds.sel(time=test_cut)
+    if test_cut is not None:
+        ds_real = ds_real.sel(time=test_cut)
+        
+    #list_of_file = sorted(glob('/Odyssey/public/altimetry_traces/2010_2019/alongtrack/*.nc'))
+    ds_alg = xr.open_dataset("/Odyssey/public/altimetry_traces/processed/2010_2023/concat/concatenated_input.nc")
+    ds_alg = ds_alg.pipe(
+        lambda d: d.where(
+            (d.time.load() >= pd.to_datetime("2016-01-01"))
+            & (d.time <= pd.to_datetime("2019-12-31")),
+            drop=True,
+            )
+        ).sortby("time")[["sla_filtered", "sla_unfiltered"]]
+
+    lat = ds_real["lat"]  # 1D or 2D
+    lon = ds_real["lon"]  # 1D or 2D
+    time = ds_real["time"]  # 1D or 2D
+
+    # Create a 2D mesh of coordinates if lat/lon are 1D
+    lat2d, lon2d = xr.broadcast(lat, lon)  # Now both are [H, W]
+    time3d, lat3d, lon3d = xr.broadcast(time, lat2d, lon2d)  # shape: [T, H, W]
+
+    # Stack into a new DataArray of shape [2, H, W] or [H, W, 2]
+    coords_stack = xr.concat([lat3d, lon3d, time3d], dim="coord")
+    
+    lat = ds_alg["latitude"]  # 1D or 2D
+    lon = ds_alg["longitude"]  # 1D or 2D
+    time = ds_alg["time"]
+
+    coords_ds_l3 = xr.Dataset({
+        "latitude": lat,
+        "longitude": lon,
+        "time": time
+    })
+
+    ds = (
+        ds
+        .load()
+        .assign(
+            input = lambda ds: ds_real[variables],
+            input_complete = lambda ds: ds_alg["sla_unfiltered"], #ds_real[variables],
+            input_coords_l4 = lambda ds: coords_stack,
+            input_coords_l3 = lambda ds: coords_stack_l3,
+            tgt= lambda ds: ds[variables]
+        )
+    )
+    print("done.")
+
+    ds = ds.sel(domain)
+    ds = (
+        ds[[*TrainingItemOSE_coords._fields]]
+        .transpose("time", "lat", "lon")
+        .to_array()
+    )
+
+    return ds
+
+
+'''
     Loader for SWOT data 
 '''
 def open_glorys12_data_sla_OSE_SWOT(path, masks_path, real_traces, swot_data, domain, variables="sla", masking=True, test_cut=None): # zos before
@@ -479,9 +574,9 @@ def open_glorys12_data_sla_OSE_SWOT(path, masks_path, real_traces, swot_data, do
         ds
         .load()
         .assign(
-            input = lambda ds: ds_real[variables],
+            input = lambda ds: ds_real["sla_unfiltered"],
             input_complete = lambda ds: ds_swot["ssha_filtered"], # before : ds_real ! but for fine tune it is SWOT
-            tgt = lambda ds: ds[variables]
+            tgt = lambda ds: ds["sla"]
         )
     )
     print("done.")

@@ -22,15 +22,10 @@ def dog_kornia(x, sigma, K):
         kfilts.gaussian_blur2d(mask_bool.float(), (k, k), (sigma, sigma), separable=False),
         torch.nan
     )
-    print('mask filtered[0] shape')
-    print(mask_filtered[0].shape)
-    print(mask_bool_tensor.shape)
-    print(kornia.filters.gaussian_blur2d(x, (k, k), (sigma, sigma), separable = False).shape)
-    print('x shape')
-    print(x.shape)
 
-    data_filtered_normalized = []
-    for i in range(K):
-        data_filtered_normalized.append(torch.where(mask_bool_tensor.unsqueeze(0), kornia.filters.gaussian_blur2d(x, (k, k), (sigma, sigma), separable = False), torch.nan) / (mask_filtered + 1e-6))
+    data_filtered_normalized = [kornia.filters.gaussian_blur2d(x, (k, k), (sigma, sigma))]
+    for i in range(1, K):
+        data_filtered_normalized.append(kornia.filters.gaussian_blur2d(data_filtered_normalized[i - 1], (k, k), (sigma, sigma)))
+            #torch.where(mask_bool_tensor.unsqueeze(0), kornia.filters.gaussian_blur2d(x, (k, k), (sigma, sigma), separable = False), torch.nan) / (mask_filtered + 1e-6))
             
     return torch.diff(torch.stack(data_filtered_normalized, 0).squeeze(), dim = 0)

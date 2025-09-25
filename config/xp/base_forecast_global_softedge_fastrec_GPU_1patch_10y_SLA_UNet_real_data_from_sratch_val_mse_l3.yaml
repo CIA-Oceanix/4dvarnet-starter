@@ -46,7 +46,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses_correct_mse_L3
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_OSE_Duacs_loss_val_mse_l3
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 350
@@ -62,7 +62,7 @@ trainer:
 datamodule:
   _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPUOSE
   input_da: 
-    _target_: contrib.data_loading.data.open_glorys12_data_sla_OSE  #open_duacs_data_sla
+    _target_: contrib.data_loading.data.open_glorys12_data_sla_OSE_L3 #open_duacs_data_sla
     path: ${paths.glorys12_data}
     masks_path: ${paths.masks_path}
     real_traces: ${paths.real_traces}

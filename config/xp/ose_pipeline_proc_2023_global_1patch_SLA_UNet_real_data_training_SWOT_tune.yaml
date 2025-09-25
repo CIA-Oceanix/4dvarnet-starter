@@ -1,6 +1,6 @@
 # @package _global_
 
-xp_name: glorys4_global_1patch_SLA_UNet_Filtered_OSE_DUACS_loss_2016-2019_mse_L3 # le nom avec lequel ça sera rangé 
+xp_name: glorys4_global_1patch_SLA_UNet_Filtered_OSE_DUACS_loss_2016-2019_Duacs_loss_correct_mse_SWOT_tune_mse # le nom avec lequel ça sera rangé 
 data_name: nrt_sla
 
 paths:
@@ -8,11 +8,10 @@ paths:
   rec_path:  /Odyssey/public/glorys/rec/              # reconstruction de la SSH avec 4dvarnet à partir des traces /rec_path/xp_name/data_name/
   metrics_path:  /Odyssey/public/glorys/metrics/      # metriques des cartes reconstruites comparées aux traces altimetriques reprocessés / NRT (en fonction du data_name) -> /metrics_path/xp_name/data_name/
 
-  model_config_path: config/xp/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch.yaml
-  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses_correct_mse_L3/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch/checkpoints/val_mse=0.02699-epoch=015.ckpt
-    # /Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses_DoG/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch/checkpoints/val_mse=0.00967-epoch=187.ckpt
-    #/Odyssey/public/glorys/trainings/forecast_global_1patch_2017_2022_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch/checkpoints/val_mse=0.01999-epoch=151.ckpt
-  # /Odyssey/public/glorys/trainings/forecast_global_1patch_10y_SLA_UNet_ResBlock_real_data_Nadir/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch/checkpoints/val_mse=0.01981-epoch=295.ckpt
+  model_config_path: config/xp/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch_tune_SWOT.yaml
+  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_Nadir_Duacs_loss_correct_mse_SWOT_tune_mse/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch_tune_SWOT/checkpoints/val_mse=0.02760-epoch=121.ckpt
+    #/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_Nadir_Duacs_loss_correct_mse_SWOT_tune_SWOT_input_mse/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch_tune_SWOT/checkpoints/val_mse=0.02727-epoch=206.ckp
+    #/Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_Nadir_Duacs_loss_DoG_correct_mse_SWOT_tune/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch_tune_SWOT/checkpoints/val_mse=0.00738-epoch=273.ckpt
   ref_data_l4: ""
 
 

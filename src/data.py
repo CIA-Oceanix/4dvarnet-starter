@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 TrainingItem = namedtuple('TrainingItem', ['input', 'tgt'])
 TrainingItemOSE = namedtuple('TrainingItemOSE', ['input', 'input_complete', 'tgt'])
+TrainingItemOSE_coords = namedtuple('TrainingItemOSE', ['input', 'input_complete', 'input_coords_l4', 'input_coords_l3', 'tgt'])
 
 class IncompleteScanConfiguration(Exception):
     pass

@@ -297,8 +297,6 @@ class Plus4dVarNetForecast_latent_dim(Lit4dVarNetForecast_only1leadtime):
         self.output_leadtime_start = output_leadtime_start
 
     def get_dT(self):
-        print('get_dT')
-        print(self.rec_weight.size()[0])
         return self.rec_weight.size()[0]
 
     def on_test_epoch_end(self):
@@ -354,8 +352,6 @@ class Plus4dVarNetForecast_latent_dim_FineTune_L3(Lit4dVarNetForecast_only1leadt
         self.output_leadtime_start = output_leadtime_start
 
     def get_dT(self):
-        print('get_dT')
-        print(self.rec_weight.size()[0])
         return self.rec_weight.size()[0]
 
     def on_test_epoch_end(self):
@@ -415,8 +411,6 @@ class Plus4dVarNetForecastPatchGPU(Plus4dVarNetForecast):
             self.test_data = []
         out = self(batch=mask_batch)
         m, s = self.norm_stats
-        print('self.norm_stats')
-        print(self.norm_stats)
 
         self.test_data.append(torch.stack(
             [
