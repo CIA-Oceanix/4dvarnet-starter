@@ -347,12 +347,13 @@ class Lit4dVarNet_UNet(pl.LightningModule):
         #atch = torch.an_to_num(batch, nan=0.0)
         out = self(batch=batch)
 
-        loss = self.weighted_mse(out - torch.nan_to_num(batch.tgt), self.rec_weight)
+        loss = self.weighted_mse(out - torch.nan_to_num(batch.input_complete), self.rec_weight) * torch.where(batch.input_complete)   # loss l3 "pseudo"
         
         '''
             Compute L3 val mse 
         '''
-        # Extract lat/lon grid coords and find their min/max for normalization
+        # Extract lat/lon grid coords and find their min/max for normalizatio
+        '''
         lat_grid = batch.input_coords_l4[:, 0, :, :]  # [B, H, W]
         lon_grid = batch.input_coords_l4[:, 1, :, :]  # [B, H, W]
         time_grid = batch.input_coords_l4[:, 2, :, :, :] # [B, T, H, W]
@@ -383,6 +384,7 @@ class Lit4dVarNet_UNet(pl.LightningModule):
         # Compute loss between interpolated output and alongtrack input_complete SLA
         # Assuming batch.input_complete shape [B, C, N] matches
         loss_l3 = F.mse_loss(out_interpolated, batch.input_complete)
+        '''
 
         with torch.no_grad():
             self.log(f"{phase}_mse", 50 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)

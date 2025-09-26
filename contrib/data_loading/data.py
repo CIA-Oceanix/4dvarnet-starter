@@ -441,7 +441,7 @@ def open_glorys12_data_sla_OSE(path, masks_path, real_traces, domain, variables=
 '''
     Loading of L3 data 
 '''
-def open_glorys12_data_sla_OSE_L3(path, masks_path, real_traces, domain, variables="sla", masking=True, test_cut=None): # zos before
+def open_glorys12_data_sla_OSE_L3(path, masks_path, swot_data, real_traces, domain, variables="sla", masking=True, test_cut=None): # zos before
     """
         Function to load glorys data
 
@@ -465,6 +465,8 @@ def open_glorys12_data_sla_OSE_L3(path, masks_path, real_traces, domain, variabl
     print('DS real is ')
     print(ds_real)
 
+    ds_swot = xr.open_dataset(swot_data) # which is actually ds_swot !!!
+
     if 'latitude' in list(ds.dims):
         ds = ds.rename({'latitude':'lat', 'longitude':'lon'})
     if 'latitude' in list(ds_real.dims):
@@ -476,15 +478,17 @@ def open_glorys12_data_sla_OSE_L3(path, masks_path, real_traces, domain, variabl
         ds_real = ds_real.sel(time=test_cut)
         
     #list_of_file = sorted(glob('/Odyssey/public/altimetry_traces/2010_2019/alongtrack/*.nc'))
-    ds_alg = xr.open_dataset("/Odyssey/public/altimetry_traces/processed/2010_2023/concat/concatenated_input.nc")
+    
+    ds_alg = xr.open_dataset("/Odyssey/public/altimetry_traces/processed/2023_2025/concat/concatenated_input.nc")
     ds_alg = ds_alg.pipe(
         lambda d: d.where(
-            (d.time.load() >= pd.to_datetime("2016-01-01"))
-            & (d.time <= pd.to_datetime("2019-12-31")),
+            (d.time.load() >= pd.to_datetime("2024-01-01"))
+            & (d.time <= pd.to_datetime("2024-12-31")),
             drop=True,
             )
         ).sortby("time")[["sla_filtered", "sla_unfiltered"]]
-
+    
+    '''
     lat = ds_real["lat"]  # 1D or 2D
     lon = ds_real["lon"]  # 1D or 2D
     time = ds_real["time"]  # 1D or 2D
@@ -492,9 +496,15 @@ def open_glorys12_data_sla_OSE_L3(path, masks_path, real_traces, domain, variabl
     # Create a 2D mesh of coordinates if lat/lon are 1D
     lat2d, lon2d = xr.broadcast(lat, lon)  # Now both are [H, W]
     time3d, lat3d, lon3d = xr.broadcast(time, lat2d, lon2d)  # shape: [T, H, W]
+    
+    lat3d_str = lat3d.astype(str)
+    lon3d_str = lon3d.astype(str)
+    time3d_str = time3d.dt.strftime('%Y-%m-%dT%H:%M:%S')
 
+    coords_stack = xr.concat([lat3d_str, lon3d_str, time3d_str], dim="coord")
+    
     # Stack into a new DataArray of shape [2, H, W] or [H, W, 2]
-    coords_stack = xr.concat([lat3d, lon3d, time3d], dim="coord")
+    #coords_stack = xr.concat([lat3d, lon3d, time3d], dim="coord")
     
     lat = ds_alg["latitude"]  # 1D or 2D
     lon = ds_alg["longitude"]  # 1D or 2D
@@ -505,15 +515,16 @@ def open_glorys12_data_sla_OSE_L3(path, masks_path, real_traces, domain, variabl
         "longitude": lon,
         "time": time
     })
+    '''
 
     ds = (
         ds
         .load()
         .assign(
             input = lambda ds: ds_real[variables],
-            input_complete = lambda ds: ds_alg["sla_unfiltered"], #ds_real[variables],
-            input_coords_l4 = lambda ds: coords_stack,
-            input_coords_l3 = lambda ds: coords_stack_l3,
+            input_complete = lambda ds: ds_swot["ssha_filtered"], #ds_real[variables],
+            #input_coords_l4 = lambda ds: coords_stack,
+            #input_coords_l3 = lambda ds: coords_stack_l3,
             tgt= lambda ds: ds[variables]
         )
     )
