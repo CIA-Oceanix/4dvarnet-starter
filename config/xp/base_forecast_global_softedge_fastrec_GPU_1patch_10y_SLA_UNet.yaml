@@ -1,12 +1,20 @@
 # @package _global_
 
 paths:
-    masks_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle 
-    glorys12_data: /Odyssey/public/glorys/reanalysis/glorys4_2016_2022_sla.nc
+    masks_path: /Odyssey/public/swot_traces/mask/global_obs_swot_nadir_DT_2024.pickle #Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle 
+    glorys12_data: /Odyssey/public/glorys/reanalysis/glorys12_2010_2019_daily_sla_4th_float32.nc
+    ref_data_l4: /Odyssey/public/duacs/2023/duacs_2023_2024_0.25deg_float32.nc
+    ose_data_paths: /Odyssey/public/swot_traces/gridded/nadir+swot_0.25deg_2023_2025.nc
+      #Odyssey/public/altimetry_traces/processed/2024/gridded/gridded_input.nc
+      #glorys4_2016_2022_sla.nc
       #kpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_not_SSH/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA/checkpoints/val_mse=4.13586-epoch=299.ckpt
       #Odyssey/public/glorys/reanalysis/glorys12_2010_2019_4th.nc   # Path des trcaes L3 ?
       #kpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_not_SSH/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA/checkpoints/val_mse=5.06367-epoch=088.ckpt
       #al_mse=5.21636-epoch=057.ckpt
+
+var_name: "sla_filtered"
+year_ose: 2024
+
 
 domain:
   train:
@@ -40,11 +48,11 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_UNet_17M_2016_2022
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_UNet_17M_2010_2019_OSSESWOT_loss_+grad
       #${hydra:runtime.output_dir}
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 350
+  max_epochs: 1000
   limit_train_batches: 100
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
@@ -72,13 +80,13 @@ datamodule:
     patch_dims: { time: 29, lat: 680, lon: 1440}
     strides: { time: 1, lat: 672, lon: 1432}
     domain_limits: ${domain.train}
-  dl_kw: {batch_size: 1, num_workers: 4}
+  dl_kw: {batch_size: 1, num_workers: 12}
   aug_kw:
     aug_factor: 1
     aug_only: True
 
 model:
-  _target_: contrib.forecast_plus.models.Plus4dVarNetForecastPatchGPU_UNet
+  _target_: contrib.forecast_plus.models.Plus4dVarNetForecastPatchGPU_UNet_OSSE
   persist_rw: False
   opt_fn:
     _target_: src.utils.cosanneal_lr_adam_UNet            #cosanneal_lr_adam

@@ -61,7 +61,7 @@ def load_ose_data_with_tgt_mask(path, tgt_path, variable='adt'):
         .to_array()
     )
 
-def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_path_l3_data, variable):
+def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_path_l3_data, variable, year):
                                 #variable='zos'):
     """
         batches need to have a complete target in order for the Grad Masking to be carried out
@@ -97,9 +97,9 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
 
 
     ds['time'] = pd.to_datetime(ds['time'].values)  # Ensure time is in datetime format if it's not already
-    ds = ds.sel(time=ds['time'].dt.year == 2023)
+    ds = ds.sel(time=ds['time'].dt.year == year)
     # BEFORE SWOT : ds.sel(time=ds['time'].dt.year == 2019)    # 2023 for inference before !!! 
-    ds_mask = ds_mask.sel(time='2024-01-20')[variable].expand_dims(time=ds.time)[:,:,:] # 2024 for swot ? 
+    ds_mask = ds_mask.sel(time= str(year) + '-01-20')[variable].expand_dims(time=ds.time)[:,:,:] # 2024 for swot ?
     # BEOFRE SWOT : ds_mask.sel(time='2019-01-20')[variable].expand_dims(time=ds.time)[:,:,:]   # CHANGED FROM 2023 TO 2019 !!! , but should be 2020 ! # CHNAGED AGAIN FROM 2019 TO 2021  
     # Changed again from 2021 to 2019
 
@@ -303,7 +303,6 @@ def open_glorys12_data(path, masks_path, domain, variables="zos", masking=True, 
             mask_list = pickle.load(masks_file)
         mask_list = np.array(mask_list)
         print("done.")
-
         print("MASKING input data")
         ds= ds.assign(
             input=xr.apply_ufunc(mask_input, ds.input, input_core_dims=[['lat', 'lon']], output_core_dims=[['lat', 'lon']], kwargs={"mask_list": mask_list}, dask="allowed", vectorize=True)
@@ -358,6 +357,8 @@ def open_glorys12_data_sla(path, masks_path, domain, variables="sla", masking=Tr
         with open(masks_path, 'rb') as masks_file:
             mask_list = pickle.load(masks_file)
         mask_list = np.array(mask_list)
+        if(mask_list.shape[1] == 720):
+            mask_list = mask_list[:,40:]
         ds= ds.assign(
             input=xr.apply_ufunc(mask_input, ds.input, input_core_dims=[['lat', 'lon']], output_core_dims=[['lat', 'lon']], kwargs={"mask_list": mask_list}, dask="allowed", vectorize=True)
             )

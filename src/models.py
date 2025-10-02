@@ -438,6 +438,309 @@ class Lit4dVarNet_UNet(pl.LightningModule):
             self.test_data.to_netcdf(Path(self.logger.log_dir) / 'test_data.nc')
             print(Path(self.trainer.log_dir) / 'test_data.nc')
             self.logger.log_metrics(metrics.to_dict())
+            
+'''
+    OSSE only
+'''
+class Lit4dVarNet_UNet_OSSE(pl.LightningModule):
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
+        super().__init__()
+        self.solver = solver
+        self.register_buffer('rec_weight', torch.from_numpy(rec_weight), persistent=persist_rw)
+        self.test_data = None
+        self._norm_stats = norm_stats
+        self.opt_fn = opt_fn
+        self.metrics = test_metrics or {}
+        self.pre_metric_fn = pre_metric_fn or (lambda x: x)
+
+    @property
+    def norm_stats(self):
+        if self._norm_stats is not None:
+            return self._norm_stats
+        elif self.trainer.datamodule is not None:
+            return self.trainer.datamodule.norm_stats()
+        return (0., 1.)
+
+    @staticmethod
+    def weighted_mse(err, weight):
+        '''
+            Changement
+        '''
+        err_w = err * weight[None, ...]
+        non_zeros = (torch.ones_like(err) * weight[None, ...]) == 0.0
+        err_num = err.isfinite() & ~non_zeros
+        if err_num.sum() == 0:
+            return torch.scalar_tensor(1000.0, device=err_num.device).requires_grad_()
+        loss = F.mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
+        return loss
+
+    def training_step(self, batch, batch_idx):
+        return self.step(batch, "train")[0]
+
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, "val")[0]
+
+    def forward(self, batch):
+        return self.solver(batch)
+
+    def step(self, batch, phase=""):
+        if self.training and batch.tgt.isfinite().float().mean() < 0.1:
+            return None, None
+
+        loss, out = self.base_step(batch, phase)
+        grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
+        
+        self.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
+
+        training_loss = 50 * loss 
+        
+        return training_loss, out
+            
+    def base_step(self, batch, phase=""):
+        #atch = torch.an_to_num(batch, nan=0.0)
+        out = self(batch=batch)
+
+        loss = self.weighted_mse(out - torch.nan_to_num(batch.tgt), self.rec_weight) #* torch.where(batch.input_complete)   # loss l3 "pseudo"
+
+        with torch.no_grad():
+            self.log(f"{phase}_mse", 50 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
+            self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
+
+        return loss, out
+
+    def configure_optimizers(self):
+        return self.opt_fn(self)
+
+    def test_step(self, batch, batch_idx):
+        if batch_idx == 0:
+            self.test_data = []
+        out = self(batch=batch)
+        m, s = self.norm_stats
+
+        self.test_data.append(torch.stack(
+            [
+                batch.input.cpu() * s + m,
+                batch.tgt.cpu() * s + m,
+                out.squeeze(dim=-1).detach().cpu() * s + m,
+            ],
+            dim=1,
+        ))
+
+    @property
+    def test_quantities(self):
+        return ['inp', 'tgt', 'out']
+
+    def on_test_epoch_end(self):
+        rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+            self.test_data,
+            self.rec_weight.cpu().numpy()
+        )
+
+        if isinstance(rec_da, list):
+            rec_da = rec_da[0]
+
+        self.test_data = rec_da.assign_coords(
+            dict(v0=self.test_quantities)
+        ).to_dataset(dim='v0')
+
+        metric_data = self.test_data.pipe(self.pre_metric_fn)
+        metrics = pd.Series({
+            metric_n: metric_fn(metric_data)
+            for metric_n, metric_fn in self.metrics.items()
+        })
+
+        print(metrics.to_frame(name="Metrics").to_markdown())
+        if self.logger:
+            self.test_data.to_netcdf(Path(self.logger.log_dir) / 'test_data.nc')
+            print(Path(self.trainer.log_dir) / 'test_data.nc')
+            self.logger.log_metrics(metrics.to_dict())
+            
+'''
+    Swot fine tune
+'''
+class Lit4dVarNet_UNet_Swot(pl.LightningModule):
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
+        super().__init__()
+        self.solver = solver
+        self.register_buffer('rec_weight', torch.from_numpy(rec_weight), persistent=persist_rw)
+        self.test_data = None
+        self._norm_stats = norm_stats
+        self.opt_fn = opt_fn
+        self.metrics = test_metrics or {}
+        self.pre_metric_fn = pre_metric_fn or (lambda x: x)
+
+    @property
+    def norm_stats(self):
+        if self._norm_stats is not None:
+            return self._norm_stats
+        elif self.trainer.datamodule is not None:
+            return self.trainer.datamodule.norm_stats()
+        return (0., 1.)
+
+    @staticmethod
+    def weighted_mse(err, weight):
+        '''
+            Changement
+        '''
+        err_w = err * weight[None, ...]
+        non_zeros = (torch.ones_like(err) * weight[None, ...]) == 0.0
+        err_num = err.isfinite() & ~non_zeros
+        if err_num.sum() == 0:
+            return torch.scalar_tensor(1000.0, device=err_num.device).requires_grad_()
+        loss = F.mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
+        return loss
+
+    def training_step(self, batch, batch_idx):
+        return self.step(batch, "train")[0]
+
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, "val")[0]
+
+    def forward(self, batch):
+        return self.solver(batch)
+
+    def step(self, batch, phase=""):
+        if self.training and batch.tgt.isfinite().float().mean() < 0.1:
+            return None, None
+
+        loss, out = self.base_step(batch, phase)
+        grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
+        original_lat, original_lon = 680, 1440
+        coarsen_lat = 4 # coarsening factor, for duacs at 1/4°, 4 means we coarsen to 1°
+        coarsen_lon = 4
+        coarsen_factor = (coarsen_lat, coarsen_lon)
+
+        patch_dims = {
+            'time': out.shape[1],
+            'lat': original_lat // coarsen_lat,
+            'lon': original_lon // coarsen_lon,
+        }
+
+        # Generate weights on the fly
+        weights = get_forecast_wei_adaptable_per_resolution(
+            patch_dims=patch_dims,
+            coarsen_factor=coarsen_factor,
+            base_crop={'lat': 4, 'lon': 4}
+        )
+
+        weights_torch = torch.tensor(weights, dtype=out.dtype, device=out.device)
+        
+        coarsen_loss = self.weighted_mse(torch.nn.AvgPool2d(4)(out) - torch.nn.AvgPool2d(4)(torch.nan_to_num(batch.tgt)), weights_torch)
+        
+        #DoG_loss = self.weighted_mse(out - torch.nan_to_num(batch.input_complete), self.rec_weight) # simple MSE instead of DoG !!!
+        #self.weighted_mse(dog_kornia(out, 1, 2) - dog_kornia(torch.nan_to_num(batch.input_complete), 1, 2), self.rec_weight) # corrected this part ! 
+        
+        L3_loss = self.weighted_mse(out - torch.nan_to_num(batch.input_complete), self.rec_weight)
+        
+        self.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
+        # In case of SST : 
+        #training_loss = 50 * loss # 50 * coarsen_loss + 50 * grad_loss # 50 * DoG_loss
+        
+        # In case of SLA : 
+        training_loss = 50 * loss + 50 * coarsen_loss + 50 * grad_loss + 50*L3_loss #+ 50 * DoG_loss
+
+        #50* torch.nn.L1Loss(reduction='mean')(torch.nn.AvgPool2d(2)(out), torch.nn.AvgPool2d(2)(batch.tgt))
+        #F.mse_loss(out[:,14 : 14+7, :], batch.tgt)
+        #50 * loss + 1000 * grad_loss #+ 1.0 * prior_cost
+        return training_loss, out
+            
+    def base_step(self, batch, phase=""):
+        #atch = torch.an_to_num(batch, nan=0.0)
+        out = self(batch=batch)
+
+        loss = self.weighted_mse(out - torch.nan_to_num(batch.input_complete), self.rec_weight) * torch.where(batch.input_complete)   # loss l3 "pseudo"
+        
+        '''
+            Compute L3 val mse 
+        '''
+        # Extract lat/lon grid coords and find their min/max for normalizatio
+        '''
+        lat_grid = batch.input_coords_l4[:, 0, :, :]  # [B, H, W]
+        lon_grid = batch.input_coords_l4[:, 1, :, :]  # [B, H, W]
+        time_grid = batch.input_coords_l4[:, 2, :, :, :] # [B, T, H, W]
+
+        lat_min, lat_max = lat_grid.amin(dim=[1,2], keepdim=True), lat_grid.amax(dim=[1,2], keepdim=True)
+        lon_min, lon_max = lon_grid.amin(dim=[1,2], keepdim=True), lon_grid.amax(dim=[1,2], keepdim=True)
+        time_min, time_max = time_grid.amin(dim=[1,2,3], keepdim=True), time_grid.amax(dim=[1,2,3], keepdim=True)
+
+        # Normalize along-track lat/lon points to [-1, 1] grid coords
+        # batch.input_coords_l3: [B, N, 3] (lat, lon, time) or [B, N, 2] (lat, lon)
+        lat_points = batch.input_coords_l3[:, :, 0]  # [B, N]
+        lon_points = batch.input_coords_l3[:, :, 1]  # [B, N]
+        time_points = batch.input_coords_l3[:, :, 2]
+
+        # Stack normalized points as [x, y] for grid_sample (note grid_sample expects [x, y], i.e. lon then lat)
+        # So swap order to lon_norm first, then lat_norm
+        grid_points = torch.stack([lon_points, lat_points, time_points], dim=-1)  # [B, N, 2]
+
+        # grid_sample requires 4D input grid: [B, C, H, W] and grid: [B, N, 1, 2]
+        grid_points = grid_points.unsqueeze(2).unsqueeze(2)                # [B, N, 1, 1, 3]
+        
+        # Sample the output field at along-track points
+        # Mode can be 'bilinear', 'nearest', etc.
+        out_interpolated = F.grid_sample(out, grid_points, mode='bilinear', align_corners=True)  # [B, C, N, 1]
+
+        out_interpolated = out_interpolated.squeeze(-1).squeeze(-1)  # [B, C, N]
+
+        # Compute loss between interpolated output and alongtrack input_complete SLA
+        # Assuming batch.input_complete shape [B, C, N] matches
+        loss_l3 = F.mse_loss(out_interpolated, batch.input_complete)
+        '''
+
+        with torch.no_grad():
+            self.log(f"{phase}_mse", 50 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
+            self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
+
+        return loss, out
+
+    def configure_optimizers(self):
+        return self.opt_fn(self)
+
+    def test_step(self, batch, batch_idx):
+        if batch_idx == 0:
+            self.test_data = []
+        out = self(batch=batch)
+        m, s = self.norm_stats
+
+        self.test_data.append(torch.stack(
+            [
+                batch.input.cpu() * s + m,
+                batch.tgt.cpu() * s + m,
+                out.squeeze(dim=-1).detach().cpu() * s + m,
+            ],
+            dim=1,
+        ))
+
+    @property
+    def test_quantities(self):
+        return ['inp', 'tgt', 'out']
+
+    def on_test_epoch_end(self):
+        rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+            self.test_data,
+            self.rec_weight.cpu().numpy()
+        )
+
+        if isinstance(rec_da, list):
+            rec_da = rec_da[0]
+
+        self.test_data = rec_da.assign_coords(
+            dict(v0=self.test_quantities)
+        ).to_dataset(dim='v0')
+
+        metric_data = self.test_data.pipe(self.pre_metric_fn)
+        metrics = pd.Series({
+            metric_n: metric_fn(metric_data)
+            for metric_n, metric_fn in self.metrics.items()
+        })
+
+        print(metrics.to_frame(name="Metrics").to_markdown())
+        if self.logger:
+            self.test_data.to_netcdf(Path(self.logger.log_dir) / 'test_data.nc')
+            print(Path(self.trainer.log_dir) / 'test_data.nc')
+            self.logger.log_metrics(metrics.to_dict())
+            
+            
 
 class Lit4dVarNet_UNet_sst(pl.LightningModule):
     def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
@@ -692,6 +995,184 @@ class Lit4dVarNet_UNet_MLD(pl.LightningModule):
 
 
 class Lit4dVarNetForecast_UNet(Lit4dVarNet_UNet):
+    """
+    Lit4dVarNet for forecasting applications:
+    solver: function to use as solver
+    rec_weight: optimisation weight
+    opt_fn: optimisation function
+    test_metrics: metrics to run for test
+    pre_metric_fn: preprocessing functions to apply to the reconstruction
+    norm_stats: normalisation stats of data
+    persist_rw: if True: rec_weight saved alongside parameters
+    output_only_forecast: if True, for test_dataloader will reconstruct and evaluate only for leadtimes from present and onwards
+    """
+
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, output_only_forecast=False):
+        super().__init__(solver, rec_weight, opt_fn, test_metrics, pre_metric_fn, norm_stats, persist_rw)
+        self.output_only_forecast=output_only_forecast
+
+    @staticmethod
+    def mask_batch(batch):
+        # temporal masking
+        new_input = batch.input.clone()
+        dims = new_input.size()
+        new_input[:, dims[1]//2:, :, :] = np.nan
+        mask_batch = batch._replace(input=new_input)
+        
+        # temporal masking
+        new_input = batch.input.clone()
+        dims = new_input.size()
+        
+        '''
+            For fine tuning, as input_complete is independent , do not mask the first 14 days 
+        '''
+        #new_input[:, :dims[1]//2, :, :] = np.nan
+        #mask_batch = batch._replace(input_complete=new_input) # for DoG and other L3 losses
+
+        return mask_batch
+
+    def training_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        return super().training_step(mask_batch, batch_idx)
+
+    def validation_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        return super().validation_step(mask_batch, batch_idx)
+
+    def test_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        super().test_step(mask_batch, batch_idx)
+ 
+    def on_test_epoch_end(self):
+        dims = self.rec_weight.size()
+        dT = dims[0]
+        metrics = []
+        output_start = 0 if self.output_only_forecast else -((dT - 1) // 2)
+        for i in range(output_start, 7):
+            forecast_weight = np.concatenate(
+                (np.zeros((dT // 2 + i, dims[1], dims[2])),
+                 np.ones((1, dims[1], dims[2])),
+                 np.zeros((dT // 2 - i, dims[1], dims[2]))),
+                axis=0)
+            rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+                self.test_data, forecast_weight
+            )
+
+            if isinstance(rec_da, list):
+                rec_da = rec_da[0]
+
+            test_data_leadtime = rec_da.assign_coords(
+                dict(v0=self.test_quantities)
+            ).to_dataset(dim='v0')
+
+            if self.logger:
+                test_data_leadtime.to_netcdf(Path(self.logger.log_dir) / f'test_data_{i+(dT-1)//2}.nc')
+                print(Path(self.trainer.log_dir) / f'test_data_{i+(dT-1)//2}.nc')
+
+
+            metric_data = test_data_leadtime.pipe(self.pre_metric_fn)
+            metrics_leadtime = pd.Series({
+                metric_n: metric_fn(metric_data)
+                for metric_n, metric_fn in self.metrics.items()
+            })
+            metrics.append(metrics_leadtime)
+
+        print(pd.DataFrame(metrics, range(output_start, 7)).T.to_markdown())
+        
+        
+'''
+    OSSE only
+'''
+class Lit4dVarNetForecast_UNet_OSSE(Lit4dVarNet_UNet_OSSE):
+    """
+    Lit4dVarNet for forecasting applications:
+    solver: function to use as solver
+    rec_weight: optimisation weight
+    opt_fn: optimisation function
+    test_metrics: metrics to run for test
+    pre_metric_fn: preprocessing functions to apply to the reconstruction
+    norm_stats: normalisation stats of data
+    persist_rw: if True: rec_weight saved alongside parameters
+    output_only_forecast: if True, for test_dataloader will reconstruct and evaluate only for leadtimes from present and onwards
+    """
+
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, output_only_forecast=False):
+        super().__init__(solver, rec_weight, opt_fn, test_metrics, pre_metric_fn, norm_stats, persist_rw)
+        self.output_only_forecast=output_only_forecast
+
+    @staticmethod
+    def mask_batch(batch):
+        # temporal masking
+        new_input = batch.input.clone()
+        dims = new_input.size()
+        new_input[:, dims[1]//2:, :, :] = np.nan
+        mask_batch = batch._replace(input=new_input)
+        
+        # temporal masking
+        new_input = batch.input.clone()
+        dims = new_input.size()
+        
+        '''
+            For fine tuning, as input_complete is independent , do not mask the first 14 days 
+        '''
+        #new_input[:, :dims[1]//2, :, :] = np.nan
+        #mask_batch = batch._replace(input_complete=new_input) # for DoG and other L3 losses
+
+        return mask_batch
+
+    def training_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        return super().training_step(mask_batch, batch_idx)
+
+    def validation_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        return super().validation_step(mask_batch, batch_idx)
+
+    def test_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        super().test_step(mask_batch, batch_idx)
+ 
+    def on_test_epoch_end(self):
+        dims = self.rec_weight.size()
+        dT = dims[0]
+        metrics = []
+        output_start = 0 if self.output_only_forecast else -((dT - 1) // 2)
+        for i in range(output_start, 7):
+            forecast_weight = np.concatenate(
+                (np.zeros((dT // 2 + i, dims[1], dims[2])),
+                 np.ones((1, dims[1], dims[2])),
+                 np.zeros((dT // 2 - i, dims[1], dims[2]))),
+                axis=0)
+            rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+                self.test_data, forecast_weight
+            )
+
+            if isinstance(rec_da, list):
+                rec_da = rec_da[0]
+
+            test_data_leadtime = rec_da.assign_coords(
+                dict(v0=self.test_quantities)
+            ).to_dataset(dim='v0')
+
+            if self.logger:
+                test_data_leadtime.to_netcdf(Path(self.logger.log_dir) / f'test_data_{i+(dT-1)//2}.nc')
+                print(Path(self.trainer.log_dir) / f'test_data_{i+(dT-1)//2}.nc')
+
+
+            metric_data = test_data_leadtime.pipe(self.pre_metric_fn)
+            metrics_leadtime = pd.Series({
+                metric_n: metric_fn(metric_data)
+                for metric_n, metric_fn in self.metrics.items()
+            })
+            metrics.append(metrics_leadtime)
+
+        print(pd.DataFrame(metrics, range(output_start, 7)).T.to_markdown())
+        
+
+'''
+    Swot fine tune
+'''
+class Lit4dVarNetForecast_UNet_Swot(Lit4dVarNet_UNet_Swot):
     """
     Lit4dVarNet for forecasting applications:
     solver: function to use as solver

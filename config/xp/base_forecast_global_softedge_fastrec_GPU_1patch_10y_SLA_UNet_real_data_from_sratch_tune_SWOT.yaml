@@ -9,15 +9,15 @@ paths:
   # Initial training ! 010_2019/gridded_0.25deg/sla_l3_all_2010_2019_0.25deg_convl4_float32.nc
   swot_traces: /Odyssey/public/swot_traces/gridded/ssha_l3_swot_2023_2025_0.25deg_convl4_float32.nc
   #2010_2023/gridded/sla_l3_all_2010_2023_0.25deg_convl4.nc
-  ref_data_l4: ""
+  ref_data_l4: /Odyssey/public/duacs/2023/duacs_2023_2024_0.25deg_float32.nc
   ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses_DoG/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch/checkpoints/val_mse=0.00967-epoch=187.ckpt
     # /Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses_correct_mse_L3/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch/checkpoints/val_mse=0.02699-epoch=015.ckpt
     #/Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses_DoG/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch/checkpoints/val_mse=0.00967-epoch=187.ckpt
-  ose_data_paths: '' # Odyssey/public/swot_traces/gridded/ssha_l3_swot_2023_2025_0.25deg_convl4_float32.nc  # pas clair ce que c'est !!!!
+  ose_data_paths: /Odyssey/public/altimetry_traces/processed/2024/gridded/gridded_input.nc #Odyssey/public/swot_traces/gridded/nadir+swot_0.25deg_2023_2025.nc # Odyssey/public/swot_traces/gridded/ssha_l3_swot_2023_2025_0.25deg_convl4_float32.nc  # pas clair ce que c'est !!!!
 
 var_name: "sla_filtered" 
   #-> dans mes fichiers c'est tjrs tout'es les variables dispo, dans les fichiers de Daniel c'est que sla_filtered qui s'appelle simplement sla
-
+year_ose: 2024
 
 domain:
   train:

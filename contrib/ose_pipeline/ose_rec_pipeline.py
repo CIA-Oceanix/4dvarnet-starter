@@ -49,6 +49,7 @@ def setup_model_config(
     OmegaConf.update(config, key='datamodule.input_da.tgt_path_not_glorys', value='${paths.ref_data_l4}')
     OmegaConf.update(config, key='datamodule.input_da.tgt_path_l3_data', value='${paths.ose_data_paths}')
     OmegaConf.update(config, key='datamodule.input_da.variable', value='${var_name}')
+    OmegaConf.update(config, key='datamodule.input_da.year', value='${year_ose}')
     #if(len(${paths.ref_data_l4}))
 
     OmegaConf.update(config, key='datamodule.domains.train.time._args_', value=[min_time, min_time_offseted])
