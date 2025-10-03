@@ -11,7 +11,8 @@ paths:
 
   model_config_path: config/xp/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet.yaml
     #base_forecast_global_softedge_fastrec_GPU_1patch.yaml           # HYDRA -> infos liées à l'architecture (nb de sous couches etc -> à voir ... ) 
-  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_UNet_17M_2016_2022_OSSESWOT/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet/checkpoints/val_mse=0.01308-epoch=238.ckpt
+  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_UNet_17M_2010_2019_OSSESWOT_loss_+grad_1000epochs/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet/checkpoints/val_mse=0.01278-epoch=360.ckpt
+    #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_UNet_17M_2016_2022_OSSESWOT/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet/checkpoints/val_mse=0.01308-epoch=238.ckpt
     # best UNet OSSE :  /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_UNet/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet/checkpoints/val_mse=3.08068-epoch=204.ckpt
     #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_not_SSH/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA/checkpoints/val_mse=5.21636-epoch=057.ckpt
     # for fine tunning : Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_from_REAL_DATA_fine_tuning/base_forecast_global_softedge_fastrec_GPU_1patch_10y_REAL_DATA/checkpoints/val_mse=3.07822-epoch=153.ckpt
