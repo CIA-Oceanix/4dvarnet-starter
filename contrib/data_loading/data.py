@@ -127,13 +127,13 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
         ds
         .assign(
             input= ds[variable], #ds[variable],
-            input_complete = ds[variable], #ds[variable],   # FOR L3 loss , like DOG , only !  and for SWOT also ! 
+            #input_complete = ds[variable], #ds[variable],   # FOR L3 loss , like DOG , only !  and for SWOT also ! 
             tgt= ds_mask
         )
     )
 
     return (
-         ds[[*TrainingItemOSE._fields]]    # previously TrainingItem simply !!!  and TrainingItemOSE only for L3 loss training and rec and for SWTO also ! 
+         ds[[*TrainingItem._fields]]    # previously TrainingItem simply !!!  and TrainingItemOSE only for L3 loss training and rec and for SWTO also ! 
         .transpose("time", "lat", "lon")
         .to_array()
     )

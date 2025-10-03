@@ -21,7 +21,7 @@ def reconstruct_from_config(config, rec_path, xp_name, data_name, best_ckpt_path
     trainer = pytorch_lightning.Trainer(
         inference_mode= False,
         accelerator='gpu',
-        devices= 1,
+        devices= 4,
         logger = pytorch_lightning.loggers.CSVLogger(save_dir=rec_path, name=xp_name, version=data_name)
         )
 
