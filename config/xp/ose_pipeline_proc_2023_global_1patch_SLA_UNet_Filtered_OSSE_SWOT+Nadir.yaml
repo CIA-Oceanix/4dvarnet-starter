@@ -1,6 +1,6 @@
 # @package _global_
 
-xp_name: glorys4_global_1patch_SLA_UNet_Filtered_OSSE_Swot+Nadir_eval_2024_Nadir+Swot # le nom avec lequel ça sera rangé 
+xp_name: glorys4_global_1patch_SLA_UNet_Filtered_OSSE_Swot+Nadir_gradLoss1000epochs_eval_2024_Nadir+Swot # le nom avec lequel ça sera rangé 
 data_name: nrt_sla
   #processed_2023_global_4 # données qu'on veut tester -> altimètres processé 2023 en global au 1/4 -> L4 
 

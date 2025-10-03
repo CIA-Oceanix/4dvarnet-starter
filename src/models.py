@@ -492,7 +492,7 @@ class Lit4dVarNet_UNet_OSSE(pl.LightningModule):
         
         self.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
 
-        training_loss = 50 * loss 
+        training_loss = 50 * loss + 50 * grad_loss
         
         return training_loss, out
             
