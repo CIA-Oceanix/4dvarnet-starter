@@ -78,8 +78,9 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
 
     print(f'tgt_path is {tgt_path}')
     print(f'path is {path}')
-    ds_mask = xr.open_dataset('/Odyssey/public/glorys/reanalysis/glorys12_2020_daily_sla_4th.nc')
-    #ds_mask = xr.open_dataset(tgt_path)#drop_vars('depth')    # TGT_PATH is GLORYS12_DATA in contrib/ose_pipeline/ose_rec_pipeline.py
+    #s_mask = xr.open_dataset('/Odyssey/public/glorys/reanalysis/glorys12_2020_daily_sla_4th.nc')
+    ds_mask = xr.open_dataset(tgt_path)#drop_vars('depth')    # TGT_PATH is GLORYS12_DATA in contrib/ose_pipeline/ose_rec_pipeline.py
+    #s_mask = xr.open_dataset('/Odyssey/public/duacs/2023/duacs_2020_2023_0.125deg.nc')
     ds = xr.open_dataset(path)
 
     if 'latitude' in list(ds_mask.dims):
@@ -98,20 +99,29 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
 
 
     ds['time'] = pd.to_datetime(ds['time'].values)  # Ensure time is in datetime format if it's not already
-    ds = ds.sel(time=ds['time'].dt.year == year)
+    ds = ds.sel(time=ds['time'].dt.year == year) # COMMENTED HERE 
+    if(ds[variable][0].shape[0] == 720):
+        ds = ds.isel(lat = np.arange(40, 720, 1))
+
+
     # BEFORE SWOT : ds.sel(time=ds['time'].dt.year == 2019)    # 2023 for inference before !!! 
     #ds_mask = ds_mask.sel(time= str(year) + '-01-20')[variable].expand_dims(time=ds.time)[:,:,:] # 2024 for swot ?
-    ds_mask = ds_mask.sel(time= '2020' + '-01-20')[variable].expand_dims(time=ds.time)[:,:,:].assign_coords(ds.coords) # 2024 for swot ? # Just for the reproducibility test
+    #ds_mask = ds_mask.sel(time= '2023' + '-01-20')[variable].expand_dims(time=ds.time)[:,:,:]#.assign_coords(ds.coords) # 2024 for swot ? # Just for the reproducibility test
+    #ds_mask = ds_mask.sel(time= '2020' + '-01-20')[variable].expand_dims(time=ds.time)[:,:,:]
+    ds_mask = ds_mask.sel(time= '2020' + '-01-20')[variable].expand_dims(time=ds.time)[:,:,:1440].assign_coords(ds.coords)
+    # IMPORTANT : #.assign_coords(ds.coords)
+    print(ds_mask[0].shape)
     # BEOFRE SWOT : ds_mask.sel(time='2019-01-20')[variable].expand_dims(time=ds.time)[:,:,:]   # CHANGED FROM 2023 TO 2019 !!! , but should be 2020 ! # CHNAGED AGAIN FROM 2019 TO 2021  
     # Changed again from 2021 to 2019
 
     print('VARIABLE IS')
     print(variable)
 
+    '''
     target_lat = ds.sel(lon = np.arange(-180, 180, 0.25))['lat']
     target_lon = ds.sel(lon = np.arange(-180, 180, 0.25))['lon']
     
-    '''
+    
     if(variable.split('_')[0] == "sla"):
         ds_mask = ds_mask.interp(lat=target_lat, lon=target_lon)
         ds = ds.interp(lat=target_lat, lon=target_lon)

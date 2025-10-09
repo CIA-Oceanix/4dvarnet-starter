@@ -1,6 +1,6 @@
 # @package _global_
 
-xp_name: glorys4_global_1patch_SLA_UNet_Filtered_OSSE_NadirOnly_eval_2023_NadirOnly_TEST/ # le nom avec lequel ça sera rangé 
+xp_name: glorys4_global_1patch_SLA_UNet_Filtered_OSSE_NadirOnly_eval_2024_NadirOnly_NRT_tgt_Duacs_2020 # le nom avec lequel ça sera rangé 
 data_name: nrt_sla
   #processed_2023_global_4 # données qu'on veut tester -> altimètres processé 2023 en global au 1/4 -> L4 
 
@@ -9,7 +9,7 @@ paths:
   rec_path:  /Odyssey/public/glorys/rec/              # reconstruction de la SSH avec 4dvarnet à partir des traces /rec_path/xp_name/data_name/
   metrics_path:  /Odyssey/public/glorys/metrics/      # metriques des cartes reconstruites comparées aux traces altimetriques reprocessés / NRT (en fonction du data_name) -> /metrics_path/xp_name/data_name/
 
-  model_config_path: config/xp/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet.yaml
+  model_config_path: config/xp/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_for_Swot_tests.yaml
     #base_forecast_global_softedge_fastrec_GPU_1patch.yaml           # HYDRA -> infos liées à l'architecture (nb de sous couches etc -> à voir ... ) 
   model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_UNet/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet/checkpoints/val_mse=3.08068-epoch=204.ckpt
     #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_not_SSH/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA/checkpoints/val_mse=5.21636-epoch=057.ckpt
@@ -26,8 +26,8 @@ paths:
 specs:
   pixels_per_degree: 4                 # 1/4° -> regrillage des données traces altimètriques L3 , pour les donner en input au modèle. ils existe,t aussi non grillées pour le calcul des métriques. 
 
-  min_time: 2023-01-01                 # inférence, et pour le téléchargement
-  max_time: 2023-12-31
+  min_time: 2024-01-01                 # inférence, et pour le téléchargement
+  max_time: 2024-12-31
   time_day_crop: 0                     # retirer les jours au début et à la fin -> utile en mapping
 
   min_lon: -180                        # 
