@@ -1,6 +1,6 @@
 # @package _global_
 
-xp_name: glorys4_global_1patch_SLA_UNet_Filtered_TEST_2023_SCORES_REPRODUCE_tgt_GLORYS_2019_NRT_Assign_Coords # le nom avec lequel ça sera rangé 
+xp_name: glorys4_global_1patch_SLA_UNet_Filtered_TEST_2023_SCORES_REPRODUCE_tgt_DUACS_2020_NRT_Assign_Coords # le nom avec lequel ça sera rangé 
 data_name: nrt_sla
   #processed_2023_global_4 # données qu'on veut tester -> altimètres processé 2023 en global au 1/4 -> L4 
 
