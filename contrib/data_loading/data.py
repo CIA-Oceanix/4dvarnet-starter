@@ -542,7 +542,7 @@ def open_glorys12_data_sla_OSE_L3(path, masks_path, swot_data, real_traces, doma
         ds
         .load()
         .assign(
-            input = lambda ds: ds[variable],  #ds_real[variables],
+            input = lambda ds: ds_real[variables],
             input_complete = lambda ds: ds_swot["ssha_filtered"], #ds_real[variables],
             #input_coords_l4 = lambda ds: coords_stack,
             #input_coords_l3 = lambda ds: coords_stack_l3,
@@ -550,17 +550,6 @@ def open_glorys12_data_sla_OSE_L3(path, masks_path, swot_data, real_traces, doma
         )
     )
     print("done.")
-
-    if masking:
-        with open(masks_path, 'rb') as masks_file:
-            mask_list = pickle.load(masks_file)
-        mask_list = np.array(mask_list)
-        if(mask_list.shape[1] == 720):
-            mask_list = mask_list[:,40:]
-        ds= ds.assign(
-            input=xr.apply_ufunc(mask_input, ds.input, input_core_dims=[['lat', 'lon']], output_core_dims=[['lat', 'lon']], kwargs={"mask_list": mask_list}, dask="allowed", vectorize=True)
-            )
-
 
     ds = ds.sel(domain)
     ds = (

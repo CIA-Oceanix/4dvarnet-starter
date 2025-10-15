@@ -335,8 +335,9 @@ class Lit4dVarNet_UNet(pl.LightningModule):
         # In case of SST : 
         #training_loss = 50 * loss # 50 * coarsen_loss + 50 * grad_loss # 50 * DoG_loss
         
-        # In case of SLA : 
-        training_loss = 50 * loss + 50 * coarsen_loss + 50 * grad_loss + 50*L3_loss #+ 50 * DoG_loss
+        # In case of SLA :, if fine tune : 
+        training_loss = 50 * loss 
+        #Else :  50 * loss + 50 * coarsen_loss + 50 * grad_loss + 50*L3_loss #+ 50 * DoG_loss
 
         #50* torch.nn.L1Loss(reduction='mean')(torch.nn.AvgPool2d(2)(out), torch.nn.AvgPool2d(2)(batch.tgt))
         #F.mse_loss(out[:,14 : 14+7, :], batch.tgt)
@@ -1020,8 +1021,8 @@ class Lit4dVarNetForecast_UNet(Lit4dVarNet_UNet):
         mask_batch = batch._replace(input=new_input)
         
         # temporal masking
-        new_input = batch.input.clone()
-        dims = new_input.size()
+        #ew_input = batch.input.clone()
+        #dims = new_input.size()
         
         '''
             For fine tuning, as input_complete is independent , do not mask the first 14 days 
