@@ -1,0 +1,138 @@
+# @package _global_
+
+paths:
+  masks_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle
+  glorys12_data: /Odyssey/public/duacs/2023/duacs_2023_2024_0.25deg_float32.nc
+    #Initial training: 2010_2019/duacs_2010_2019_0.25deg_float32.nc
+    #2023/duacs_2017_2022_0.25deg.nc
+  real_traces: /Odyssey/public/altimetry_traces/processed/2023_2025/gridded/gridded_input.nc
+  # Initial training ! 010_2019/gridded_0.25deg/sla_l3_all_2010_2019_0.25deg_convl4_float32.nc
+  swot_traces: /Odyssey/public/swot_traces/gridded/ssha_l3_swot_2023_2025_0.25deg_convl4_float32.nc
+  #2010_2023/gridded/sla_l3_all_2010_2023_0.25deg_convl4.nc
+  ref_data_l4: "" # /Odyssey/public/duacs/2023/duacs_2023_2024_0.25deg_float32.nc
+  ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_UNet/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet/checkpoints/val_mse=3.08068-epoch=204.ckpt
+    #/Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses_DoG/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch/checkpoints/val_mse=0.00967-epoch=187.ckpt
+    # /Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses_correct_mse_L3/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch/checkpoints/val_mse=0.02699-epoch=015.ckpt
+    #/Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses_DoG/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch/checkpoints/val_mse=0.00967-epoch=187.ckpt
+  ose_data_paths: ""
+    #/Odyssey/public/altimetry_traces/processed/2024/gridded/gridded_input.nc #Odyssey/public/swot_traces/gridded/nadir+swot_0.25deg_2023_2025.nc # Odyssey/public/swot_traces/gridded/ssha_l3_swot_2023_2025_0.25deg_convl4_float32.nc  # pas clair ce que c'est !!!!
+
+var_name: "sla_filtered" 
+  #-> dans mes fichiers c'est tjrs tout'es les variables dispo, dans les fichiers de Daniel c'est que sla_filtered qui s'appelle simplement sla
+year_ose: 2024
+
+domain:
+  train:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - -80
+      - 90
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -180
+      - 180
+  test:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - -79
+      - 89
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -179
+      - 179
+
+trainer:
+  _target_: pytorch_lightning.Trainer
+  inference_mode: False
+  gradient_clip_val: 0.5
+  accelerator: gpu
+  devices: 1
+  logger:
+    _target_: pytorch_lightning.loggers.CSVLogger
+    save_dir: /Odyssey/public/glorys/trainings/forecast_UNet_OSSE_Nadir_fine_tune_SWOT_2024_swotMSEloss_valMSESWOT
+    name: ${hydra:runtime.choices.xp}
+    version: ''
+  max_epochs: 350
+  limit_train_batches: 100
+  callbacks:
+    - _target_: src.versioning_cb.VersioningCallback
+    - _target_: pytorch_lightning.callbacks.LearningRateMonitor
+    - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+      monitor: val_mse
+      save_top_k: 3
+      filename: '{val_mse:.5f}-{epoch:03d}'
+
+datamodule:
+  _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPUOSE
+  input_da: 
+    _target_: contrib.data_loading.data.open_glorys12_data_sla_OSE_L3      #open_glorys12_data_sla_OSE_SWOT  #open_duacs_data_sla
+    path: ${paths.glorys12_data}
+    masks_path: ${paths.masks_path}
+    real_traces: ${paths.real_traces}
+    swot_data: ${paths.swot_traces}
+    domain: ${domain.train}
+    variables: "sla_unfiltered"
+  domains:
+    train:
+      time: {_target_: builtins.slice, _args_:['2024-01-01', '2024-07-17']}                   # First training : ['2016-01-01', '2019-04-17']}
+    val: 
+      time: {_target_: builtins.slice, _args_:['2024-07-17', '2024-08-30']}                   # ['2019-04-18', '2019-11-30']}
+    test: 
+      time: {_target_: builtins.slice,  _args_:['2024-08-30', '2024-08-30']}                  # ['2019-12-31', '2019-12-31']}
+  xrds_kw:
+    patch_dims: { time: 29, lat: 680, lon: 1440}
+    strides: { time: 1, lat: 672, lon: 1432}
+    domain_limits: ${domain.train}
+  dl_kw: {batch_size: 1, num_workers: 4}
+  aug_kw:
+    aug_factor: 1
+    aug_only: True # ATTENTION !!!!! CHANGED AUGMENTATION !!!!
+
+model:
+  _target_: contrib.forecast_plus.models.Plus4dVarNetForecastPatchGPU_UNet
+  persist_rw: False
+  opt_fn:
+    _target_: src.utils.cosanneal_lr_adam_UNet            #cosanneal_lr_adam
+    _partial_: true
+    lr: 1e-3
+    T_max: ${trainer.max_epochs}
+  rec_weight:
+    _target_: src.utils.get_forecast_wei
+    patch_dims: ${datamodule.xrds_kw.patch_dims}
+    crop: {time: 0, lat: 4, lon: 4}
+  rec_weight_fn:
+    _target_: contrib.forecast_weights.forecast_weights_reconstruction_soft_edges
+    _partial_: True
+    soft_edge: 0.25
+  solver:
+    _target_: src.models_UNet.UNet    #GradSolverZero
+    n_channels: 29
+    n_classes: 29
+    bilinear: True
+    block: 
+      _target_: src.parts.ResBlock
+      _partial_: True
+    add_input: False
+  pre_metric_fn:
+        _target_: xarray.Dataset.sel
+        _partial_: True
+        time: {_target_: builtins.slice, _args_: ["2019-11-25", "2019-12-31"]}
+        lat: ${domain.test.lat}
+        lon: ${domain.test.lon}
+
+entrypoints:
+  - _target_: pytorch_lightning.seed_everything
+    seed: 333
+  - _target_: src.train.base_training
+    trainer: ${trainer}
+    lit_mod: ${model}
+    dm: ${datamodule}
+    ckpt: ${paths.ckpt_path}
+
+defaults:
+  - _self_
+

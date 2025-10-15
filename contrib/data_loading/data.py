@@ -103,13 +103,18 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
     ds = ds.sel(time=ds['time'].dt.year == year) # COMMENTED HERE 
     if(ds[variable][0].shape[0] == 720):
         ds = ds.isel(lat = np.arange(40, 720, 1))
+    if(ds[variable][0].shape[1] > 1440):
+        ds = ds.sel(lon = slice(-180, 179.75))
 
 
     # BEFORE SWOT : ds.sel(time=ds['time'].dt.year == 2019)    # 2023 for inference before !!! 
     #ds_mask = ds_mask.sel(time= str(year) + '-01-20')[variable].expand_dims(time=ds.time)[:,:,:] # 2024 for swot ?
     #ds_mask = ds_mask.sel(time= '2023' + '-01-20')[variable].expand_dims(time=ds.time)[:,:,:]#.assign_coords(ds.coords) # 2024 for swot ? # Just for the reproducibility test
     #ds_mask = ds_mask.sel(time= '2020' + '-01-20')[variable].expand_dims(time=ds.time)[:,:,:]
-    ds_mask = ds_mask.sel(time= '2020' + '-01-20')[variable].expand_dims(time=ds.time)[:,40:,:1440].assign_coords(ds.coords)
+    if(ds[variable][0].shape[0] < 680):
+        ds_mask = ds_mask.sel(time= '2020' + '-01-20').sel(lat = slice(ds.lat.values[0], ds.lat.values[-1]))[variable].expand_dims(time=ds.time)[:,:,:1440].assign_coords(ds.coords)
+    else:
+        ds_mask = ds_mask.sel(time= '2020' + '-01-20')[variable].expand_dims(time=ds.time)[:,40:,:1440].assign_coords(ds.coords)
     # IMPORTANT : #.assign_coords(ds.coords)
     print(ds_mask[0].shape)
     # BEOFRE SWOT : ds_mask.sel(time='2019-01-20')[variable].expand_dims(time=ds.time)[:,:,:]   # CHANGED FROM 2023 TO 2019 !!! , but should be 2020 ! # CHNAGED AGAIN FROM 2019 TO 2021  
@@ -537,7 +542,7 @@ def open_glorys12_data_sla_OSE_L3(path, masks_path, swot_data, real_traces, doma
         ds
         .load()
         .assign(
-            input = lambda ds: ds_real[variables],
+            input = lambda ds: ds[variable],  #ds_real[variables],
             input_complete = lambda ds: ds_swot["ssha_filtered"], #ds_real[variables],
             #input_coords_l4 = lambda ds: coords_stack,
             #input_coords_l3 = lambda ds: coords_stack_l3,
@@ -545,6 +550,17 @@ def open_glorys12_data_sla_OSE_L3(path, masks_path, swot_data, real_traces, doma
         )
     )
     print("done.")
+
+    if masking:
+        with open(masks_path, 'rb') as masks_file:
+            mask_list = pickle.load(masks_file)
+        mask_list = np.array(mask_list)
+        if(mask_list.shape[1] == 720):
+            mask_list = mask_list[:,40:]
+        ds= ds.assign(
+            input=xr.apply_ufunc(mask_input, ds.input, input_core_dims=[['lat', 'lon']], output_core_dims=[['lat', 'lon']], kwargs={"mask_list": mask_list}, dask="allowed", vectorize=True)
+            )
+
 
     ds = ds.sel(domain)
     ds = (
