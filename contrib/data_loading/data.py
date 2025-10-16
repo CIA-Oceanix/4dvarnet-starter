@@ -543,17 +543,17 @@ def open_glorys12_data_sla_OSE_L3(path, masks_path, swot_data, real_traces, doma
         .load()
         .assign(
             input = lambda ds: ds_real[variables],
-            input_complete = lambda ds: ds_swot["ssha_filtered"], #ds_real[variables],
+            input_complete = lambda ds: ds_swot["sla_filtered"], #ds_real[variables],
             #input_coords_l4 = lambda ds: coords_stack,
             #input_coords_l3 = lambda ds: coords_stack_l3,
-            tgt= lambda ds: ds[variables]
+            tgt= lambda ds: ds["sla"]
         )
     )
     print("done.")
 
     ds = ds.sel(domain)
     ds = (
-        ds[[*TrainingItemOSE_coords._fields]]
+        ds[[*TrainingItemOSE._fields]]
         .transpose("time", "lat", "lon")
         .to_array()
     )

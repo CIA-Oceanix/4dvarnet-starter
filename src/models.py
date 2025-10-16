@@ -347,8 +347,9 @@ class Lit4dVarNet_UNet(pl.LightningModule):
     def base_step(self, batch, phase=""):
         #atch = torch.an_to_num(batch, nan=0.0)
         out = self(batch=batch)
-
-        loss = self.weighted_mse(out - torch.nan_to_num(batch.input_complete), self.rec_weight) * torch.where(batch.input_complete)   # loss l3 "pseudo"
+        #print(torch.where(~torch.isnan(batch.input_complete))[0].shape)
+        #rint(self.weighted_mse(out - torch.nan_to_num(batch.input_complete), self.rec_weight).shape)
+        loss = self.weighted_mse(out - torch.nan_to_num(batch.input_complete), self.rec_weight) # torch.where(~torch.isnan(batch.input_complete))[0]   # loss l3 "pseudo"
         
         '''
             Compute L3 val mse 
@@ -1525,10 +1526,15 @@ class Lit4dVarNetForecast_only1leadtime(Lit4dVarNet):
         mask_batch = batch._replace(input=new_input)
         
         # temporal masking
+        '''
+            These lines only for swot / Nadir tuning 
+        '''
+        '''
         new_input = batch.input.clone()
         dims = new_input.size()
         new_input[:, :14, :, :] = np.nan
         mask_batch = batch._replace(input_complete=new_input) # for DoG and other L3 losses
+        '''
 
         return mask_batch
 

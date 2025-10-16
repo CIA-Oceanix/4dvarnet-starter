@@ -1,0 +1,123 @@
+# @package _global_
+
+xp_name: forecast_SLA_UNet_OSE_Duacs_loss_2016-2019_finetune_SWOT_lossSwotOnly_eval_2024_inpNadirOnly #lorys4_global_1patch_SLA_UNet_Filtered_OSE_DUACS_loss_2016-2019_Duacs_loss_correct_mse_SWOT_tune_mse_V2 # le nom avec lequel ça sera rangé 
+data_name: nrt_sla
+
+paths:
+  ose_data_path: /Odyssey/public/altimetry_traces/    # les traces  ose_data_path/ processed_2023_... (data_name)
+  rec_path:  /Odyssey/public/glorys/rec/              # reconstruction de la SSH avec 4dvarnet à partir des traces /rec_path/xp_name/data_name/
+  metrics_path:  /Odyssey/public/glorys/metrics/      # metriques des cartes reconstruites comparées aux traces altimetriques reprocessés / NRT (en fonction du data_name) -> /metrics_path/xp_name/data_name/
+
+  model_config_path: config/xp/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch_tune_SWOT.yaml
+  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_UNet_fine_tune_SWOT_2024_input_+Nadir_LOSS_swot_only/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch_tune_SWOT/checkpoints/val_mse=0.00632-epoch=226.ckpt
+    # /Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_Nadir_Duacs_loss_correct_mse_SWOT_tune_mse/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch_tune_SWOT/checkpoints/val_mse=0.02760-epoch=121.ckpt
+    #/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_Nadir_Duacs_loss_correct_mse_SWOT_tune_SWOT_input_mse/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch_tune_SWOT/checkpoints/val_mse=0.02727-epoch=206.ckp
+    #/Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_Nadir_Duacs_loss_DoG_correct_mse_SWOT_tune/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch_tune_SWOT/checkpoints/val_mse=0.00738-epoch=273.ckpt
+
+
+#Variabel to reconstruct
+#var_name: "sla_filtered"
+
+
+specs:
+  pixels_per_degree: 4                 # 1/4° -> regrillage des données traces altimètriques L3 , pour les donner en input au modèle. ils existe,t aussi non grillées pour le calcul des métriques. 
+
+  min_time: 2024-01-01                 # inférence, et pour le téléchargement
+  max_time: 2024-12-31
+  time_day_crop: 0                     # retirer les jours au début et à la fin -> utile en mapping
+
+  min_lon: -180                        # 
+  max_lon: 180
+  min_lat: -80
+  max_lat: 90
+
+  copernicus_dataset_id: cmems_obs-sl_glo_phy-ssh_nrt_{}-l3-duacs_PT1S
+
+  input_satellites: ['al', 'c2n', 'h2b', 'j3n', 's3a', 's3b']
+  ref_satellites: ['s6a-hr']
+
+metrics_spatial_domains:
+  GLOBE:
+    lat:
+      _target_: builtins.slice            # crée un objet python d'une slice
+      _args_:
+      - -80
+      - 90
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -180
+      - 180
+  GULFSTREAM:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - 32
+      - 42
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -65
+      - -55
+  GROENLAND:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - 48
+      - 58
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -35
+      - -25
+  MADERE:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - 32
+      - 42
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -23
+      - -13
+
+options:    # pipeline : données download, concat etc ; 4dvarnet pour reconstruction ; metrics . Skip sert à skip une étape. 
+  skip:
+    data: True
+    rec: False
+    metrics: True
+
+  overwrite:         # check si ça existe de base. Si false, il va pas remplacer. Metrics générakement en true.
+    data: False   # pas besoin de overwrit'e data téléchargée 
+    rec: True    # pas besoin de refaire la reconstruction   
+    metrics: False   # pas besoin de recalculer les metriques 
+
+# HYDRA , RIEN CHANGER ! 
+entrypoints:
+  - _target_: contrib.ose_pipeline.ose_full_pipeline.execute_full_pipeline      # va lancer execute_full_pipeline.py -> inférence ; pour training -> config
+    pixels_per_degree: ${specs.pixels_per_degree}
+    min_time: ${specs.min_time}
+    max_time: ${specs.max_time}
+    min_lon: ${specs.min_lon}
+    max_lon: ${specs.max_lon}
+    min_lat: ${specs.min_lat}
+    max_lat: ${specs.max_lat}
+    metrics_spatial_domains: ${metrics_spatial_domains}
+    time_day_crop: ${specs.time_day_crop}
+    copernicus_dataset_id: ${specs.copernicus_dataset_id}
+    input_satellites: ${specs.input_satellites}
+    ref_satellites: ${specs.ref_satellites}
+    ose_data_path: ${paths.ose_data_path}
+    rec_path: ${paths.rec_path}
+    metrics_path: ${paths.metrics_path}
+    model_config_path: ${paths.model_config_path}
+    model_ckpt_path: ${paths.model_ckpt_path}
+    xp_name: ${xp_name}
+    data_name: ${data_name}
+    skip: ${options.skip}
+    overwrite: ${options.overwrite}
+
+defaults:
+  - _self_
+

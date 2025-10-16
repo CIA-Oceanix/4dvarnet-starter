@@ -1,23 +1,17 @@
 # @package _global_
 
-xp_name: forecast_Unet_SLA_1patch_NadirOnly_OSSE_finetuneSWOT_version_Oct2025_inp_Nadir_eval2023 #glorys4_global_1patch_SLA_UNet_Filtered_OSSE_Nadir_eval_2024_NadirNoSwon_NRT_REAL_NRT_tgt_Duacs_2020_ASSIGN_COORDS # le nom avec lequel ça sera rangé 
-data_name: nrt_sla
-  #processed_2023_global_4 # données qu'on veut tester -> altimètres processé 2023 en global au 1/4 -> L4 
+xp_name: glorys4_global_1patch_SLA_one_leadtime_corrected_21_NadirSwotSwonCLS_Reformatted_filtered_tgt_correct_eval2024 # le nom avec lequel ça sera rangé 
+data_name: nrt_sla #rocessed_2023_global_4 # données qu'on veut tester -> altimètres processé 2023 en global au 1/4 -> L4 
 
 paths:
   ose_data_path: /Odyssey/public/altimetry_traces/    # les traces  ose_data_path/ processed_2023_... (data_name)
   rec_path:  /Odyssey/public/glorys/rec/              # reconstruction de la SSH avec 4dvarnet à partir des traces /rec_path/xp_name/data_name/
   metrics_path:  /Odyssey/public/glorys/metrics/      # metriques des cartes reconstruites comparées aux traces altimetriques reprocessés / NRT (en fonction du data_name) -> /metrics_path/xp_name/data_name/
 
-  model_config_path: config/xp/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_for_Swot_tests.yaml
+  model_config_path: config/xp/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_not_29_but_1_tests_swot.yaml
     #base_forecast_global_softedge_fastrec_GPU_1patch.yaml           # HYDRA -> infos liées à l'architecture (nb de sous couches etc -> à voir ... ) 
-  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_UNet_OSSE_Nadir_fine_tune_SWOT_2024_swotMSEloss_valMSESWOT/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_OSSE_Nadir_tune_SWOT/checkpoints/val_mse=0.02725-epoch=213.ckpt
-   # OSSE, puis fine tune swot mse loss: /Odyssey/public/glorys/trainings/forecast_UNet_fine_tune_SWOT_2024_input_+Nadir_LOSS_swot_only/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch_tune_SWOT/checkpoints/val_mse=0.00632-epoch=226.ckpt
-    # OSSE L4 : /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_10y_SLA_GAPFREE_UNet_ResBlock_SLA/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_SSH_L4/checkpoints/val_mse=0.00011-epoch=201.ckpt
-    # OSE Nadir 2016 - 2019/Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_UNet_ResBlock_real_data_Nadir_Duacs_losses_DoG/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_real_data_from_sratch/checkpoints/val_mse=0.00967-epoch=187.ckpt
-    # OSSE Nadir only:  /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_UNet/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet/checkpoints/val_mse=3.08068-epoch=204.ckpt
-    # OSSE Swot + Nadir : /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_UNet_17M_2016_2022_OSSESWOT/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet/checkpoints/val_mse=0.01308-epoch=238.ckpt
-    # /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_UNet/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet/checkpoints/val_mse=3.08068-epoch=204.ckpt
+  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_one_leadtime_corrected_21/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_not_29_but_1/checkpoints/val_mse=4.34505-epoch=279.ckpt
+    #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_one_leadtime_corrected/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_not_29_but_1/checkpoints/val_mse=2.92779-epoch=079.ckpt
     #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_not_SSH/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA/checkpoints/val_mse=5.21636-epoch=057.ckpt
     # for fine tunning : Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_from_REAL_DATA_fine_tuning/base_forecast_global_softedge_fastrec_GPU_1patch_10y_REAL_DATA/checkpoints/val_mse=3.07822-epoch=153.ckpt
 
@@ -32,8 +26,8 @@ paths:
 specs:
   pixels_per_degree: 4                 # 1/4° -> regrillage des données traces altimètriques L3 , pour les donner en input au modèle. ils existe,t aussi non grillées pour le calcul des métriques. 
 
-  min_time: 2023-01-01                 # inférence, et pour le téléchargement
-  max_time: 2023-12-31
+  min_time: 2024-01-01                 # inférence, et pour le téléchargement
+  max_time: 2024-12-31
   time_day_crop: 0                     # retirer les jours au début et à la fin -> utile en mapping
 
   min_lon: -180                        # 
@@ -42,12 +36,11 @@ specs:
   max_lat: 90
 
   #IMPORTANT: keep "{}" in place of satellite name in copernicus_dataset_id
-  #opernicus_dataset_id: cmems_obs-sl_glo_phy-ssh_nrt_{}-l3-duacs_PT1S
-    #cmems_obs-sl_glo_phy-ssh_my_{}-l3-duacs_PT1S               # Global_SSH_forecast_OSE git -> explication 
+  #copernicus_dataset_id: cmems_obs-sl_glo_phy-ssh_my_{}-l3-duacs_PT1S               # Global_SSH_forecast_OSE git -> explication 
 
-    #input_satellites: ['c2', 'h2ag', 'h2b', 'j3', 's3a', 's3b']                       # dans la même explication
-    #ref_satellites: ['alg']                                                           # alg réf psk dans le mapping c'est comme ça : D -> mais en forecast on peut utiliser les mêmes satellites en input et en réf, mais au final on utilise pas du tout ça. Input_satellites c'est à la fois inout et à la fois référence pour les métriques.
-    #
+  #input_satellites: ['c2', 'h2ag', 'h2b', 'j3', 's3a', 's3b']                       # dans la même explication
+  #ref_satellites: ['alg']                                                           # alg réf psk dans le mapping c'est comme ça : D -> mais en forecast on peut utiliser les mêmes satellites en input et en réf, mais au final on utilise pas du tout ça. Input_satellites c'est à la fois inout et à la fois référence pour les métriques.
+
   copernicus_dataset_id: cmems_obs-sl_glo_phy-ssh_nrt_{}-l3-duacs_PT1S
 
   input_satellites: ['al', 'c2n', 'h2b', 'j3n', 's3a', 's3b']

@@ -7,7 +7,8 @@ paths:
     #2023/duacs_2017_2022_0.25deg.nc
   real_traces: /Odyssey/public/swot_traces/cls/gridded_obs_sla_0.25_nadirs_2024_without_swon.nc # /Odyssey/public/altimetry_traces/processed/2023_2025/gridded/gridded_input.nc
   # Initial training ! 010_2019/gridded_0.25deg/sla_l3_all_2010_2019_0.25deg_convl4_float32.nc
-  swot_traces: /Odyssey/public/swot_traces/gridded/ssha_l3_swot_2023_2025_0.25deg_convl4_float32.nc
+  swot_traces: /Odyssey/public/swot_traces/cls/gridded_obs_sla_0.25_swot_2024_reformated.nc
+  #/Odyssey/public/swot_traces/gridded/ssha_l3_swot_2023_2025_0.25deg_convl4_float32.nc
   #2010_2023/gridded/sla_l3_all_2010_2023_0.25deg_convl4.nc
   ref_data_l4: "" # /Odyssey/public/duacs/2023/duacs_2023_2024_0.25deg_float32.nc
   ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_UNet/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet/checkpoints/val_mse=3.08068-epoch=204.ckpt
@@ -75,12 +76,12 @@ datamodule:
     real_traces: ${paths.real_traces}
     swot_data: ${paths.swot_traces}
     domain: ${domain.train}
-    variables: "sla_unfiltered"
+    variables: "sla_filtered"
   domains:
     train:
-      time: {_target_: builtins.slice, _args_:['2024-01-01', '2024-07-17']}                   # First training : ['2016-01-01', '2019-04-17']}
+      time: {_target_: builtins.slice, _args_:['2024-01-01', '2024-09-17']}                   # First training : ['2016-01-01', '2019-04-17']}
     val: 
-      time: {_target_: builtins.slice, _args_:['2024-07-17', '2024-08-30']}                   # ['2019-04-18', '2019-11-30']}
+      time: {_target_: builtins.slice, _args_:['2024-09-17', '2024-12-30']}                   # ['2019-04-18', '2019-11-30']}
     test: 
       time: {_target_: builtins.slice,  _args_:['2024-08-30', '2024-08-30']}                  # ['2019-12-31', '2019-12-31']}
   xrds_kw:
