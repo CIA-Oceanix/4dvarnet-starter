@@ -57,7 +57,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_4dvarnet_OSE_Duacs_loss_latent_dim_21_DoG
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_1patch_2016_2019_SLA_4dvarnet_OSE_Duacs_loss_latent_dim_21_DoG_v2
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 350
