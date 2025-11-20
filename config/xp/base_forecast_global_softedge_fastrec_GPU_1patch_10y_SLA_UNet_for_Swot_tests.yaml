@@ -4,7 +4,8 @@ paths:
     masks_path: /Odyssey/public/swot_traces/mask/global_obs_swot_nadir_DT_2024.pickle #Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle 
     glorys12_data: /Odyssey/public/glorys/reanalysis/glorys12_2010_2019_daily_sla_4th_float32.nc
     ref_data_l4: ""  #/Odyssey/public/duacs/2023/duacs_2023_2024_0.25deg_float32.nc # ATTENTION THE TGT FOR THE VAR HERE IS DUACS AND NOT GLORYS # just to test the reproducibility of unet
-    ose_data_paths: /Odyssey/public/altimetry_traces/2024/NRT_real_noswon_noalg_nojson_no_sentinel/gridded/gridded_input.nc
+    ose_data_paths: /Odyssey/public/swot_traces/gridded/nadirNoSwonNoAlg+swot_0.25deg_2023_2025_NRT_REAL.nc
+      #/Odyssey/public/altimetry_traces/2024/NRT_real_noswon_noalg_nojson_no_sentinel/gridded/gridded_input.nc
       #/Odyssey/public/altimetry_traces/2024/NRT_real_no_swon_no_alg/gridded/gridded_input.nc
       # /Odyssey/public/swot_traces/cls/gridded_obs_sla_0.25_nadirs_2024_without_swon.nc
       # /Odyssey/public/swot_traces/cls/gridded_obs_sla_0.25_swot_2024_reformated.nc

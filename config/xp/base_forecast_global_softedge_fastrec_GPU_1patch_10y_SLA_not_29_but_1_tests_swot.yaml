@@ -9,11 +9,12 @@ paths:
       #kpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_not_SSH/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA/checkpoints/val_mse=5.06367-epoch=088.ckpt
       #al_mse=5.21636-epoch=057.ckp
     ref_data_l4: "" #/Odyssey/public/data_challenge_ssh_ose/data/alongtrack/gridded_obs_sla_0.25.nc # basically this is tgt_path_not_glorys
-    ose_data_paths: /Odyssey/public/swot_traces/cls/gridded_obs_sla_0.25_nadirs_2024_without_swon.nc
+    ose_data_paths: /Odyssey/public/glorys/reanalysis/glorys12_2023_0.25deg_SLA.nc
+      #/Odyssey/public/swot_traces/cls/gridded_obs_sla_0.25_nadirs_2024_without_swon.nc
       #/Odyssey/public/swot_traces/cls/gridded_obs_sla_0.25_swot_2024_reformated.nc #/Odyssey/public/data_challenge_ssh_ose/data/alongtrack/gridded_obs_sla_0.25.nc
 
 var_name: "sla_filtered"
-year_ose: 2024
+year_ose: 2023
 
 
 domain:

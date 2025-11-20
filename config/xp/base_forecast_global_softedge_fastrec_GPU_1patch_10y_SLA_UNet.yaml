@@ -4,7 +4,7 @@ paths:
     masks_path: /Odyssey/public/swot_traces/mask/global_obs_swot_nadir_DT_2024.pickle #Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle 
     glorys12_data: /Odyssey/public/glorys/reanalysis/glorys12_2020_daily_sla_4th_input.nc #/Odyssey/public/glorys/reanalysis/glorys12_2010_2019_daily_sla_4th_float32.nc
     ref_data_l4: '' #/Odyssey/public/duacs/2023/duacs_2023_2024_0.25deg_float32.nc # ATTENTION THE TGT FOR THE VAR HERE IS DUACS AND NOT GLORYS # just to test the reproducibility of unet
-    ose_data_paths: '' #Odyssey/public/altimetry_traces/processed/2010_2023/gridded/gridded_input_4th.nc #/Odyssey/public/altimetry_traces/nrt_sla/gridded/gridded_input.nc
+    ose_data_paths: /Odyssey/public/glorys/reanalysis/glorys12_2023_0.25deg_SLA.nc #Odyssey/public/altimetry_traces/processed/2010_2023/gridded/gridded_input_4th.nc #/Odyssey/public/altimetry_traces/nrt_sla/gridded/gridded_input.nc
       #Odyssey/public/altimetry_traces/processed/2024/gridded/gridded_input.nc
       #/Odyssey/public/swot_traces/gridded/nadir+swot_0.25deg_2023_2025.nc
       #Odyssey/public/altimetry_traces/processed/2024/gridded/gridded_input.nc
@@ -14,7 +14,8 @@ paths:
       #kpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_not_SSH/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA/checkpoints/val_mse=5.06367-epoch=088.ckpt
       #al_mse=5.21636-epoch=057.ckpt
 
-var_name: "sla_filtered"
+var_name: "sla_masked_osse"
+#<sla_filtered"
 year_ose: 2023
 
 

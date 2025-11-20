@@ -82,7 +82,7 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
     #s_mask = xr.open_dataset(tgt_path)#drop_vars('depth')    # TGT_PATH is GLORYS12_DATA in contrib/ose_pipeline/ose_rec_pipeline.py
     #ds_mask = xr.open_dataset('/Odyssey/public/duacs/2023/duacs_2020_2023_0.125deg.nc') -> for all commits "REPRODUCE" with title "tgt DUACS" in rec folder
     ds_mask = xr.open_dataset('/Odyssey/public/duacs/2023/duacs_2017_2022_0.25deg.nc')
-    ds = xr.open_dataset(path)
+    ds = xr.open_dataset(path).drop_dims('depth')
 
     if 'latitude' in list(ds_mask.dims):
         ds_mask = ds_mask.rename({'latitude':'lat', 'longitude':'lon'})
@@ -114,6 +114,8 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
     if(ds[variable][0].shape[0] < 680):
         ds_mask = ds_mask.sel(time= '2020' + '-01-20').sel(lat = slice(ds.lat.values[0], ds.lat.values[-1]))[variable].expand_dims(time=ds.time)[:,:,:1440].assign_coords(ds.coords)
     else:
+        print(ds_mask)
+        print(ds)
         ds_mask = ds_mask.sel(time= '2020' + '-01-20')[variable].expand_dims(time=ds.time)[:,40:,:1440].assign_coords(ds.coords)
     # IMPORTANT : #.assign_coords(ds.coords)
     print(ds_mask[0].shape)
