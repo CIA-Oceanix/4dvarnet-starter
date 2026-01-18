@@ -770,8 +770,9 @@ def open_glorys12_data_sst_normalized(path, masks_path, full_l4_path, domain, ti
     #climato = xr.open_dataset("")
     
     ds =  (
-            xr.open_dataset(path).sel(time = time_domains) # if the file is original GLORYS12 file : drop_vars('depth')
+            xr.open_dataset(path)#.sel(time = time_domains) # if the file is original GLORYS12 file : drop_vars('depth')
             )
+    ds['time'] = ds.time.dt.date
     print("ds")
     print(ds)
     if 'latitude' in list(ds.dims):
@@ -781,7 +782,7 @@ def open_glorys12_data_sst_normalized(path, masks_path, full_l4_path, domain, ti
     print(full_L4_data)
     #full_L4_data.assign_coords(time=full_L4_data.coords['time'].dt.date)
     
-    full_L4_data = full_L4_data.sel(time = ds.time.dt.date)
+    full_L4_data = full_L4_data.sel(time = ds.time.values)
                                     #ds.time.values)
 
     if 'latitude' in list(full_L4_data.dims):
@@ -802,7 +803,12 @@ def open_glorys12_data_sst_normalized(path, masks_path, full_l4_path, domain, ti
             input = lambda ds: ds[variables],
             tgt= lambda ds: full_L4_data["analysed_sst"], #lambda ds: ds[variables]
         )
-    )
+        )
+    ds['time'] = ds['time'].astype(str)
+    print("ds final")
+    print(ds)
+
+
     if masking:
         with open(masks_path, 'rb') as masks_file:
             mask_list = pickle.load(masks_file)
@@ -816,7 +822,6 @@ def open_glorys12_data_sst_normalized(path, masks_path, full_l4_path, domain, ti
         .transpose("time", "lat", "lon")
         .to_array()
         )
-    print(ds.input)
 
     return ds
 

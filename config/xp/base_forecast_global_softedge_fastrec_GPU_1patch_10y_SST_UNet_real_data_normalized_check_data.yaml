@@ -5,7 +5,7 @@ paths:
     glorys12_data: /Odyssey/public/ODYSSEA_IFREMER_SST/SST_GLO_PHY_L3S_MY_010_039/cmems_obs-sst_glo_phy_my_l3s_P1D-m_202311/merged_f32_0.5deg.nc
     full_l4_path: /Odyssey/public/ODYSSEA_IFREMER_SST/L4/sst_l4_c3s_0.5deg.nc
     ref_data_l4: /Odyssey/public/ODYSSEA_IFREMER_SST/L4/sst_l4_c3s_0.5deg.nc #mems_obs-sst_glo_phy_nrt_l4_P1D-m_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2022-12-31.nc
-    ose_data_paths: /Odyssey/public/ODYSSEA_IFREMER_SST/IFREMER-GLOB-SST-L3-NRT-OBS_FULL_TIME_SERIE_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2025-07-10.nc
+    ose_data_paths: "" #/Odyssey/public/ODYSSEA_IFREMER_SST/IFREMER-GLOB-SST-L3-NRT-OBS_FULL_TIME_SERIE_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2025-07-10.nc
 
 var_name: "sea_surface_temperature"
 year_ose: 2023
@@ -47,7 +47,7 @@ trainer:
     save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SST_ODYSSEA_UNet_ResBlock_17M_normalized_all_period
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 350
+  max_epochs: 700 # 350 before
   limit_train_batches: 100
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
@@ -138,6 +138,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
+    ckpt: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SST_ODYSSEA_UNet_ResBlock_17M_normalized_all_period/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SST_UNet_real_data_normalized_check_data/checkpoints/val_mse=257.54283-epoch=131.ckpt
 
 defaults:
   - _self_
