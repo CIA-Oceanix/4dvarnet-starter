@@ -787,8 +787,6 @@ def open_glorys12_data_sst_normalized(path, masks_path, full_l4_path, domain, ti
     if 'latitude' in list(full_L4_data.dims):
         full_L4_data = full_L4_data.rename({'latitude':'lat', 'longitude':'lon'})
 
-    print(ds)
-    print(full_L4_data)
 
     if test_cut is not None:
         ds = ds.sel(time=test_cut)
@@ -817,7 +815,8 @@ def open_glorys12_data_sst_normalized(path, masks_path, full_l4_path, domain, ti
         ds[[*TrainingItem._fields]]
         .transpose("time", "lat", "lon")
         .to_array()
-    )
+        )
+    print(ds.input)
 
     return ds
 

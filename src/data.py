@@ -272,8 +272,9 @@ class BaseDataModule(pl.LightningDataModule):
         return self._norm_stats
 
     def train_mean_std(self, variable='tgt'):
+        print("Train mean std function")
         train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {})).sel(self.domains['train'])
-        return train_data.sel(variable=variable).pipe(lambda da: (da.mean().values.item(), da.std().values.item()))
+        return train_data.sel(variable=variable).pipe(lambda da: (da.mean(skipna = True).values.item(), da.std(skipna = True).values.item())) # added skipna = True ! 
 
     def post_fn(self):
         m, s = self.norm_stats()
