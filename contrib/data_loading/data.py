@@ -80,9 +80,12 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
     print(f'path is {path}')
     #s_mask = xr.open_dataset('/Odyssey/public/glorys/reanalysis/glorys12_2020_daily_sla_4th.nc')
     #s_mask = xr.open_dataset(tgt_path)#drop_vars('depth')    # TGT_PATH is GLORYS12_DATA in contrib/ose_pipeline/ose_rec_pipeline.py
-    #ds_mask = xr.open_dataset('/Odyssey/public/duacs/2023/duacs_2020_2023_0.125deg.nc') -> for all commits "REPRODUCE" with title "tgt DUACS" in rec folder
-    ds_mask = xr.open_dataset('/Odyssey/public/duacs/2023/duacs_2017_2022_0.25deg.nc')
-    ds = xr.open_dataset(path).drop_dims('depth')
+    #ds_mask = xr.open_dataset('/Odyssey/public/duacs/2023/duacs_2020_2023_0.125deg.nc') -> for all commits "REPRODUCE" with title "tgt DUACS" in rec folde
+    ds_mask = xr.open_dataset(tgt_path)
+    # For SLA use case: '/Odyssey/public/duacs/2023/duacs_2017_2022_0.25deg.nc')
+    ds = xr.open_dataset(path)
+    if('depth' in list(ds.dims)):
+        ds = ds.drop_dims('depth')
 
     if 'latitude' in list(ds_mask.dims):
         ds_mask = ds_mask.rename({'latitude':'lat', 'longitude':'lon'})
@@ -94,6 +97,8 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
         ds_mask = ds_mask.rename({'thetao':variable})
     if 'analysed_sst' in list(ds_mask.variables):
         ds_mask = ds_mask.rename({'analysed_sst':variable})
+    if 'analysed_sst' in list(ds.variables):
+        ds = ds.rename({'analysed_sst':variable})
 
     if 'sla' in list(ds_mask.variables):
         ds_mask = ds_mask.rename({'sla':variable})
@@ -101,22 +106,25 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
 
     ds['time'] = pd.to_datetime(ds['time'].values)  # Ensure time is in datetime format if it's not already
     ds = ds.sel(time=ds['time'].dt.year == year) # COMMENTED HERE 
-    if(ds[variable][0].shape[0] == 720):
-        ds = ds.isel(lat = np.arange(40, 720, 1))
-    if(ds[variable][0].shape[1] > 1440):
-        ds = ds.sel(lon = slice(-180, 179.75))
 
 
     # BEFORE SWOT : ds.sel(time=ds['time'].dt.year == 2019)    # 2023 for inference before !!! 
     #ds_mask = ds_mask.sel(time= str(year) + '-01-20')[variable].expand_dims(time=ds.time)[:,:,:] # 2024 for swot ?
     #ds_mask = ds_mask.sel(time= '2023' + '-01-20')[variable].expand_dims(time=ds.time)[:,:,:]#.assign_coords(ds.coords) # 2024 for swot ? # Just for the reproducibility test
-    #ds_mask = ds_mask.sel(time= '2020' + '-01-20')[variable].expand_dims(time=ds.time)[:,:,:]
-    if(ds[variable][0].shape[0] < 680):
-        ds_mask = ds_mask.sel(time= '2020' + '-01-20').sel(lat = slice(ds.lat.values[0], ds.lat.values[-1]))[variable].expand_dims(time=ds.time)[:,:,:1440].assign_coords(ds.coords)
+    #ds_mask = ds_mask.sel(time= '2020' + '-01-20')[variable].expand_dims(time=ds.time)[:,:,:
+    if(variable[:3] == 'sla'):
+        if(ds[variable][0].shape[0] == 720):
+            ds = ds.isel(lat = np.arange(40, 720, 1))
+        if(ds[variable][0].shape[1] > 1440):
+            ds = ds.sel(lon = slice(-180, 179.75))
+        if(ds[variable][0].shape[0] < 680):
+            ds_mask = ds_mask.sel(time= '2020' + '-01-20').sel(lat = slice(ds.lat.values[0], ds.lat.values[-1]))[variable].expand_dims(time=ds.time)[:,:,:1440].assign_coords(ds.coords)
+        else:
+            print(ds_mask)
+            print(ds)
+            ds_mask = ds_mask.sel(time= '2020' + '-01-20')[variable].expand_dims(time=ds.time)[:,40:,:1440].assign_coords(ds.coords)
     else:
-        print(ds_mask)
-        print(ds)
-        ds_mask = ds_mask.sel(time= '2020' + '-01-20')[variable].expand_dims(time=ds.time)[:,40:,:1440].assign_coords(ds.coords)
+        ds_mask = ds_mask.sel(time= '2022' + '-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords)
     # IMPORTANT : #.assign_coords(ds.coords)
     print(ds_mask[0].shape)
     # BEOFRE SWOT : ds_mask.sel(time='2019-01-20')[variable].expand_dims(time=ds.time)[:,:,:]   # CHANGED FROM 2023 TO 2019 !!! , but should be 2020 ! # CHNAGED AGAIN FROM 2019 TO 2021  
@@ -698,41 +706,39 @@ def open_glorys12_data_sla_OSE_classic(path, masks_path, real_traces, domain, va
 '''
     SST inp and out
 '''
-def open_glorys12_data_sst(path, masks_path, domain, variables="sea_surface_temperature", masking=True, test_cut=None): # zos before
+def open_glorys12_data_sst(path, masks_path, full_l4_path, domain, time_domains, variables="sea_surface_temperature",masking=True, test_cut=None): # zos before
     """
         Function to load glorys data
-
-        path: path to glorys .nc file
-        masks_path: path to nadir-like observation masks with dimensions matching glorys dataset size. pickled np array list.
         domain: lat and long extremities to cut data
         variables: variable to load
         masking: whether to mask the input data using the masks in masks_path
         test_cut: if not None, {'time': slice(time1, time2)}, speeding up the loading by pre-cutting the loaded data
     """
-    print("LOADING input data")
     ds =  (
-            xr.open_dataset(path)# if the file is original GLORYS12 file : drop_vars('depth')
+            xr.open_dataset(path).sel(time = time_domains) # if the file is original GLORYS12 file : drop_vars('depth')
     )
-
-    print('DS is')
-    print(ds)
-
     if 'latitude' in list(ds.dims):
         ds = ds.rename({'latitude':'lat', 'longitude':'lon'})
 
+    full_L4_data = xr.open_dataset(full_l4_path)
+    full_L4_data.assign_coords(time=full_L4_data.coords['time'].dt.date)
+    full_L4_data = full_L4_data.sel(time = ds.time.values)
+
+    if 'latitude' in list(full_L4_data.dims):
+        full_L4_data = full_L4_data.rename({'latitude':'lat', 'longitude':'lon'})
 
     if test_cut is not None:
         ds = ds.sel(time=test_cut)
+        full_L4_data = full_L4_data.sel(time = test_cut)
 
     ds = (
         ds
         .load()
         .assign(
             input = lambda ds: ds[variables],
-            tgt= lambda ds: ds[variables]
+            tgt= lambda ds: full_L4_data["analysed_sst"] #lambda ds: ds[variables]
         )
     )
-    print("done.")
     if masking:
         with open(masks_path, 'rb') as masks_file:
             mask_list = pickle.load(masks_file)
@@ -740,7 +746,6 @@ def open_glorys12_data_sst(path, masks_path, domain, variables="sea_surface_temp
         ds= ds.assign(
             input=xr.apply_ufunc(mask_input, ds.input, input_core_dims=[['lat', 'lon']], output_core_dims=[['lat', 'lon']], kwargs={"mask_list": mask_list}, dask="allowed", vectorize=True)
             )
-
     ds = ds.sel(domain)
     ds = (
         ds[[*TrainingItem._fields]]
@@ -750,7 +755,71 @@ def open_glorys12_data_sst(path, masks_path, domain, variables="sea_surface_temp
 
     return ds
 
+"""
+    Normalized sst loading
+"""
+def open_glorys12_data_sst_normalized(path, masks_path, full_l4_path, domain, time_domains, variables="sea_surface_temperature",masking=True, test_cut=None): # zos before
+    """
+        Function to load glorys data
+        domain: lat and long extremities to cut data
+        variables: variable to load
+        masking: whether to mask the input data using the masks in masks_path
+        test_cut: if not None, {'time': slice(time1, time2)}, speeding up the loading by pre-cutting the loaded data
+    """
 
+    #climato = xr.open_dataset("")
+    
+    ds =  (
+            xr.open_dataset(path).sel(time = time_domains) # if the file is original GLORYS12 file : drop_vars('depth')
+            )
+    print("ds")
+    print(ds)
+    if 'latitude' in list(ds.dims):
+        ds = ds.rename({'latitude':'lat', 'longitude':'lon'})
+    print('Here')
+    full_L4_data = xr.open_dataset(full_l4_path)
+    print(full_L4_data)
+    #full_L4_data.assign_coords(time=full_L4_data.coords['time'].dt.date)
+    
+    full_L4_data = full_L4_data.sel(time = ds.time.dt.date)
+                                    #ds.time.values)
+
+    if 'latitude' in list(full_L4_data.dims):
+        full_L4_data = full_L4_data.rename({'latitude':'lat', 'longitude':'lon'})
+
+    print(ds)
+    print(full_L4_data)
+
+    if test_cut is not None:
+        ds = ds.sel(time=test_cut)
+        full_L4_data = full_L4_data.sel(time = test_cut)
+    
+    #ds[variables] = ds[variables] - ds[variables].mean(dim = 'time', skipna = True)
+    #full_L4_data["analysed_sst"] = full_L4_data["analysed_sst"] - full_L4_data["analysed_sst"].mean(dim = 'time', skipna = True)
+
+    ds = (
+        ds
+        .load()
+        .assign(
+            input = lambda ds: ds[variables],
+            tgt= lambda ds: full_L4_data["analysed_sst"], #lambda ds: ds[variables]
+        )
+    )
+    if masking:
+        with open(masks_path, 'rb') as masks_file:
+            mask_list = pickle.load(masks_file)
+        mask_list = np.array(mask_list)
+        ds= ds.assign(
+            input=xr.apply_ufunc(mask_input, ds.input, input_core_dims=[['lat', 'lon']], output_core_dims=[['lat', 'lon']], kwargs={"mask_list": mask_list}, dask="allowed", vectorize=True)
+            )
+    ds = ds.sel(domain)
+    ds = (
+        ds[[*TrainingItem._fields]]
+        .transpose("time", "lat", "lon")
+        .to_array()
+    )
+
+    return ds
 
 
 '''

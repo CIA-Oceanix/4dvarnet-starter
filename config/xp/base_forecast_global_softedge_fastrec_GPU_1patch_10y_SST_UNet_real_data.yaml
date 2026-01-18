@@ -2,7 +2,8 @@
 
 paths:
     masks_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle 
-    glorys12_data: IFREMER-GLOB-SST-L3-NRT-OBS_FULL_TIME_SERIE_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2022-07-10.nc
+    glorys12_data: /Odyssey/public/ODYSSEA_IFREMER_SST/IFREMER-GLOB-SST-L3-NRT-OBS_FULL_TIME_SERIE_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2022-07-10.nc
+    full_l4_path: /Odyssey/public/ODYSSEA_IFREMER_SST/L4/cmems_obs-sst_glo_phy_nrt_l4_P1D-m_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2022-12-31.nc
     ref_data_l4: ''
     ose_data_paths: ''
 
@@ -40,7 +41,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SST_ODYSSEA_UNet_ResBlock_17M
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SST_ODYSSEA_UNet_ResBlock_17M_normalisation_check_target_correct
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 350
@@ -59,13 +60,15 @@ datamodule:
     _target_: contrib.data_loading.data.open_glorys12_data_sst
     path: ${paths.glorys12_data}
     masks_path: ${paths.masks_path}
+    full_l4_path: ${paths.full_l4_path}
     domain: ${domain.train}
     masking: False
+    time_domains: {_target_: builtins.slice, _args_: ['2021-01-01', '2022-12-31']}
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2010-01-01', '2019-05-17']}
+      time: {_target_: builtins.slice, _args_: ['2021-01-01', '2022-05-17']}
     val: 
-      time: {_target_: builtins.slice, _args_: ['2019-05-18', '2019-12-31']}
+      time: {_target_: builtins.slice, _args_: ['2022-05-18', '2022-07-10']}
     test: 
       time: {_target_: builtins.slice,  _args_: ['2022-12-31', '2022-12-31']}
   xrds_kw:

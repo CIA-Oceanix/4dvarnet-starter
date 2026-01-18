@@ -1,5 +1,5 @@
 # @package _global_
-xp_name: glorys4_global_1patch_SST_ODYSSEA_UNet # le nom avec lequel ça sera rangé 
+xp_name: glorys4_global_1patch_SST_ODYSSEA_UNet_normalized_input_training_full # le nom avec lequel ça sera rangé 
 data_name: nrt_sla
 
 paths:
@@ -7,8 +7,8 @@ paths:
   rec_path:  /Odyssey/public/glorys/rec/              # reconstruction de la SSH avec 4dvarnet à partir des traces /rec_path/xp_name/data_name/
   metrics_path:  /Odyssey/public/glorys/metrics/      # metriques des cartes reconstruites comparées aux traces altimetriques reprocessés / NRT (en fonction du data_name) -> /metrics_path/xp_name/data_name/
 
-  model_config_path: config/xp/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SST_UNet.yaml
-  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SST_ODYSSEA_UNet_ResBlock_17M/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SST_UNet/checkpoints/val_mse=163.03388-epoch=216.ckpt
+  model_config_path: config/xp/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SST_UNet_real_data_normalized.yaml
+  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SST_ODYSSEA_UNet_ResBlock_17M_normalized/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SST_UNet_real_data_normalized/checkpoints/val_mse=9.68547-epoch=054.ckpt
     #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SST_UNet_ResBlock_17M/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SST_UNet/checkpoints/val_mse=2.23058-epoch=343.ckpt
   #ef_data_l4: /Odyssey/public/ODYSSEA_IFREMER_SST/L4/cmems_obs-sst_glo_phy_nrt_l4_P1D-m_multi-vars_179.95W-179.95E_79.95S-79.95N_2023-01-01-2023-12-31.nc
 

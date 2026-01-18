@@ -791,40 +791,16 @@ class Lit4dVarNet_UNet_sst(pl.LightningModule):
 
         loss, out = self.base_step(batch, phase)
         grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
-        original_lat, original_lon = 48, 48 # Previously: 680, 1440
-        coarsen_lat = 4 # coarsening factor, for duacs at 1/4°, 4 means we coarsen to 1°
-        coarsen_lon = 4
-        coarsen_factor = (coarsen_lat, coarsen_lon)
-
-        patch_dims = {
-            'time': out.shape[1],
-            'lat': original_lat // coarsen_lat,
-            'lon': original_lon // coarsen_lon,
-        }
-
-        # Generate weights on the fly
-        '''eights = get_forecast_wei_adaptable_per_resolution(
-            patch_dims=patch_dims,
-            coarsen_factor=coarsen_factor,
-            base_crop={'lat': 4, 'lon': 4}
-        )
-
-        weights_torch = torch.tensor(weights, dtype=out.dtype, device=out.device)
-        
-        coarsen_loss = self.weighted_mse(torch.nn.AvgPool2d(4)(out) - torch.nn.AvgPool2d(4)(torch.nan_to_num(batch.tgt)), weights_torch)
-        '''
-        
-        #oG_loss = self.weighted_mse(dog_kornia(out, 1, 2), dog_kornia(torch.nan_to_num(batch.tgt), 1, 2))
         
         self.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
-        training_loss = 50 * loss # 50 * coarsen_loss + 50 * grad_loss # 50 * DoG_loss
+        training_loss = 50 * loss + 50 * grad_loss # 50 * coarsen_loss + 50 * grad_loss # 50 * DoG_loss
         #50* torch.nn.L1Loss(reduction='mean')(torch.nn.AvgPool2d(2)(out), torch.nn.AvgPool2d(2)(batch.tgt))
         #F.mse_loss(out[:,14 : 14+7, :], batch.tgt)
         #50 * loss + 1000 * grad_loss #+ 1.0 * prior_cost
         return training_loss, out
             
     def base_step(self, batch, phase=""):
-        #atch = torch.an_to_num(batch, nan=0.0)
+        batch = torch.nan_to_num(batch, nan=0.0)
         out = self(batch=batch)
 
         loss = self.weighted_mse(out - torch.nan_to_num(batch.tgt), self.rec_weight)
