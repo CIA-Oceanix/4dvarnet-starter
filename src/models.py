@@ -773,7 +773,8 @@ class Lit4dVarNet_UNet_sst(pl.LightningModule):
         err_num = err.isfinite() & ~non_zeros
         if err_num.sum() == 0:
             return torch.scalar_tensor(1000.0, device=err_num.device).requires_grad_()
-        loss = F.mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
+        loss = F.l1_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
+        #mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
         return loss
 
     def training_step(self, batch, batch_idx):
@@ -791,7 +792,7 @@ class Lit4dVarNet_UNet_sst(pl.LightningModule):
         loss, out = self.base_step(batch, phase)
         grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
         
-        self.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
+        #elf.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
         training_loss = 50 * loss #+ 50 * grad_loss # 50 * coarsen_loss + 50 * grad_loss # 50 * DoG_loss
         #50* torch.nn.L1Loss(reduction='mean')(torch.nn.AvgPool2d(2)(out), torch.nn.AvgPool2d(2)(batch.tgt))
         #F.mse_loss(out[:,14 : 14+7, :], batch.tgt)

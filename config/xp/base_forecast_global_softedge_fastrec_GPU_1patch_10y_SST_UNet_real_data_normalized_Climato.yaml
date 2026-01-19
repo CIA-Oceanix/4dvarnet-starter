@@ -2,9 +2,9 @@
 
 paths:
     masks_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle 
-    glorys12_data: /Odyssey/public/ODYSSEA_IFREMER_SST/SST_GLO_PHY_L3S_MY_010_039/cmems_obs-sst_glo_phy_my_l3s_P1D-m_202311/merged_f32_0.5deg.nc
-    full_l4_path: /Odyssey/public/ODYSSEA_IFREMER_SST/L4/sst_l4_c3s_0.5deg.nc
-    ref_data_l4: /Odyssey/public/ODYSSEA_IFREMER_SST/L4/sst_l4_c3s_0.5deg.nc #mems_obs-sst_glo_phy_nrt_l4_P1D-m_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2022-12-31.nc
+    glorys12_data: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_L3_f32_compressed.nc
+    full_l4_path: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_f32_compressed.nc
+    ref_data_l4: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_f32_compressed.nc #mems_obs-sst_glo_phy_nrt_l4_P1D-m_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2022-12-31.nc
     ose_data_paths: "" #/Odyssey/public/ODYSSEA_IFREMER_SST/IFREMER-GLOB-SST-L3-NRT-OBS_FULL_TIME_SERIE_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2025-07-10.nc
 
 var_name: "sea_surface_temperature"
@@ -22,8 +22,8 @@ domain:
     lon:
       _target_: builtins.slice
       _args_:
-      - -179.75
-      - 179.75
+      - -179.8
+      - 179.8
   test:
     lat:
       _target_: builtins.slice
@@ -44,7 +44,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SST_ODYSSEA_UNet_ResBlock_17M_normalized_2016_2019_AugTrue_AnomalieL4_MAE
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SST_ODYSSEA_UNet_ResBlock_17M_normalized_2016_2019_AugTrue_AnomalieClimato_MAE
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 895 #700 + 195 # 350 before
@@ -60,7 +60,7 @@ trainer:
 datamodule:
   _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU
   input_da: 
-    _target_: contrib.data_loading.data.open_glorys12_data_sst_normalized
+    _target_: contrib.data_loading.data.open_glorys12_data_sst_normalized_climato
     path: ${paths.glorys12_data}
     masks_path: ${paths.masks_path}
     full_l4_path: ${paths.full_l4_path}
