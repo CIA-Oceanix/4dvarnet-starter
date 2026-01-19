@@ -793,8 +793,8 @@ def open_glorys12_data_sst_normalized(path, masks_path, full_l4_path, domain, ti
         ds = ds.sel(time=test_cut)
         full_L4_data = full_L4_data.sel(time = test_cut)
     
-    #ds[variables] = ds[variables] - ds[variables].mean(dim = 'time', skipna = True)
-    #full_L4_data["analysed_sst"] = full_L4_data["analysed_sst"] - full_L4_data["analysed_sst"].mean(dim = 'time', skipna = True)
+    ds[variables] = ds[variables] - full_L4_data["analysed_sst"].mean(dim = 'time', skipna = True) #- ds[variables].mean(dim = 'time', skipna = True) # for the new tests sst training from  checkpoint
+    full_L4_data["analysed_sst"] = full_L4_data["analysed_sst"] - full_L4_data["analysed_sst"].mean(dim = 'time', skipna = True)
 
     ds = (
         ds
