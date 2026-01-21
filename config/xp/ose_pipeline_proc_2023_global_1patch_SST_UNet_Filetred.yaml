@@ -1,23 +1,23 @@
 # @package _global_
-xp_name: glorys4_global_1patch_SST_ODYSSEA_UNet_normalized_input_training_full # le nom avec lequel ça sera rangé 
+xp_name: glorys4_global_1patch_SST_ODYSSEA_UNet_L3_NRT_AnomalyCLIMATO_MSE_2016_2019 # le nom avec lequel ça sera rangé 
 data_name: nrt_sla
 
 paths:
-  ose_data_path: /Odyssey/public/ODYSSEA_IFREMER_SST/IFREMER-GLOB-SST-L3-NRT-OBS_FULL_TIME_SERIE_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2025-07-10.nc    # les traces  ose_data_path/ processed_2023_... (data_name)
+  ose_data_path: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/IFREMER-GLOB-SST-L3-NRT-2021_2025_ANOMALY_CLIMATO_f32.nc   # les traces  ose_data_path/ processed_2023_... (data_name)
   rec_path:  /Odyssey/public/glorys/rec/              # reconstruction de la SSH avec 4dvarnet à partir des traces /rec_path/xp_name/data_name/
   metrics_path:  /Odyssey/public/glorys/metrics/      # metriques des cartes reconstruites comparées aux traces altimetriques reprocessés / NRT (en fonction du data_name) -> /metrics_path/xp_name/data_name/
 
-  model_config_path: config/xp/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SST_UNet_real_data_normalized.yaml
-  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SST_ODYSSEA_UNet_ResBlock_17M_normalized/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SST_UNet_real_data_normalized/checkpoints/val_mse=9.68547-epoch=054.ckpt
+  model_config_path: config/xp/sst_training_anomalyClimato_MSE_2016_2019.yaml
+  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2016_2019_AugTrue_MSE/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=5.08847-epoch=154.ckpt
     #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SST_UNet_ResBlock_17M/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SST_UNet/checkpoints/val_mse=2.23058-epoch=343.ckpt
   #ef_data_l4: /Odyssey/public/ODYSSEA_IFREMER_SST/L4/cmems_obs-sst_glo_phy_nrt_l4_P1D-m_multi-vars_179.95W-179.95E_79.95S-79.95N_2023-01-01-2023-12-31.nc
 
 # Variable to reconstruct 
-var_name: sea_surface_temperature
+var_name: sst_anomaly
 
 
 specs:
-  pixels_per_degree: 4                 # 1/4° -> regrillage des données traces altimètriques L3 , pour les donner en input au modèle. ils existe,t aussi non grillées pour le calcul des métriques. 
+  pixels_per_degree: 2 #4                 # 1/4° -> regrillage des données traces altimètriques L3 , pour les donner en input au modèle. ils existe,t aussi non grillées pour le calcul des métriques. 
 
   min_time: 2023-01-01                 # inférence, et pour le téléchargement
   max_time: 2023-12-31

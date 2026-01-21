@@ -773,7 +773,8 @@ class Lit4dVarNet_UNet_sst(pl.LightningModule):
         err_num = err.isfinite() & ~non_zeros
         if err_num.sum() == 0:
             return torch.scalar_tensor(1000.0, device=err_num.device).requires_grad_()
-        loss = F.l1_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
+        loss = F.mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
+        #l1_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
         #mse_loss(err_w[err_num], torch.zeros_like(err_w[err_num]))
         return loss
 
@@ -803,7 +804,8 @@ class Lit4dVarNet_UNet_sst(pl.LightningModule):
         #atch = torch.nan_to_num(batch, nan=0.0)
         out = self(batch=batch)
 
-        loss = self.weighted_mse(out - torch.nan_to_num(batch.tgt), self.rec_weight)
+        loss = self.weighted_mse(out - batch.tgt, self.rec_weight) # changed in order to debug sst forecasting afetr best score : val mse ~ 3.3
+        # Version nan to num !!! self.weighted_mse(out - torch.nan_to_num(batch.tgt), self.rec_weight)
         #rint('loss = ' + str(loss.item()))
 
         with torch.no_grad():

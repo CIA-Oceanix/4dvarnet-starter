@@ -44,7 +44,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SST_ODYSSEA_UNet_ResBlock_17M_normalized_2016_2019_AugTrue_AnomalieClimato_MAE
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SST_ODYSSEA_UNet_ResBlock_17M_normalized_2016_2019_AugTrue_AnomalieClimato_MSE_fromCKPT_landMaskCheck
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 895 #700 + 195 # 350 before
@@ -138,8 +138,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    #ckpt: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SST_ODYSSEA_UNet_ResBlock_17M_normalized_2016_2019/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SST_UNet_real_data_normalized_MeanSTD/checkpoints/val_mse=11.63503-epoch=195.ckpt
-    #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SST_ODYSSEA_UNet_ResBlock_17M_normalized_all_period/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SST_UNet_real_data_normalized_check_data/checkpoints/val_mse=257.54283-epoch=131.ckpt
+    ckpt: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SST_ODYSSEA_UNet_ResBlock_17M_normalized_2016_2019_AugTrue_AnomalieClimato_MAE/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SST_UNet_real_data_normalized_Climato/checkpoints/val_mse=3.32786-epoch=068.ckpt
 
 defaults:
   - _self_

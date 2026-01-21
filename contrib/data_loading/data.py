@@ -124,7 +124,8 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
             print(ds)
             ds_mask = ds_mask.sel(time= '2020' + '-01-20')[variable].expand_dims(time=ds.time)[:,40:,:1440].assign_coords(ds.coords)
     else:
-        ds_mask = ds_mask.sel(time= '2022' + '-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords)
+        ds_mask = ds_mask.sel(time= '2019' + '-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords)
+        #(time= '2022' + '-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords)
     # IMPORTANT : #.assign_coords(ds.coords)
     print(ds_mask[0].shape)
     # BEOFRE SWOT : ds_mask.sel(time='2019-01-20')[variable].expand_dims(time=ds.time)[:,:,:]   # CHANGED FROM 2023 TO 2019 !!! , but should be 2020 ! # CHNAGED AGAIN FROM 2019 TO 2021  
