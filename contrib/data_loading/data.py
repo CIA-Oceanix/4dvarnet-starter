@@ -896,6 +896,76 @@ def open_glorys12_data_sst_normalized_climato(path, masks_path, full_l4_path, do
 
 
 
+'''
+L3 fine tune NRT
+'''
+def open_glorys12_data_sst_normalized_climato(path, masks_path, full_l4_path, domain, time_domains, variables="sea_surface_temperature",masking=True, test_cut=None): # zos before
+    """
+        Function to load glorys data
+        domain: lat and long extremities to cut data
+        variables: variable to load
+        masking: whether to mask the input data using the masks in masks_path
+        test_cut: if not None, {'time': slice(time1, time2)}, speeding up the loading by pre-cutting the loaded data
+    """
+
+    #climato = xr.open_dataset("")
+
+    ds =  (
+            xr.open_dataset(path)#.sel(time = time_domains) # if the file is original GLORYS12 file : drop_vars('depth')
+            )
+    ds['time'] = ds.time.dt.date
+    print("ds")
+    print(ds)
+    if 'latitude' in list(ds.dims):
+        ds = ds.rename({'latitude':'lat', 'longitude':'lon'})
+    print('Here')
+    full_L4_data = xr.open_dataset(full_l4_path)
+    print(full_L4_data)
+    #full_L4_data.assign_coords(time=full_L4_data.coords['time'].dt.date)
+
+    full_L4_data = full_L4_data.sel(time = ds.time.values)
+                                    #ds.time.values)
+
+    if 'latitude' in list(full_L4_data.dims):
+        full_L4_data = full_L4_data.rename({'latitude':'lat', 'longitude':'lon'})
+
+
+    if test_cut is not None:
+        ds = ds.sel(time=test_cut)
+        full_L4_data = full_L4_data.sel(time = test_cut)
+
+    #ds[variables] = ds[variables] - full_L4_data["analysed_sst"].mean(dim = 'time', skipna = True) #- ds[variables].mean(dim = 'time', skipna = True) # for the new tests sst training from  checkpoint
+    #full_L4_data["analysed_sst"] = full_L4_data["analysed_sst"] - full_L4_data["analysed_sst"].mean(dim = 'time', skipna = True)
+
+    ds = (
+        ds
+        .load()
+        .assign(
+            input = lambda ds: ds["sst_anomaly"],
+            tgt= lambda ds: ds["sst_anomaly"], #lambda ds: ds[variables]
+        )
+        )
+    ds['time'] = ds['time'].astype(str)
+    print("ds final")
+    print(ds)
+
+    if masking:
+        with open(masks_path, 'rb') as masks_file:
+            mask_list = pickle.load(masks_file)
+        mask_list = np.array(mask_list)
+        ds= ds.assign(
+            input=xr.apply_ufunc(mask_input, ds.input, input_core_dims=[['lat', 'lon']], output_core_dims=[['lat', 'lon']], kwargs={"mask_list": mask_list}, dask="allowed", vectorize=True)
+            )
+    ds = ds.sel(domain)
+    ds = (
+        ds[[*TrainingItem._fields]]
+        .transpose("time", "lat", "lon")
+        .to_array()
+        )
+
+    return ds
+
+
 
 '''
     L4 input , Benchmark B1

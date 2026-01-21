@@ -794,7 +794,8 @@ class Lit4dVarNet_UNet_sst(pl.LightningModule):
         grad_loss = self.weighted_mse(kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
         
         #elf.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
-        training_loss = 50 * loss #+ 50 * grad_loss # 50 * coarsen_loss + 50 * grad_loss # 50 * DoG_loss
+        training_loss = loss # 50 * loss before ! 
+        #+ 50 * grad_loss # 50 * coarsen_loss + 50 * grad_loss # 50 * DoG_loss
         #50* torch.nn.L1Loss(reduction='mean')(torch.nn.AvgPool2d(2)(out), torch.nn.AvgPool2d(2)(batch.tgt))
         #F.mse_loss(out[:,14 : 14+7, :], batch.tgt)
         #50 * loss + 1000 * grad_loss #+ 1.0 * prior_cost
@@ -809,7 +810,7 @@ class Lit4dVarNet_UNet_sst(pl.LightningModule):
         #rint('loss = ' + str(loss.item()))
 
         with torch.no_grad():
-            self.log(f"{phase}_mse", 50 * loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
+            self.log(f"{phase}_mse", loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
             self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
 
         return loss, out
