@@ -60,7 +60,7 @@ trainer:
 datamodule:
   _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU
   input_da: 
-    _target_: contrib.data_loading.data.open_glorys12_data_sst_normalized_climato
+    _target_: contrib.data_loading.data.open_glorys12_data_sst_normalized_climato_finetune_L3
     path: ${paths.glorys12_data}
     masks_path: ${paths.masks_path}
     full_l4_path: ${paths.full_l4_path}

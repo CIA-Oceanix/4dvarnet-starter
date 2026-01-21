@@ -899,7 +899,7 @@ def open_glorys12_data_sst_normalized_climato(path, masks_path, full_l4_path, do
 '''
 L3 fine tune NRT
 '''
-def open_glorys12_data_sst_normalized_climato(path, masks_path, full_l4_path, domain, time_domains, variables="sea_surface_temperature",masking=True, test_cut=None): # zos before
+def open_glorys12_data_sst_normalized_climato_finetune_L3(path, masks_path, full_l4_path, domain, time_domains, variables="sea_surface_temperature",masking=True, test_cut=None): # zos before
     """
         Function to load glorys data
         domain: lat and long extremities to cut data
