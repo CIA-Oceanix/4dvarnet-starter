@@ -1,7 +1,7 @@
 import xarray as xr
 import numpy as np
 import pickle
-from src.data import TrainingItem, TrainingItemOSE, TrainingItemOSE_coords
+from src.data import TrainingItem, TrainingItemOSE, TrainingItemOSE_coords, TrainingItem_sst
 import pandas as pd
 from glob import glob
 
@@ -942,7 +942,8 @@ def open_glorys12_data_sst_normalized_climato_finetune_L3(path, masks_path, full
         .load()
         .assign(
             input = lambda ds: ds["sst_anomaly"],
-            tgt= lambda ds: ds["sst_anomaly"], #lambda ds: ds[variables]
+            tgt= lambda ds: full_L4_data["sst_anomaly"], #s["sst_anomaly"], #lambda ds: ds[variables
+            sst_anomaly= lambda ds: ds["sst_anomaly"]
         )
         )
     ds['time'] = ds['time'].astype(str)
@@ -958,7 +959,7 @@ def open_glorys12_data_sst_normalized_climato_finetune_L3(path, masks_path, full
             )
     ds = ds.sel(domain)
     ds = (
-        ds[[*TrainingItem._fields]]
+        ds[[*TrainingItem_sst._fields]]
         .transpose("time", "lat", "lon")
         .to_array()
         )
