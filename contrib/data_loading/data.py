@@ -943,7 +943,7 @@ def open_glorys12_data_sst_normalized_climato_finetune_L3(path, masks_path, full
         .assign(
             input = lambda ds: ds["sst_anomaly"],
             tgt= lambda ds: full_L4_data["sst_anomaly"], #s["sst_anomaly"], #lambda ds: ds[variables
-            #sst_anomaly= lambda ds: ds["sst_anomaly"]
+            sst_anomaly= lambda ds: ds["sst_anomaly"]
         )
         )
     ds['time'] = ds['time'].astype(str)
@@ -959,7 +959,7 @@ def open_glorys12_data_sst_normalized_climato_finetune_L3(path, masks_path, full
             )
     ds = ds.sel(domain)
     ds = (
-        ds[[*TrainingItem._fields]]
+        ds[[*TrainingItem_sst._fields]]
         .transpose("time", "lat", "lon")
         .to_array()
         )

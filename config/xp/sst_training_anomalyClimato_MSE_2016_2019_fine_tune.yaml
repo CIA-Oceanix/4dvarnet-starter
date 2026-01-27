@@ -2,10 +2,13 @@
 
 paths:
     masks_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle 
-    glorys12_data: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/IFREMER-GLOB-SST-L3-NRT-2021_2022_ANOMALY_CLIMATO_f32_0.5deg.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_L3_f32_compressed.nc
-    full_l4_path: /Odyssey/public/ODYSSEA_IFREMER_SST/L4/sst_l4_nrt_2021_2022_climato.nc #CLIMATO/sst_anomaly_f32_compressed.nc
-    ref_data_l4: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_f32_compressed.nc #CLIMATO/sst_anomaly_f32_compressed.nc #mems_obs-sst_glo_phy_nrt_l4_P1D-m_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2022-12-31.nc
-    ose_data_paths: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/IFREMER-GLOB-SST-L3-NRT-2021_2025_ANOMALY_CLIMATO_f32.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/IFREMER-GLOB-SST-L3-NRT-OBS_FULL_TIME_SERIE_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2025-07-10.nc
+    glorys12_data: /Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/
+      #CLIMATO/IFREMER-GLOB-SST-L3-NRT-2021_2022_ANOMALY_CLIMATO_f32_0.5deg.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_L3_f32_compressed.nc
+    full_l4_path: /Odyssey/public/ODYSSEA_IFREMER_SST/L4_NRT/
+      #L4/sst_l4_nrt_2021_2022_climato.nc #CLIMATO/sst_anomaly_f32_compressed.nc
+    ref_data_l4: /Odyssey/public/ODYSSEA_IFREMER_SST/L4_NRT/
+      #CLIMATO/sst_anomaly_f32_compressed.nc #CLIMATO/sst_anomaly_f32_compressed.nc #mems_obs-sst_glo_phy_nrt_l4_P1D-m_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2022-12-31.nc
+    ose_data_paths: "" #/Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/IFREMER-GLOB-SST-L3-NRT-2021_2025_ANOMALY_CLIMATO_f32.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/IFREMER-GLOB-SST-L3-NRT-OBS_FULL_TIME_SERIE_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2025-07-10.nc
 
 var_name: "sst_anomaly" #"sea_surface_temperature"
 year_ose: 2023
@@ -28,7 +31,7 @@ domain:
     lat:
       _target_: builtins.slice
       _args_:
-      - -79
+      - -89
       - 89
     lon:
       _target_: builtins.slice
@@ -44,7 +47,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2016_2019_MSE_finetune_NRT_L3_tgt_lrSmall_lossMSE+Grad_noAug
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2016_2019_MSE_finetune_NRT_L4_tgt_lossMSE+Grad_noAug
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 895 #700 + 195 # 350 before
@@ -58,7 +61,7 @@ trainer:
       filename: '{val_mse:.5f}-{epoch:03d}'
 
 datamodule:
-  _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU #_SST
+  _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU_SST
   input_da: 
     _target_: contrib.data_loading.data.open_glorys12_data_sst_normalized_climato_finetune_L3
     path: ${paths.glorys12_data}
