@@ -58,7 +58,7 @@ trainer:
       filename: '{val_mse:.5f}-{epoch:03d}'
 
 datamodule:
-  _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU_SST
+  _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU #_SST
   input_da: 
     _target_: contrib.data_loading.data.open_glorys12_data_sst_normalized_climato_finetune_L3
     path: ${paths.glorys12_data}
@@ -82,6 +82,7 @@ datamodule:
   aug_kw:
     aug_factor: 1
     aug_only: False # no augmentation for real data !!!
+  norm_stats: [0.12782835761816647, 0.7870184277193579]
 
 model:
   _target_: contrib.forecast_plus.models.Plus4dVarNetForecastPatchGPU_UNet_SST
