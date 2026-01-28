@@ -45,7 +45,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_inputL3BilinearInterp_fromCkpt_bigger_period
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_LatLon
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 895 #700 + 195 # 350 before
@@ -59,9 +59,9 @@ trainer:
       filename: '{val_mse:.5f}-{epoch:03d}'
 
 datamodule:
-  _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU
+  _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU #ST
   input_da: 
-    _target_: contrib.data_loading.data.open_glorys12_data_sst_normalized_climato
+    _target_: contrib.data_loading.data.open_glorys12_data_sst_normalized_climato_LatLon
     path: ${paths.glorys12_data}
     masks_path: ${paths.masks_path}
     full_l4_path: ${paths.full_l4_path}
@@ -76,14 +76,14 @@ datamodule:
     test: 
       time: {_target_: builtins.slice,  _args_: ['2019-12-31', '2019-12-31']}
   xrds_kw:
-    patch_dims: { time: 29, lat: 360, lon: 720}
+    patch_dims: { time: 29, lat: 360, lon: 720} # 29 before LatLon
     strides: { time: 1, lat: 356, lon: 716}
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 8, num_workers: 4} # 8 changed here, before : 1
   aug_kw:
     aug_factor: 1
     aug_only: True # no augmentation for real data !!!
-  norm_stats: [0.12782835761816647, 0.7870184277193579]
+  #norm_stats: [0.12782835761816647, 0.7870184277193579]
 
 model:
   _target_: contrib.forecast_plus.models.Plus4dVarNetForecastPatchGPU_UNet_SST
@@ -102,8 +102,8 @@ model:
     _partial_: True
     soft_edge: 0.25
   solver:
-    _target_: src.models_UNet.UNet    #GradSolverZero
-    n_channels: 29
+    _target_: src.models_UNet.UNet_LatLon    #GradSolverZero
+    n_channels: 58 # 29 before LatLon
     n_classes: 29
     bilinear: True
     block: 
@@ -140,7 +140,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    ckpt: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_inputL3BilinearInterp/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.10137-epoch=023.ckpt
+    #ckpt: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_inputL3BilinearInterp/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.10137-epoch=023.ckpt
       #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SST_ODYSSEA_UNet_ResBlock_17M_normalized_2016_2019_AugTrue_AnomalieClimato_MAE/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SST_UNet_real_data_normalized_Climato/checkpoints/val_mse=3.32786-epoch=068.ckpt
 
 defaults:

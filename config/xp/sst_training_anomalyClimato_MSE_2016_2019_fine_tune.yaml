@@ -2,13 +2,15 @@
 
 paths:
     masks_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle 
-    glorys12_data: /Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/
+    glorys12_data: /Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2024_2026_climato_anomaly_f32.nc
       #CLIMATO/IFREMER-GLOB-SST-L3-NRT-2021_2022_ANOMALY_CLIMATO_f32_0.5deg.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_L3_f32_compressed.nc
-    full_l4_path: /Odyssey/public/ODYSSEA_IFREMER_SST/L4_NRT/
+    full_l4_path: /Odyssey/public/ODYSSEA_IFREMER_SST/L4_NRT/sst_l4_nrt_2024_2026_climato_anomaly_f32.nc
       #L4/sst_l4_nrt_2021_2022_climato.nc #CLIMATO/sst_anomaly_f32_compressed.nc
-    ref_data_l4: /Odyssey/public/ODYSSEA_IFREMER_SST/L4_NRT/
+    ref_data_l4: /Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2023_climato_anomaly_f32_original_resolution.nc
+      #CLIMATO/sst_anomaly_f32_compressed.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/L4_NRT/sst_l4_nrt_2024_2026_climato_anomaly_f32.nc
       #CLIMATO/sst_anomaly_f32_compressed.nc #CLIMATO/sst_anomaly_f32_compressed.nc #mems_obs-sst_glo_phy_nrt_l4_P1D-m_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2022-12-31.nc
-    ose_data_paths: "" #/Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/IFREMER-GLOB-SST-L3-NRT-2021_2025_ANOMALY_CLIMATO_f32.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/IFREMER-GLOB-SST-L3-NRT-OBS_FULL_TIME_SERIE_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2025-07-10.nc
+    ose_data_paths: /Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2023_climato_anomaly_f32_original_resolution.nc
+      #CLIMATO/IFREMER-GLOB-SST-L3-NRT-2021_2025_ANOMALY_CLIMATO_f32.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/IFREMER-GLOB-SST-L3-NRT-OBS_FULL_TIME_SERIE_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2025-07-10.nc
 
 var_name: "sst_anomaly" #"sea_surface_temperature"
 year_ose: 2023
@@ -47,7 +49,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2016_2019_MSE_finetune_NRT_L4_tgt_lossMSE+Grad_noAug
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2016_2019_MSE_finetune_NRT_2024_2025_L4_tgt_lossMSE+Grad_noAug
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 895 #700 + 195 # 350 before
@@ -61,7 +63,7 @@ trainer:
       filename: '{val_mse:.5f}-{epoch:03d}'
 
 datamodule:
-  _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU_SST
+  _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU_SST # _SST before 
   input_da: 
     _target_: contrib.data_loading.data.open_glorys12_data_sst_normalized_climato_finetune_L3
     path: ${paths.glorys12_data}
@@ -69,17 +71,17 @@ datamodule:
     full_l4_path: ${paths.full_l4_path}
     domain: ${domain.train}
     masking: False
-    time_domains: {_target_: builtins.slice, _args_: ['2021-01-01', '2022-12-31']}
+    time_domains: {_target_: builtins.slice, _args_: ['2024-01-18', '2025-12-31']}
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2021-01-01', '2022-01-17']}
+      time: {_target_: builtins.slice, _args_: ['2024-01-18', '2024-12-31']}
     val: 
-      time: {_target_: builtins.slice, _args_: ['2022-01-18', '2022-12-10']}
+      time: {_target_: builtins.slice, _args_: ['2025-01-01', '2025-12-31']}
     test: 
       time: {_target_: builtins.slice,  _args_: ['2022-12-31', '2022-12-31']}
   xrds_kw:
-    patch_dims: { time: 29, lat: 360, lon: 720}
-    strides: { time: 1, lat: 356, lon: 716}
+    patch_dims: { time: 29, lat: 1600, lon: 3600} #{ time: 29, lat: 360, lon: 720}
+    strides: {time: 1, lat: 1580, lon: 3580} # { time: 1, lat: 356, lon: 716}
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 1, num_workers: 4}
   aug_kw:
@@ -98,7 +100,7 @@ model:
   rec_weight:
     _target_: src.utils.get_forecast_wei
     patch_dims: ${datamodule.xrds_kw.patch_dims}  #crop: {time: 0, lat: 4, lon: 4}
-    crop: {time: 0, lat: 2, lon: 2}
+    crop: {time: 0, lat: 40, lon: 40} #{time: 0, lat: 40, lon: 40}  #{time: 0, lat: 2, lon: 2}
   rec_weight_fn:
     _target_: contrib.forecast_weights.forecast_weights_reconstruction_soft_edges
     _partial_: True

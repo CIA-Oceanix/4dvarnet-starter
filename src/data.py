@@ -11,6 +11,7 @@ TrainingItem = namedtuple('TrainingItem', ['input', 'tgt'])
 TrainingItemOSE = namedtuple('TrainingItemOSE', ['input', 'input_complete', 'tgt'])
 TrainingItemOSE_coords = namedtuple('TrainingItemOSE', ['input', 'input_complete', 'input_coords_l4', 'input_coords_l3', 'tgt'])
 TrainingItem_sst = namedtuple('TrainingItem_sst', ['input', 'tgt', 'sst_anomaly'])
+TrainingItem_LatLon = namedtuple('TrainingItem_LatLon', ['input', 'latlon', 'tgt'])
 
 class IncompleteScanConfiguration(Exception):
     pass
@@ -287,7 +288,7 @@ class BaseDataModule(pl.LightningDataModule):
         def normalize(item): return (item - m) / s
         
         return ft.partial(ft.reduce, lambda i, f: f(i), [
-            TrainingItem._make,
+            TrainingItem_LatLon._make, # before TrainingItem, after -> TrainingItem_LatLon
             lambda item: item._replace(tgt=normalize(item.tgt)),
             lambda item: item._replace(input=normalize(item.input)),
         ])
@@ -357,10 +358,10 @@ class BaseDataModule_SST(pl.LightningDataModule):
         def normalize(item): return (item - m) / s
 
         return ft.partial(ft.reduce, lambda i, f: f(i), [
-            TrainingItem_sst._make,
+            TrainingItem_sst._make, # TrainingItem_sst for L3
             lambda item: item._replace(tgt=normalize(item.tgt)),
             lambda item: item._replace(input=normalize(item.input)),
-            lambda item: item._replace(sst_anomaly=normalize(item.sst_anomaly)),
+            #lambda item: item._replace(sst_anomaly=normalize(item.sst_anomaly)),
         ])
 
     def setup(self, stage='test'):

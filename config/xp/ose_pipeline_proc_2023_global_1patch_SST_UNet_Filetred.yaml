@@ -1,5 +1,5 @@
 # @package _global_
-xp_name: glorys4_global_1patch_SST_ODYSSEA_UNet_L3_NRT_AnomalyCLIMATO_MSE_2010_2019_biggerPeriodVal_NormStatsImposed_MSE+GradLoss # le nom avec lequel ça sera rangé 
+xp_name: glorys4_global_1patch_SST_ODYSSEA_UNet_L3_NRT_AnomalyCLIMATO_MSE_2010_2019_tune_2024_2025_NormStatsImposed_MSE+GradLoss_originalResolution # le nom avec lequel ça sera rangé 
 data_name: nrt_sla
 
 paths:
@@ -7,8 +7,9 @@ paths:
   rec_path:  /Odyssey/public/glorys/rec/              # reconstruction de la SSH avec 4dvarnet à partir des traces /rec_path/xp_name/data_name/
   metrics_path:  /Odyssey/public/glorys/metrics/      # metriques des cartes reconstruites comparées aux traces altimetriques reprocessés / NRT (en fonction du data_name) -> /metrics_path/xp_name/data_name/
 
-  model_config_path: config/xp/sst_training_anomalyClimato_MSE_2016_2019.yaml
-  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_inputL3BilinearInterp_fromCkpt_bigger_period/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.09742-epoch=024.ckpt
+  model_config_path: config/xp/sst_training_anomalyClimato_MSE_2016_2019_fine_tune.yaml
+  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2016_2019_MSE_finetune_NRT_2024_2025_L4_tgt_lossMSE+Grad_noAug/sst_training_anomalyClimato_MSE_2016_2019_fine_tune/checkpoints/val_mse=0.05388-epoch=069.ckpt
+    # /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_inputL3BilinearInterp_fromCkpt_bigger_period/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.09742-epoch=024.ckpt
     #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=16.60604-epoch=263.ckpt
     #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2016_2019_AugTrue_MSE_finetune_NRT_L3_tgt/sst_training_anomalyClimato_MSE_2016_2019_fine_tune/checkpoints/val_mse=0.05831-epoch=058.ckpt
     #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.09618-epoch=056.ckpt
@@ -20,7 +21,7 @@ var_name: sst_anomaly
 
 
 specs:
-  pixels_per_degree: 2 #4                 # 1/4° -> regrillage des données traces altimètriques L3 , pour les donner en input au modèle. ils existe,t aussi non grillées pour le calcul des métriques. 
+  pixels_per_degree: 10 # 2 #4                 # 1/4° -> regrillage des données traces altimètriques L3 , pour les donner en input au modèle. ils existe,t aussi non grillées pour le calcul des métriques. 
 
   min_time: 2023-01-01                 # inférence, et pour le téléchargement
   max_time: 2023-12-31
