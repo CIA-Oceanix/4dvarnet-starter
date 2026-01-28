@@ -49,7 +49,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2016_2019_MSE_finetune_NRT_2024_2025_L4_tgt_lossMSE+Grad_noAug
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2016_2019_MSE_finetune_NRT_2024_2025_L3_tgtMSE_lossMSE+Grad_noAug
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 895 #700 + 195 # 350 before
@@ -144,7 +144,8 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    ckpt: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.09618-epoch=056.ckpt
+    ckpt: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_LatLon/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.09358-epoch=034.ckpt
+    #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.09618-epoch=056.ckpt
 
 defaults:
   - _self_
