@@ -2,10 +2,13 @@
 
 paths:
     masks_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle 
-    glorys12_data: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_L3_f32_compressed.nc
-      # conservative method : SST_GLO_PHY_L3S_MY_010_039/cmems_obs-sst_glo_phy_my_l3s_P1D-m_202311/SST-L3-MY-2010_2019_ANOMALY_CLIMATO_f32.nc #CLIMATO/sst_anomaly_L3_f32_compressed.nc
-    full_l4_path: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_f32_compressed.nc
-    ref_data_l4: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_f32_compressed.nc #mems_obs-sst_glo_phy_nrt_l4_P1D-m_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2022-12-31.nc
+    glorys12_data: /Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2024_2026_climato_anomaly_f32.nc
+      #CLIMATO/IFREMER-GLOB-SST-L3-NRT-2021_2022_ANOMALY_CLIMATO_f32_0.5deg.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_L3_f32_compressed.nc
+    full_l4_path: /Odyssey/public/ODYSSEA_IFREMER_SST/L4_NRT/sst_l4_nrt_2024_2026_climato_anomaly_f32.nc
+      #L4/sst_l4_nrt_2021_2022_climato.nc #CLIMATO/sst_anomaly_f32_compressed.nc
+    ref_data_l4: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_f32_compressed.nc
+      #CLIMATO/sst_anomaly_f32_compressed.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/L4_NRT/sst_l4_nrt_2024_2026_climato_anomaly_f32.nc
+      #CLIMATO/sst_anomaly_f32_compressed.nc #CLIMATO/sst_anomaly_f32_compressed.nc #mems_obs-sst_glo_phy_nrt_l4_P1D-m_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2022-12-31.nc
     ose_data_paths: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/IFREMER-GLOB-SST-L3-NRT-2023_ANOMALY_CLIMATO_f32.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/IFREMER-GLOB-SST-L3-NRT-OBS_FULL_TIME_SERIE_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2025-07-10.nc
 
 var_name: "sst_anomaly" #"sea_surface_temperature"
@@ -18,8 +21,8 @@ domain:
     lat:
       _target_: builtins.slice
       _args_:
-      - -89.75
-      - 89.75
+      - -89
+      - 89
     lon:
       _target_: builtins.slice
       _args_:
@@ -29,8 +32,8 @@ domain:
     lat:
       _target_: builtins.slice
       _args_:
-      - -90
-      - 90
+      - -89
+      - 89
     lon:
       _target_: builtins.slice
       _args_:
@@ -45,7 +48,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_LatLon_Variance
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2016_2019_MSE_finetune_NRT_2024_2025_L3_tgtMSE_lossMSE+Grad_noAug
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 895 #700 + 195 # 350 before
@@ -59,51 +62,51 @@ trainer:
       filename: '{val_mse:.5f}-{epoch:03d}'
 
 datamodule:
-  _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU #ST
+  _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU_SST # _SST before 
   input_da: 
-    _target_: contrib.data_loading.data.open_glorys12_data_sst_normalized_climato_LatLon
+    _target_: contrib.data_loading.data.open_glorys12_data_sst_normalized_climato_LatLon_L3_fine_tune
     path: ${paths.glorys12_data}
     masks_path: ${paths.masks_path}
     full_l4_path: ${paths.full_l4_path}
     domain: ${domain.train}
     masking: False
-    time_domains: {_target_: builtins.slice, _args_: ['2010-01-01', '2019-12-31']}
+    time_domains: {_target_: builtins.slice, _args_: ['2024-01-18', '2025-12-31']}
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2010-01-01', '2018-12-31']}
+      time: {_target_: builtins.slice, _args_: ['2024-01-18', '2024-12-31']}
     val: 
-      time: {_target_: builtins.slice, _args_: ['2019-01-01', '2019-12-31']}
+      time: {_target_: builtins.slice, _args_: ['2025-01-01', '2025-12-31']}
     test: 
-      time: {_target_: builtins.slice,  _args_: ['2019-12-31', '2019-12-31']}
+      time: {_target_: builtins.slice,  _args_: ['2022-12-31', '2022-12-31']}
   xrds_kw:
-    patch_dims: { time: 29, lat: 360, lon: 720} # 29 before LatLon
-    strides: { time: 1, lat: 356, lon: 716}
+    patch_dims: { time: 29, lat: 360, lon: 720} #{ time: 29, lat: 360, lon: 720}
+    strides: {time: 1, lat: 356, lon: 716} # { time: 1, lat: 356, lon: 716}
     domain_limits: ${domain.train}
-  dl_kw: {batch_size: 8, num_workers: 4} # 8 changed here, before : 1
+  dl_kw: {batch_size: 1, num_workers: 4}
   aug_kw:
     aug_factor: 1
-    aug_only: True # no augmentation for real data !!!
+    aug_only: False # no augmentation for real data !!!
   norm_stats: [0.12782835761816647, 0.7870184277193579]
 
 model:
-  _target_: contrib.forecast_plus.models.Plus4dVarNetForecastPatchGPU_UNet_SST
+  _target_: contrib.forecast_plus.models.Plus4dVarNetForecastPatchGPU_UNet_SST_Tuning
   persist_rw: False
   opt_fn:
     _target_: src.utils.cosanneal_lr_adam_UNet            #cosanneal_lr_adam
     _partial_: true
-    lr: 1e-3
+    lr: 1e-5
     T_max: ${trainer.max_epochs}
   rec_weight:
     _target_: src.utils.get_forecast_wei
     patch_dims: ${datamodule.xrds_kw.patch_dims}  #crop: {time: 0, lat: 4, lon: 4}
-    crop: {time: 0, lat: 2, lon: 2}
+    crop: {time: 0, lat: 2, lon: 2} #{time: 0, lat: 40, lon: 40}  #{time: 0, lat: 2, lon: 2}
   rec_weight_fn:
     _target_: contrib.forecast_weights.forecast_weights_reconstruction_soft_edges
     _partial_: True
     soft_edge: 0.25
   solver:
-    _target_: src.models_UNet.UNet_LatLon_Variance   #GradSolverZero
-    n_channels: 87 #58 # 29 before LatLon
+    _target_: src.models_UNet.UNet_LatLon   #GradSolverZero
+    n_channels: 58 #29
     n_classes: 29
     bilinear: True
     block: 
@@ -129,7 +132,7 @@ model:
   pre_metric_fn:
         _target_: xarray.Dataset.sel
         _partial_: True
-        time: {_target_: builtins.slice, _args_: ["2019-11-25", "2019-12-31"]}
+        time: {_target_: builtins.slice, _args_: ["2022-11-25", "2022-12-31"]}
         lat: ${domain.test.lat}
         lon: ${domain.test.lon}
 
@@ -140,8 +143,8 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    #ckpt: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_inputL3BilinearInterp/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.10137-epoch=023.ckpt
-      #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SST_ODYSSEA_UNet_ResBlock_17M_normalized_2016_2019_AugTrue_AnomalieClimato_MAE/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SST_UNet_real_data_normalized_Climato/checkpoints/val_mse=3.32786-epoch=068.ckpt
+      #ckpt: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_LatLon/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.09358-epoch=034.ckpt
+    #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.09618-epoch=056.ckpt
 
 defaults:
   - _self_

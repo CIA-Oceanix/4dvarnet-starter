@@ -373,6 +373,15 @@ class Plus4dVarNetForecast_UNet_sst(Lit4dVarNetForecast_UNet_sst):
             if isinstance(rec_da, list):
                 rec_da = rec_da[0]
 
+            print("rec_da shape")
+            print(rec_da.shape)
+    
+            if(rec_da.shape[-1] > 720):
+                import torch
+                upsample = torch.nn.Upsample(scale_factor=5, mode='bilinear', align_corners=False)
+                print(upsample(rec_da).shape)
+                rec_da = upsample(rec_da)
+
             test_data_leadtime = rec_da.assign_coords(
                 dict(v0=self.test_quantities)
             ).to_dataset(dim='v0')

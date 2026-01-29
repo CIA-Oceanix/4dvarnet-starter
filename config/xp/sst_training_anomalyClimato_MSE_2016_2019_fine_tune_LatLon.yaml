@@ -6,10 +6,11 @@ paths:
       #CLIMATO/IFREMER-GLOB-SST-L3-NRT-2021_2022_ANOMALY_CLIMATO_f32_0.5deg.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_L3_f32_compressed.nc
     full_l4_path: /Odyssey/public/ODYSSEA_IFREMER_SST/L4_NRT/sst_l4_nrt_2024_2026_climato_anomaly_f32.nc
       #L4/sst_l4_nrt_2021_2022_climato.nc #CLIMATO/sst_anomaly_f32_compressed.nc
-    ref_data_l4: "" #Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2023_climato_anomaly_f32_original_resolution.nc
+    ref_data_l4: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_f32_compressed.nc
+      #L3_NRT/sst_l3_nrt_2023_climato_anomaly_f32_original_resolution.nc
       #CLIMATO/sst_anomaly_f32_compressed.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/L4_NRT/sst_l4_nrt_2024_2026_climato_anomaly_f32.nc
       #CLIMATO/sst_anomaly_f32_compressed.nc #CLIMATO/sst_anomaly_f32_compressed.nc #mems_obs-sst_glo_phy_nrt_l4_P1D-m_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2022-12-31.nc
-    ose_data_paths: "" #/Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2023_climato_anomaly_f32_original_resolution.nc
+    ose_data_paths: /Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2023_climato_anomaly_f32_original_resolution.nc
       #CLIMATO/IFREMER-GLOB-SST-L3-NRT-2021_2025_ANOMALY_CLIMATO_f32.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/IFREMER-GLOB-SST-L3-NRT-OBS_FULL_TIME_SERIE_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2025-07-10.nc
 
 var_name: "sst_anomaly" #"sea_surface_temperature"

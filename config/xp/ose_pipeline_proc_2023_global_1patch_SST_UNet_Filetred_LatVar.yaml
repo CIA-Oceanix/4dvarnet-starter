@@ -1,5 +1,5 @@
 # @package _global_
-xp_name: glorys4_global_1patch_SST_ODYSSEA_UNet_L3_NRT_AnomalyCLIMATO_MSE_2010_2019_NormStatsImposed_MSE+GradLoss_LatLon_tuneL3_2024_2025 # le nom avec lequel ça sera rangé 
+xp_name: glorys4_global_1patch_SST_ODYSSEA_UNet_L3_NRT_AnomalyCLIMATO_MSE_2010_2019_NormStatsImposedREAL_MSE+GradLoss_Lat_tune_2024_2025_L3target # le nom avec lequel ça sera rangé 
 data_name: nrt_sla
 
 paths:
@@ -7,7 +7,7 @@ paths:
   rec_path:  /Odyssey/public/glorys/rec/              # reconstruction de la SSH avec 4dvarnet à partir des traces /rec_path/xp_name/data_name/
   metrics_path:  /Odyssey/public/glorys/metrics/      # metriques des cartes reconstruites comparées aux traces altimetriques reprocessés / NRT (en fonction du data_name) -> /metrics_path/xp_name/data_name/
 
-  model_config_path: config/xp/sst_training_anomalyClimato_MSE_2016_2019_fine_tune_LatLon.yaml
+  model_config_path: config/xp/sst_training_anomalyClimato_MSE_2016_2019_fine_tune_LatLon_0.5deg.yaml
   model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2016_2019_MSE_finetune_NRT_2024_2025_L3_tgtMSE_lossMSE+Grad_noAug/sst_training_anomalyClimato_MSE_2016_2019_fine_tune_LatLon/checkpoints/val_mse=0.04329-epoch=072.ckpt
     #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_LatLon_Variance/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.09317-epoch=052.ckpt
     #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2016_2019_MSE_finetune_NRT_2024_2025_L4_tgt_lossMSE+Grad_noAug/sst_training_anomalyClimato_MSE_2016_2019_fine_tune/checkpoints/val_mse=0.05388-epoch=069.ckpt
