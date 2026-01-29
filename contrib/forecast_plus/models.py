@@ -685,7 +685,60 @@ class Plus4dVarNetForecastPatchGPU_UNet_SST(Plus4dVarNetForecast_UNet_sst):
             dim=1,
         ))
         
-        
+"""
+    Fine tuning SST
+"""
+class Plus4dVarNetForecastPatchGPU_UNet_SST_Tuning(Plus4dVarNetForecast_UNet_sst):
+    #Plus4dVarNetForecast_UNet):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @property
+    def test_quantities(self):
+        return ['out']
+
+    def clear_gpu_mem(self):
+        del self.solver
+        torch.cuda.empty_cache()
+
+    def on_test_epoch_end(self):
+        # test_data as gpu tensor
+        self.clear_gpu_mem()
+        self.test_data = torch.cat(self.test_data).cuda()
+        super().on_test_epoch_end()
+    
+    def base_step(self, batch, phase=""):
+        #atch = torch.nan_to_num(batch, nan=0.0)
+        out = self(batch=batch)
+
+        loss = self.weighted_mse(out - batch.sst_anomaly, self.rec_weight)
+        # changed in order to debug sst forecasting afetr best score : val mse ~ 3.3
+        # Version nan to num !!! self.weighted_mse(out - torch.nan_to_num(batch.tgt), self.rec_weight)
+        #rint('loss = ' + str(loss.item()))
+
+        with torch.no_grad():
+            self.log(f"{phase}_mse", loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
+            self.log(f"{phase}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
+
+        return loss, out
+
+    def test_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+
+        if batch_idx == 0:
+            self.test_data = []
+        out = self(batch=mask_batch)
+        m, s = self.norm_stats
+
+        self.test_data.append(torch.stack(
+            [
+                #mask_batch.input.cpu() * s + m,
+                #mask_batch.tgt.cpu() * s + m,
+                out.squeeze(dim=-1).detach().cpu() * s + m,
+            ],
+            dim=1,
+        ))
+
         
 class Plus4dVarNetForecastPatchGPU_UNet_MLD(Plus4dVarNetForecast_UNet_MLD):
     #Plus4dVarNetForecast_UNet):

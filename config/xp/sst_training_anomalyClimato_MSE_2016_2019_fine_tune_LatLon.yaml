@@ -6,10 +6,10 @@ paths:
       #CLIMATO/IFREMER-GLOB-SST-L3-NRT-2021_2022_ANOMALY_CLIMATO_f32_0.5deg.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_L3_f32_compressed.nc
     full_l4_path: /Odyssey/public/ODYSSEA_IFREMER_SST/L4_NRT/sst_l4_nrt_2024_2026_climato_anomaly_f32.nc
       #L4/sst_l4_nrt_2021_2022_climato.nc #CLIMATO/sst_anomaly_f32_compressed.nc
-    ref_data_l4: /Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2023_climato_anomaly_f32_original_resolution.nc
+    ref_data_l4: "" #Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2023_climato_anomaly_f32_original_resolution.nc
       #CLIMATO/sst_anomaly_f32_compressed.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/L4_NRT/sst_l4_nrt_2024_2026_climato_anomaly_f32.nc
       #CLIMATO/sst_anomaly_f32_compressed.nc #CLIMATO/sst_anomaly_f32_compressed.nc #mems_obs-sst_glo_phy_nrt_l4_P1D-m_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2022-12-31.nc
-    ose_data_paths: /Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2023_climato_anomaly_f32_original_resolution.nc
+    ose_data_paths: "" #/Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2023_climato_anomaly_f32_original_resolution.nc
       #CLIMATO/IFREMER-GLOB-SST-L3-NRT-2021_2025_ANOMALY_CLIMATO_f32.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/IFREMER-GLOB-SST-L3-NRT-OBS_FULL_TIME_SERIE_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2025-07-10.nc
 
 var_name: "sst_anomaly" #"sea_surface_temperature"
@@ -22,8 +22,8 @@ domain:
     lat:
       _target_: builtins.slice
       _args_:
-      - -89.75
-      - 89.75
+      - -89
+      - 89
     lon:
       _target_: builtins.slice
       _args_:
@@ -65,7 +65,7 @@ trainer:
 datamodule:
   _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU_SST # _SST before 
   input_da: 
-    _target_: contrib.data_loading.data.open_glorys12_data_sst_normalized_finetune_L3
+    _target_: contrib.data_loading.data.open_glorys12_data_sst_normalized_climato_LatLon_L3_fine_tune
     path: ${paths.glorys12_data}
     masks_path: ${paths.masks_path}
     full_l4_path: ${paths.full_l4_path}
@@ -90,7 +90,7 @@ datamodule:
   norm_stats: [0.12782835761816647, 0.7870184277193579]
 
 model:
-  _target_: contrib.forecast_plus.models.Plus4dVarNetForecastPatchGPU_UNet_SST
+  _target_: contrib.forecast_plus.models.Plus4dVarNetForecastPatchGPU_UNet_SST_Tuning
   persist_rw: False
   opt_fn:
     _target_: src.utils.cosanneal_lr_adam_UNet            #cosanneal_lr_adam
@@ -106,8 +106,8 @@ model:
     _partial_: True
     soft_edge: 0.25
   solver:
-    _target_: src.models_UNet.UNet    #GradSolverZero
-    n_channels: 29
+    _target_: src.models_UNet.UNet_LatLon   #GradSolverZero
+    n_channels: 58 #29
     n_classes: 29
     bilinear: True
     block: 

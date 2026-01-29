@@ -808,7 +808,7 @@ class Lit4dVarNet_UNet_sst(pl.LightningModule):
         #atch = torch.nan_to_num(batch, nan=0.0)
         out = self(batch=batch)
 
-        loss = self.weighted_mse(out - batch.sst_anomaly, self.rec_weight)
+        loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
         # changed in order to debug sst forecasting afetr best score : val mse ~ 3.3
         # Version nan to num !!! self.weighted_mse(out - torch.nan_to_num(batch.tgt), self.rec_weight)
         #rint('loss = ' + str(loss.item()))

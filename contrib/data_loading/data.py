@@ -84,6 +84,27 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
     ds_mask = xr.open_dataset(tgt_path)
     # For SLA use case: '/Odyssey/public/duacs/2023/duacs_2017_2022_0.25deg.nc')
     ds = xr.open_dataset(path)
+
+    var_L3 = (
+        ds["sst_anomaly"]
+        .rolling(lat=5, lon=5, center=True)
+        .var(skipna=True)
+    )
+
+    # normalize variance
+    var_L3 = (var_L3 - var_L3.mean()) / var_L3.std()
+
+    # normalize lat/lon
+    lat_norm = ds["lat"] / 90.0
+    lon_norm = ds["lon"] / 180.0
+
+    # make 2D fields
+    lat2d, lon2d = xr.broadcast(lat_norm, lon_norm)
+
+    # expand to time
+    lat3d = lat2d.expand_dims(time=ds.time)
+
+
     if('depth' in list(ds.dims)):
         ds = ds.drop_dims('depth')
 
@@ -124,7 +145,7 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
             print(ds)
             ds_mask = ds_mask.sel(time= '2020' + '-01-20')[variable].expand_dims(time=ds.time)[:,40:,:1440].assign_coords(ds.coords)
     else:
-        ds_mask = ds_mask.sel(time= '2023' + '-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords) # 2019 before !!!
+        ds_mask = ds_mask.sel(time= '2019' + '-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords) # 2023 for fine tune at orig resolution before !!!
         #(time= '2022' + '-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords)
     # IMPORTANT : #.assign_coords(ds.coords)
     print(ds_mask[0].shape)
@@ -160,12 +181,14 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
             input= ds[variable], #ds[variable],
             #input_complete = ds[variable], #ds[variable],   # FOR L3 loss , like DOG , only !  and for SWOT also ! 
             tgt= ds_mask,
-            sst_anomaly= ds[variable]
+            #sst_anomaly= ds[variable],
+            latlon = lat3d,
+            var_sst= var_L3,
         )
     )
 
     return (
-         ds[[*TrainingItem_sst._fields]]    # previously TrainingItem simply !!!  and TrainingItemOSE only for L3 loss training and rec and for SWTO also !  _sst for fine tuning
+         ds[[*TrainingItem_LatLon._fields]]    # previously TrainingItem simply !!!  and TrainingItemOSE only for L3 loss training and rec and for SWTO also !  _sst for fine tuning
         .transpose("time", "lat", "lon")
         .to_array()
     )
@@ -987,6 +1010,16 @@ def open_glorys12_data_sst_normalized_climato_LatLon(path, masks_path, full_l4_p
     ds['time'] = ds.time.dt.date
     if 'latitude' in list(ds.dims):
         ds = ds.rename({'latitude':'lat', 'longitude':'lon'})
+    
+
+    var_L3 = (
+        ds["sst_anomaly"]
+        .rolling(lat=5, lon=5, center=True)
+        .var(skipna=True)
+    )
+    
+    # normalize variance
+    var_L3 = (var_L3 - var_L3.mean()) / var_L3.std()
 
     # normalize lat/lon
     lat_norm = ds["lat"] / 90.0
@@ -997,14 +1030,9 @@ def open_glorys12_data_sst_normalized_climato_LatLon(path, masks_path, full_l4_p
     
     # expand to time
     lat3d = lat2d.expand_dims(time=ds.time)
-    lon3d = lon2d.expand_dims(time=ds.time)
     
     # stack into a channel dimension
     lat_ch = lat3d.expand_dims(channel=["lat"])
-    lon_ch = lon3d.expand_dims(channel=["lon"])
-    
-    # concatenate into input
-    input_da = xr.concat([lat_ch, lon_ch], dim="channel")
 
     full_L4_data = xr.open_dataset(full_l4_path)
     full_L4_data = full_L4_data.sel(time = ds.time.values)
@@ -1024,6 +1052,7 @@ def open_glorys12_data_sst_normalized_climato_LatLon(path, masks_path, full_l4_p
             input = lambda ds: ds["sst_anomaly"],
             tgt= lambda ds: full_L4_data["sst_anomaly"], #s["sst_anomaly"], #lambda ds: ds[variables
             latlon = lambda ds: lat3d,
+            var_sst = lambda ds: var_L3,
             #sst_anomaly= lambda ds: ds["sst_anomaly"]
         )
         )
@@ -1048,6 +1077,87 @@ def open_glorys12_data_sst_normalized_climato_LatLon(path, masks_path, full_l4_p
         )
 
     return ds
+
+
+'''
+    LatLon, L3 fine tuning
+'''
+def open_glorys12_data_sst_normalized_climato_LatLon_L3_fine_tune(path, masks_path, full_l4_path, domain, time_domains, variables="sea_surface_temperature",masking=True, test_cut=None): # zos before
+    """
+        Function to load glorys data
+        domain: lat and long extremities to cut data
+        variables: variable to load
+        masking: whether to mask the input data using the masks in masks_path
+        test_cut: if not None, {'time': slice(time1, time2)}, speeding up the loading by pre-cutting the loaded data
+    """
+
+    ds =  (
+            xr.open_dataset(path).sel(time = time_domains) # if the file is original GLORYS12 file : drop_vars('depth')
+            )
+    ds['time'] = ds.time.dt.date
+    print('ds')
+    print(ds)
+    if 'latitude' in list(ds.dims):
+        ds = ds.rename({'latitude':'lat', 'longitude':'lon'})
+
+
+    # normalize lat/lon
+    lat_norm = ds["lat"] / 90.0
+    lon_norm = ds["lon"] / 180.0
+
+    # make 2D fields
+    lat2d, lon2d = xr.broadcast(lat_norm, lon_norm)
+
+    # expand to time
+    lat3d = lat2d.expand_dims(time=ds.time)
+
+    # stack into a channel dimension
+    lat_ch = lat3d.expand_dims(channel=["lat"])
+
+    full_L4_data = xr.open_dataset(full_l4_path)
+    full_L4_data = full_L4_data.sel(time = ds.time.values)
+
+    if 'latitude' in list(full_L4_data.dims):
+        full_L4_data = full_L4_data.rename({'latitude':'lat', 'longitude':'lon'})
+
+
+    if test_cut is not None:
+        ds = ds.sel(time=test_cut)
+        full_L4_data = full_L4_data.sel(time = test_cut)
+
+    ds = (
+        ds
+        .load()
+        .assign(
+            input = lambda ds: ds["sst_anomaly"],
+            tgt= lambda ds: full_L4_data["sst_anomaly"], #s["sst_anomaly"], #lambda ds: ds[variables
+            latlon= lambda ds: lat3d,
+            sst_anomaly= lambda ds: ds['sst_anomaly'],
+            #sst_anomaly= lambda ds: ds["sst_anomaly"]
+        )
+        )
+
+    ds['time'] = ds['time'].astype(str)
+
+    if masking:
+        with open(masks_path, 'rb') as masks_file:
+            mask_list = pickle.load(masks_file)
+        mask_list = np.array(mask_list)
+        ds= ds.assign(
+            input=xr.apply_ufunc(mask_input, ds.input, input_core_dims=[['lat', 'lon']], output_core_dims=[['lat', 'lon']], kwargs={"mask_list": mask_list}, dask="allowed", vectorize=True)
+            )
+
+    ds = ds.sel(domain)
+    print('ds final')
+    print(ds)
+    ds = (
+        ds[[*TrainingItem_sst._fields]]
+        .transpose("time", "lat", "lon")
+        .to_array()
+        )
+
+    return ds
+
 
 
 '''
