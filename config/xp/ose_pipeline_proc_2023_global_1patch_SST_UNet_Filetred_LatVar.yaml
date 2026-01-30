@@ -23,7 +23,7 @@ var_name: sst_anomaly
 
 
 specs:
-  pixels_per_degree: 10 #2 #10 #4                 # 1/4° -> regrillage des données traces altimètriques L3 , pour les donner en input au modèle. ils existe,t aussi non grillées pour le calcul des métriques. 
+  pixels_per_degree: 2 #2 #10 #4                 # 1/4° -> regrillage des données traces altimètriques L3 , pour les donner en input au modèle. ils existe,t aussi non grillées pour le calcul des métriques. 
 
   min_time: 2023-01-01                 # inférence, et pour le téléchargement
   max_time: 2023-12-31

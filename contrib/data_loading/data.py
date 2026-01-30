@@ -4,6 +4,8 @@ import pickle
 from src.data import TrainingItem, TrainingItemOSE, TrainingItemOSE_coords, TrainingItem_sst, TrainingItem_LatLon
 import pandas as pd
 from glob import glob
+import datetime as dt
+
 
 def load_ose_data(path):
     print('Load ose data')
@@ -60,6 +62,8 @@ def load_ose_data_with_tgt_mask(path, tgt_path, variable='adt'):
         .transpose("time", "lat", "lon")
         .to_array()
     )
+
+
 
 def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_path_l3_data, variable, year):
                                 #variable='zos'):
@@ -145,7 +149,8 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
             print(ds)
             ds_mask = ds_mask.sel(time= '2020' + '-01-20')[variable].expand_dims(time=ds.time)[:,40:,:1440].assign_coords(ds.coords)
     else:
-        ds_mask = ds_mask.sel(time= '2019' + '-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords) # 2023 for fine tune at orig resolution before !!!
+        #ds_mask = ds_mask.sel(time= '2019' + '-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords) # 2023 for fine tune at orig resolution before !!!
+        ds_mask = ds.sel(time= '2023' + '-01-20')[variable] # for fine tuning rec only !!! 
         #(time= '2022' + '-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords)
     # IMPORTANT : #.assign_coords(ds.coords)
     print(ds_mask[0].shape)
@@ -1095,6 +1100,16 @@ def open_glorys12_data_sst_normalized_climato_LatLon_L3_fine_tune(path, masks_pa
             xr.open_dataset(path).sel(time = time_domains) # if the file is original GLORYS12 file : drop_vars('depth')
             )
     ds['time'] = ds.time.dt.date
+
+    """
+        For fine tune on 2021 - 2026
+    """
+    ds = ds.sel(
+        time=~(
+            (ds.time >= dt.date(2024, 1, 1)) &
+            (ds.time <= dt.date(2024, 1, 18))
+        )
+    )
     print('ds')
     print(ds)
     if 'latitude' in list(ds.dims):

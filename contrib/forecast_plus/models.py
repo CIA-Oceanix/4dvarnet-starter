@@ -378,9 +378,9 @@ class Plus4dVarNetForecast_UNet_sst(Lit4dVarNetForecast_UNet_sst):
     
             if(rec_da.shape[-1] > 720):
                 import torch
-                upsample = torch.nn.Upsample(scale_factor=5, mode='bilinear', align_corners=False)
-                print(upsample(rec_da).shape)
-                rec_da = upsample(rec_da)
+                rec_da = torch.nn.functional.interpolate(rec_da, size=(360, 720), mode='bilinear', align_corners=False)
+                print('r"ec_da new shape afetr interpolate')
+                print(rec_da.shape)
 
             test_data_leadtime = rec_da.assign_coords(
                 dict(v0=self.test_quantities)

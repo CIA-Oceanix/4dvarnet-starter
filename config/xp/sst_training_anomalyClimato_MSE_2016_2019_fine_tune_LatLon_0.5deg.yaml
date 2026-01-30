@@ -2,9 +2,9 @@
 
 paths:
     masks_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle 
-    glorys12_data: /Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2024_2026_climato_anomaly_f32.nc
+    glorys12_data: /Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2021_2026_climato_anomaly_f32.nc
       #CLIMATO/IFREMER-GLOB-SST-L3-NRT-2021_2022_ANOMALY_CLIMATO_f32_0.5deg.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_L3_f32_compressed.nc
-    full_l4_path: /Odyssey/public/ODYSSEA_IFREMER_SST/L4_NRT/sst_l4_nrt_2024_2026_climato_anomaly_f32.nc
+    full_l4_path: /Odyssey/public/ODYSSEA_IFREMER_SST/L4_NRT/sst_l4_nrt_2021_2026_climato_anomaly_f32_0.5deg.nc
       #L4/sst_l4_nrt_2021_2022_climato.nc #CLIMATO/sst_anomaly_f32_compressed.nc
     ref_data_l4: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_f32_compressed.nc
       #CLIMATO/sst_anomaly_f32_compressed.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/L4_NRT/sst_l4_nrt_2024_2026_climato_anomaly_f32.nc
@@ -21,8 +21,8 @@ domain:
     lat:
       _target_: builtins.slice
       _args_:
-      - -89
-      - 89
+      - -80
+      - 80
     lon:
       _target_: builtins.slice
       _args_:
@@ -32,13 +32,13 @@ domain:
     lat:
       _target_: builtins.slice
       _args_:
-      - -89
-      - 89
+      - -90
+      - 90
     lon:
       _target_: builtins.slice
       _args_:
-      - -179
-      - 179
+      - -179.8
+      - 179.8
 
 trainer:
   _target_: pytorch_lightning.Trainer
@@ -48,7 +48,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2016_2019_MSE_finetune_NRT_2024_2025_L3_tgtMSE_lossMSE+Grad_noAug
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2016_2019_MSE_finetune_NRT_2021_2025_0.5deg_L3_tgtMSE_lossMSE+Grad_noAug_to80N
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 895 #700 + 195 # 350 before
@@ -57,8 +57,8 @@ trainer:
     - _target_: src.versioning_cb.VersioningCallback
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
     - _target_: pytorch_lightning.callbacks.ModelCheckpoint
-      monitor: val_mse
-      save_top_k: 10
+      monitor: val_grad_mse #val_mse
+      save_top_k: 50
       filename: '{val_mse:.5f}-{epoch:03d}'
 
 datamodule:
@@ -70,10 +70,10 @@ datamodule:
     full_l4_path: ${paths.full_l4_path}
     domain: ${domain.train}
     masking: False
-    time_domains: {_target_: builtins.slice, _args_: ['2024-01-18', '2025-12-31']}
+    time_domains: {_target_: builtins.slice, _args_: ['2021-01-01', '2025-12-31']}
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2024-01-18', '2024-12-31']}
+      time: {_target_: builtins.slice, _args_: ['2021-01-18', '2024-12-31']}
     val: 
       time: {_target_: builtins.slice, _args_: ['2025-01-01', '2025-12-31']}
     test: 
@@ -143,7 +143,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-      #ckpt: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_LatLon/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.09358-epoch=034.ckpt
+    ckpt: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_LatLon/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.09282-epoch=040.ckpt
     #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.09618-epoch=056.ckpt
 
 defaults:
