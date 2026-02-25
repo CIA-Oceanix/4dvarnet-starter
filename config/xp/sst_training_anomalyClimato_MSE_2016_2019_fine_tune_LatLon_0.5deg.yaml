@@ -143,7 +143,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    ckpt: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_LatLon/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.09282-epoch=040.ckpt
+    #ckpt: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_LatLon/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.09282-epoch=040.ckpt
     #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.09618-epoch=056.ckpt
 
 defaults:

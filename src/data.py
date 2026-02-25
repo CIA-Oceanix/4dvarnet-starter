@@ -288,7 +288,8 @@ class BaseDataModule(pl.LightningDataModule):
         def normalize(item): return (item - m) / s
         
         return ft.partial(ft.reduce, lambda i, f: f(i), [
-            TrainingItem_LatLon._make, # before TrainingItem, after -> TrainingItem_LatLon
+            #TrainingItem_LatLon._make, # before TrainingItem, after -> TrainingItem_LatLon
+            TrainingItem._make,
             lambda item: item._replace(tgt=normalize(item.tgt)),
             lambda item: item._replace(input=normalize(item.input)),
         ])
@@ -389,6 +390,77 @@ class BaseDataModule_SST(pl.LightningDataModule):
     def test_dataloader(self):
         return torch.utils.data.DataLoader(self.test_ds, shuffle=False, **self.dl_kw)
 
+
+'''
+    Salinity module
+'''
+class BaseDataModule_SSS(pl.LightningDataModule):
+    def __init__(self, input_da, domains, xrds_kw, dl_kw, aug_kw=None, norm_stats=None, **kwargs):
+        super().__init__()
+        self.input_da = input_da
+        self.domains = domains
+        self.xrds_kw = xrds_kw
+        self.dl_kw = dl_kw
+        self.aug_kw = aug_kw if aug_kw is not None else {}
+        self._norm_stats = norm_stats
+
+        self.train_ds = None
+        self.val_ds = None
+        self.test_ds = None
+        self._post_fn = None
+
+    def norm_stats(self):
+        if self._norm_stats is None:
+            self._norm_stats = self.train_mean_std()
+            print("Norm stats", self._norm_stats)
+        return self._norm_stats
+
+    def train_mean_std(self, variable='tgt'):
+        print("Train mean std function")
+        train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {})).sel(self.domains['train'])
+        print("Train data")
+        print(self.domains['train'])
+        print("self.xrds_kw.get('domain_limits', {})")
+        print(self.xrds_kw.get('domain_limits', {}))
+        print(train_data.sel(variable=variable))
+        return train_data.sel(variable=variable).pipe(lambda da: (da.mean(skipna = True).values.item(), da.std(skipna = True).values.item())) # added skipna = True !
+
+
+    def post_fn(self):
+        m, s = self.norm_stats()
+        def normalize(item): return (item - m) / s
+
+        return ft.partial(ft.reduce, lambda i, f: f(i), [
+            TrainingItem._make, # TrainingItem_sst for L3
+            lambda item: item._replace(tgt=normalize(item.tgt)),
+            lambda item: item._replace(input=normalize(item.input)),
+            #lambda item: item._replace(sst_anomaly=normalize(item.sst_anomaly)),
+        ])
+
+    def setup(self, stage='test'):
+        train_data = self.input_da.sel(self.domains['train'])
+        post_fn = self.post_fn()
+        self.train_ds = XrDataset(
+            train_data, **self.xrds_kw, postpro_fn=post_fn,
+        )
+        if self.aug_kw:
+            self.train_ds = AugmentedDataset(self.train_ds, **self.aug_kw)
+
+        self.val_ds = XrDataset(
+            self.input_da.sel(self.domains['val']), **self.xrds_kw, postpro_fn=post_fn,
+        )
+        self.test_ds = XrDataset(
+            self.input_da.sel(self.domains['test']), **self.xrds_kw, postpro_fn=post_fn,
+        )
+
+    def train_dataloader(self):
+        return torch.utils.data.DataLoader(self.train_ds, shuffle=True, **self.dl_kw)
+
+    def val_dataloader(self):
+        return torch.utils.data.DataLoader(self.val_ds, shuffle=False, **self.dl_kw)
+
+    def test_dataloader(self):
+        return torch.utils.data.DataLoader(self.test_ds, shuffle=False, **self.dl_kw)
 
 
 class BaseDataModuleOSE(pl.LightningDataModule):

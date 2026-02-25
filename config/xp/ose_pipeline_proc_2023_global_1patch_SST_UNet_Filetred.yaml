@@ -1,14 +1,15 @@
 # @package _global_
-xp_name: glorys4_global_1patch_SST_ODYSSEA_UNet_L3_NRT_AnomalyCLIMATO_MSE_2010_2019_NormStatsImposed_MSE+GradLoss_LatLon_tuneL3_2024_2025 # le nom avec lequel ça sera rangé 
+xp_name: glorys4_global_1patch_SST_ODYSSEA_UNet_L3_NRT_AnomalyCLIMATO_MSE_2010_2019_NormStatsImposed_MSE_pyresample_0.5degL3_v2 # le nom avec lequel ça sera rangé 
 data_name: nrt_sla
 
 paths:
-  ose_data_path: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/IFREMER-GLOB-SST-L3-NRT-2021_2025_ANOMALY_CLIMATO_f32.nc   # les traces  ose_data_path/ processed_2023_... (data_name)
+  ose_data_path: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/SST-L3-NRT-2023_ANOMALY_CLIMATO_f32_0.5deg_pyresample_v2.nc #IFREMER-GLOB-SST-L3-NRT-2021_2025_ANOMALY_CLIMATO_f32.nc   # les traces  ose_data_path/ processed_2023_... (data_name)
   rec_path:  /Odyssey/public/glorys/rec/              # reconstruction de la SSH avec 4dvarnet à partir des traces /rec_path/xp_name/data_name/
   metrics_path:  /Odyssey/public/glorys/metrics/      # metriques des cartes reconstruites comparées aux traces altimetriques reprocessés / NRT (en fonction du data_name) -> /metrics_path/xp_name/data_name/
 
-  model_config_path: config/xp/sst_training_anomalyClimato_MSE_2016_2019_fine_tune_LatLon.yaml
-  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2016_2019_MSE_finetune_NRT_2024_2025_L3_tgtMSE_lossMSE+Grad_noAug/sst_training_anomalyClimato_MSE_2016_2019_fine_tune_LatLon/checkpoints/val_mse=0.04329-epoch=072.ckpt
+  model_config_path: config/xp/sst_training_anomalyClimato_MSE_2016_2019_fine_tune.yaml
+  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_MSE_pyresampleCorrectVersion_lossMSE+Grad_AugTrue/sst_training_anomalyClimato_MSE_2016_2019_fine_tune/checkpoints/val_mse=0.08864-epoch=217.ckpt
+    #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2016_2019_MSE_finetune_NRT_2024_2025_L3_tgtMSE_lossMSE+Grad_noAug/sst_training_anomalyClimato_MSE_2016_2019_fine_tune_LatLon/checkpoints/val_mse=0.04329-epoch=072.ckpt
     #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_LatLon_Variance/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.09317-epoch=052.ckpt
     #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2016_2019_MSE_finetune_NRT_2024_2025_L4_tgt_lossMSE+Grad_noAug/sst_training_anomalyClimato_MSE_2016_2019_fine_tune/checkpoints/val_mse=0.05388-epoch=069.ckpt
     # /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_inputL3BilinearInterp_fromCkpt_bigger_period/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.09742-epoch=024.ckpt
@@ -23,7 +24,7 @@ var_name: sst_anomaly
 
 
 specs:
-  pixels_per_degree: 10 #2 #10 #4                 # 1/4° -> regrillage des données traces altimètriques L3 , pour les donner en input au modèle. ils existe,t aussi non grillées pour le calcul des métriques. 
+  pixels_per_degree: 2 #2 #10 #4                 # 1/4° -> regrillage des données traces altimètriques L3 , pour les donner en input au modèle. ils existe,t aussi non grillées pour le calcul des métriques. 
 
   min_time: 2023-01-01                 # inférence, et pour le téléchargement
   max_time: 2023-12-31
