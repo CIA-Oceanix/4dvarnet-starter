@@ -150,7 +150,7 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
             ds_mask = ds_mask.sel(time= '2020' + '-01-20')[variable].expand_dims(time=ds.time)[:,40:,:1440].assign_coords(ds.coords)
     else:
         #ds_mask = ds_mask.sel(time= '2019' + '-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords) # 2023 for fine tune at orig resolution before !!!
-        ds_mask = ds.sel(time= '2023' + '-01-20')[variable] # for fine tuning rec only !!! 
+        ds_mask = ds.sel(time= '2023' + '-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords) # for fine tuning rec only !!! 
         #(time= '2022' + '-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords)
     # IMPORTANT : #.assign_coords(ds.coords)
     print(ds_mask[0].shape)
