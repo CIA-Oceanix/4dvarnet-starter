@@ -357,7 +357,8 @@ class Plus4dVarNetForecast_UNet_sst(Lit4dVarNetForecast_UNet_sst):
     def get_dT(self):
         return self.rec_weight.size()[0]
 
-    def on_test_epoch_end(self):
+    '''
+    def on_test_epoch_end(self):    # decommented here for RECONSTRUCTION TEST
         dims = self.rec_weight.size()
         dT = self.get_dT()
         metrics = []
@@ -378,13 +379,13 @@ class Plus4dVarNetForecast_UNet_sst(Lit4dVarNetForecast_UNet_sst):
 
             rec_da = rec_da[0]   # Changed here 
 
-            '''
-            if(rec_da.shape[-1] > 720):
-                import torch
-                rec_da = torch.nn.functional.interpolate(rec_da, size=(360, 720), mode='bilinear', align_corners=False)
-                print('r"ec_da new shape afetr interpolate')
-                print(rec_da.shape)
-            '''
+            
+            #if(rec_da.shape[-1] > 720):
+            #    import torch
+            #    rec_da = torch.nn.functional.interpolate(rec_da, size=(360, 720), mode='bilinear', align_corners=False)
+            #    print('r"ec_da new shape afetr interpolate')
+            #    print(rec_da.shape)
+            
             test_data_leadtime = rec_da.assign_coords(
                 dict(v0=self.test_quantities)
             ).to_dataset(dim='v0')
@@ -401,7 +402,40 @@ class Plus4dVarNetForecast_UNet_sst(Lit4dVarNetForecast_UNet_sst):
             metrics.append(metrics_leadtime)
 
         print(pd.DataFrame(metrics, range(output_start, 7)).T.to_markdown())
+    '''
+    def on_test_epoch_end(self):
+        dims = self.rec_weight.size()
+        dT = self.get_dT()
+        metrics = []
+        output_start = 0 if self.output_only_forecast else -14
+        if self.output_leadtime_start is not None:
+            output_start = self.output_leadtime_start
+        for i in range(output_start, 7):
+            forecast_weight = self.rec_weight_fn(i, dT, dims, self.rec_weight.cpu().numpy())
+            rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+                self.test_data, forecast_weight
+            )
 
+            if isinstance(rec_da, list):
+                rec_da = rec_da[0]
+
+            test_data_leadtime = rec_da.assign_coords(
+                dict(v0=self.test_quantities)
+            ).to_dataset(dim='v0')
+
+            if self.logger:
+                test_data_leadtime.to_netcdf(Path(self.logger.log_dir) / f'test_data_{i+14}.nc')
+                print(Path(self.trainer.log_dir) / f'test_data_{i+14}.nc')
+
+            metric_data = test_data_leadtime.pipe(self.pre_metric_fn)
+            metrics_leadtime = pd.Series({
+                metric_n: metric_fn(metric_data)
+                for metric_n, metric_fn in self.metrics.items()
+            })
+            metrics.append(metrics_leadtime)
+
+        print(pd.DataFrame(metrics, range(output_start, 7)).T.to_markdown())
+        
 
 
 

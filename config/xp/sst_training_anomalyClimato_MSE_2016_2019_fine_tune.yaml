@@ -2,16 +2,19 @@
 
 paths:
     masks_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle 
-    glorys12_data: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/SST-L3-2010_2023_ANOMALY_CLIMATO_f32_0.5deg_pyresample.nc
+    glorys12_data: /Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/CLIMATO/SST-L3-NRT-2024_2026_NRT_ANOMALY_CLIMATO_f32_0.25deg_pyresample_adjusted_sst_flagged_5.nc #SST-L3-2010_2023_ANOMALY_CLIMATO_f32_0.5deg_pyresample.nc
       #L3_NRT/sst_l3_nrt_2024_2026_climato_anomaly_f32.nc
       #CLIMATO/IFREMER-GLOB-SST-L3-NRT-2021_2022_ANOMALY_CLIMATO_f32_0.5deg.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_L3_f32_compressed.nc
-    full_l4_path: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/SST-L4-2010_2020_ANOMALY_CLIMATO_f32_0.5deg_pyresample.nc
+    full_l4_path: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/SST-L4-NRT-2024_2026_NRT_ANOMALY_CLIMATO_f32_0.25deg_remapbil.nc #SST-L4-2010_2020_ANOMALY_CLIMATO_f32_0.5deg_pyresample.nc
       #L4_NRT/sst_l4_nrt_2024_2026_climato_anomaly_f32.nc
       #L4/sst_l4_nrt_2021_2022_climato.nc #CLIMATO/sst_anomaly_f32_compressed.nc
-    ref_data_l4: "" #/Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2023_climato_anomaly_f32_original_resolution.nc
+    ref_data_l4: /Odyssey/public/ODYSSEA_IFREMER_SST/L4/sst_l4_nrt_2023_remapbil_0.25deg.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2023_climato_anomaly_f32_original_resolution.nc
       #CLIMATO/sst_anomaly_f32_compressed.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/L4_NRT/sst_l4_nrt_2024_2026_climato_anomaly_f32.nc
       #CLIMATO/sst_anomaly_f32_compressed.nc #CLIMATO/sst_anomaly_f32_compressed.nc #mems_obs-sst_glo_phy_nrt_l4_P1D-m_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2022-12-31.nc
-    ose_data_paths: "" #/Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/SST-L3-NRT-2023_ANOMALY_CLIMATO_f32_0.5deg_pyresample_v2.nc  #/Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2023_climato_anomaly_f32_original_resolution.nc
+    ose_data_paths: /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/SST-L3-NRT-2023_NRT_ANOMALY_CLIMATO_f32_0.25deg_FLAG_5_REAL.nc
+      #Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/SST-L3-NRT-2023_NRT_ANOMALY_CLIMATO_f32_0.25deg_pyresample_adjusted_sst_flagged_5.nc
+      #/Odyssey/public/REMSS_SST/data/daily_2023/SST-L3-2023_AMSR2_ANOMALY_CLIMATO_daily_f32_flagged_5.nc
+      #Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/SST-L3-NRT-2023_NRT_ANOMALY_CLIMATO_f32_0.25deg_pyresample_adjusted_sst.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/SST-L3-NRT-2023_ANOMALY_CLIMATO_f32_0.5deg_pyresample_v2.nc  #/Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2023_climato_anomaly_f32_original_resolution.nc
       #CLIMATO/IFREMER-GLOB-SST-L3-NRT-2021_2025_ANOMALY_CLIMATO_f32.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/IFREMER-GLOB-SST-L3-NRT-OBS_FULL_TIME_SERIE_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2025-07-10.nc
 
 var_name: "sst_anomaly" #"sea_surface_temperature"
@@ -51,7 +54,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_MSE_pyresampleCorrectVersion_lossMSE+Grad_AugTrue_NoGrad
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2024_2026_NRT_pyresample_0.25deg_lossMSE+Grad_AugTrue
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 895 #700 + 195 # 350 before
@@ -73,14 +76,14 @@ datamodule:
     full_l4_path: ${paths.full_l4_path}
     domain: ${domain.train}
     masking: False
-    time_domains: {_target_: builtins.slice, _args_: ['2010-01-20', '2019-12-31']}
+    time_domains: {_target_: builtins.slice, _args_: ['2024-01-01', '2026-03-01']}
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2010-01-20', '2018-12-31']}
+      time: {_target_: builtins.slice, _args_: ['2024-01-01', '2025-12-31']}
     val: 
-      time: {_target_: builtins.slice, _args_: ['2019-01-01', '2019-12-31']}
+      time: {_target_: builtins.slice, _args_: ['2026-01-01', '2026-03-01']}
     test: 
-      time: {_target_: builtins.slice,  _args_: ['2019-01-01', '2019-12-31']}
+      time: {_target_: builtins.slice,  _args_: ['2026-01-01', '2026-03-01']}
   xrds_kw:
     patch_dims: { time: 29, lat: 361, lon: 720} #{ time: 29, lat: 1600, lon: 3600} #{ time: 29, lat: 360, lon: 720}
     strides: { time: 1, lat: 357, lon: 716} #{time: 1, lat: 1580, lon: 3580} # { time: 1, lat: 356, lon: 716}
