@@ -1319,6 +1319,86 @@ class Lit4dVarNetForecast_UNet_sst(Lit4dVarNet_UNet_sst):
 
         print(pd.DataFrame(metrics, range(output_start, 7)).T.to_markdown())
 
+'''
+    SST and SLA Input
+'''
+
+class Lit4dVarNetForecast_UNet_sst_and_SLA_Input(Lit4dVarNet_UNet_sst):
+    """
+    Lit4dVarNet for forecasting applications:
+    solver: function to use as solver
+    rec_weight: optimisation weight
+    opt_fn: optimisation function
+    test_metrics: metrics to run for test
+    pre_metric_fn: preprocessing functions to apply to the reconstruction
+    norm_stats: normalisation stats of data
+    persist_rw: if True: rec_weight saved alongside parameters
+    output_only_forecast: if True, for test_dataloader will reconstruct and evaluate only for leadtimes from present and onwards
+    """
+
+    def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True, output_only_forecast=False):
+        super().__init__(solver, rec_weight, opt_fn, test_metrics, pre_metric_fn, norm_stats, persist_rw)
+        self.output_only_forecast=output_only_forecast
+
+    @staticmethod
+    def mask_batch(batch):
+
+        # temporal masking
+        new_input = batch.input
+        dims = new_input.size()
+        new_input[:, dims[1]//2:, :, :] = np.nan
+        mask_batch = batch._replace(input=new_input)
+        mask_batch = batch._replace(input_sla=new_input)
+
+        return mask_batch
+
+    def training_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        return super().training_step(mask_batch, batch_idx)
+
+    def validation_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        return super().validation_step(mask_batch, batch_idx)
+
+    def test_step(self, batch, batch_idx):
+        mask_batch = self.mask_batch(batch)
+        super().test_step(mask_batch, batch_idx)
+
+    def on_test_epoch_end(self):
+        dims = self.rec_weight.size()
+        dT = dims[0]
+        metrics = []
+        output_start = 0 if self.output_only_forecast else -((dT - 1) // 2)
+        for i in range(output_start, 7):
+            forecast_weight = np.concatenate(
+                (np.zeros((dT // 2 + i, dims[1], dims[2])),
+                 np.ones((1, dims[1], dims[2])),
+                 np.zeros((dT // 2 - i, dims[1], dims[2]))),
+                axis=0)
+            rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+                self.test_data, forecast_weight
+            )
+
+            if isinstance(rec_da, list):
+                rec_da = rec_da[0]
+
+            test_data_leadtime = rec_da.assign_coords(
+                dict(v0=self.test_quantities)
+            ).to_dataset(dim='v0')
+
+            if self.logger:
+                test_data_leadtime.to_netcdf(Path(self.logger.log_dir) / f'test_data_{i+(dT-1)//2}.nc')
+                print(Path(self.trainer.log_dir) / f'test_data_{i+(dT-1)//2}.nc')
+    
+
+            metric_data = test_data_leadtime.pipe(self.pre_metric_fn)
+            metrics_leadtime = pd.Series({
+                metric_n: metric_fn(metric_data)
+                for metric_n, metric_fn in self.metrics.items()
+            })
+            metrics.append(metrics_leadtime)
+
+        print(pd.DataFrame(metrics, range(output_start, 7)).T.to_markdown())
 
 
 
