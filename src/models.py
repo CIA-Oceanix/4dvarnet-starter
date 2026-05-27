@@ -1348,6 +1348,9 @@ class Lit4dVarNetForecast_UNet_sst_and_SLA_Input(Lit4dVarNet_UNet_sst):
         dims = new_input.size()
         new_input[:, dims[1]//2:, :, :] = np.nan
         mask_batch = batch._replace(input=new_input)
+        new_input = batch.input_sla
+        dims = new_input.size()
+        new_input[:, dims[1]//2:, :, :] = np.nan
         mask_batch = batch._replace(input_sla=new_input)
 
         return mask_batch
