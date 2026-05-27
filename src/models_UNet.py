@@ -465,7 +465,7 @@ class UNet_SST_and_SLA_INPUT(nn.Module):
         sfs = 1/torch.arange(1, 10).sqrt()
 
         # define modules
-        self.inc = StandardBlock(n_channels, 64)
+        self.inc = StandardBlock(n_channels*2, 64)
         self.down1 = Down(64, 128, block, sf=sfs[1])
         self.down2 = Down(128, 256, block, sf=sfs[2])
         self.down3 = Down(256, 512, block, sf=sfs[3])
@@ -481,9 +481,7 @@ class UNet_SST_and_SLA_INPUT(nn.Module):
         # = torch.nan_to_num(x)
         if self.add_input:
             inp = x[:,-1].unsqueeze(1)
-        x_input = torch.cat((torch.nan_to_num(x.input), torch.nan_to_num(x.input_sla)))
-        print('x_input shape')
-        print(x_input.shape)
+        x_input = torch.cat((torch.nan_to_num(x.input), torch.nan_to_num(x.input_sla)), 1)
         x1 = self.inc(x_input)
         x2 = self.down1(x1)
 

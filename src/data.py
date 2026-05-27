@@ -423,7 +423,9 @@ class BaseDataModule_SST_SLA_INPUT(pl.LightningDataModule):
         print(self.domains['train'])
         print("self.xrds_kw.get('domain_limits', {})")
         print(self.xrds_kw.get('domain_limits', {}))
-        print(train_data.sel(variable=variable))
+        print(train_data.sel(variable=variable).values[0])
+        print('mean sla')
+        print(train_data.sel(variable = 'input_sla').mean(skipna = True))
         return train_data.sel(variable=variable).pipe(lambda da: (da.mean(skipna = True).values.item(), da.std(skipna = True).values.item())) # added skipna = True !
 
     def post_fn(self):

@@ -5,7 +5,7 @@ import torch
 
 from src.models import Lit4dVarNetForecast, GradSolverZero, BilinAEPriorCost, \
     Lit4dVarNetForecast_UNet, Lit4dVarNet_UNet_MLD, Lit4dVarNetForecast_only1leadtime, \
-        Lit4dVarNetForecast_only1leadtime_FineTune_L3, Lit4dVarNetForecast_UNet_MLD, Lit4dVarNetForecast_UNet_sst, Lit4dVarNetForecast_UNet_Swot, Lit4dVarNetForecast_UNet_OSSE
+        Lit4dVarNetForecast_only1leadtime_FineTune_L3, Lit4dVarNetForecast_UNet_MLD, Lit4dVarNetForecast_UNet_sst, Lit4dVarNetForecast_UNet_Swot, Lit4dVarNetForecast_UNet_OSSE, Lit4dVarNetForecast_UNet_sst_and_SLA_Input
 
 class Plus4dVarNetForecast(Lit4dVarNetForecast):
     """

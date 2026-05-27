@@ -1,4 +1,4 @@
-from src.data import XrDataset, BaseDataModule, AugmentedDataset, BaseDataModuleOSE, BaseDataModule_SST, BaseDataModule_SSS
+from src.data import XrDataset, BaseDataModule, AugmentedDataset, BaseDataModuleOSE, BaseDataModule_SST, BaseDataModule_SSS, BaseDataModule_SST_SLA_INPUT
 import numpy as np
 import xarray as xr
 import time

@@ -89,6 +89,8 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
     # For SLA use case: '/Odyssey/public/duacs/2023/duacs_2017_2022_0.25deg.nc')
     ds = xr.open_dataset(path)
 
+    ds_sla = xr.open_dataset('/Odyssey/public/altimetry_traces/nrt_sla/2023/gridded_input.nc')
+
     var_L3 = (
         ds["sst_anomaly"]
         .rolling(lat=5, lon=5, center=True)
@@ -183,7 +185,8 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
     ds = (
         ds
         .assign(
-            input= ds[variable], #ds[variable],
+            input= ds[variable], #ds[variable]
+            input_sla= ds_sla['sla_unfiltered'],
             #input_complete = ds[variable], #ds[variable],   # FOR L3 loss , like DOG , only !  and for SWOT also ! 
             tgt= ds_mask,
             #sst_anomaly= ds[variable],
@@ -193,7 +196,7 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
     )
 
     return (
-         ds[[*TrainingItem._fields]]    # previously TrainingItem simply !!!  and TrainingItemOSE only for L3 loss training and rec and for SWTO also !  _sst for fine tuning
+         ds[[*TrainingItem_SLA_INPUT._fields]]    # previously TrainingItem simply !!!  and TrainingItemOSE only for L3 loss training and rec and for SWTO also !  _sst for fine tuning
         .transpose("time", "lat", "lon")
         .to_array()
     )
@@ -941,7 +944,7 @@ def open_glorys12_data_sst_normalized_climato_SLA_INPUT(path, masks_path, full_l
     #climato = xr.open_dataset("")
     print('ENTERED HERE ! ')
     ds =  (
-            xr.open_dataset(path).sel(time = time_domains).rename({'dt_analysis_daily_avg' : 'sst_anomaly'}) # if the file is original GLORYS12 file : drop_vars('depth')
+            xr.open_dataset(path).sel(time = time_domains) #rename({'dt_analysis_daily_avg' : 'sst_anomaly'}) # if the file is original GLORYS12 file : drop_vars('depth')
             )
     ds['time'] = ds.time.dt.date
     print("ds")
@@ -957,11 +960,14 @@ def open_glorys12_data_sst_normalized_climato_SLA_INPUT(path, masks_path, full_l
     #full_L4_data.assign_coords(time=full_L4_data.coords['time'].dt.date)
 
     #full_L4_data = full_L4_data.sel(time = ds.time.values)
-    full_L4_data = full_L4_data.sel(time=full_L4_data.time.dt.floor("D").isin(ds.time.values))
+    full_L4_data = full_L4_data.sel(time=ds.time.values)
+                                    #ull_L4_data.time.dt.floor("D").isin(ds.time.values))
 
-    sla_input = sla_input.sel(time = sla_input.time.dt.floor("D").isin(ds.time.values))
+    sla_input = sla_input.sel(time = ds.time.values)
                                     #ds.time.values)
 
+    print('sla unfiltered mean')
+    print(sla_input.sla_unfiltered.mean(skipna = True))
 
     if 'latitude' in list(full_L4_data.dims):
         full_L4_data = full_L4_data.rename({'latitude':'lat', 'longitude':'lon'})
@@ -981,7 +987,10 @@ def open_glorys12_data_sst_normalized_climato_SLA_INPUT(path, masks_path, full_l
             tgt= lambda ds: full_L4_data["sst_anomaly"], #lambda ds: ds[variables]
         )
         )
-    
+    print('ds tgt value 0 ')
+    print(full_L4_data.sst_anomaly.values)
+    print('ds tgt mean')
+    print(full_L4_data.sst_anomaly.mean(skipna = True))
     ds['time'] = ds['time'].astype(str)
     print("ds final")
     print(ds)
