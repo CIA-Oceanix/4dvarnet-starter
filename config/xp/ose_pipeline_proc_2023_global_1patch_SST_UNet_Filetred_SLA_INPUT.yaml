@@ -1,5 +1,5 @@
 # @package _global_
-xp_name: glorys4_global_1patch_SST_ODYSSEA_UNet_L3_NRT_AnomalyCLIMATO_2010_2019_NormStatsImposed_MSEGradLoss_pyresample_0.25degL3_INPUT_INFRARED_FLAGGED_5_SLA_grid_SLA_INPUT # le nom avec lequel ça sera rangé 
+xp_name: glorys4_global_1patch_SST_ODYSSEA_UNet_L3_NRT_AnomalyCLIMATO_2010_2019_NormStatsImposed_MSEGradLoss_pyresample_0.25degL3_INPUT_INFRARED_FLAGGED_5_SLA_grid_SLA_INPUT_src_CORRECTED_AnotherCKPT # le nom avec lequel ça sera rangé 
 data_name: nrt_sla
 
 paths:
@@ -9,7 +9,9 @@ paths:
 
   model_config_path: config/xp/sst_training_anomalyClimato_MSE_2016_2019_SLA_INOUT_INFERENCE.yaml
     #config/xp/sst_training_anomalyClimato_MSE_2016_2019_fine_tune.yaml
-  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_SLA_INPUT_from_CKPT/sst_training_anomalyClimato_MSE_2016_2019_SLA_INOUT/checkpoints/val_mse=0.07417-epoch=326.ckpt
+  model_ckpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_SLA_INPUT_CORRECT_src_models_from_CKPT/sst_training_anomalyClimato_MSE_2016_2019_SLA_INOUT/checkpoints/val_mse=0.07191-epoch=098.ckpt
+    #Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_SLA_INPUT_CORRECT_src_models/sst_training_anomalyClimato_MSE_2016_2019_SLA_INOUT/checkpoints/val_mse=0.07874-epoch=025.ckpt
+    # /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_SLA_INPUT_from_CKPT/sst_training_anomalyClimato_MSE_2016_2019_SLA_INOUT/checkpoints/val_mse=0.07417-epoch=326.ckpt
     #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_0.25deg_pyresample_gauss/sst_training_anomalyClimato_MSE_2016_2019/checkpoints/val_mse=0.08471-epoch=269.ckpt
 
 # Variable to reconstruct 
