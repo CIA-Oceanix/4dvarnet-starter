@@ -89,7 +89,9 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
     # For SLA use case: '/Odyssey/public/duacs/2023/duacs_2017_2022_0.25deg.nc')
     ds = xr.open_dataset(path)
 
-    ds_sla = xr.open_dataset('/Odyssey/public/altimetry_traces/nrt_sla/2023/gridded_input.nc')
+    #ds_sla = xr.open_dataset('/Odyssey/public/altimetry_traces/nrt_sla/2023/gridded_input.nc')   # Nadir only
+
+    ds_sla = xr.open_dataset('/Odyssey/public/swot_traces/cls/gridded_obs_sla_0.25_swot_2024_reformated.nc') # SWOT + Nadir CLS version , sla filtered only ! 
 
     var_L3 = (
         ds["sst_anomaly"]
@@ -152,7 +154,8 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
             ds_mask = ds_mask.sel(time= '2020' + '-01-20')[variable].expand_dims(time=ds.time)[:,40:,:1440].assign_coords(ds.coords)
     else:
         #ds_mask = ds_mask.sel(time= '2019' + '-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords) # 2023 for fine tune at orig resolution before !!!
-        ds_mask = ds.sel(time= '2023' + '-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords) # for fine tuning rec only !!! 
+        #ds_mask = ds.sel(time= '2023' + '-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords) # for fine tuning rec only !!! , for Nadir only
+        ds_mask = ds.sel(time= '2024' + '-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords)
         #(time= '2022' + '-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords)
     # IMPORTANT : #.assign_coords(ds.coords)
     print(ds_mask[0].shape)
@@ -186,7 +189,7 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
         ds
         .assign(
             input= ds[variable], #ds[variable]
-            input_sla= ds_sla['sla_unfiltered'],
+            input_sla= ds_sla['sla_filtered'],
             #input_complete = ds[variable], #ds[variable],   # FOR L3 loss , like DOG , only !  and for SWOT also ! 
             tgt= ds_mask,
             #sst_anomaly= ds[variable],
