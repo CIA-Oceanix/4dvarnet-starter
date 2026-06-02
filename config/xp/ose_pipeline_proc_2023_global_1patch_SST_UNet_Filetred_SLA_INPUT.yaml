@@ -1,5 +1,5 @@
 # @package _global_
-xp_name: glorys4_global_1patch_SST_ODYSSEA_UNet_L3_NRT_AnomalyCLIMATO_2010_2019_NormStatsImposed_MSEGradLoss_pyresample_0.25degL3_INPUT_INFRARED_FLAGGED_5_SLA_grid_SLA_INPUT+SWOT_2024_src_CORRECTED_AnotherCKPT_Nb2 # le nom avec lequel ça sera rangé 
+xp_name: glorys4_global_1patch_SST_ODYSSEA_UNet_L3_NRT_AnomalyCLIMATO_2010_2019_NormStatsImposed_MSEGradLoss_pyresample_0.25degL3_INPUT_INFRARED_FLAGGED_5_SLA_grid_SLA_INPUT_2024_src_CORRECTED_AnotherCKPT_Nb2 # le nom avec lequel ça sera rangé 
 data_name: nrt_sla
 
 paths:

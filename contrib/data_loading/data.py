@@ -91,7 +91,8 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
 
     #ds_sla = xr.open_dataset('/Odyssey/public/altimetry_traces/nrt_sla/2023/gridded_input.nc')   # Nadir only
 
-    ds_sla = xr.open_dataset('/Odyssey/public/swot_traces/cls/gridded_obs_sla_0.25_swot_2024_reformated.nc') # SWOT + Nadir CLS version , sla filtered only ! 
+    #ds_sla = xr.open_dataset('/Odyssey/public/swot_traces/cls/gridded_obs_sla_0.25_swot_2024_reformated.nc') # SWOT + Nadir CLS version , sla filtered only ! 
+    ds_sla = xr.open_dataset('/Odyssey/public/altimetry_traces/2024/NRT_REAL_no_swon/gridded/gridded_input.nc')
 
     var_L3 = (
         ds["sst_anomaly"]
