@@ -1,9 +1,9 @@
 # @package _global_
-xp_name: glorys4_global_1patch_SST_ODYSSEA_UNet_L3_NRT_AnomalyCLIMATO_2010_2019_NormStatsImposed_MSEGradLoss_pyresample_0.25degL3_INPUT_INFRARED_FLAGGED_5_SLA_grid_SLA_INPUT_2024_src_CORRECTED_AnotherCKPT_Nb2 # le nom avec lequel ça sera rangé 
+xp_name: glorys4_global_1patch_SST_ODYSSEA_UNet_L3_NRT_AnomalyCLIMATO_2010_2019_NormStatsImposed_MSEGradLoss_pyresample_0.25degL3_INPUT_INFRARED_FLAGGED_5_SLA_grid_SLA_INPUT+SWOT_2024_src_CORRECTED_AnotherCKPT_Nb2 # le nom avec lequel ça sera rangé 
 data_name: nrt_sla
 
 paths:
-  ose_data_path: /Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2024_2026_adjusted_sst_0.25deg_pyresample_FLAGGED_5.nc # for 2023 : /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/SST-L3-NRT-2023-ANOMALY-FLAGGED-5-grid_sla_2023_nrt.nc
+  ose_data_path: /Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/ANOMALY/SST-L3-NRT-2024_anomaly_climato_sla_grid.nc #Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2024_2026_adjusted_sst_0.25deg_pyresample_FLAGGED_5.nc # for 2023 : /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/SST-L3-NRT-2023-ANOMALY-FLAGGED-5-grid_sla_2023_nrt.nc
   rec_path:  /Odyssey/public/glorys/rec/              # reconstruction de la SSH avec 4dvarnet à partir des traces /rec_path/xp_name/data_name/
   metrics_path:  /Odyssey/public/glorys/metrics/      # metriques des cartes reconstruites comparées aux traces altimetriques reprocessés / NRT (en fonction du data_name) -> /metrics_path/xp_name/data_name/
 

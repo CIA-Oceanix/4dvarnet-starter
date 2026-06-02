@@ -9,8 +9,9 @@ paths:
     full_l4_path: /Odyssey/public/ODYSSEA_IFREMER_SST/L4/SST-L4-2010_2020_ANOMALY_CLIMATO_f32_0.25deg_pyresample_analysed_sst_grid_from_sla_unfiltered.nc
       #/Odyssey/public/ODYSSEA_IFREMER_SST/L4/SST-L4-2010_2020_ANOMALY_CLIMATO_f32_0.25deg_pyresample_analysed_sst.nc
       #sst_anomaly_f32_compressed.nc
-    ref_data_l4: /Odyssey/public/ODYSSEA_IFREMER_SST/L4/SST-L4-2010_2020_ANOMALY_CLIMATO_f32_0.25deg_pyresample_analysed_sst_grid_from_sla_unfiltered.nc #~ /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_f32_compressed.nc #mems_obs-sst_glo_phy_nrt_l4_P1D-m_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2022-12-31.nc
-    ose_data_paths: /Odyssey/public/altimetry_traces/2024/NRT_REAL_no_swon/gridded/gridded_input.nc # for 2024 no swot 
+    ref_data_l4: /Odyssey/public/altimetry_traces/2024/NRT_REAL_no_swon/gridded/gridded_input.nc
+      #/Odyssey/public/ODYSSEA_IFREMER_SST/L4/SST-L4-2010_2020_ANOMALY_CLIMATO_f32_0.25deg_pyresample_analysed_sst_grid_from_sla_unfiltered.nc #~ /Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/sst_anomaly_f32_compressed.nc #mems_obs-sst_glo_phy_nrt_l4_P1D-m_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2022-12-31.nc
+    ose_data_paths: /Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/ANOMALY/SST-L3-NRT-2024_anomaly_climato_sla_grid.nc
       #/Odyssey/public/ODYSSEA_IFREMER_SST/L3_NRT/sst_l3_nrt_2024_2026_adjusted_sst_0.25deg_pyresample_FLAGGED_5.nc # for 2024 ! SWOT
       #/Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/SST-L3-NRT-2023-ANOMALY-FLAGGED-5-grid_sla_2023_nrt.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/CLIMATO/IFREMER-GLOB-SST-L3-NRT-2023_ANOMALY_CLIMATO_f32.nc #/Odyssey/public/ODYSSEA_IFREMER_SST/IFREMER-GLOB-SST-L3-NRT-OBS_FULL_TIME_SERIE_multi-vars_179.95W-179.95E_79.95S-79.95N_2021-01-01-2025-07-10.nc
 
