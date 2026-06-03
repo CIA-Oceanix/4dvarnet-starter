@@ -1015,6 +1015,98 @@ def open_glorys12_data_sst_normalized_climato_SLA_INPUT(path, masks_path, full_l
 
     return ds
 
+"""
+    SST OSE + SLA INPUYT OSSE GLORYS12 masking ! : )
+"""
+def open_glorys12_data_sst_normalized_climato_SLA_INPUT_OSSE(path, masks_path, full_l4_path, domain, time_domains, variables="sea_surface_temperature",masking=True, test_cut=None): # zos before
+    """
+        Function to load glorys data
+        domain: lat and long extremities to cut data
+        variables: variable to load
+        masking: whether to mask the input data using the masks in masks_path
+        test_cut: if not None, {'time': slice(time1, time2)}, speeding up the loading by pre-cutting the loaded data
+    """
+
+    #climato = xr.open_dataset("")
+    print('ENTERED HERE ! ')
+    ds =  (
+            xr.open_dataset(path).sel(time = time_domains) #rename({'dt_analysis_daily_avg' : 'sst_anomaly'}) # if the file is original GLORYS12 file : drop_vars('depth')
+            )
+    ds['time'] = ds.time.dt.date
+    print("ds")
+    print(ds)
+    if 'latitude' in list(ds.dims):
+        ds = ds.rename({'latitude':'lat', 'longitude':'lon'})
+    print('Here')
+    full_L4_data = xr.open_dataset(full_l4_path)
+    print(full_L4_data)
+
+    sla_input = xr.open_dataset('/Odyssey/public/glorys/reanalysis/glorys12_2010_2019_daily_sla_4th_gridded_from_alongtrack.nc')
+    #xr.open_dataset('/Odyssey/public/altimetry_traces/2010_2019/gridded_0.25deg/sla_unfiltered_0.25deg.nc')
+    print(sla_input)
+    
+    #full_L4_data.assign_coords(time=full_L4_data.coords['time'].dt.date)
+
+    #full_L4_data = full_L4_data.sel(time = ds.time.values)
+    full_L4_data = full_L4_data.sel(time=ds.time.values)
+                                    #ull_L4_data.time.dt.floor("D").isin(ds.time.values))
+
+    sla_input = sla_input.sel(time = ds.time.values)
+                                    #ds.time.values)
+
+    print('sla unfiltered mean')
+    print(sla_input.obs.mean(skipna = True))
+
+    if 'latitude' in list(full_L4_data.dims):
+        full_L4_data = full_L4_data.rename({'latitude':'lat', 'longitude':'lon'})
+
+
+    if test_cut is not None:
+        ds = ds.sel(time=test_cut)
+        full_L4_data = full_L4_data.sel(time = test_cut)
+        sla_input = sla_input.sel(time = test_cut)
+
+    ds = (
+        ds
+        .load()
+        .assign(
+            input = lambda ds: ds["sst_anomaly"],
+            input_sla = lambda ds: sla_input["obs"],
+            tgt= lambda ds: full_L4_data["sst_anomaly"], #lambda ds: ds[variables]
+        )
+        )
+    print('ds tgt value 0 ')
+    print(full_L4_data.sst_anomaly.values)
+    print('ds tgt mean')
+    print(full_L4_data.sst_anomaly.mean(skipna = True))
+    ds['time'] = ds['time'].astype(str)
+    print("ds final")
+    print(ds)
+
+    if masking: 
+        with open(masks_path, 'rb') as masks_file:
+            mask_list = pickle.load(masks_file)
+        mask_list = np.array(mask_list)
+        ds= ds.assign(
+            input=xr.apply_ufunc(mask_input, ds.input, input_core_dims=[['lat', 'lon']], output_core_dims=[['lat', 'lon']], kwargs={"mask_list": mask_list}, dask="allowed", vectorize=True)
+            )
+        with open('/Odyssey/public/swot_traces/mask/global_obs_swot_nadir_DT_2024.pickle', 'rb') as masks_file:
+            mask_list = pickle.load(masks_file)
+        mask_list = np.array(mask_list)
+        ds= ds.assign(
+            input_sla=xr.apply_ufunc(mask_input, ds.input_sla, input_core_dims=[['lat', 'lon']], output_core_dims=[['lat', 'lon']], kwargs={"mask_list": mask_list}, dask="allowed", vectorize=True)
+            )
+
+
+    ds = ds.sel(domain)
+    ds = (
+        ds[[*TrainingItem_SLA_INPUT._fields]]
+        .transpose("time", "lat", "lon")
+        .to_array()
+        )
+
+    return ds
+
 
 
 
