@@ -46,7 +46,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SSS_UNet_ResBlock_17M_2010_2019_AugTrue_MSE_anomaly_asc_desc_FLAGGED_ANOMALY
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SSS_UNet_ResBlock_17M_2010_2019_AugTrue_MSE_anomaly_asc_desc_FLAGGED_ANOMALY_v2
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 895 #700 + 195 # 350 before
@@ -56,7 +56,7 @@ trainer:
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
     - _target_: pytorch_lightning.callbacks.ModelCheckpoint
       monitor: val_mse
-      save_top_k: 10
+      save_top_k: 15
       filename: '{val_mse:.5f}-{epoch:03d}'
 
 datamodule:
@@ -71,7 +71,7 @@ datamodule:
     time_domains: {_target_: builtins.slice, _args_: ['2010-01-01', '2019-12-31']}
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2010-01-01', '2018-12-31']}
+      time: {_target_: builtins.slice, _args_: ['2011-01-01', '2018-12-31']}
     val: 
       time: {_target_: builtins.slice, _args_: ['2019-01-01', '2019-12-31']}
     test: 

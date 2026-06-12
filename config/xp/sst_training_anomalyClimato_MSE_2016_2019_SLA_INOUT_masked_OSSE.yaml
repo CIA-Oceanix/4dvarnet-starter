@@ -51,7 +51,7 @@ trainer:
   devices: 1
   logger:
     _target_: pytorch_lightning.loggers.CSVLogger
-    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_SLA_INPUT_OSSE_SWOT_no_ckpt
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_AugTrue_MSE+GradLoss_SLA_INPUT_OSSE_SWOT_no_ckpt_REAL_MASK_GLORYS12_Variabletgt
     name: ${hydra:runtime.choices.xp}
     version: ''
   max_epochs: 895 #700 + 195 # 350 before
@@ -146,6 +146,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
+    ckpt: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_AugTrue_MSE+GradLoss_SLA_INPUT_OSSE_SWOT_no_ckpt_REAL_MASK_GLORYS12_Variabletgt/sst_training_anomalyClimato_MSE_2016_2019_SLA_INOUT_masked_OSSE/checkpoints/val_mse=0.05640-epoch=105.ckpt
     #ckpt: 
       #/Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_SLA_INPUT_CORRECT_src_models/sst_training_anomalyClimato_MSE_2016_2019_SLA_INOUT/checkpoints/val_mse=0.07874-epoch=025.ckpt
       #kpt: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SST_ODYSSEA_UNet_ResBlock_17M_2010_2019_AugTrue_MSE+GradLoss_SLA_INPUT_from_CKPT/sst_training_anomalyClimato_MSE_2016_2019_SLA_INOUT/checkpoints/val_mse=0.07417-epoch=326.ckpt

@@ -1,5 +1,5 @@
 # @package _global_
-xp_name: glorys4_global_1patch_SST_ODYSSEA_UNet_L3_NRT_AnomalyCLIMATO_2010_2019_MSEGradLoss_SWOT_INPUT_2024_swot_training_osse_v2 # le nom avec lequel ça sera rangé 
+xp_name: glorys4_global_1patch_SST_ODYSSEA_UNet_L3_NRT_AnomalyCLIMATO_2010_2019_MSEGradLoss_NADIRONLY_INPUT_2024_swot_training_osse_v2 # le nom avec lequel ça sera rangé 
 data_name: nrt_sla
 
 paths:

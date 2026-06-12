@@ -797,7 +797,8 @@ class Lit4dVarNet_UNet_sst(pl.LightningModule):
             self.log(f"{phase}_grad_mse", grad_loss * self.norm_stats[1]**2, prog_bar=True, on_step=False, on_epoch=True)
         
         #elf.log(f"{phase}_gloss", grad_loss, prog_bar=True, on_step=False, on_epoch=True)
-        training_loss = 0.6 * loss + 0.4 * grad_loss #0.6 * loss + 0.4 * grad_loss # 0.8 * loss_l3 #+ 0.3 * grad_loss # 50 * loss before ! 
+        #training_loss = 0.6 * loss + 0.4 * grad_loss #0.6 * loss + 0.4 * grad_loss # 0.8 * loss_l3 #+ 0.3 * grad_loss # 50 * loss before ! 
+        training_loss = 50 * loss + 50 * grad_loss
         #+ 50 * grad_loss # 50 * coarsen_loss + 50 * grad_loss # 50 * DoG_loss
         #50* torch.nn.L1Loss(reduction='mean')(torch.nn.AvgPool2d(2)(out), torch.nn.AvgPool2d(2)(batch.tgt))
         #F.mse_loss(out[:,14 : 14+7, :], batch.tgt)
