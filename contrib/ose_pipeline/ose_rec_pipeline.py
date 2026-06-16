@@ -1,7 +1,20 @@
 from omegaconf import OmegaConf
+import json
 import os
 
 from contrib.ose_pipeline.rec_utils import reconstruct_from_config
+
+
+def load_training_norm_stats(model_ckpt_path):
+    """Load the (mean, std) saved by src.train.save_norm_stats next to the checkpoint
+    used for training, so OSE inference de-normalizes with the real training-period
+    stats instead of recomputing them from the (tiny) OSE inference time domain."""
+    stats_path = os.path.join(os.path.dirname(model_ckpt_path), 'norm_stats.json')
+    if not os.path.exists(stats_path):
+        return None
+    with open(stats_path) as f:
+        stats = json.load(f)
+    return [stats['mean'], stats['std']]
 
 class AllLeadtimesReconstructed(Exception):
     def __init__(self, *args):
@@ -114,6 +127,7 @@ def setup_model_config_SST(
 
 def setup_model_config_SSS(
         model_config_path,
+        model_ckpt_path,
         gridded_input_path,
         rec_paths,
         min_time,
@@ -123,6 +137,10 @@ def setup_model_config_SSS(
         overwrite,
 ):
     config = OmegaConf.load(model_config_path)
+
+    norm_stats = load_training_norm_stats(model_ckpt_path)
+    if norm_stats is not None:
+        OmegaConf.update(config, key='model.norm_stats', value=norm_stats)
 
     OmegaConf.update(config, key='paths.ose_gridded_input_path', value=gridded_input_path)
 
@@ -255,6 +273,7 @@ def execute_rec_pipeline_SSS(
     try:
         config = setup_model_config_SSS(
             model_config_path,
+            model_ckpt_path,
             gridded_input_path,
             rec_paths,
             min_time,
