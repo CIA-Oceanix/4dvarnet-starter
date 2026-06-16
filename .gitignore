@@ -13,5 +13,6 @@ results
 rec_dir
 !reproduce_glorys_ose_results.ipynb
 !ose_data_pipeline.ipynb
+!sss_eval.ipynb
 reproduce/*.ckpt
 *.png
