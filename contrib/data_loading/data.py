@@ -207,6 +207,66 @@ def load_ose_data_with_tgt_mask_SLA(path, tgt_path, tgt_path_not_glorys, tgt_pat
     
 
 
+def load_ose_data_with_tgt_mask_SSS(path, tgt_path, tgt_path_not_glorys, tgt_path_l3_data, variable, year):
+    """
+        batches need to have a complete target in order for the Grad Masking to be carried out
+
+        path: path to ose data
+        tgt_path: path to a complete reconstruction of global glorys ssh containing the day 2020-01-20
+        variable: mask variable to load
+
+        SSS has no auxiliary SLA input channel, unlike load_ose_data_with_tgt_mask_SLA.
+    """
+    if(len(tgt_path_not_glorys) != 0):
+        tgt_path = tgt_path_not_glorys
+    if(len(tgt_path_l3_data) != 0):
+        path = tgt_path_l3_data # because path is basically input data
+
+    print(f'tgt_path is {tgt_path}')
+    print(f'path is {path}')
+    ds_mask = xr.open_dataset(tgt_path)
+    ds = xr.open_dataset(path)
+
+    if('depth' in list(ds.dims)):
+        ds = ds.drop_dims('depth')
+
+    if 'latitude' in list(ds_mask.dims):
+        ds_mask = ds_mask.rename({'latitude':'lat', 'longitude':'lon'})
+    if 'latitude' in list(ds.variables):
+        ds = ds.rename({'latitude':'lat', 'longitude':'lon'})
+    if 'latitude' in list(ds.dims):
+        ds = ds.rename({'latitude':'lat', 'longitude':'lon'})
+    if 'sos' in list(ds_mask.variables):
+        ds_mask = ds_mask.rename({'sos':variable})
+    if 'sss_anomaly' in list(ds_mask.variables):
+        ds_mask = ds_mask.rename({'sss_anomaly':variable})
+    if 'sss_anomaly' in list(ds.variables):
+        ds = ds.rename({'sss_anomaly':variable})
+
+    ds['time'] = pd.to_datetime(ds['time'].values)  # Ensure time is in datetime format if it's not already
+    ds = ds.sel(time=ds['time'].dt.year == year)
+
+    ds_mask = ds.sel(time=f'{year}-01-20')[variable].expand_dims(time=ds.time).assign_coords(ds.coords)
+
+    print(ds_mask[0].shape)
+    print('VARIABLE IS')
+    print(variable)
+
+    ds = (
+        ds
+        .assign(
+            input= ds[variable],
+            tgt= ds_mask,
+        )
+    )
+
+    return (
+        ds[[*TrainingItem._fields]]
+        .transpose("time", "lat", "lon")
+        .to_array()
+    )
+
+
 def load_ose_data_with_tgt_mask_L4(path, tgt_path, variable='zos'):
                                 #variable='zos'):
     """

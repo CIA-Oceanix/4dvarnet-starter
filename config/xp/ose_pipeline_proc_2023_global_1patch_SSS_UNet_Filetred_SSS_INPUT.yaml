@@ -98,7 +98,7 @@ options:    # pipeline : données download, concat etc ; 4dvarnet pour reconstru
 
 # HYDRA , RIEN CHANGER ! 
 entrypoints:
-  - _target_: contrib.ose_pipeline.ose_full_pipeline.execute_full_pipeline      # va lancer execute_full_pipeline.py -> inférence ; pour training -> config
+  - _target_: contrib.ose_pipeline.ose_full_pipeline.execute_full_pipeline_SSS      # va lancer execute_full_pipeline.py -> inférence ; pour training -> config (SSS: pas d'input SLA auxiliaire)
     pixels_per_degree: ${specs.pixels_per_degree}
     min_time: ${specs.min_time}
     max_time: ${specs.max_time}
