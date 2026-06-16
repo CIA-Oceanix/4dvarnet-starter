@@ -159,3 +159,60 @@ def summary_stats(df):
         'mean_corr': valid['corr'].mean(),
         'n_days': len(valid),
     }
+
+
+def debug_single_day(rec, ref, diff, day):
+    """
+    Plot rec / ref / diff maps for a single day, plus a rec-vs-ref scatter,
+    and print the actual time values used on each side of the alignment.
+    Use this to check for time/grid misalignment when RMSE looks fine but
+    correlation is unexpectedly low (or vice versa).
+
+    day: anything pandas.Timestamp can parse, e.g. '2023-06-15'
+    """
+    import matplotlib.pyplot as plt
+
+    day = np.datetime64(day)
+
+    rec_day = rec.sel(time=day, method='nearest')
+    ref_day = ref.sel(time=day, method='nearest')
+    diff_day = diff.sel(time=day, method='nearest')
+
+    print(f'requested day:        {day}')
+    print(f'rec actual time used:  {rec_day.time.values}')
+    print(f'ref actual time used:  {ref_day.time.values}')
+
+    a = rec_day.values.ravel()
+    b = ref_day.values.ravel()
+    mask = np.isfinite(a) & np.isfinite(b)
+    a, b = a[mask], b[mask]
+    corr_day = np.corrcoef(a, b)[0, 1] if a.size > 1 else np.nan
+    print(f'single-day correlation: {corr_day:.4f}  (n={a.size})')
+
+    fig, axes = plt.subplots(1, 3, figsize=(16, 4.5), constrained_layout=True)
+
+    rec_day.plot(ax=axes[0], cmap='viridis', robust=True, cbar_kwargs={'shrink': 0.7})
+    axes[0].set_title('Reconstruction')
+
+    ref_day.plot(ax=axes[1], cmap='viridis', robust=True, cbar_kwargs={'shrink': 0.7})
+    axes[1].set_title('Reference')
+
+    diff_day.plot(ax=axes[2], cmap='RdBu_r', center=0, robust=True, cbar_kwargs={'shrink': 0.7})
+    axes[2].set_title('Diff (rec - ref)')
+
+    for ax in axes:
+        ax.set_aspect('equal')
+
+    plt.show()
+
+    plt.figure(figsize=(5, 5))
+    plt.scatter(b, a, s=2, alpha=0.2)
+    lims = [min(a.min(), b.min()), max(a.max(), b.max())]
+    plt.plot(lims, lims, 'r--', lw=1)
+    plt.xlabel('reference')
+    plt.ylabel('reconstruction')
+    plt.title(f'rec vs ref scatter — {pd.Timestamp(day).date()} (corr={corr_day:.3f})')
+    plt.show()
+
+    return corr_day
+
