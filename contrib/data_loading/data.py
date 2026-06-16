@@ -1241,44 +1241,38 @@ def open_glorys12_data_sss(path, masks_path, full_l4_path, domain, time_domains,
         test_cut: if not None, {'time': slice(time1, time2)}, speeding up the loading by pre-cutting the loaded data
     """
 
-    #climato = xr.open_dataset("")
-
-    ds =  (
-            xr.open_dataset(path).sel(time = time_domains) # if the file is original GLORYS12 file : drop_vars('depth')
+    # chunked (dask-backed) opens: keeps everything lazy so the spatial/temporal
+    # subsetting below happens before any data actually gets read off disk, and
+    # the single final .load() can fetch chunks concurrently instead of the
+    # previous eager, single-threaded, full-grid load.
+    ds = (
+            xr.open_dataset(path, chunks={'time': 50}).sel(time = time_domains) # if the file is original GLORYS12 file : drop_vars('depth')
             )
     ds['time'] = ds.time.dt.date
-    print("ds")
-    print(ds)
     if 'latitude' in list(ds.dims):
         ds = ds.rename({'latitude':'lat', 'longitude':'lon'})
-    print('Here')
-    full_L4_data = xr.open_dataset(full_l4_path) #isel(depth = 0)
-    print(full_L4_data)
-    #full_L4_data.assign_coords(time=full_L4_data.coords['time'].dt.date)
 
+    full_L4_data = xr.open_dataset(full_l4_path, chunks={'time': 50}) #isel(depth = 0)
     full_L4_data = full_L4_data.sel(time = ds.time.values)
-                                    #ds.time.values)
 
     if 'latitude' in list(full_L4_data.dims):
         full_L4_data = full_L4_data.rename({'latitude':'lat', 'longitude':'lon'})
-
 
     if test_cut is not None:
         ds = ds.sel(time=test_cut)
         full_L4_data = full_L4_data.sel(time = test_cut)
 
+    ds = ds.sel(domain)
+    full_L4_data = full_L4_data.sel(domain)
 
     ds = (
         ds
-        .load()
         .assign(
             input = lambda ds: ds["sss_anomaly"],
             tgt= lambda ds: full_L4_data["sss_anomaly"], #lambda ds: ds[variables]
         )
         )
     ds['time'] = ds['time'].astype(str)
-    print("ds final")
-    print(ds)
 
     if masking:
         with open(masks_path, 'rb') as masks_file:
@@ -1287,11 +1281,11 @@ def open_glorys12_data_sss(path, masks_path, full_l4_path, domain, time_domains,
         ds= ds.assign(
             input=xr.apply_ufunc(mask_input, ds.input, input_core_dims=[['lat', 'lon']], output_core_dims=[['lat', 'lon']], kwargs={"mask_list": mask_list}, dask="allowed", vectorize=True)
             )
-    ds = ds.sel(domain)
     ds = (
         ds[[*TrainingItem._fields]]
         .transpose("time", "lat", "lon")
         .to_array()
+        .load()
         )
 
     return ds
