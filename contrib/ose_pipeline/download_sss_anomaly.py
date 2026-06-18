@@ -29,8 +29,8 @@ import xarray as xr
 # 1. Download raw SSS from CMEMS
 # ---------------------------------------------------------------------------
 
-DATASET_ID = "cmems_obs-mob_glo_phy-sss_mynrt_smos-asc_P1D"
-SSS_VARIABLE = "Sea_Surface_Salinity"
+DATASET_ID = "cmems_obs-mob_glo_phy-sss_nrt_multi_P1D"
+SSS_VARIABLE = "sos"
 
 
 def download_sss(output_dir, year_start=2010, year_end=2019):
