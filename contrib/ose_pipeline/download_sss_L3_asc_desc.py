@@ -37,13 +37,13 @@ import xarray as xr
 ASC_DATASET_ID = "cmems_obs-mob_glo_phy-sss_mynrt_smos-asc_P1D"
 DESC_DATASET_ID = "cmems_obs-mob_glo_phy-sss_mynrt_smos-des_P1D"
 
-SSS_VARIABLE = "sss"
+SSS_VARIABLE = "Sea_Surface_Salinity"
 # Some products use "sos" instead:
 # SSS_VARIABLE = "sos"
 
 # Quality-control variable (SMOS L3 typically includes a QC flag field).
 # Set to None if the product doesn't have one.
-QC_VARIABLE = "sss_qc"        # adjust to actual flag variable name
+QC_VARIABLE = "Sea_Surface_Salinity_QC"
 QC_MAX_ACCEPTABLE = 1         # keep only values where qc <= this threshold
 
 
@@ -63,7 +63,7 @@ def _download_orbit(dataset_id, orbit_type, output_dir, year,
     print(f"    downloading {orbit_type} {year} ...")
     kwargs = dict(
         dataset_id=dataset_id,
-        variables=[SSS_VARIABLE],
+        variables=[SSS_VARIABLE, QC_VARIABLE],
         minimum_longitude=-180,
         maximum_longitude=180,
         minimum_latitude=-90,

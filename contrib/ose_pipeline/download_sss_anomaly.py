@@ -30,7 +30,7 @@ import xarray as xr
 # ---------------------------------------------------------------------------
 
 DATASET_ID = "cmems_obs-mob_glo_phy-sss_mynrt_smos-asc_P1D"
-SSS_VARIABLE = "sss"
+SSS_VARIABLE = "Sea_Surface_Salinity"
 
 
 def download_sss(output_dir, year_start=2010, year_end=2019):
