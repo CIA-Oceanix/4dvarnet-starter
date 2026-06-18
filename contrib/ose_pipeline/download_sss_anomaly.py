@@ -29,12 +29,8 @@ import xarray as xr
 # 1. Download raw SSS from CMEMS
 # ---------------------------------------------------------------------------
 
-DATASET_ID = "dataset-sss-ssd-rep-daily"  # SMOS L3 daily SSS (reprocessed)
+DATASET_ID = "cmems_obs-mob_glo_phy-sss_mynrt_smos-asc_P1D"
 SSS_VARIABLE = "sss"
-
-# fallback: if the above doesn't work, try the NRT multi-obs product:
-# DATASET_ID = "cmems_obs-mob_glo_phy-sss_nrt_multi_P1D"
-# SSS_VARIABLE = "sos"
 
 
 def download_sss(output_dir, year_start=2010, year_end=2019):
@@ -63,7 +59,7 @@ def download_sss(output_dir, year_start=2010, year_end=2019):
             end_datetime=f"{year}-12-31T23:59:59",
             output_filename=os.path.basename(out_path),
             output_directory=output_dir,
-            force_download=True,
+            overwrite=True,
         )
         paths.append(out_path)
 

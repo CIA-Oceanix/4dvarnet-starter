@@ -34,11 +34,8 @@ import xarray as xr
 #   copernicusmarine describe --contains "sss"
 # to list available SSS products.
 
-ASC_DATASET_ID = "dataset-sss-ssd-rep-daily"       # ascending
-DESC_DATASET_ID = "dataset-sss-ssd-rep-daily"       # descending (same product, filtered by orbit)
-# If your CMEMS catalogue has separate dataset IDs per orbit, set them here:
-# ASC_DATASET_ID  = "SMOS_L3_SSS_A_REP"
-# DESC_DATASET_ID = "SMOS_L3_SSS_D_REP"
+ASC_DATASET_ID = "cmems_obs-mob_glo_phy-sss_mynrt_smos-asc_P1D"
+DESC_DATASET_ID = "cmems_obs-mob_glo_phy-sss_mynrt_smos-des_P1D"
 
 SSS_VARIABLE = "sss"
 # Some products use "sos" instead:
@@ -75,7 +72,7 @@ def _download_orbit(dataset_id, orbit_type, output_dir, year,
         end_datetime=f"{year}-12-31T23:59:59",
         output_filename=fname,
         output_directory=output_dir,
-        force_download=True,
+        overwrite=True,
     )
     if extra_filter is not None:
         kwargs.update(extra_filter)
