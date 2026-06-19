@@ -200,12 +200,12 @@ def save_f32(ds, path):
 # Helpers
 # ---------------------------------------------------------------------------
 
-def find_nc_files(directory):
-    """Find all .nc files in a directory, sorted."""
-    files = sorted(glob.glob(os.path.join(directory, "*.nc")))
+def find_nc_files(directory, pattern="*.nc"):
+    """Find .nc files matching a glob pattern in a directory, sorted."""
+    files = sorted(glob.glob(os.path.join(directory, pattern)))
     if not files:
-        raise FileNotFoundError(f"no .nc files found in {directory}")
-    print(f"  found {len(files)} files in {directory}")
+        raise FileNotFoundError(f"no files matching {pattern} in {directory}")
+    print(f"  found {len(files)} files in {directory} ({pattern})")
     return files
 
 
@@ -226,10 +226,9 @@ def main():
         description="Process already-downloaded SMOS L3 SSS (asc+desc): "
                     "QC, regrid 1/4°, merge, anomaly, save f32 NetCDF",
     )
-    parser.add_argument("--asc_dir", required=True,
-                        help="Directory containing ascending .nc files")
-    parser.add_argument("--desc_dir", required=True,
-                        help="Directory containing descending .nc files")
+    parser.add_argument("--data_dir", required=True,
+                        help="Directory containing asc/desc .nc files "
+                             "(files named *_asc_*.nc and *_desc_*.nc)")
     parser.add_argument("--output_dir", required=True,
                         help="Directory for output files")
     parser.add_argument("--year_start", type=int, default=2010)
@@ -249,11 +248,11 @@ def main():
 
     # --- open raw data ---
     print("Step 1: opening raw ascending files ...")
-    asc_files = find_nc_files(args.asc_dir)
+    asc_files = find_nc_files(args.data_dir, "*_asc_*.nc")
     ds_asc = open_and_rename(asc_files)
 
     print("Step 2: opening raw descending files ...")
-    desc_files = find_nc_files(args.desc_dir)
+    desc_files = find_nc_files(args.data_dir, "*_desc_*.nc")
     ds_desc = open_and_rename(desc_files)
 
     # --- QC ---
