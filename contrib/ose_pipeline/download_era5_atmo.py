@@ -29,7 +29,9 @@ Usage:
         --year_start 2010 --year_end 2019
 """
 import argparse
+import glob
 import os
+import zipfile
 
 import cdsapi
 import numpy as np
@@ -86,20 +88,61 @@ def download_era5_year(year, output_dir, lon_min, lon_max, lat_min, lat_max):
     return out_path
 
 
+def _unzip_if_needed(path):
+    """If path is a zip archive, extract its contents and return the
+    path to the extracted file(s)."""
+    if not zipfile.is_zipfile(path):
+        return [path]
+
+    extract_dir = path + "_extracted"
+    os.makedirs(extract_dir, exist_ok=True)
+    print(f"    unzipping {path} ...")
+    with zipfile.ZipFile(path, "r") as zf:
+        zf.extractall(extract_dir)
+    extracted = sorted(glob.glob(os.path.join(extract_dir, "*")))
+    print(f"    extracted {len(extracted)} files")
+    return extracted
+
+
+def _open_era5_file(path):
+    """Open a single ERA5 file, handling GRIB / NetCDF / zipped formats."""
+    files = _unzip_if_needed(path)
+    datasets = []
+    for f in files:
+        # Try NetCDF first, then GRIB
+        for engine in ["netcdf4", "cfgrib", "scipy"]:
+            try:
+                ds = xr.open_dataset(f, engine=engine, chunks={"time": 50})
+                datasets.append(ds)
+                break
+            except Exception:
+                continue
+        else:
+            raise RuntimeError(
+                f"could not open {f} with any engine (netcdf4/cfgrib/scipy). "
+                f"Install cfgrib+eccodes for GRIB support: "
+                f"pip install cfgrib eccodes"
+            )
+    if len(datasets) == 1:
+        return datasets[0]
+    return xr.merge(datasets)
+
+
 def compute_wind_speed(output_dir, year_start, year_end):
     """Post-process: compute wind speed from u10/v10 and save a clean
     merged file with all atmospheric variables + wind_speed."""
-    files = sorted(
+    raw_files = sorted(
         os.path.join(output_dir, f"era5_atmo_{y}.nc")
         for y in range(year_start, year_end + 1)
         if os.path.exists(os.path.join(output_dir, f"era5_atmo_{y}.nc"))
     )
-    if not files:
+    if not raw_files:
         print("  no ERA5 files found, skipping wind speed computation")
         return None
 
-    print(f"\nPost-processing: computing wind speed from u10/v10 ...")
-    ds = xr.open_mfdataset(files, combine="by_coords", chunks={"time": 50})
+    print(f"\nPost-processing: opening {len(raw_files)} yearly files ...")
+    yearly_datasets = [_open_era5_file(f) for f in raw_files]
+    ds = xr.concat(yearly_datasets, dim="time").sortby("time")
 
     if "latitude" in ds.dims:
         ds = ds.rename({"latitude": "lat", "longitude": "lon"})
