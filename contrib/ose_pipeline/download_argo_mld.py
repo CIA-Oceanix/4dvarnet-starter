@@ -61,7 +61,7 @@ def download_gdac_index(cache_dir):
 
     if os.path.exists(cache_path):
         print(f"  using cached index: {cache_path}")
-        df = pd.read_csv(cache_path)
+        df = pd.read_csv(cache_path, parse_dates=["date", "date_update"])
         return df
 
     print(f"  downloading GDAC index ...")
