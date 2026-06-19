@@ -172,23 +172,21 @@ def compute_mld_profile(depths, rho, ref_depth=REF_DEPTH,
 # 4. Process all profiles
 # ---------------------------------------------------------------------------
 
-def process_argo_to_mld(ds):
+def process_argo_to_mld(ds, ref_depth=REF_DEPTH, threshold=RHO_THRESHOLD):
     """Process argopy dataset: compute density and MLD for each profile.
 
     Returns a DataFrame with columns:
         time, lat, lon, mld, n_levels, max_depth
     """
-    # Extract variables — argopy returns different formats depending on
-    # the data source, so handle both possibilities
     if "N_PROF" in ds.dims and "N_LEVELS" in ds.dims:
-        return _process_profiles_2d(ds)
+        return _process_profiles_2d(ds, ref_depth, threshold)
     elif "N_POINTS" in ds.dims:
-        return _process_profiles_flat(ds)
+        return _process_profiles_flat(ds, ref_depth, threshold)
     else:
         raise ValueError(f"unexpected argopy dims: {list(ds.dims)}")
 
 
-def _process_profiles_flat(ds):
+def _process_profiles_flat(ds, ref_depth=REF_DEPTH, threshold=RHO_THRESHOLD):
     """Process flat (N_POINTS) argopy format."""
     # Group by profile (CYCLE_NUMBER + PLATFORM_NUMBER, or just by
     # unique (time, lat, lon) combinations)
@@ -236,7 +234,7 @@ def _process_profiles_flat(ds):
             warnings.simplefilter("ignore")
             rho = compute_density(p_temp, p_psal, p_pres, p_lon, p_lat)
 
-        mld = compute_mld_profile(p_depth, rho)
+        mld = compute_mld_profile(p_depth, rho, ref_depth, threshold)
 
         rows.append({
             "time": pd.Timestamp(p_time),
@@ -250,7 +248,7 @@ def _process_profiles_flat(ds):
     return pd.DataFrame(rows)
 
 
-def _process_profiles_2d(ds):
+def _process_profiles_2d(ds, ref_depth=REF_DEPTH, threshold=RHO_THRESHOLD):
     """Process 2D (N_PROF, N_LEVELS) argopy format."""
     n_prof = ds.sizes["N_PROF"]
     print(f"  processing {n_prof} profiles ...")
@@ -275,7 +273,7 @@ def _process_profiles_2d(ds):
             warnings.simplefilter("ignore")
             rho = compute_density(p_temp, p_psal, p_pres, p_lon, p_lat)
 
-        mld = compute_mld_profile(p_depth, rho)
+        mld = compute_mld_profile(p_depth, rho, ref_depth, threshold)
 
         rows.append({
             "time": pd.Timestamp(p_time),
@@ -349,16 +347,15 @@ def main():
                         help="Reference depth in m (default: 10)")
     args = parser.parse_args()
 
-    global RHO_THRESHOLD, REF_DEPTH
-    RHO_THRESHOLD = args.threshold
-    REF_DEPTH = args.ref_depth
+    rho_threshold = args.threshold
+    ref_depth = args.ref_depth
 
     os.makedirs(args.output_dir, exist_ok=True)
 
     print(f"Region: lon [{args.lon_min}, {args.lon_max}], "
           f"lat [{args.lat_min}, {args.lat_max}]")
     print(f"Year: {args.year}")
-    print(f"MLD criterion: Δρ = {RHO_THRESHOLD} kg/m³ from {REF_DEPTH}m")
+    print(f"MLD criterion: Δρ = {rho_threshold} kg/m³ from {ref_depth}m")
     print()
 
     # --- download ---
@@ -369,7 +366,7 @@ def main():
 
     # --- compute MLD ---
     print("Step 2: computing density and MLD ...")
-    df = process_argo_to_mld(ds)
+    df = process_argo_to_mld(ds, ref_depth=ref_depth, threshold=rho_threshold)
 
     valid_count = df["mld"].notna().sum()
     total_count = len(df)
