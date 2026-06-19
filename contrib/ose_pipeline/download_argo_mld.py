@@ -102,7 +102,7 @@ def download_profile(file_path, cache_dir):
     if os.path.exists(local_path):
         return xr.open_dataset(local_path)
 
-    url = f"{GDAC_BASE}/{file_path}"
+    url = f"{GDAC_BASE}/dac/{file_path}"
     resp = requests.get(url, timeout=60)
     resp.raise_for_status()
 
@@ -328,6 +328,9 @@ def main():
             continue
 
     df = pd.DataFrame(all_rows)
+    if len(df) == 0:
+        print("\n  no profiles could be processed, exiting")
+        return
     valid_count = df["mld"].notna().sum()
     total_count = len(df)
     print(f"\n  MLD computed: {valid_count}/{total_count} profiles "
