@@ -4,6 +4,9 @@ compute Mixed Layer Depth using the density threshold criterion
 (Δρ = 0.03 kg/m³ from 10m reference depth), and save as a clean
 validation dataset.
 
+Downloads profile index from GDAC HTTP, then fetches individual NetCDF
+profiles. No argopy dependency needed.
+
 MLD criterion:
     MLD = shallowest depth where ρ(z) - ρ(10m) >= Δρ_threshold
     with Δρ_threshold = 0.03 kg/m³ (de Boyer Montégut et al., 2004)
@@ -12,7 +15,7 @@ MLD criterion:
     using the TEOS-10 Gibbs SeaWater (gsw) toolbox.
 
 Requirements:
-    pip install argopy gsw xarray pandas numpy netCDF4
+    pip install gsw xarray pandas numpy netCDF4 requests
 
 Usage:
     python download_argo_mld.py --output_dir /path/to/output
@@ -23,20 +26,19 @@ Usage:
         --year 2023
 """
 import argparse
+import gzip
+import io
 import os
 import warnings
 
 import gsw
 import numpy as np
 import pandas as pd
+import requests
 import xarray as xr
 
-try:
-    import argopy
-    from argopy import DataFetcher
-    HAS_ARGOPY = True
-except ImportError:
-    HAS_ARGOPY = False
+GDAC_BASE = "https://data-argo.ifremer.fr"
+INDEX_URL = f"{GDAC_BASE}/ar_index_global_prof.txt.gz"
 
 # Gulf Stream defaults
 DEFAULT_LON_MIN = -65
@@ -50,29 +52,65 @@ REF_DEPTH = 10.0        # m — reference depth for density difference
 
 
 # ---------------------------------------------------------------------------
-# 1. Download Argo profiles
+# 1. Download Argo profiles via GDAC index
 # ---------------------------------------------------------------------------
 
-def download_argo_profiles(lon_min, lon_max, lat_min, lat_max, year):
-    """Download Argo profiles using argopy for the given region and year."""
-    if not HAS_ARGOPY:
-        raise ImportError(
-            "argopy is required: pip install argopy"
-        )
+def download_gdac_index(cache_dir):
+    """Download and parse the GDAC profile index."""
+    cache_path = os.path.join(cache_dir, "ar_index_global_prof.txt")
 
-    print(f"  fetching Argo profiles: "
-          f"lon [{lon_min}, {lon_max}], lat [{lat_min}, {lat_max}], "
-          f"year {year}")
+    if os.path.exists(cache_path):
+        print(f"  using cached index: {cache_path}")
+        df = pd.read_csv(cache_path)
+        return df
 
-    fetcher = DataFetcher(src="gdac", mode="expert").region(
-        [lon_min, lon_max, lat_min, lat_max, 0, 2000,
-         f"{year}-01-01", f"{year}-12-31"],
+    print(f"  downloading GDAC index ...")
+    resp = requests.get(INDEX_URL, timeout=300)
+    resp.raise_for_status()
+
+    raw = gzip.decompress(resp.content).decode("latin-1")
+    lines = raw.split("\n")
+    header_idx = next(
+        i for i, line in enumerate(lines) if line.startswith("file")
     )
 
-    ds = fetcher.to_xarray()
-    print(f"  downloaded {ds.sizes.get('N_POINTS', 'unknown')} data points")
+    df = pd.read_csv(
+        io.StringIO("\n".join(lines[header_idx:])),
+        parse_dates=["date", "date_update"],
+    )
+    df.to_csv(cache_path, index=False)
+    print(f"  index cached: {cache_path} ({len(df)} profiles)")
+    return df
 
-    return ds
+
+def filter_index(df, lon_min, lon_max, lat_min, lat_max, year):
+    """Filter the GDAC index for region and year."""
+    mask = (
+        (df["latitude"] >= lat_min) & (df["latitude"] <= lat_max)
+        & (df["longitude"] >= lon_min) & (df["longitude"] <= lon_max)
+        & (df["date"].dt.year == year)
+    )
+    filtered = df[mask].copy()
+    print(f"  filtered: {len(filtered)} profiles in region for {year}")
+    return filtered
+
+
+def download_profile(file_path, cache_dir):
+    """Download a single Argo profile NetCDF from GDAC, return xr.Dataset."""
+    local_path = os.path.join(cache_dir, "profiles",
+                               file_path.replace("/", "_"))
+    if os.path.exists(local_path):
+        return xr.open_dataset(local_path)
+
+    url = f"{GDAC_BASE}/{file_path}"
+    resp = requests.get(url, timeout=60)
+    resp.raise_for_status()
+
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+    with open(local_path, "wb") as f:
+        f.write(resp.content)
+
+    return xr.open_dataset(local_path)
 
 
 # ---------------------------------------------------------------------------
@@ -80,26 +118,9 @@ def download_argo_profiles(lon_min, lon_max, lat_min, lat_max, year):
 # ---------------------------------------------------------------------------
 
 def compute_density(temperature, salinity, pressure, longitude, latitude):
-    """Compute in-situ density from T, S, P using TEOS-10 (gsw).
-
-    Input:
-        temperature : in-situ temperature (°C, ITS-90)
-        salinity    : practical salinity (PSU)
-        pressure    : sea pressure (dbar)
-        longitude, latitude : for absolute salinity conversion
-
-    Returns:
-        rho : in-situ density (kg/m³)
-    """
-    # Convert practical salinity to absolute salinity
     SA = gsw.SA_from_SP(salinity, pressure, longitude, latitude)
-
-    # Convert in-situ temperature to conservative temperature
     CT = gsw.CT_from_t(SA, temperature, pressure)
-
-    # Compute in-situ density
     rho = gsw.rho(SA, CT, pressure)
-
     return rho
 
 
@@ -109,21 +130,11 @@ def compute_density(temperature, salinity, pressure, longitude, latitude):
 
 def compute_mld_profile(depths, rho, ref_depth=REF_DEPTH,
                         threshold=RHO_THRESHOLD):
-    """Compute MLD for a single profile using density threshold criterion.
-
-    MLD = shallowest depth where ρ(z) - ρ(ref_depth) >= threshold
-
-    Returns NaN if:
-        - no valid data above ref_depth
-        - threshold never exceeded (MLD deeper than profile)
-        - fewer than 3 valid levels
-    """
-    # Sort by depth (shallow to deep)
+    """MLD = shallowest depth where ρ(z) - ρ(ref_depth) >= threshold."""
     sort_idx = np.argsort(depths)
     depths = depths[sort_idx]
     rho = rho[sort_idx]
 
-    # Remove NaN
     valid = np.isfinite(depths) & np.isfinite(rho)
     depths = depths[valid]
     rho = rho[valid]
@@ -131,31 +142,23 @@ def compute_mld_profile(depths, rho, ref_depth=REF_DEPTH,
     if len(depths) < 3:
         return np.nan
 
-    # Find reference density at ref_depth (interpolate if needed)
     if depths[0] > ref_depth:
-        # No data shallow enough for reference
         return np.nan
 
-    # Interpolate density at reference depth
     rho_ref = np.interp(ref_depth, depths, rho)
 
-    # Find where density exceeds threshold
     delta_rho = rho - rho_ref
     exceed_idx = np.where(
         (delta_rho >= threshold) & (depths > ref_depth)
     )[0]
 
     if len(exceed_idx) == 0:
-        # Threshold never exceeded — MLD deeper than profile
         return np.nan
 
-    # Interpolate to find exact depth where threshold is crossed
     idx = exceed_idx[0]
     if idx == 0:
         return depths[idx]
 
-    # Linear interpolation between the last level below threshold
-    # and the first level above threshold
     z0 = depths[idx - 1]
     z1 = depths[idx]
     dr0 = delta_rho[idx - 1]
@@ -169,104 +172,41 @@ def compute_mld_profile(depths, rho, ref_depth=REF_DEPTH,
 
 
 # ---------------------------------------------------------------------------
-# 4. Process all profiles
+# 4. Process profiles
 # ---------------------------------------------------------------------------
 
-def process_argo_to_mld(ds, ref_depth=REF_DEPTH, threshold=RHO_THRESHOLD):
-    """Process argopy dataset: compute density and MLD for each profile.
+def process_single_profile(ds, ref_depth, threshold):
+    """Extract T/S/P from a single GDAC NetCDF profile, compute MLD.
 
-    Returns a DataFrame with columns:
-        time, lat, lon, mld, n_levels, max_depth
-    """
-    if "N_PROF" in ds.dims and "N_LEVELS" in ds.dims:
-        return _process_profiles_2d(ds, ref_depth, threshold)
-    elif "N_POINTS" in ds.dims:
-        return _process_profiles_flat(ds, ref_depth, threshold)
-    else:
-        raise ValueError(f"unexpected argopy dims: {list(ds.dims)}")
-
-
-def _process_profiles_flat(ds, ref_depth=REF_DEPTH, threshold=RHO_THRESHOLD):
-    """Process flat (N_POINTS) argopy format."""
-    # Group by profile (CYCLE_NUMBER + PLATFORM_NUMBER, or just by
-    # unique (time, lat, lon) combinations)
-    temp = ds["TEMP"].values
-    psal = ds["PSAL"].values
-    pres = ds["PRES"].values
-    lon = ds["LONGITUDE"].values
-    lat = ds["LATITUDE"].values
-    time = ds["TIME"].values
-
-    # Create profile IDs from platform + cycle
-    if "PLATFORM_NUMBER" in ds and "CYCLE_NUMBER" in ds:
-        platform = ds["PLATFORM_NUMBER"].values.astype(str)
-        cycle = ds["CYCLE_NUMBER"].values.astype(str)
-        profile_id = np.char.add(np.char.add(platform, "_"), cycle)
-    else:
-        # Fallback: group by (time, lat, lon) rounded
-        profile_id = np.array([
-            f"{t}_{la:.2f}_{lo:.2f}"
-            for t, la, lo in zip(time, lat, lon)
-        ])
-
-    unique_profiles = np.unique(profile_id)
-    print(f"  processing {len(unique_profiles)} profiles ...")
-
+    Returns a list of dicts (one per profile in the file — some files
+    contain multiple cycles)."""
     rows = []
-    for i, pid in enumerate(unique_profiles):
-        if i % 1000 == 0 and i > 0:
-            print(f"    profile {i}/{len(unique_profiles)}")
+    n_prof = ds.sizes.get("N_PROF", 1)
 
-        mask = profile_id == pid
-        p_temp = temp[mask]
-        p_psal = psal[mask]
-        p_pres = pres[mask]
-        p_lon = lon[mask][0]
-        p_lat = lat[mask][0]
-        p_time = time[mask][0]
+    for ip in range(n_prof):
+        if "N_PROF" in ds.dims:
+            prof = ds.isel(N_PROF=ip)
+        else:
+            prof = ds
 
-        # Compute depth from pressure
-        p_depth = gsw.z_from_p(p_pres, p_lat)
-        p_depth = np.abs(p_depth)  # positive downward
+        try:
+            p_temp = prof["TEMP"].values.flatten()
+            p_psal = prof["PSAL"].values.flatten()
+            p_pres = prof["PRES"].values.flatten()
+        except KeyError:
+            continue
 
-        # Compute density
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            rho = compute_density(p_temp, p_psal, p_pres, p_lon, p_lat)
-
-        mld = compute_mld_profile(p_depth, rho, ref_depth, threshold)
-
-        rows.append({
-            "time": pd.Timestamp(p_time),
-            "lat": float(p_lat),
-            "lon": float(p_lon),
-            "mld": mld,
-            "n_levels": int(np.isfinite(p_temp).sum()),
-            "max_depth": float(np.nanmax(p_depth)) if len(p_depth) > 0 else np.nan,
-        })
-
-    return pd.DataFrame(rows)
-
-
-def _process_profiles_2d(ds, ref_depth=REF_DEPTH, threshold=RHO_THRESHOLD):
-    """Process 2D (N_PROF, N_LEVELS) argopy format."""
-    n_prof = ds.sizes["N_PROF"]
-    print(f"  processing {n_prof} profiles ...")
-
-    rows = []
-    for i in range(n_prof):
-        if i % 1000 == 0 and i > 0:
-            print(f"    profile {i}/{n_prof}")
-
-        prof = ds.isel(N_PROF=i)
-        p_temp = prof["TEMP"].values
-        p_psal = prof["PSAL"].values
-        p_pres = prof["PRES"].values
-        p_lon = float(prof["LONGITUDE"])
         p_lat = float(prof["LATITUDE"])
-        p_time = prof["TIME"].values
+        p_lon = float(prof["LONGITUDE"])
 
-        # Compute depth from pressure
+        try:
+            p_time = pd.Timestamp(prof["JULD"].values)
+        except Exception:
+            try:
+                p_time = pd.Timestamp(prof["REFERENCE_DATE_TIME"].values)
+            except Exception:
+                p_time = pd.NaT
+
         p_depth = np.abs(gsw.z_from_p(p_pres, p_lat))
 
         with warnings.catch_warnings():
@@ -276,7 +216,7 @@ def _process_profiles_2d(ds, ref_depth=REF_DEPTH, threshold=RHO_THRESHOLD):
         mld = compute_mld_profile(p_depth, rho, ref_depth, threshold)
 
         rows.append({
-            "time": pd.Timestamp(p_time),
+            "time": p_time,
             "lat": p_lat,
             "lon": p_lon,
             "mld": mld,
@@ -284,7 +224,7 @@ def _process_profiles_2d(ds, ref_depth=REF_DEPTH, threshold=RHO_THRESHOLD):
             "max_depth": float(np.nanmax(p_depth)) if len(p_depth) > 0 else np.nan,
         })
 
-    return pd.DataFrame(rows)
+    return rows
 
 
 # ---------------------------------------------------------------------------
@@ -292,15 +232,12 @@ def _process_profiles_2d(ds, ref_depth=REF_DEPTH, threshold=RHO_THRESHOLD):
 # ---------------------------------------------------------------------------
 
 def save_results(df, output_dir, year, lon_min, lon_max, lat_min, lat_max):
-    """Save MLD results as both CSV and NetCDF."""
     tag = f"GS_{year}"
 
-    # --- CSV (all profiles, including failed ones) ---
     csv_path = os.path.join(output_dir, f"argo_mld_{tag}.csv")
     df.to_csv(csv_path, index=False)
     print(f"  saved CSV: {csv_path} ({len(df)} profiles)")
 
-    # --- NetCDF (valid MLD only) ---
     valid = df.dropna(subset=["mld"])
     ds = xr.Dataset(
         {
@@ -316,7 +253,7 @@ def save_results(df, output_dir, year, lon_min, lon_max, lat_min, lat_max):
             "mld_criterion": f"density threshold drho={RHO_THRESHOLD} kg/m3 "
                              f"from {REF_DEPTH}m reference",
             "region": f"lon [{lon_min}, {lon_max}], lat [{lat_min}, {lat_max}]",
-            "source": "Argo GDAC via argopy",
+            "source": "Argo GDAC (ifremer.fr)",
         },
     )
     nc_path = os.path.join(output_dir, f"argo_mld_{tag}.nc")
@@ -332,7 +269,7 @@ def save_results(df, output_dir, year, lon_min, lon_max, lat_min, lat_max):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Download Argo profiles and compute MLD "
+        description="Download Argo profiles from GDAC and compute MLD "
                     "(density threshold Δρ=0.03 kg/m³)",
     )
     parser.add_argument("--output_dir", required=True)
@@ -358,16 +295,39 @@ def main():
     print(f"MLD criterion: Δρ = {rho_threshold} kg/m³ from {ref_depth}m")
     print()
 
-    # --- download ---
-    print("Step 1: downloading Argo profiles ...")
-    ds = download_argo_profiles(
-        args.lon_min, args.lon_max, args.lat_min, args.lat_max, args.year,
+    # --- download index ---
+    print("Step 1: downloading GDAC profile index ...")
+    index_df = download_gdac_index(args.output_dir)
+
+    # --- filter ---
+    print("Step 2: filtering profiles for region and year ...")
+    filtered = filter_index(
+        index_df, args.lon_min, args.lon_max,
+        args.lat_min, args.lat_max, args.year,
     )
 
-    # --- compute MLD ---
-    print("Step 2: computing density and MLD ...")
-    df = process_argo_to_mld(ds, ref_depth=ref_depth, threshold=rho_threshold)
+    if len(filtered) == 0:
+        print("  no profiles found, exiting")
+        return
 
+    # --- download & process each profile ---
+    print("Step 3: downloading profiles and computing MLD ...")
+    all_rows = []
+    n = len(filtered)
+    for i, (_, row) in enumerate(filtered.iterrows()):
+        if i % 100 == 0:
+            print(f"  profile {i}/{n}")
+        try:
+            ds = download_profile(row["file"], args.output_dir)
+            rows = process_single_profile(ds, ref_depth, rho_threshold)
+            all_rows.extend(rows)
+            ds.close()
+        except Exception as e:
+            if i < 5:
+                print(f"    skipping {row['file']}: {e}")
+            continue
+
+    df = pd.DataFrame(all_rows)
     valid_count = df["mld"].notna().sum()
     total_count = len(df)
     print(f"\n  MLD computed: {valid_count}/{total_count} profiles "
@@ -381,7 +341,7 @@ def main():
               f"max={df['mld'].max():.1f}m")
 
     # --- save ---
-    print("\nStep 3: saving results ...")
+    print("\nStep 4: saving results ...")
     csv_path, nc_path = save_results(
         df, args.output_dir, args.year,
         args.lon_min, args.lon_max, args.lat_min, args.lat_max,
