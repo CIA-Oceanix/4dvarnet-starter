@@ -39,6 +39,9 @@ SSS_QC_VAR = "Sea_Surface_Salinity_QC"
 MAX_SSS_ERROR = 4.0
 
 
+L4_SSS_VAR = "sos"
+
+
 # ---------------------------------------------------------------------------
 # 1. QC filtering — SMOS documentation criteria
 # ---------------------------------------------------------------------------
@@ -149,8 +152,29 @@ def merge_asc_desc(asc_da, desc_da):
 # 4. Climatology & anomaly
 # ---------------------------------------------------------------------------
 
-def compute_climatology(da):
-    """Day-of-year climatology averaged over all years."""
+def compute_climatology_from_l4(l4_path, target_lons=None, target_lats=None):
+    """Compute day-of-year SSS climatology from the L4 product.
+
+    If target_lons/target_lats are provided (i.e. the L3 data was regridded
+    to 1/4°), the L4 climatology is interpolated onto the same grid so that
+    subtraction is aligned."""
+    print(f"  opening L4 file: {l4_path}")
+    ds_l4 = xr.open_dataset(l4_path, chunks={"time": 50})
+    if "latitude" in ds_l4.dims:
+        ds_l4 = ds_l4.rename({"latitude": "lat", "longitude": "lon"})
+
+    sss_l4 = ds_l4[L4_SSS_VAR]
+    clim = sss_l4.groupby("time.dayofyear").mean("time").compute()
+
+    if target_lons is not None and target_lats is not None:
+        print("  interpolating L4 climatology onto 1/4° grid ...")
+        clim = clim.interp(lat=target_lats, lon=target_lons, method="linear")
+
+    return clim
+
+
+def compute_climatology_from_data(da):
+    """Fallback: day-of-year climatology from the L3 data itself."""
     return da.groupby("time.dayofyear").mean("time")
 
 
@@ -212,6 +236,10 @@ def main():
     parser.add_argument("--year_end", type=int, default=2019)
     parser.add_argument("--skip_regrid", action="store_true",
                         help="Skip regridding (keep native resolution)")
+    parser.add_argument("--l4_path", default=None,
+                        help="Path to L4 SSS NetCDF for climatology "
+                             "(recommended). If not provided, climatology "
+                             "is computed from L3 data itself (less robust).")
     parser.add_argument("--skip_anomaly", action="store_true",
                         help="Save absolute SSS instead of anomaly")
     args = parser.parse_args()
@@ -263,15 +291,25 @@ def main():
 
     # --- anomaly ---
     if not args.skip_anomaly:
-        print("Step 8: computing day-of-year climatology ...")
-        clim = compute_climatology(merged)
+        if args.l4_path is not None:
+            print("Step 8: computing day-of-year climatology from L4 ...")
+            regridded_lons = target_lons if not args.skip_regrid else None
+            regridded_lats = target_lats if not args.skip_regrid else None
+            clim = compute_climatology_from_l4(
+                args.l4_path, regridded_lons, regridded_lats,
+            )
+        else:
+            print("Step 8: computing day-of-year climatology from L3 "
+                  "(no --l4_path provided, less robust) ...")
+            clim = compute_climatology_from_data(merged)
+
         clim_path = os.path.join(
             args.output_dir, f"SSS_climatology_{ys}_{ye}.nc",
         )
         clim.to_dataset(name="sss_clim").to_netcdf(clim_path)
         print(f"  climatology saved to {clim_path}")
 
-        print("Step 9: computing anomaly ...")
+        print("Step 9: computing anomaly (L3 - L4 climatology) ...")
         anomaly = compute_anomaly(merged, clim)
         ds_out = anomaly.to_dataset(name="sss_anomaly")
     else:
