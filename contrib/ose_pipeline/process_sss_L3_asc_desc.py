@@ -76,8 +76,8 @@ def apply_smos_qc(ds):
 
     # --- QC flag filtering (if available) ---
     if SSS_QC_VAR in ds:
-        combined_mask = combined_mask & (ds[SSS_QC_VAR] <= QC_MAX_ACCEPTABLE)
-        print(f"    QC: applied flag filtering ({SSS_QC_VAR} <= {QC_MAX_ACCEPTABLE})")
+        combined_mask = combined_mask & (ds[SSS_QC_VAR] == 0)
+        print(f"    QC: applied flag filtering ({SSS_QC_VAR} == 0, i.e. good)")
     else:
         print(f"    QC: {SSS_QC_VAR} not found, skipping flag filtering")
 
