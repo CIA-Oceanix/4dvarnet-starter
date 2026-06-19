@@ -49,31 +49,37 @@ L4_SSS_VAR = "sos"
 def apply_smos_qc(ds):
     """Apply SMOS L3 quality filtering:
 
-    1. Reject pixels where SSS_Error >= MAX_SSS_ERROR (removes ice-edge
-       artefacts and erroneous Mediterranean retrievals).
-    2. Reject pixels where SSS falls outside [minSSS - 2*Error,
-       maxSSS + 2*Error].  The per-grid-point min/max are estimated as
-       the 1st and 99th percentile of the full time series (approximating
-       the documentation's "statistics of SMOS retrieved SSS with wind
-       0-16 m/s, chi < 1.4").
+    1. If SSS_Error is available: reject pixels where error >= 4, and
+       reject pixels outside [minSSS - 2*Error, maxSSS + 2*Error].
+    2. If only QC flag is available: reject pixels where QC > 1.
+    3. Always reject obvious outliers (SSS outside [0, 45] PSU).
     """
     sss = ds[SSS_VAR]
-    error = ds[SSS_ERROR_VAR]
+    combined_mask = sss.notnull()
 
-    # --- criterion 1: error < threshold ---
-    error_mask = error < MAX_SSS_ERROR
+    # --- physical bounds ---
+    combined_mask = combined_mask & (sss >= 0) & (sss <= 45)
 
-    # --- criterion 2: SSS within climatological bounds ± 2*error ---
-    # Compute per-grid-point min/max over time (robust percentiles to
-    # approximate the documentation's filtered statistics).
-    sss_min = sss.quantile(0.01, dim="time")
-    sss_max = sss.quantile(0.99, dim="time")
+    # --- error-based filtering (if available) ---
+    if SSS_ERROR_VAR in ds:
+        error = ds[SSS_ERROR_VAR]
+        combined_mask = combined_mask & (error < MAX_SSS_ERROR)
 
-    lower_bound = sss_min - 2 * error
-    upper_bound = sss_max + 2 * error
-    bounds_mask = (sss >= lower_bound) & (sss <= upper_bound)
+        sss_min = sss.quantile(0.01, dim="time")
+        sss_max = sss.quantile(0.99, dim="time")
+        lower_bound = sss_min - 2 * error
+        upper_bound = sss_max + 2 * error
+        combined_mask = combined_mask & (sss >= lower_bound) & (sss <= upper_bound)
+        print("    QC: applied error-based filtering (error < 4, bounds ± 2*error)")
+    else:
+        print(f"    QC: {SSS_ERROR_VAR} not found, skipping error-based filtering")
 
-    combined_mask = error_mask & bounds_mask
+    # --- QC flag filtering (if available) ---
+    if SSS_QC_VAR in ds:
+        combined_mask = combined_mask & (ds[SSS_QC_VAR] <= QC_MAX_ACCEPTABLE)
+        print(f"    QC: applied flag filtering ({SSS_QC_VAR} <= {QC_MAX_ACCEPTABLE})")
+    else:
+        print(f"    QC: {SSS_QC_VAR} not found, skipping flag filtering")
 
     n_total = int(sss.count())
     n_rejected = int((~combined_mask & sss.notnull()).sum())
