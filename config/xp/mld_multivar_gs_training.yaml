@@ -1,0 +1,140 @@
+# @package _global_
+#
+# MLD prediction from multi-variable input (GLORYS12 ocean + ERA5 atmo)
+# Gulf Stream region, 2010-2018 training, 2019 validation
+#
+# Input (9 vars × 15 days = 135 channels):
+#   GLORYS12: zos (SLA), thetao (SST), so (SSS)
+#   ERA5: sshf, slhf, msl, u10, v10, wind_speed
+#
+# Output: mlotst (MLD), repeated 9× to match input channels (135)
+#
+# Data is pre-normalized per variable in the loader.
+# norm_stats = (0, 1) since normalization happens in the loader.
+#
+# Interleaved layout per real timestep:
+#   [zos_t, thetao_t, so_t, sshf_t, slhf_t, msl_t, u10_t, v10_t, wind_speed_t]
+# patch_dims.time = 9 vars × 15 days = 135
+# strides.time = 9 (= one real day step)
+
+paths:
+    glorys12_data: /Odyssey/public/glorys/GS_MLD/glorys_multivar_GS_2010_2019.nc
+    era5_data: /Odyssey/public/glorys/GS_MLD/era5_atmo_GS_2010_2019.nc
+
+domain:
+  train:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - 32
+      - 42
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -65
+      - -55
+
+  test:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - 32
+      - 42
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -65
+      - -55
+
+trainer:
+  _target_: pytorch_lightning.Trainer
+  inference_mode: False
+  gradient_clip_val: 0.5
+  accelerator: gpu
+  devices: 1
+  logger:
+    _target_: pytorch_lightning.loggers.CSVLogger
+    save_dir: /Odyssey/public/glorys/trainings/MLD_multivar_GS_UNet
+    name: ${hydra:runtime.choices.xp}
+    version: ''
+  max_epochs: 350
+  limit_train_batches: 100
+  callbacks:
+    - _target_: src.versioning_cb.VersioningCallback
+    - _target_: pytorch_lightning.callbacks.LearningRateMonitor
+    - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+      monitor: val_mse
+      save_top_k: 5
+      filename: '{val_mse:.5f}-{epoch:03d}'
+
+datamodule:
+  _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU
+  input_da:
+    _target_: contrib.data_loading.data.open_mld_multivar_gs
+    glorys_path: ${paths.glorys12_data}
+    era5_path: ${paths.era5_data}
+    domain: ${domain.train}
+    glorys_input_vars: [zos, thetao, so]
+    era5_vars: [sshf, slhf, msl, u10, v10, wind_speed]
+    time_slice: {_target_: builtins.slice, _args_: ['2010-01-01', '2019-12-31']}
+  domains:
+    train:
+      time: {_target_: builtins.slice, _args_: ['2010-01-01', '2018-12-31']}
+    val:
+      time: {_target_: builtins.slice, _args_: ['2019-01-01', '2019-12-31']}
+    test:
+      time: {_target_: builtins.slice, _args_: ['2019-12-31', '2019-12-31']}
+  xrds_kw:
+    # time = 9 vars × 15 days = 135 pseudo-timesteps per patch
+    # lat/lon: Gulf Stream region is ~10° × 10° at 1/12° = ~120 × 120 points
+    patch_dims: { time: 135, lat: 121, lon: 121}
+    strides: { time: 9, lat: 111, lon: 111}
+    domain_limits: ${domain.train}
+  dl_kw: {batch_size: 1, num_workers: 4}
+  aug_kw:
+    aug_factor: 1
+    aug_only: True
+  norm_stats: [0.0, 1.0]
+
+model:
+  _target_: contrib.forecast_plus.models.Plus4dVarNetForecastPatchGPU_UNet_MLD
+  persist_rw: False
+  norm_stats: [0.0, 1.0]
+  opt_fn:
+    _target_: src.utils.cosanneal_lr_adam_UNet
+    _partial_: true
+    lr: 1e-3
+    T_max: ${trainer.max_epochs}
+  rec_weight:
+    _target_: src.utils.get_forecast_wei
+    patch_dims: ${datamodule.xrds_kw.patch_dims}
+    crop: {time: 0, lat: 4, lon: 4}
+  rec_weight_fn:
+    _target_: contrib.forecast_weights.forecast_weights_reconstruction_soft_edges
+    _partial_: True
+    soft_edge: 0.25
+  solver:
+    _target_: src.models_UNet.UNet
+    n_channels: 135
+    n_classes: 135
+    bilinear: True
+    block:
+      _target_: src.parts.ResBlock
+      _partial_: True
+    add_input: False
+  pre_metric_fn:
+    _target_: xarray.Dataset.sel
+    _partial_: True
+    lat: ${domain.test.lat}
+    lon: ${domain.test.lon}
+
+entrypoints:
+  - _target_: pytorch_lightning.seed_everything
+    seed: 333
+  - _target_: src.train.base_training
+    trainer: ${trainer}
+    lit_mod: ${model}
+    dm: ${datamodule}
+
+defaults:
+  - _self_

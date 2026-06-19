@@ -2176,3 +2176,145 @@ def open_multivar_datasets(vars_info,
     )
 
     return full_dataset
+
+
+def open_mld_multivar_gs(
+    glorys_path,
+    era5_path,
+    domain,
+    glorys_input_vars=None,
+    era5_vars=None,
+    time_slice=None,
+):
+    """Load multi-variable input (GLORYS12 ocean + ERA5 atmo) and MLD target
+    for the Gulf Stream region.
+
+    Each input variable is independently normalized (zero mean, unit std).
+    All input variables are interleaved along the time dimension:
+        for each real timestep t, we get N_vars consecutive channels.
+        total input "time" dim = N_vars * real_time.
+    Target (mlotst) is also normalized independently.
+
+    The DataModule should use norm_stats=(0, 1) since data is pre-normalized.
+
+    Returns xr.DataArray with dims (variable=[input,tgt], time, lat, lon).
+    """
+    if glorys_input_vars is None:
+        glorys_input_vars = ["zos", "thetao", "so"]
+    if era5_vars is None:
+        era5_vars = ["sshf", "slhf", "msl", "u10", "v10", "wind_speed"]
+
+    n_input_vars = len(glorys_input_vars) + len(era5_vars)
+
+    print("LOADING GLORYS12 ocean data ...")
+    ds_ocean = xr.open_dataset(glorys_path, chunks={"time": 50})
+    if "latitude" in ds_ocean.dims:
+        ds_ocean = ds_ocean.rename({"latitude": "lat", "longitude": "lon"})
+    if "depth" in ds_ocean.dims:
+        ds_ocean = ds_ocean.isel(depth=0).drop_vars("depth", errors="ignore")
+    ds_ocean = ds_ocean.sel(domain)
+    if time_slice is not None:
+        ds_ocean = ds_ocean.sel(time=time_slice)
+
+    print("LOADING ERA5 atmospheric data ...")
+    ds_atmo = xr.open_dataset(era5_path, chunks={"time": 50})
+    if "latitude" in ds_atmo.dims:
+        ds_atmo = ds_atmo.rename({"latitude": "lat", "longitude": "lon"})
+    ds_atmo = ds_atmo.sel(domain)
+    if time_slice is not None:
+        ds_atmo = ds_atmo.sel(time=time_slice)
+
+    # Interpolate ERA5 onto GLORYS grid
+    print("Interpolating ERA5 onto GLORYS grid ...")
+    ds_atmo = ds_atmo[era5_vars].interp(
+        lat=ds_ocean.lat, lon=ds_ocean.lon, method="linear",
+    )
+
+    # Align on common time
+    common_time = np.intersect1d(ds_ocean.time.values, ds_atmo.time.values)
+    print(f"  common timesteps: {len(common_time)}")
+    ds_ocean = ds_ocean.sel(time=common_time).load()
+    ds_atmo = ds_atmo.sel(time=common_time).load()
+
+    all_input_names = glorys_input_vars + era5_vars
+    print(f"  input vars: {all_input_names} ({n_input_vars} vars)")
+
+    # Normalize each variable independently and collect arrays
+    norm_stats_dict = {}
+    normalized_arrays = {}
+
+    for v in glorys_input_vars:
+        arr = ds_ocean[v].astype(np.float32)
+        m, s = float(arr.mean(skipna=True)), float(arr.std(skipna=True))
+        s = max(s, 1e-6)
+        normalized_arrays[v] = (arr - m) / s
+        norm_stats_dict[v] = (m, s)
+        print(f"    {v}: mean={m:.4f}, std={s:.4f}")
+
+    for v in era5_vars:
+        arr = ds_atmo[v].astype(np.float32)
+        m, s = float(arr.mean(skipna=True)), float(arr.std(skipna=True))
+        s = max(s, 1e-6)
+        normalized_arrays[v] = (arr - m) / s
+        norm_stats_dict[v] = (m, s)
+        print(f"    {v}: mean={m:.4f}, std={s:.4f}")
+
+    # Normalize MLD target
+    mld = ds_ocean["mlotst"].astype(np.float32)
+    mld_mean, mld_std = float(mld.mean(skipna=True)), float(mld.std(skipna=True))
+    mld_std = max(mld_std, 1e-6)
+    mld_norm = (mld - mld_mean) / mld_std
+    norm_stats_dict["mlotst"] = (mld_mean, mld_std)
+    print(f"    mlotst (target): mean={mld_mean:.4f}, std={mld_std:.4f}")
+
+    # Interleave input variables along time dimension:
+    # For T real timesteps, create N_vars*T "pseudo-time" steps
+    # Layout: [var0_t0, var1_t0, ..., varN_t0, var0_t1, var1_t1, ..., varN_t1, ...]
+    T = len(common_time)
+    nlat = len(ds_ocean.lat)
+    nlon = len(ds_ocean.lon)
+
+    input_flat = np.full((n_input_vars * T, nlat, nlon), np.nan, dtype=np.float32)
+    for vi, vname in enumerate(all_input_names):
+        arr = normalized_arrays[vname].values
+        input_flat[vi::n_input_vars, :, :] = arr
+
+    # Target: repeat each MLD timestep N_vars times to match input dim
+    tgt_flat = np.full((n_input_vars * T, nlat, nlon), np.nan, dtype=np.float32)
+    mld_vals = mld_norm.values
+    for vi in range(n_input_vars):
+        tgt_flat[vi::n_input_vars, :, :] = mld_vals
+
+    # Expand real timestamps: each real day maps to N_vars pseudo-steps
+    # Use the real timestamps repeated, so domain slicing by year still works
+    real_times = common_time
+    pseudo_time = np.repeat(real_times, n_input_vars)
+    # Add sub-day offsets to make timestamps unique
+    offsets = np.tile(
+        pd.to_timedelta(np.arange(n_input_vars), unit="h"),
+        T,
+    )
+    pseudo_time = pd.DatetimeIndex(pseudo_time) + offsets
+
+    input_da = xr.DataArray(
+        input_flat, dims=["time", "lat", "lon"],
+        coords={"time": pseudo_time, "lat": ds_ocean.lat, "lon": ds_ocean.lon},
+    )
+    tgt_da = xr.DataArray(
+        tgt_flat, dims=["time", "lat", "lon"],
+        coords={"time": pseudo_time, "lat": ds_ocean.lat, "lon": ds_ocean.lon},
+    )
+
+    ds = xr.Dataset({"input": input_da, "tgt": tgt_da})
+    ds = (
+        ds[[*TrainingItem._fields]]
+        .transpose("time", "lat", "lon")
+        .to_array()
+    )
+
+    print(f"  output shape: {ds.shape}")
+    print(f"  n_input_vars={n_input_vars}, T={T}, "
+          f"patch time should be {n_input_vars} * desired_T")
+    print(f"  MLD norm_stats for denormalization: mean={mld_mean}, std={mld_std}")
+
+    return ds
