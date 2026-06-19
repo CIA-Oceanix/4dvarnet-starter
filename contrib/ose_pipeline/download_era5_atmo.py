@@ -109,10 +109,20 @@ def _open_era5_file(path):
     files = _unzip_if_needed(path)
     datasets = []
     for f in files:
-        # Try NetCDF first, then GRIB
         for engine in ["netcdf4", "cfgrib", "scipy"]:
             try:
-                ds = xr.open_dataset(f, engine=engine, chunks={"time": 50})
+                ds = xr.open_dataset(f, engine=engine)
+                # cfgrib adds extra coords (step, surface, etc.) with
+                # object dtype that break dask — drop them
+                drop_vars = [
+                    v for v in ds.coords
+                    if v not in ds.dims and ds[v].dtype == object
+                ]
+                if drop_vars:
+                    ds = ds.drop_vars(drop_vars)
+                # cfgrib uses "valid_time" instead of "time"
+                if "valid_time" in ds.dims and "time" not in ds.dims:
+                    ds = ds.rename({"valid_time": "time"})
                 datasets.append(ds)
                 break
             except Exception:
@@ -125,7 +135,10 @@ def _open_era5_file(path):
             )
     if len(datasets) == 1:
         return datasets[0]
-    return xr.merge(datasets)
+    # Merge the two GRIB messages (pressure-level vs surface vars)
+    # into a single dataset; keep only data vars that have a time dim
+    merged = xr.merge(datasets, compat="override", join="override")
+    return merged
 
 
 def compute_wind_speed(output_dir, year_start, year_end):
@@ -142,6 +155,17 @@ def compute_wind_speed(output_dir, year_start, year_end):
 
     print(f"\nPost-processing: opening {len(raw_files)} yearly files ...")
     yearly_datasets = [_open_era5_file(f) for f in raw_files]
+
+    # Drop non-dimensional coords that vary across files to avoid concat issues
+    common_data_vars = set.intersection(
+        *[set(d.data_vars) for d in yearly_datasets]
+    )
+    yearly_datasets = [
+        d[list(common_data_vars)].drop_vars(
+            [c for c in d.coords if c not in d.dims], errors="ignore",
+        )
+        for d in yearly_datasets
+    ]
     ds = xr.concat(yearly_datasets, dim="time").sortby("time")
 
     if "latitude" in ds.dims:
