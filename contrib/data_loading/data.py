@@ -2221,22 +2221,24 @@ def open_mld_multivar_gs(
         ds_ocean = ds_ocean.sel(time=time_slice)
 
     print("LOADING ERA5 atmospheric data ...")
-    ds_atmo = xr.open_dataset(era5_path, chunks={"time": 50})
+    ds_atmo = xr.open_dataset(era5_path)
     if "latitude" in ds_atmo.dims:
         ds_atmo = ds_atmo.rename({"latitude": "lat", "longitude": "lon"})
-    ds_atmo = ds_atmo.sel(domain)
     if time_slice is not None:
         ds_atmo = ds_atmo.sel(time=time_slice)
 
-    # Interpolate ERA5 onto GLORYS grid
+    # Floor time before alignment (ERA5 at noon, GLORYS at midnight)
+    ds_atmo["time"] = ds_atmo.time.dt.floor("D")
+    ds_ocean["time"] = ds_ocean.time.dt.floor("D")
+
+    # Interpolate ERA5 onto GLORYS grid (do this before domain sel
+    # in case ERA5 uses different lon convention)
     print("Interpolating ERA5 onto GLORYS grid ...")
     ds_atmo = ds_atmo[list(era5_vars)].interp(
         lat=ds_ocean.lat, lon=ds_ocean.lon, method="linear",
     )
 
-    # Align on common dates (ERA5 may be at noon, GLORYS at midnight)
-    ds_atmo["time"] = ds_atmo.time.dt.floor("D")
-    ds_ocean["time"] = ds_ocean.time.dt.floor("D")
+    # Align on common dates
     common_time = np.intersect1d(ds_ocean.time.values, ds_atmo.time.values)
     print(f"  common timesteps: {len(common_time)}")
     ds_ocean = ds_ocean.sel(time=common_time).load()
