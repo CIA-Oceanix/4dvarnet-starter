@@ -18,8 +18,8 @@
 # strides.time = 9 (= one real day step)
 
 paths:
-    glorys12_data: /Odyssey/public/glorys/GS_MLD/glorys_multivar_GS_2010_2019.nc
-    era5_data: /Odyssey/public/glorys/GS_MLD/era5_atmo_GS_2010_2019.nc
+    glorys12_data: /Odyssey/public/glorys/reanalysis/multivar/glorys_multivar_15m_2010-2018.nc
+    era5_data: /Odyssey/public/glorys/GS_MLD/era5/era5_atmo_GS_2010_2019.nc
 
 domain:
   train:

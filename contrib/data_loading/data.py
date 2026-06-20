@@ -2234,7 +2234,9 @@ def open_mld_multivar_gs(
         lat=ds_ocean.lat, lon=ds_ocean.lon, method="linear",
     )
 
-    # Align on common time
+    # Align on common dates (ERA5 may be at noon, GLORYS at midnight)
+    ds_atmo["time"] = ds_atmo.time.dt.floor("D")
+    ds_ocean["time"] = ds_ocean.time.dt.floor("D")
     common_time = np.intersect1d(ds_ocean.time.values, ds_atmo.time.values)
     print(f"  common timesteps: {len(common_time)}")
     ds_ocean = ds_ocean.sel(time=common_time).load()
