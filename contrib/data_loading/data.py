@@ -2201,8 +2201,12 @@ def open_mld_multivar_gs(
     """
     if glorys_input_vars is None:
         glorys_input_vars = ["zos", "thetao", "so"]
+    else:
+        glorys_input_vars = list(glorys_input_vars)
     if era5_vars is None:
         era5_vars = ["sshf", "slhf", "msl", "u10", "v10", "wind_speed"]
+    else:
+        era5_vars = list(era5_vars)
 
     n_input_vars = len(glorys_input_vars) + len(era5_vars)
 
@@ -2226,7 +2230,7 @@ def open_mld_multivar_gs(
 
     # Interpolate ERA5 onto GLORYS grid
     print("Interpolating ERA5 onto GLORYS grid ...")
-    ds_atmo = ds_atmo[era5_vars].interp(
+    ds_atmo = ds_atmo[list(era5_vars)].interp(
         lat=ds_ocean.lat, lon=ds_ocean.lon, method="linear",
     )
 
