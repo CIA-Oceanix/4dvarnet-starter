@@ -3,19 +3,19 @@
 # MLD prediction from multi-variable input (GLORYS12 ocean + ERA5 atmo)
 # Gulf Stream region, 2010-2018 training, 2019 validation
 #
-# Input (9 vars × 15 days = 135 channels):
-#   GLORYS12: zos (SLA), thetao (SST), so (SSS)
+# Input (10 vars × 15 days = 150 channels):
+#   GLORYS12: zos (SLA), thetao (SST), uo, vo (currents)
 #   ERA5: sshf, slhf, msl, u10, v10, wind_speed
 #
-# Output: mlotst (MLD), repeated 9× to match input channels (135)
+# Output: mlotst (MLD), repeated 10× to match input channels (150)
 #
 # Data is pre-normalized per variable in the loader.
 # norm_stats = (0, 1) since normalization happens in the loader.
 #
 # Interleaved layout per real timestep:
-#   [zos_t, thetao_t, so_t, sshf_t, slhf_t, msl_t, u10_t, v10_t, wind_speed_t]
-# patch_dims.time = 9 vars × 15 days = 135
-# strides.time = 9 (= one real day step)
+#   [zos_t, thetao_t, uo_t, vo_t, sshf_t, slhf_t, msl_t, u10_t, v10_t, wind_speed_t]
+# patch_dims.time = 10 vars × 15 days = 150
+# strides.time = 10 (= one real day step)
 
 paths:
     glorys12_data: /Odyssey/public/glorys/reanalysis/multivar/glorys_multivar_15m_2010-2018.nc
@@ -74,7 +74,7 @@ datamodule:
     glorys_path: ${paths.glorys12_data}
     era5_path: ${paths.era5_data}
     domain: ${domain.train}
-    glorys_input_vars: [zos, thetao, so]
+    glorys_input_vars: [zos, thetao, uo, vo]
     era5_vars: [sshf, slhf, msl, u10, v10, wind_speed]
     time_slice: {_target_: builtins.slice, _args_: ['2010-01-01', '2019-12-31']}
   domains:
@@ -85,10 +85,10 @@ datamodule:
     test:
       time: {_target_: builtins.slice, _args_: ['2019-12-31', '2019-12-31']}
   xrds_kw:
-    # time = 9 vars × 15 days = 135 pseudo-timesteps per patch
+    # time = 10 vars × 15 days = 150 pseudo-timesteps per patch
     # lat/lon: Gulf Stream region is ~10° × 10° at 1/12° = ~120 × 120 points
-    patch_dims: { time: 135, lat: 121, lon: 121}
-    strides: { time: 9, lat: 111, lon: 111}
+    patch_dims: { time: 150, lat: 121, lon: 121}
+    strides: { time: 10, lat: 111, lon: 111}
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 1, num_workers: 4}
   aug_kw:
@@ -115,8 +115,8 @@ model:
     soft_edge: 0.25
   solver:
     _target_: src.models_UNet.UNet
-    n_channels: 135
-    n_classes: 135
+    n_channels: 150
+    n_classes: 150
     bilinear: True
     block:
       _target_: src.parts.ResBlock
