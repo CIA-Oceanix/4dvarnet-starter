@@ -87,8 +87,8 @@ datamodule:
   xrds_kw:
     # time = 10 vars × 15 days = 150 pseudo-timesteps per patch
     # lat/lon: Gulf Stream region is ~10° × 10° at 1/12° = ~120 × 120 points
-    patch_dims: { time: 150, lat: 121, lon: 121}
-    strides: { time: 10, lat: 111, lon: 111}
+    patch_dims: { time: 150, lat: 40, lon: 40}
+    strides: { time: 10, lat: 30, lon: 30}
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 1, num_workers: 4}
   aug_kw:
