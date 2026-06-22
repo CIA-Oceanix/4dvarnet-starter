@@ -106,7 +106,7 @@ model:
     lr: 1e-3
     T_max: ${trainer.max_epochs}
   rec_weight:
-    _target_: src.utils.get_forecast_wei
+    _target_: src.utils.get_constant_crop
     patch_dims: ${datamodule.xrds_kw.patch_dims}
     crop: {time: 0, lat: 4, lon: 4}
   rec_weight_fn:
