@@ -79,11 +79,11 @@ datamodule:
     time_slice: {_target_: builtins.slice, _args_: ['2010-01-01', '2019-12-31']}
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2010-01-01', '2018-12-31']}
+      time: {_target_: builtins.slice, _args_: ['2010-01-01', '2017-12-31']}
     val:
-      time: {_target_: builtins.slice, _args_: ['2019-01-01', '2019-12-31']}
+      time: {_target_: builtins.slice, _args_: ['2018-01-01', '2018-12-31']}
     test:
-      time: {_target_: builtins.slice, _args_: ['2019-12-31', '2019-12-31']}
+      time: {_target_: builtins.slice, _args_: ['2018-12-31', '2018-12-31']}
   xrds_kw:
     # time = 10 vars × 15 days = 150 pseudo-timesteps per patch
     # lat/lon: Gulf Stream region is ~10° × 10° at 1/12° = ~120 × 120 points
