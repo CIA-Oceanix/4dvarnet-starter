@@ -52,7 +52,7 @@ trainer:
     save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SSS_UNet_OSE_L3_target_2015_2019
     name: ${hydra:runtime.choices.xp}
     version: ''
-  max_epochs: 350
+  max_epochs: 895
   limit_train_batches: 100
   callbacks:
     - _target_: src.versioning_cb.VersioningCallback
@@ -127,6 +127,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
+    ckpt: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_SSS_UNet_OSE_L3_target_2015_2019/sss_ose_training_L3_2015_2019/checkpoints/val_mse=1.56897-epoch=339.ckpt
 
 defaults:
   - _self_
