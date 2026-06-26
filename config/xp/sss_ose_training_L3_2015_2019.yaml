@@ -11,8 +11,11 @@ paths:
     masks_path: /Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle
     glorys12_data: /Odyssey/public/SALINITY_L3/NRT/SSS-L3-2010_2023_asc_desc_averaged_ANOMALY_CLIMATO_f32_QC_controled_flagged.nc
     full_l4_path: /Odyssey/public/SALINITY_L3/NRT/SSS-L3-2010_2023_asc_desc_averaged_ANOMALY_CLIMATO_f32_QC_controled_flagged.nc
+    ref_data_l4: ""
+    ose_data_paths: ""
 
 var_name: "sos"
+year_ose: 2023
 
 domain:
   train:
