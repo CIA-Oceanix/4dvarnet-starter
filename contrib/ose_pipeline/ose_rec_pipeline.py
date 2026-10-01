@@ -43,6 +43,9 @@ def setup_model_config(
     # optional model-config key `ose_input_loader` selects another input loader (default unchanged)
     input_loader = config.get('ose_input_loader', 'contrib.data_loading.data.load_ose_data_with_tgt_mask_SLA')
     OmegaConf.update(config, key='datamodule.input_da._target_', value=input_loader)
+    # optional model-config key `ose_input_loader_kwargs`: extra keyword arguments for that loader
+    for loader_key, loader_value in dict(config.get('ose_input_loader_kwargs', {}) or {}).items():
+        OmegaConf.update(config, key=f'datamodule.input_da.{loader_key}', value=loader_value)
                      # for SSH inference : value='contrib.data_loading.data.load_ose_data_with_tgt_mask')
                      # value='contrib.data_loading.data.load_ose_data_with_tgt_mask_SLA')  # for SLA training only !
                      #load_ose_data_with_tgt_mask')
