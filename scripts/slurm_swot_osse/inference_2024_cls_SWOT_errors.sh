@@ -30,5 +30,7 @@ for XP in ose_pipeline_proc_2024_SLA_UNet_Nadir_reproduce_cls_nadir \
           ose_pipeline_proc_2024_SLA_UNet_OSSE_SWOT_errors_cls_nadir_swot; do
   echo "$(date) start $XP"
   HYDRA_FULL_ERROR=1 srun python main.py xp=$XP
-  echo "$(date) $XP EXIT $?"
+  status=$?
+  echo "$(date) $XP EXIT $status"
+  [ $status -eq 0 ] || exit $status  # stop, so that dependent jobs (afterok) do not run on missing outputs
 done

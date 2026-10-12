@@ -1,5 +1,5 @@
-# 2024 SLA forecast with CLS input (cls_nadir), copy of ose_pipeline_proc_2023_global_1patch_SLA_UNet_Filtered_OSSE_Nadir_eval2024_InpSwot+Nadir.yaml
 # @package _global_
+# 2024 SLA forecast with CLS input (cls_nadir), copy of ose_pipeline_proc_2023_global_1patch_SLA_UNet_Filtered_OSSE_Nadir_eval2024_InpSwot+Nadir.yaml
 
 xp_name: forecast_Unet_SLA_1patch_OSSE_NadirOnly_inp_NadirNoSwonOnlyCLS_eval2024_REPRODUCE
 data_name: nrt_sla

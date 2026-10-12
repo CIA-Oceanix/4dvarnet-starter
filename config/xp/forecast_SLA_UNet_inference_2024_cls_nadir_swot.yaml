@@ -1,6 +1,6 @@
+# @package _global_
 # Inference model config for the 2024 SLA forecasts with CLS input (cls_nadir_swot): copy of
 # base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_for_Swot_tests.yaml (same UNet), input file in paths.ose_data_paths.
-# @package _global_
 
 paths:
     masks_path: /Odyssey/public/swot_traces/mask/global_obs_swot_nadir_DT_2024.pickle #Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle 
