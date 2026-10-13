@@ -1,6 +1,8 @@
 # @package _global_
 # Inference model config for the 2024 SLA forecasts with CLS input (cls_nadir): copy of
 # base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_for_Swot_tests.yaml (same UNet), input file in paths.ose_data_paths.
+# SLA input loader of October 2025 (commit 4da8a38; the default one in data.py now reads SST inputs):
+ose_input_loader: contrib.swot_osse.ose_loader.load_ose_data_with_tgt_mask_SLA_2025
 
 paths:
     masks_path: /Odyssey/public/swot_traces/mask/global_obs_swot_nadir_DT_2024.pickle #Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle 
