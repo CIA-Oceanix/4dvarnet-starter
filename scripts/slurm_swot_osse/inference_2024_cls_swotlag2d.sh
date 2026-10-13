@@ -19,6 +19,10 @@ cd /Odyssey/private/d21botvy/OCEAN_FORECAST/4dvarnet-starter-glorys12/
 
 for XP in ose_pipeline_proc_2024_SLA_UNet_nadirtrained_cls_swotlag2d_A ose_pipeline_proc_2024_SLA_UNet_nadirtrained_cls_swotlag2d_B \
           ose_pipeline_proc_2024_SLA_UNet_swoterrors_cls_swotlag2d_A ose_pipeline_proc_2024_SLA_UNet_swoterrors_cls_swotlag2d_B; do
+  XPNAME=$(grep -m1 "^xp_name:" config/xp/$XP.yaml | awk '{print $2}')
+  if [ "$(ls /Odyssey/public/glorys/rec/$XPNAME/*/test_data_*.nc 2>/dev/null | wc -l)" -eq 7 ]; then
+    echo "$(date) skip $XP: 7 forecast files already in /Odyssey/public/glorys/rec/$XPNAME"; continue
+  fi
   echo "$(date) start $XP"
   HYDRA_FULL_ERROR=1 srun python main.py xp=$XP
   status=$?

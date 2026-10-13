@@ -105,7 +105,7 @@ options:    # pipeline : données download, concat etc ; 4dvarnet pour reconstru
   skip:
     data: False
     rec: False
-    metrics: False
+    metrics: True   # 4dvarnet metrics step expects an 'ssh' variable (forecasts hold 'out'); scores come from OceanBench
 
   overwrite:         # check si ça existe de base. Si false, il va pas remplacer. Metrics générakement en true.
     data: False   # pas besoin de overwrit'e data téléchargée 

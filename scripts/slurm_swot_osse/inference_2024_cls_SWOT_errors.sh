@@ -28,6 +28,10 @@ echo "$(date) best checkpoint: $BEST"
 for XP in ose_pipeline_proc_2024_SLA_UNet_Nadir_reproduce_cls_nadir \
           ose_pipeline_proc_2024_SLA_UNet_OSSE_SWOT_errors_cls_nadir \
           ose_pipeline_proc_2024_SLA_UNet_OSSE_SWOT_errors_cls_nadir_swot; do
+  XPNAME=$(grep -m1 "^xp_name:" config/xp/$XP.yaml | awk '{print $2}')
+  if [ "$(ls /Odyssey/public/glorys/rec/$XPNAME/*/test_data_*.nc 2>/dev/null | wc -l)" -eq 7 ]; then
+    echo "$(date) skip $XP: 7 forecast files already in /Odyssey/public/glorys/rec/$XPNAME"; continue
+  fi
   echo "$(date) start $XP"
   HYDRA_FULL_ERROR=1 srun python main.py xp=$XP
   status=$?
