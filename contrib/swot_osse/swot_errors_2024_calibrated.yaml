@@ -1,0 +1,20 @@
+# SWOT error model calibrated on 2024 CLS gridded data vs DUACS DT 2024 (calibrate_errors_2024.py).
+# Per 10-deg latitude band, metres. std_swot is an upper bound (DUACS misses small scales).
+bands:
+  - {lat_min: -80, lat_max: -70, n_swot: 312180, std_nadir: 0.01775, std_swot: 0.05426, excess_std: 0.05128, white_std: 0.03374, corr_std: 0.09872, corr_scale_deg: 0.214}
+  - {lat_min: -70, lat_max: -60, n_swot: 1739458, std_nadir: 0.01610, std_swot: 0.04033, excess_std: 0.03698, white_std: 0.02609, corr_std: 0.02952, corr_scale_deg: 0.665}
+  - {lat_min: -60, lat_max: -50, n_swot: 2706809, std_nadir: 0.02104, std_swot: 0.02865, excess_std: 0.01944, white_std: 0.01621, corr_std: 0.01765, corr_scale_deg: 1.900}
+  - {lat_min: -50, lat_max: -40, n_swot: 2196045, std_nadir: 0.01962, std_swot: 0.02646, excess_std: 0.01775, white_std: 0.01352, corr_std: 0.01919, corr_scale_deg: 1.406}
+  - {lat_min: -40, lat_max: -30, n_swot: 1497616, std_nadir: 0.02026, std_swot: 0.02536, excess_std: 0.01526, white_std: 0.01370, corr_std: 0.01634, corr_scale_deg: 1.391}
+  - {lat_min: -30, lat_max: -20, n_swot: 1386148, std_nadir: 0.01682, std_swot: 0.02205, excess_std: 0.01426, white_std: 0.01193, corr_std: 0.01458, corr_scale_deg: 1.539}
+  - {lat_min: -20, lat_max: -10, n_swot: 1295165, std_nadir: 0.01741, std_swot: 0.02275, excess_std: 0.01464, white_std: 0.01177, corr_std: 0.01619, corr_scale_deg: 1.566}
+  - {lat_min: -10, lat_max: 0, n_swot: 1205459, std_nadir: 0.02048, std_swot: 0.02473, excess_std: 0.01386, white_std: 0.01273, corr_std: 0.02153, corr_scale_deg: 0.989}
+  - {lat_min: 0, lat_max: 10, n_swot: 1239939, std_nadir: 0.02249, std_swot: 0.03002, excess_std: 0.01990, white_std: 0.01417, corr_std: 0.02483, corr_scale_deg: 1.600}
+  - {lat_min: 10, lat_max: 20, n_swot: 1208397, std_nadir: 0.01916, std_swot: 0.02508, excess_std: 0.01619, white_std: 0.01319, corr_std: 0.01673, corr_scale_deg: 1.610}
+  - {lat_min: 20, lat_max: 30, n_swot: 1078566, std_nadir: 0.01858, std_swot: 0.02503, excess_std: 0.01677, white_std: 0.01341, corr_std: 0.01635, corr_scale_deg: 1.686}
+  - {lat_min: 30, lat_max: 40, n_swot: 916101, std_nadir: 0.02363, std_swot: 0.03011, excess_std: 0.01866, white_std: 0.01623, corr_std: 0.01830, corr_scale_deg: 1.650}
+  - {lat_min: 40, lat_max: 50, n_swot: 1009074, std_nadir: 0.01957, std_swot: 0.02709, excess_std: 0.01873, white_std: 0.01395, corr_std: 0.01973, corr_scale_deg: 1.677}
+  - {lat_min: 50, lat_max: 60, n_swot: 986484, std_nadir: 0.02054, std_swot: 0.02896, excess_std: 0.02041, white_std: 0.01445, corr_std: 0.02171, corr_scale_deg: 1.957}
+  - {lat_min: 60, lat_max: 70, n_swot: 593641, std_nadir: 0.02528, std_swot: 0.04253, excess_std: 0.03420, white_std: 0.02344, corr_std: 0.02937, corr_scale_deg: 1.600}
+  - {lat_min: 70, lat_max: 80, n_swot: 2130677, std_nadir: 0.02365, std_swot: 0.04496, excess_std: 0.03824, white_std: 0.01772, corr_std: 0.04219, corr_scale_deg: 1.642}
+  - {lat_min: 80, lat_max: 90, n_swot: 0, std_nadir: 0.02123, std_swot: 0.00000, excess_std: 0.00000, white_std: nan, corr_std: nan, corr_scale_deg: nan}
