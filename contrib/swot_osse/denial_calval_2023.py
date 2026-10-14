@@ -132,7 +132,21 @@ def main():
         a_time, a_lat, a_lon, a_val = a_time[ok], a_lat[ok], a_lon[ok], a_val[ok]
         i_lat = np.clip(np.round((a_lat - lat[0]) / 0.25).astype(int), 0, lat.size - 1)
         i_lon = np.round((a_lon - lon[0]) / 0.25).astype(int) % lon.size
-        tracks[tname] = (a_time, a_lat, a_lon, a_val, strip[i_lat, i_lon], region_masks(a_lat, a_lon))
+        a_strip, a_reg = strip[i_lat, i_lon], region_masks(a_lat, a_lon)
+        # per valid day: bilinear weights on the 1/4-degree grid (longitude periodic), computed once
+        y = (a_lat - lat[0]) / 0.25
+        x = (a_lon - lon[0]) / 0.25
+        gi = np.floor(y).astype(int)
+        gj = np.floor(x).astype(int)
+        wy, wx = y - gi, x - gj
+        inside = (gi >= 0) & (gi < lat.size - 1)
+        per_day = {}
+        for k, day in enumerate(days):
+            idx = np.where((a_time == day) & inside)[0]
+            if idx.size:
+                per_day[k] = (gi[idx], gj[idx] % lon.size, (gj[idx] + 1) % lon.size, wy[idx], wx[idx], a_val[idx], a_strip[idx],
+                              {r: m[idx] for r, m in a_reg.items()})
+        tracks[tname] = per_day
         print(f"{tname} points: {a_val.size}", flush=True)
 
     lon_ext = np.concatenate([lon, [lon[-1] + 0.25]])
@@ -174,15 +188,16 @@ def main():
                     v = e[rm[m]]
                     rows.append((t0, kind, level, L, "swot", "strip", r, v.size, v.sum(), (v ** 2).sum()))
                 # truths: along-track nadir on the valid day (AltiKa: never an input; h2b, s3a, s3b: inputs on past days only)
-                for tname, (a_time, a_lat, a_lon, a_val, a_strip, a_reg) in tracks.items():
-                    sel = a_time == days[iv]
-                    if not sel.any():
+                for tname, per_day in tracks.items():
+                    if iv not in per_day:
                         continue
-                    e = interp(fc, a_lat[sel], a_lon[sel]) - a_val[sel]
+                    gi, gj0, gj1, wy, wx, val, a_strip, a_reg = per_day[iv]
+                    fi = ((1 - wy) * ((1 - wx) * fc[gi, gj0] + wx * fc[gi, gj1]) + wy * ((1 - wx) * fc[gi + 1, gj0] + wx * fc[gi + 1, gj1]))
+                    e = fi - val
                     good = np.isfinite(e)
                     for on, name in ((True, "strip"), (False, "off_strip")):
                         for r, rm in a_reg.items():
-                            v = e[good & (a_strip[sel] == on) & rm[sel]]
+                            v = e[good & (a_strip == on) & rm]
                             rows.append((t0, kind, level, L, tname, name, r, v.size, v.sum(), (v ** 2).sum()))
         print(f"{pd.Timestamp.now():%H:%M} {t0.date()} done", flush=True)
     pd.DataFrame(rows, columns=["t0", "denial", "level", "lead_day", "truth", "points", "region", "n", "sum_err", "sum_sq_err"]
