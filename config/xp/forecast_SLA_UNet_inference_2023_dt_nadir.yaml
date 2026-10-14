@@ -1,0 +1,163 @@
+# @package _global_
+# Inference model config for the 2023 SLA forecasts with the DT nadir input of processed_2023_global_4 (validation of the
+# direct forward pass of the SWOT denial experiment, and 2023 baseline). Copy of the 2024 cls_nadir config: copy of
+# base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet_for_Swot_tests.yaml (same UNet), input file in paths.ose_data_paths.
+# SLA input loader of October 2025 (commit 4da8a38; the default one in data.py now reads SST inputs):
+ose_input_loader: contrib.swot_osse.ose_loader.load_ose_data_with_tgt_mask_SLA_2025
+
+paths:
+    masks_path: /Odyssey/public/swot_traces/mask/global_obs_swot_nadir_DT_2024.pickle #Odyssey/public/glorys/obs_masks/global_obs_6sats_masks_2022.pickle 
+    glorys12_data: /Odyssey/public/glorys/reanalysis/glorys12_2010_2019_daily_sla_4th_float32.nc
+    ref_data_l4: ""  #/Odyssey/public/duacs/2023/duacs_2023_2024_0.25deg_float32.nc # ATTENTION THE TGT FOR THE VAR HERE IS DUACS AND NOT GLORYS # just to test the reproducibility of unet
+    ose_data_paths: ""   # empty: input = <ose_data_path>/processed_2023_global_4/gridded/gridded_input.nc
+      #/Odyssey/public/altimetry_traces/2024/NRT_real_noswon_noalg_nojson_no_sentinel/gridded/gridded_input.nc
+      #/Odyssey/public/altimetry_traces/2024/NRT_real_no_swon_no_alg/gridded/gridded_input.nc
+      # /Odyssey/public/swot_traces/cls/gridded_obs_sla_0.25_nadirs_2024_without_swon.nc
+      # /Odyssey/public/swot_traces/cls/gridded_obs_sla_0.25_swot_2024_reformated.nc
+      # /Odyssey/public/swot_traces/cls/gridded_obs_sla_0.25_nadirs_2024_without_swon.nc
+      #/Odyssey/public/swot_traces/gridded/nadirNoSwon+swot_0.25deg_2023_2025_NRT_REAL.nc 
+      # CLS data : Odyssey/public/swot_traces/cls/gridded_obs_sla_0.25_swot_2024.nc
+      #/Odyssey/public/altimetry_traces/2024/NRT_REAL_no_swon/gridded/gridded_input.nc #/Odyssey/public/swot_traces/gridded/nadir+swot_0.25deg_2023_2025_NRT_REAL.nc
+      #/Odyssey/public/swot_traces/gridded/nadir+swot_0.25deg_2023_2025.nc
+      #/Odyssey/public/altimetry_traces/2024/NRT_REAL/gridded/gridded_input.nc  #Odyssey/public/altimetry_traces/processed/2010_2023/gridded/gridded_input_4th.nc #/Odyssey/public/altimetry_traces/nrt_sla/gridded/gridded_input.nc
+      #Odyssey/public/altimetry_traces/processed/2024/gridded/gridded_input.nc
+      #/Odyssey/public/swot_traces/gridded/nadir+swot_0.25deg_2023_2025.nc
+      #Odyssey/public/altimetry_traces/processed/2024/gridded/gridded_input.nc
+      #glorys4_2016_2022_sla.nc
+      #kpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_not_SSH/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA/checkpoints/val_mse=4.13586-epoch=299.ckpt
+      #Odyssey/public/glorys/reanalysis/glorys12_2010_2019_4th.nc   # Path des trcaes L3 ?
+      #kpt_path: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_not_SSH/base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA/checkpoints/val_mse=5.06367-epoch=088.ckpt
+      #al_mse=5.21636-epoch=057.ckpt
+
+var_name: "sla_filtered"
+year_ose: 2023
+
+
+domain:
+  train:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - -80
+      - 90
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -180
+      - 180
+  test:
+    lat:
+      _target_: builtins.slice
+      _args_:
+      - -79
+      - 89
+    lon:
+      _target_: builtins.slice
+      _args_:
+      - -179
+      - 179
+
+trainer:
+  _target_: pytorch_lightning.Trainer
+  inference_mode: False
+  gradient_clip_val: 0.5
+  accelerator: gpu
+  devices: 1
+  logger:
+    _target_: pytorch_lightning.loggers.CSVLogger
+    save_dir: /Odyssey/public/glorys/trainings/forecast_global_GPU_1patch_1y_SLA_UNet_17M_2010_2019_OSSESWOT_loss_+grad_1000epochs
+      #${hydra:runtime.output_dir}
+    name: ${hydra:runtime.choices.xp}
+    version: ''
+  max_epochs: 1000
+  limit_train_batches: 100
+  callbacks:
+    - _target_: src.versioning_cb.VersioningCallback
+    - _target_: pytorch_lightning.callbacks.LearningRateMonitor
+    - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+      monitor: val_mse
+      save_top_k: 3
+      filename: '{val_mse:.5f}-{epoch:03d}'
+
+datamodule:
+  _target_: contrib.moving_patches.movpatch_data_tests.MovingPatchDataModuleFastRecGPU
+  input_da: 
+    _target_: contrib.data_loading.data.open_glorys12_data_sla
+    path: ${paths.glorys12_data}
+    masks_path: ${paths.masks_path}
+    domain: ${domain.train}
+  domains:
+    train:
+      time: {_target_: builtins.slice, _args_: ['2010-01-01', '2019-05-17']}
+    val: 
+      time: {_target_: builtins.slice, _args_: ['2019-05-18', '2019-12-31']}
+    test: 
+      time: {_target_: builtins.slice,  _args_: ['2019-12-31', '2019-12-31']}
+  xrds_kw:
+    patch_dims: { time: 29, lat: 680, lon: 1440}
+    strides: { time: 1, lat: 672, lon: 1432}
+    domain_limits: ${domain.train}
+  dl_kw: {batch_size: 1, num_workers: 12}
+  aug_kw:
+    aug_factor: 1
+    aug_only: True
+
+model:
+  _target_: contrib.forecast_plus.models.Plus4dVarNetForecastPatchGPU_UNet_OSSE
+  persist_rw: False
+  opt_fn:
+    _target_: src.utils.cosanneal_lr_adam_UNet            #cosanneal_lr_adam
+    _partial_: true
+    lr: 1e-3
+    T_max: ${trainer.max_epochs}
+  rec_weight:
+    _target_: src.utils.get_forecast_wei
+    patch_dims: ${datamodule.xrds_kw.patch_dims}
+    crop: {time: 0, lat: 4, lon: 4}
+  rec_weight_fn:
+    _target_: contrib.forecast_weights.forecast_weights_reconstruction_soft_edges
+    _partial_: True
+    soft_edge: 0.25
+  solver:
+    _target_: src.models_UNet.UNet    #GradSolverZero
+    n_channels: 29
+    n_classes: 29
+    bilinear: True
+    block: 
+      _target_: src.parts.ResBlock
+      _partial_: True
+    add_input: False
+      #n_step: 10
+      #lr_grad: 1e3
+    # lr_grad: 0.2
+    #prior_cost:
+    # _target_: src.models.BilinAEPriorCost
+    # dim_in: ${datamodule.xrds_kw.patch_dims.time}
+    # dim_hidden: 64
+    # bilin_quad: False
+      # bilin_quad: True
+      #downsamp: 2
+    # obs_cost:
+    #_target_: src.models.BaseObsCost
+    #grad_mod:
+    # _target_: src.models.ConvLstmGradModel
+    # dim_in: ${datamodule.xrds_kw.patch_dims.time}
+    # dim_hidden: 96
+  pre_metric_fn:
+        _target_: xarray.Dataset.sel
+        _partial_: True
+        time: {_target_: builtins.slice, _args_: ["2019-11-25", "2019-12-31"]}
+        lat: ${domain.test.lat}
+        lon: ${domain.test.lon}
+
+entrypoints:
+  - _target_: pytorch_lightning.seed_everything
+    seed: 333
+  - _target_: src.train.base_training
+    trainer: ${trainer}
+    lit_mod: ${model}
+    dm: ${datamodule}
+
+defaults:
+  - _self_
+
