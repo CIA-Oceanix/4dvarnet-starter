@@ -1,0 +1,115 @@
+# @package _global_
+# SLA UNet trained from scratch on a nadir + SWOT OSSE with the SWOT error model calibrated on real 2024 data
+# (contrib/swot_osse/data_epoch.py, contrib/swot_osse/swot_errors_2024_calibrated.yaml).
+# Errors, 2024 sampling days and SWOT-free days (50 %) re-drawn every 10 epochs (seed = epoch); validation drawn once.
+# Same recipe as base_forecast_global_softedge_fastrec_GPU_1patch_10y_SLA_UNet (Nadir OSSE UNet, val_mse=3.08068):
+# model, UNet, 29-day window, Adam lr 1e-3 cosine, loss, batch 1, 100 batches per epoch, training-set normalisation.
+# One difference: no AugmentedDataset. With aug_only it replaces the input by the exact truth on the mask of another
+# day, which would discard the observation errors; random sampling days come from the re-draws instead.
+# The launcher overrides paths.glorys12_data with the node-local /SCRATCH copy.
+
+paths:
+  glorys12_data: /Odyssey/public/glorys/reanalysis/glorys12_2010_2019_daily_sla_4th_float32.nc
+  masks_path: /Odyssey/public/swot_traces/mask/cls_2024_nadir_swot_masks.npz
+  calibration: contrib/swot_osse/swot_errors_2024_calibrated.yaml
+
+domain:
+  train:
+    lat: {_target_: builtins.slice, _args_: [-80, 90]}
+    lon: {_target_: builtins.slice, _args_: [-180, 180]}
+  test:
+    lat: {_target_: builtins.slice, _args_: [-79, 89]}
+    lon: {_target_: builtins.slice, _args_: [-179, 179]}
+
+trainer:
+  _target_: pytorch_lightning.Trainer
+  inference_mode: False
+  gradient_clip_val: 0.5
+  accelerator: gpu
+  devices: 1
+  reload_dataloaders_every_n_epochs: ${datamodule.resample_every}
+  logger:
+    _target_: pytorch_lightning.loggers.CSVLogger
+    save_dir: /Odyssey/public/glorys/trainings/forecast_SLA_UNet_OSSE_SWOT_errors_scratch
+    name: ${hydra:runtime.choices.xp}
+    version: ''
+  max_epochs: 400
+  limit_train_batches: 100
+  callbacks:
+    - _target_: src.versioning_cb.VersioningCallback
+    - _target_: pytorch_lightning.callbacks.LearningRateMonitor
+    - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+      monitor: val_mse
+      save_top_k: 3
+      save_last: True
+      filename: '{val_mse:.5f}-{epoch:03d}'
+
+datamodule:
+  _target_: contrib.swot_osse.data_epoch.SwotErrorsMovingPatchDataModule
+  osse_kw:
+    path: ${paths.glorys12_data}
+    masks_path: ${paths.masks_path}
+    calibration: ${paths.calibration}
+    domain: ${domain.train}
+    swot_dropout: 0.5
+    nadir_noise_m: 0.01
+    scale_buckets_deg: [1.0, 1.5, 2.0]
+    n_pool: 48
+  resample_every: 10
+  val_seed: 0
+  domains:
+    train:
+      time: {_target_: builtins.slice, _args_: ['2010-01-01', '2019-05-17']}
+    val:
+      time: {_target_: builtins.slice, _args_: ['2019-05-18', '2019-12-31']}
+    test:
+      time: {_target_: builtins.slice, _args_: ['2019-12-31', '2019-12-31']}
+  xrds_kw:
+    patch_dims: {time: 29, lat: 680, lon: 1440}
+    strides: {time: 1, lat: 672, lon: 1432}
+    domain_limits: ${domain.train}
+  dl_kw: {batch_size: 1, num_workers: 12}
+  aug_kw: null
+
+model:
+  _target_: contrib.forecast_plus.models.Plus4dVarNetForecastPatchGPU_UNet_OSSE
+  persist_rw: False
+  opt_fn:
+    _target_: src.utils.cosanneal_lr_adam_UNet
+    _partial_: true
+    lr: 1e-3
+    T_max: ${trainer.max_epochs}
+  rec_weight:
+    _target_: src.utils.get_forecast_wei
+    patch_dims: ${datamodule.xrds_kw.patch_dims}
+    crop: {time: 0, lat: 4, lon: 4}
+  rec_weight_fn:
+    _target_: contrib.forecast_weights.forecast_weights_reconstruction_soft_edges
+    _partial_: True
+    soft_edge: 0.25
+  solver:
+    _target_: src.models_UNet.UNet
+    n_channels: 29
+    n_classes: 29
+    bilinear: True
+    block:
+      _target_: src.parts.ResBlock
+      _partial_: True
+    add_input: False
+  pre_metric_fn:
+    _target_: xarray.Dataset.sel
+    _partial_: True
+    time: {_target_: builtins.slice, _args_: ["2019-11-25", "2019-12-31"]}
+    lat: ${domain.test.lat}
+    lon: ${domain.test.lon}
+
+entrypoints:
+  - _target_: pytorch_lightning.seed_everything
+    seed: 333
+  - _target_: src.train.base_training
+    trainer: ${trainer}
+    lit_mod: ${model}
+    dm: ${datamodule}
+
+defaults:
+  - _self_
