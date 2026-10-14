@@ -8,7 +8,8 @@ observed, output channel 14+k = day t0+k), with the normalisation the pipeline u
 
 Daily starts t0 from 2023-04-12 to 2023-07-03 (14 input days and 7 forecast days inside the phase). For each start:
   - cumulative denial "last_k": SWOT removed on the last k input days (t0-1 .. t0-k), k = 0 (all SWOT) .. 14 (Nadir only);
-  - single-day denial "only_j": SWOT removed on day t0-j only, j = 1 .. 14.
+  - single-day denial "only_j": SWOT removed on day t0-j only, j = 1 .. 14;
+  - sparse sampling "keep_j" (--kinds keep_j): SWOT kept on day t0-j only, j = 1 .. 14, as with the 21-day orbit of 2024.
 Scores (sum of errors and squared errors, per start, so that RMSE and bootstrap intervals can be computed later), lead days
 1..7 (lead day 1 = day t0 = test_data_14):
   - truth "swot": gridded SWOT on the valid day (never an input of that forecast), on its cells;
@@ -84,6 +85,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("out")
     p.add_argument("--max-starts", type=int, default=None)
+    p.add_argument("--kinds", default="last_k,only_j", help="comma list of last_k, only_j, keep_j (SWOT kept on day t0-j only)")
     p.add_argument("--check", action="store_true", help="only compare the rebuild with the 2023 UNet forecast files")
     args = p.parse_args()
     device = "cuda"
@@ -131,8 +133,14 @@ def main():
         i0 = days.get_loc(t0)
         base = combined[i0 - N_OBS:i0].copy()
         so = sw_only[i0 - N_OBS:i0]
-        experiments = [("last_k", k, np.arange(N_OBS - k, N_OBS)) for k in range(N_OBS + 1)]
-        experiments += [("only_j", j, np.array([N_OBS - j])) for j in range(1, N_OBS + 1)]
+        kinds = args.kinds.split(",")
+        experiments = []
+        if "last_k" in kinds:
+            experiments += [("last_k", k, np.arange(N_OBS - k, N_OBS)) for k in range(N_OBS + 1)]
+        if "only_j" in kinds:
+            experiments += [("only_j", j, np.array([N_OBS - j])) for j in range(1, N_OBS + 1)]
+        if "keep_j" in kinds:  # sparse sampling, as with the 21-day orbit: SWOT on one input day only
+            experiments += [("keep_j", j, np.array([d for d in range(N_OBS) if d != N_OBS - j])) for j in range(1, N_OBS + 1)]
         for kind, level, removed in experiments:
             x = np.full((DT,) + base.shape[1:], np.nan, np.float32)
             x[:N_OBS] = base

@@ -15,4 +15,4 @@ conda activate 4dvar_v2
 cd /Odyssey/private/d21botvy/OCEAN_FORECAST/4dvarnet-starter-glorys12/
 OUT=/Odyssey/private/d21botvy/oceanbench_eval/results/swot_denial_calval_2023
 if [ "$1" = "check" ]; then python contrib/swot_osse/denial_calval_2023.py $OUT --check; exit $?; fi
-python contrib/swot_osse/denial_calval_2023.py $OUT
+python contrib/swot_osse/denial_calval_2023.py ${OUTDIR:-$OUT} ${KINDS:+--kinds $KINDS}
