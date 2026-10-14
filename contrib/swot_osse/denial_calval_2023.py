@@ -51,10 +51,10 @@ def region_of(lat):
     return out
 
 
-# 14 Oct 2026: glorys4_global_1patch_SLA_UNet_Filtered (NRT input) differs by ~4 cm -> another model; the OSSE Nadir UNet 2023
-# test run below is checked against the DT input of the experiment and the NRT input.
-CHECK_INPUTS = {"DT": NADIR, "NRT": "/Odyssey/public/altimetry_traces/nrt_sla/gridded/gridded_input.nc"}
-CHECK_REC = "/Odyssey/public/glorys/rec/glorys4_global_1patch_SLA_UNet_Filtered_OSSE_NadirOnly_eval_2023_NadirOnly_TEST/nrt_sla/test_data_{}.nc"
+# 14 Oct 2026: the older 2023 UNet runs (glorys4_global_1patch_SLA_UNet_Filtered*, ..._eval_2023_NadirOnly_TEST) differ by 3-5 cm:
+# other models. Reference = pipeline inference of the same checkpoint on the same DT input (inference_2023_unet_dt.sh).
+CHECK_INPUTS = {"DT": NADIR}
+CHECK_REC = "/Odyssey/public/glorys/rec/forecast_Unet_SLA_1patch_OSSE_NadirOnly_inp_DT2023_eval2023/processed_2023_global_4/test_data_{}.nc"
 
 
 def check(model, device):
