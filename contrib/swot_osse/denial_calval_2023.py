@@ -9,7 +9,9 @@ observed, output channel 14+k = day t0+k), with the normalisation the pipeline u
 Daily starts t0 from 2023-04-12 to 2023-07-03 (14 input days and 7 forecast days inside the phase). For each start:
   - cumulative denial "last_k": SWOT removed on the last k input days (t0-1 .. t0-k), k = 0 (all SWOT) .. 14 (Nadir only);
   - single-day denial "only_j": SWOT removed on day t0-j only, j = 1 .. 14;
-  - sparse sampling "keep_j" (--kinds keep_j): SWOT kept on day t0-j only, j = 1 .. 14, as with the 21-day orbit of 2024.
+  - sparse sampling "keep_j" (--kinds keep_j): SWOT kept on day t0-j only, j = 1 .. 14, as with the 21-day orbit of 2024;
+  - copy test (--kinds copy): Nadir only, all SWOT, t0-1 only, and SWOT values of t0-2 (copy_t0m2) or of all older days (copy_all)
+    replaced by those of t0-1, and the pair t0-1 + t0-2 with real values (pair) or with t0-2 a copy of t0-1 (pair_copy).
 Scores (sum of errors and squared errors, per start, so that RMSE and bootstrap intervals can be computed later), lead days
 1..7 (lead day 1 = day t0 = test_data_14):
   - truth "swot": gridded SWOT on the valid day (never an input of that forecast), on its cells;
@@ -169,11 +171,26 @@ def main():
             experiments += [("only_j", j, np.array([N_OBS - j])) for j in range(1, N_OBS + 1)]
         if "keep_j" in kinds:  # sparse sampling, as with the 21-day orbit: SWOT on one input day only
             experiments += [("keep_j", j, np.array([d for d in range(N_OBS) if d != N_OBS - j])) for j in range(1, N_OBS + 1)]
-        for kind, level, removed in experiments:
+        experiments = [e + (np.array([], int),) for e in experiments]
+        if "copy" in kinds:  # copy test: SWOT pixels of some days replaced by those of day t0-1 (no day-to-day change)
+            older = np.arange(N_OBS - 1)
+            experiments += [("last_k", 0, np.array([], int), np.array([], int)),  # SWOT on all days
+                            ("last_k", 14, np.arange(N_OBS), np.array([], int)),  # Nadir only
+                            ("keep_j", 1, older, np.array([], int)),  # t0-1 only
+                            ("copy_t0m2", 1, np.array([], int), np.array([N_OBS - 2])),  # all days, t0-2 := t0-1
+                            ("copy_all", 1, np.array([], int), older),  # all days := t0-1
+                            ("pair", 1, np.arange(N_OBS - 2), np.array([], int)),  # t0-1 and t0-2 only, real
+                            ("pair_copy", 1, np.arange(N_OBS - 2), np.array([N_OBS - 2]))]  # t0-1 and t0-2 := t0-1
+        for kind, level, removed, copied in experiments:
             x = np.full((DT,) + base.shape[1:], np.nan, np.float32)
             x[:N_OBS] = base
             for d in removed:
                 x[d][so[d]] = np.nan
+            last = so[N_OBS - 1]
+            for d in copied:
+                x[d][so[d]] = np.nan
+                free = last & ~(np.isfinite(base[d]) & ~so[d])  # never overwrite a nadir observation of day d
+                x[d][free] = base[N_OBS - 1][free]
             xn = np.nan_to_num((x - MEAN) / STD)
             with torch.no_grad():
                 f = model(Batch(torch.from_numpy(xn)[None].to(device)))[0, N_OBS:N_OBS + N_LEAD].cpu().numpy() * STD + MEAN
